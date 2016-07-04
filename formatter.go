@@ -30,7 +30,7 @@ const (
 
 var (
 	// FmtFlags is the list of log format flags supported by aah/log library
-	// Usage of flag order is upto format composition.
+	// Usage of flag order is up to format composition.
 	//    level     - outputs INFO, DEBUG, ERROR, so on
 	//    time      - outputs local time as per format supplied
 	//    utctime   - outputs UTC time as per format supplied
