@@ -7,16 +7,34 @@ Package `log` is used across **aah framework**. It's independent library, can be
 * Console
   * Log level is colored (for windows it's plain)
 * File
-  * Daily Rotate
-  * No. of Backups
+  * Log Rotation
+    * Daily
+    * Size
+    * No. of lines
+  * No. of Backups (upcoming)
 * Remote - TCP & UDP (upcoming)
 
 ## Quick Start
 
 ```
-TBD - TODO
+go get -u github.com/go-aah/log
 ```
 
-## How to Contribute?
+## Sample
+```go
+log.Info("Welcome ", "to ", "aah ", "logger")
+log.Infof("%v, %v, & %v", "simple", "flexible", "powerful logger")
 
-Document the steps (TODO).
+// Output:
+2016-07-03 19:22:11.504 INFO  - Welcome to aah logger
+2016-07-03 19:22:11.504 INFO  - simple, flexible, & powerful logger
+```
+
+## Author
+Jeevanandam M. - jeeva@myjeeva.com
+
+## Contributors
+Have a look on [Contributors](https://github.com/go-aah/log/graphs/contributors) page.
+
+## License
+Released under MIT license, refer [LICENSE](LICENSE) file.
