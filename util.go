@@ -49,7 +49,7 @@ func lines(fileName string) int {
 	return count
 }
 
-// createDir method creates nested directories if not exists
+// mkDirAll method creates nested directories if not exists
 func mkDirAll(path string) error {
 	if _, err := os.Lstat(path); err != nil {
 		if os.IsNotExist(err) {
