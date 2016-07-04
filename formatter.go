@@ -5,66 +5,11 @@
 package log
 
 import (
-	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
-)
 
-// FmtFlag type definition
-type FmtFlag uint8
-
-// Format flags used to define log message format for each log entry
-const (
-	FmtFlagLevel FmtFlag = iota
-	FmtFlagTime
-	FmtFlagUTCTime
-	FmtFlagLongfile
-	FmtFlagShortfile
-	FmtFlagLine
-	FmtFlagMessage
-	FmtFlagCustom
-	FmtFlagUnknown
-)
-
-var (
-	// FmtFlags is the list of log format flags supported by aah/log library
-	// Usage of flag order is up to format composition.
-	//    level     - outputs INFO, DEBUG, ERROR, so on
-	//    time      - outputs local time as per format supplied
-	//    utctime   - outputs UTC time as per format supplied
-	//    longfile  - outputs full file name: /a/b/c/d.go
-	//    shortfile - outputs final file name element: d.go
-	//    line      - outputs file line number: L23
-	//    message   - outputs given message along supplied arguments if they present
-	//    custom    - outputs string as-is into log entry
-	FmtFlags = map[string]FmtFlag{
-		"level":     FmtFlagLevel,
-		"time":      FmtFlagTime,
-		"utctime":   FmtFlagUTCTime,
-		"longfile":  FmtFlagLongfile,
-		"shortfile": FmtFlagShortfile,
-		"line":      FmtFlagLine,
-		"message":   FmtFlagMessage,
-		"custom":    FmtFlagCustom,
-	}
-
-	// DefaultPattern is default log entry pattern in aah/log
-	// For e.g:
-	//    2006-01-02 15:04:05.000 INFO  - This is my message
-	DefaultPattern = "%time:2006-01-02 15:04:05.000 %level:-5 %custom:- %message"
-
-	// BackupTimeFormat is used for timestamp with filename on rotation
-	BackupTimeFormat = "2006-01-02-15-04-05.000"
-
-	// ErrFormatStringEmpty returned when log format parameter is empty
-	ErrFormatStringEmpty = errors.New("log format string is empty")
-
-	flagSeparator      = "%"
-	flagValueSeparator = ":"
-	defaultFormat      = "%v"
-	filePermission     = os.FileMode(0755)
+	"github.com/go-aah/essentials"
 )
 
 // FormatterFunc is the handler function to implement log entry
@@ -88,7 +33,7 @@ type FlagPart struct {
 //  For e.g.:
 //    %time:2006-01-02 15:04:05.000 %level %custom:- %msg
 func parseFlag(format string) (*[]FlagPart, error) {
-	if strIsEmpty(format) {
+	if ess.StrIsEmpty(format) {
 		return nil, ErrFormatStringEmpty
 	}
 
@@ -149,7 +94,7 @@ func DefaultFormatter(flags *[]FlagPart, entry *Entry, isColor bool) (*[]byte, e
 		case FmtFlagLine:
 			buf = append(buf, fmt.Sprintf(part.Format, "L"+strconv.Itoa(entry.Line))...)
 		case FmtFlagMessage:
-			if strIsEmpty(entry.Format) {
+			if ess.StrIsEmpty(entry.Format) {
 				buf = append(buf, fmt.Sprint(entry.Values...)...)
 			} else {
 				buf = append(buf, fmt.Sprintf(entry.Format, entry.Values...)...)

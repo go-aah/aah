@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-aah/essentials"
 	"github.com/go-aah/forge"
 )
 
@@ -237,7 +238,7 @@ func (r *Receiver) openFile() error {
 
 	name := r.fileName()
 	dir := filepath.Dir(name)
-	_ = mkDirAll(dir)
+	_ = ess.MkDirAll(dir)
 
 	file, err := os.OpenFile(name, os.O_CREATE|os.O_APPEND|os.O_WRONLY, filePermission)
 	if err != nil {
@@ -253,7 +254,7 @@ func (r *Receiver) openFile() error {
 	r.isClosed = false
 	r.setOpenDay()
 	r.stats.bytes = fileStat.Size()
-	r.stats.lines = int64(lines(name))
+	r.stats.lines = int64(ess.LineCntr(file))
 	r.out = file
 
 	return nil
