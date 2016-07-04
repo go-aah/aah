@@ -207,27 +207,3 @@ func compare(e, g interface{}) (r bool) {
 
 	return
 }
-
-// func TestConfig(t *testing.T) {
-//
-// 	v1, _ := cfg.Int("int")
-// 	fmt.Println("dev.int:", v1)
-//
-// 	v2, _ := cfg.Int64("int64")
-// 	fmt.Println("int64:", v2)
-//
-// 	v3, _ := cfg.Float32("subsection.sub_float")
-// 	fmt.Println("subsection.sub_float:", v3)
-//
-// 	fmt.Println("int32:", cfg.IntDefault("int32", 100))
-// 	fmt.Println("sub_section.sub_float:", cfg.Float32Default("sub_section.sub_float", 99.99))
-//
-// 	fmt.Println(err, cfg != nil)
-// 	fmt.Printf("\n%#v\n", cfg.cfg)
-//
-// 	v1, _ := cfg.cfg.Resolve("top_level")
-// 	fmt.Println("value1:", v1.GetValue())
-//
-// 	v2, _ := cfg.cfg.Resolve("primary.sub_section.sub_float")
-// 	fmt.Println("value1:", v2.GetValue(), v2.GetType())
-// }
