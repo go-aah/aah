@@ -13,7 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-aah/forge"
+	"github.com/go-aah/config"
+	"github.com/go-aah/essentials"
 )
 
 // Receiver represents aah logger object that statisfy console, file, logging
@@ -21,7 +22,7 @@ import (
 // Writer's Write method. `Receiver` guarantees serialize access and
 // it can be used from multiple goroutines like Go standard logger.
 type Receiver struct {
-	Config *forge.Section
+	Config *config.Config
 	Type   string
 	Flags  *[]FlagPart
 	Format FormatterFunc
@@ -237,7 +238,7 @@ func (r *Receiver) openFile() error {
 
 	name := r.fileName()
 	dir := filepath.Dir(name)
-	_ = mkDirAll(dir)
+	_ = ess.MkDirAll(dir)
 
 	file, err := os.OpenFile(name, os.O_CREATE|os.O_APPEND|os.O_WRONLY, filePermission)
 	if err != nil {
@@ -253,18 +254,14 @@ func (r *Receiver) openFile() error {
 	r.isClosed = false
 	r.setOpenDay()
 	r.stats.bytes = fileStat.Size()
-	r.stats.lines = int64(lines(name))
+	r.stats.lines = int64(ess.LineCntr(file))
 	r.out = file
 
 	return nil
 }
 
 func (r *Receiver) fileName() string {
-	name, err := r.Config.GetString("file")
-	if err != nil {
-		name = "aah-log-file.log"
-	}
-	return name
+	return r.Config.StringDefault("file", "aah-log-file.log")
 }
 
 func (r *Receiver) backupFileName() string {

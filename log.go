@@ -24,11 +24,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-aah/forge"
+	"github.com/go-aah/config"
+	"github.com/go-aah/essentials"
 )
 
 // Level type definition
 type Level uint8
+
+// FmtFlag type definition
+type FmtFlag uint8
 
 // Log Level definition
 const (
@@ -40,9 +44,59 @@ const (
 	LevelUnknown
 )
 
+// Format flags used to define log message format for each log entry
+const (
+	FmtFlagLevel FmtFlag = iota
+	FmtFlagTime
+	FmtFlagUTCTime
+	FmtFlagLongfile
+	FmtFlagShortfile
+	FmtFlagLine
+	FmtFlagMessage
+	FmtFlagCustom
+	FmtFlagUnknown
+)
+
 var (
+	// FmtFlags is the list of log format flags supported by aah/log library
+	// Usage of flag order is up to format composition.
+	//    level     - outputs INFO, DEBUG, ERROR, so on
+	//    time      - outputs local time as per format supplied
+	//    utctime   - outputs UTC time as per format supplied
+	//    longfile  - outputs full file name: /a/b/c/d.go
+	//    shortfile - outputs final file name element: d.go
+	//    line      - outputs file line number: L23
+	//    message   - outputs given message along supplied arguments if they present
+	//    custom    - outputs string as-is into log entry
+	FmtFlags = map[string]FmtFlag{
+		"level":     FmtFlagLevel,
+		"time":      FmtFlagTime,
+		"utctime":   FmtFlagUTCTime,
+		"longfile":  FmtFlagLongfile,
+		"shortfile": FmtFlagShortfile,
+		"line":      FmtFlagLine,
+		"message":   FmtFlagMessage,
+		"custom":    FmtFlagCustom,
+	}
+
+	// DefaultPattern is default log entry pattern in aah/log
+	// For e.g:
+	//    2006-01-02 15:04:05.000 INFO  - This is my message
+	DefaultPattern = "%time:2006-01-02 15:04:05.000 %level:-5 %custom:- %message"
+
+	// BackupTimeFormat is used for timestamp with filename on rotation
+	BackupTimeFormat = "2006-01-02-15-04-05.000"
+
+	// ErrFormatStringEmpty returned when log format parameter is empty
+	ErrFormatStringEmpty = errors.New("log format string is empty")
+
 	// ErrWriterIsClosed returned when log writer is closed
 	ErrWriterIsClosed = errors.New("log writer is closed")
+
+	flagSeparator      = "%"
+	flagValueSeparator = ":"
+	defaultFormat      = "%v"
+	filePermission     = os.FileMode(0755)
 
 	levelNameToLevel = map[string]Level{
 		"ERROR": LevelError,
@@ -114,37 +168,29 @@ type Logger interface {
 }
 
 // New creates the logger based config supplied
-func New(config string) (Logger, error) {
-	if strIsEmpty(config) {
+func New(configStr string) (Logger, error) {
+	if ess.StrIsEmpty(configStr) {
 		return nil, errors.New("logger config is empty")
 	}
 
-	cfg, err := forge.ParseString(config)
+	cfg, err := config.ParseString(configStr)
 	if err != nil {
 		return nil, err
 	}
 
-	receiverType, err := cfg.GetString("receiver")
-	if err != nil {
-		return nil, err
+	receiverType, found := cfg.String("receiver")
+	if !found {
+		return nil, errors.New("receiver configuration is required")
 	}
 	receiverType = strings.ToUpper(receiverType)
 
-	levelName, err := cfg.GetString("level")
-	if err != nil {
-		levelName = "DEBUG"
-	}
-
+	levelName := cfg.StringDefault("level", "DEBUG")
 	level := levelByName(levelName)
 	if level == LevelUnknown {
 		return nil, fmt.Errorf("unrecognized log level: %v", levelName)
 	}
 
-	pattern, err := cfg.GetString("pattern")
-	if err != nil {
-		pattern = DefaultPattern
-	}
-
+	pattern := cfg.StringDefault("pattern", DefaultPattern)
 	flags, err := parseFlag(pattern)
 	if err != nil {
 		return nil, err
@@ -197,7 +243,7 @@ func fetchCallerInfo(calldepth int) (string, int) {
 	return file, line
 }
 
-func newConsoleReceiver(cfg *forge.Section, receiverType string, level Level, flags *[]FlagPart) (*Receiver, error) {
+func newConsoleReceiver(cfg *config.Config, receiverType string, level Level, flags *[]FlagPart) (*Receiver, error) {
 	receiver := Receiver{
 		Config:     cfg,
 		Type:       receiverType,
@@ -214,7 +260,12 @@ func newConsoleReceiver(cfg *forge.Section, receiverType string, level Level, fl
 	return &receiver, nil
 }
 
-func newFileReceiver(cfg *forge.Section, receiverType string, level Level, flags *[]FlagPart) (*Receiver, error) {
+func newFileReceiver(cfg *config.Config, receiverType string, level Level, flags *[]FlagPart) (*Receiver, error) {
+	maxSize := cfg.IntDefault("rotate.size", 100)
+	if maxSize > 2048 { // maximum 2GB file size
+		return nil, errors.New("maximum 2GB file size supported for rotation")
+	}
+
 	receiver := Receiver{
 		Config:     cfg,
 		Type:       receiverType,
@@ -232,16 +283,16 @@ func newFileReceiver(cfg *forge.Section, receiverType string, level Level, flags
 		return nil, err
 	}
 
-	rotate, _ := cfg.GetSection("rotate")
-	receiver.rotate, _ = rotate.GetString("mode")
+	receiver.rotate = cfg.StringDefault("rotate.mode", "daily")
+	// rotate, _ := cfg.GetSection("rotate")
+	// receiver.rotate, _ = rotate.GetString("mode")
 	switch receiver.rotate {
 	case "daily":
 		receiver.setOpenDay()
 	case "lines":
-		receiver.maxLines, _ = rotate.GetInteger("lines")
+		receiver.maxLines = int64(cfg.IntDefault("rotate.lines", 0))
 	case "size":
-		receiver.maxSize, _ = rotate.GetInteger("size")
-		receiver.maxSize = receiver.maxSize * 1024 * 1024
+		receiver.maxSize = int64(maxSize * 1024 * 1024)
 	}
 
 	return &receiver, nil
