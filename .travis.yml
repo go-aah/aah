@@ -13,14 +13,18 @@ go:
   - tip
 
 before_install:
-  - go get github.com/mattn/goveralls
+  - go get github.com/onsi/gomega
+  - go get github.com/onsi/ginkgo
   - go get golang.org/x/tools/cmd/cover
 
 install:
   - go get -v .
 
 script:
-  - $HOME/gopath/bin/goveralls -service=travis-ci
+  - go test -v ./... -coverprofile=coverage.txt -covermode=atomic
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
 
 matrix:
   allow_failures:
