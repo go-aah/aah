@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-aah/config"
 	"github.com/go-aah/essentials"
-	"github.com/go-aah/forge"
 )
 
 // Level type definition
@@ -168,37 +168,29 @@ type Logger interface {
 }
 
 // New creates the logger based config supplied
-func New(config string) (Logger, error) {
-	if ess.StrIsEmpty(config) {
+func New(configStr string) (Logger, error) {
+	if ess.StrIsEmpty(configStr) {
 		return nil, errors.New("logger config is empty")
 	}
 
-	cfg, err := forge.ParseString(config)
+	cfg, err := config.ParseString(configStr)
 	if err != nil {
 		return nil, err
 	}
 
-	receiverType, err := cfg.GetString("receiver")
-	if err != nil {
-		return nil, err
+	receiverType, found := cfg.String("receiver")
+	if !found {
+		return nil, errors.New("receiver configuration is required")
 	}
 	receiverType = strings.ToUpper(receiverType)
 
-	levelName, err := cfg.GetString("level")
-	if err != nil {
-		levelName = "DEBUG"
-	}
-
+	levelName := cfg.StringDefault("level", "DEBUG")
 	level := levelByName(levelName)
 	if level == LevelUnknown {
 		return nil, fmt.Errorf("unrecognized log level: %v", levelName)
 	}
 
-	pattern, err := cfg.GetString("pattern")
-	if err != nil {
-		pattern = DefaultPattern
-	}
-
+	pattern := cfg.StringDefault("pattern", DefaultPattern)
 	flags, err := parseFlag(pattern)
 	if err != nil {
 		return nil, err
@@ -251,7 +243,7 @@ func fetchCallerInfo(calldepth int) (string, int) {
 	return file, line
 }
 
-func newConsoleReceiver(cfg *forge.Section, receiverType string, level Level, flags *[]FlagPart) (*Receiver, error) {
+func newConsoleReceiver(cfg *config.Config, receiverType string, level Level, flags *[]FlagPart) (*Receiver, error) {
 	receiver := Receiver{
 		Config:     cfg,
 		Type:       receiverType,
@@ -268,7 +260,12 @@ func newConsoleReceiver(cfg *forge.Section, receiverType string, level Level, fl
 	return &receiver, nil
 }
 
-func newFileReceiver(cfg *forge.Section, receiverType string, level Level, flags *[]FlagPart) (*Receiver, error) {
+func newFileReceiver(cfg *config.Config, receiverType string, level Level, flags *[]FlagPart) (*Receiver, error) {
+	maxSize := cfg.IntDefault("rotate.size", 100)
+	if maxSize > 2048 { // maximum 2GB file size
+		return nil, errors.New("maximum 2GB file size supported for rotation")
+	}
+
 	receiver := Receiver{
 		Config:     cfg,
 		Type:       receiverType,
@@ -286,16 +283,16 @@ func newFileReceiver(cfg *forge.Section, receiverType string, level Level, flags
 		return nil, err
 	}
 
-	rotate, _ := cfg.GetSection("rotate")
-	receiver.rotate, _ = rotate.GetString("mode")
+	receiver.rotate = cfg.StringDefault("rotate.mode", "daily")
+	// rotate, _ := cfg.GetSection("rotate")
+	// receiver.rotate, _ = rotate.GetString("mode")
 	switch receiver.rotate {
 	case "daily":
 		receiver.setOpenDay()
 	case "lines":
-		receiver.maxLines, _ = rotate.GetInteger("lines")
+		receiver.maxLines = int64(cfg.IntDefault("rotate.lines", 0))
 	case "size":
-		receiver.maxSize, _ = rotate.GetInteger("size")
-		receiver.maxSize = receiver.maxSize * 1024 * 1024
+		receiver.maxSize = int64(maxSize * 1024 * 1024)
 	}
 
 	return &receiver, nil

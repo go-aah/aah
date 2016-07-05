@@ -6,6 +6,7 @@ package log
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -132,7 +133,7 @@ func TestNewCustomFileReceiverLinesRotation(t *testing.T) {
 receiver = "file"
 
 # "debug" lowercase works too and if not supplied then defaults to DEBUG
-level = "info"
+level = "trace"
 
 # if not suppiled then default pattern is used
 pattern = "%time:2006-01-02 15:04:05.000 %level:-5 %shortfile %line %custom:- %message"
@@ -178,7 +179,7 @@ func TestNewCustomFileReceiverSizeRotation(t *testing.T) {
 receiver = "file"
 
 # if not suppiled then default pattern is used
-pattern = "%time:2006-01-02 15:04:05.000 %level:-5 %longfile %line %custom:- %message"
+pattern = "%utctime:2006-01-02 15:04:05.000 %level:-5 %longfile %line %custom:- %message"
 rotate {
 	mode = "size"
 
@@ -206,5 +207,63 @@ rotate {
 		logger.Infof("Yes, I would love to: %v, Yes, I would love to: %v", 2, 22, 222)
 		logger.Warnf("Yes, yes it's an warning: %v, Yes, yes it's an warning: %v, Yes, yes it's an warning: %v", 1, 11, 111)
 		logger.Errorf("Yes, yes, yes - finally an error: %v, finally an error: %v, finally an error: %v", 0, 000, 0000)
+	}
+}
+
+func TestUnknownFormatFlag(t *testing.T) {
+	_, err := parseFlag("")
+	if err != ErrFormatStringEmpty {
+		t.Errorf("Unexpected error: %v", err)
+		t.FailNow()
+	}
+
+	_, err = parseFlag("%time:2006-01-02 15:04:05.000 %level:-5 %longfile %unknown %custom:- %message")
+	if !strings.Contains(err.Error(), "unrecognized log format flag") {
+		t.Errorf("Unexpected error: %v", err)
+		t.FailNow()
+	}
+}
+
+func TestNewMisc(t *testing.T) {
+	_, err := New("")
+	if err.Error() != "logger config is empty" {
+		t.Errorf("Unexpected error: %v", err)
+		t.FailNow()
+	}
+
+	_, err = New(`receiver = "file" level="info"`)
+	if !strings.HasPrefix(err.Error(), "syntax error") {
+		t.Errorf("Unexpected error: %v", err)
+		t.FailNow()
+	}
+
+	_, err = New(`level="info";`)
+	if !strings.HasPrefix(err.Error(), "receiver configuration") {
+		t.Errorf("Unexpected error: %v", err)
+		t.FailNow()
+	}
+
+	_, err = New(`receiver = "file"; level="unknown";`)
+	if !strings.HasPrefix(err.Error(), "unrecognized log level") {
+		t.Errorf("Unexpected error: %v", err)
+		t.FailNow()
+	}
+
+	_, err = New(`receiver = "remote"; level="debug";`)
+	if !strings.HasPrefix(err.Error(), "unsupported receiver") {
+		t.Errorf("Unexpected error: %v", err)
+		t.FailNow()
+	}
+
+	_, err = New(`receiver = "file"; level="debug"; rotate { mode="size"; size=2500; }`)
+	if !strings.HasPrefix(err.Error(), "maximum 2GB file size") {
+		t.Errorf("Unexpected error: %v", err)
+		t.FailNow()
+	}
+
+	_, err = New(`receiver = "console"; level="debug"; pattern="%time:2006-01-02 15:04:05.000 %level:-5 %unknown %message";`)
+	if !strings.HasPrefix(err.Error(), "unrecognized log format flag") {
+		t.Errorf("Unexpected error: %v", err)
+		t.FailNow()
 	}
 }
