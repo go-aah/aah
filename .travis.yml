@@ -1,0 +1,23 @@
+language: go
+
+sudo: false
+
+branches:
+  only:
+    - master
+    - develop
+
+go:
+  - 1.5
+  - 1.6
+  - tip
+
+install:
+  - go get -v .
+
+script:
+  - go test -v .
+
+matrix:
+  allow_failures:
+    - go: tip
