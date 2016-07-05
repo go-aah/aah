@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package ess provides simple & useful utils for Go. aah framework utilizes
-// this library across.
+// essentails library across.
 package ess
 
 import (
@@ -64,7 +64,7 @@ func CloseQuietly(v interface{}) {
 	}
 }
 
-// MkDirAll method creates nested directories if not exists
+// MkDirAll method creates nested directories with permission 0755 if not exists
 func MkDirAll(path string) error {
 	if _, err := os.Lstat(path); err != nil {
 		if os.IsNotExist(err) {
@@ -72,7 +72,6 @@ func MkDirAll(path string) error {
 				return fmt.Errorf("unable to create directory '%v': %v", path, err)
 			}
 		}
-		return fmt.Errorf("unable to create directory '%v': %v", path, err)
 	}
 	return nil
 }
