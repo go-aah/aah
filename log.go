@@ -117,11 +117,11 @@ var (
 	// ANSI color codes
 	resetColor   = []byte("\033[0m")
 	levelToColor = [][]byte{
-		LevelError: []byte("\033[0;31m"),
-		LevelWarn:  []byte("\033[0;33m"),
-		LevelInfo:  []byte("\033[0;37m"),
-		LevelDebug: []byte("\033[0;34m"),
-		LevelTrace: []byte("\033[0;35m"),
+		LevelError: []byte("\033[0;31m"), // red
+		LevelWarn:  []byte("\033[0;33m"), // yellow
+		LevelInfo:  []byte("\033[0;37m"), // white
+		LevelDebug: []byte("\033[0;34m"), // blue
+		LevelTrace: []byte("\033[0;35m"), // magenta (purple)
 	}
 )
 
@@ -150,6 +150,9 @@ type Logger interface {
 	// Stats returns current logger statistics like number of lines written,
 	// number of bytes written, etc.
 	Stats() *ReceiverStats
+
+	// SetPattern sets the log entry format
+	SetPattern(pattern string) error
 
 	Error(v ...interface{})
 	Errorf(format string, v ...interface{})

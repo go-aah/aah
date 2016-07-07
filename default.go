@@ -62,6 +62,11 @@ func Stats() *ReceiverStats {
 	return stdLogger.Stats()
 }
 
+// SetPattern sets the log entry format
+func SetPattern(pattern string) error {
+	return stdLogger.SetPattern(pattern)
+}
+
 func init() {
 	stdLogger, _ = New(`receiver = "CONSOLE"; level = "DEBUG";`)
 }

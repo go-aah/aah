@@ -110,6 +110,19 @@ func (r *Receiver) Closed() bool {
 	return r.isClosed
 }
 
+// SetPattern sets the pattern to log entry format
+func (r *Receiver) SetPattern(pattern string) error {
+	r.m.Lock()
+	defer r.m.Unlock()
+	flags, err := parseFlag(pattern)
+	if err != nil {
+		return err
+	}
+	r.Flags = flags
+
+	return nil
+}
+
 func (r *Receiver) isFileReceiver() bool {
 	return r.Type == "FILE"
 }
