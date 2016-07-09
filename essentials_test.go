@@ -10,48 +10,22 @@ import (
 	"testing"
 )
 
-func TestStringEmptyNotEmpty(t *testing.T) {
-	assertEqual(t, "TestStringEmptyNotEmpty", false, StrIsEmpty("    Welcome    "))
-
-	assertEqual(t, "TestStringEmptyNotEmpty", true, StrIsEmpty("        "))
-}
-
-func TestLineCntByFilePath(t *testing.T) {
-	count := LineCnt("testdata/sample.txt")
-	assertEqual(t, "TestLineCntByFilePath", 20, count)
-
-	count = LineCnt("testdata/sample-not.txt")
-	assertEqual(t, "TestLineCntByFilePath", 0, count)
-}
-
-func TestLineCntByReader(t *testing.T) {
-	file, err := os.Open("testdata/sample.txt")
+func failOnError(t *testing.T, err error) {
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
 	}
-	defer CloseQuietly(file)
-
-	assertEqual(t, "TestLineCntByReader", 20, LineCntr(file))
 }
 
-func TestMkDirAll(t *testing.T) {
-	err := MkDirAll("testdata/path/to/create")
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
+func removeFiles(files ...string) {
+	for _, f := range files {
+		_ = os.Remove(f)
 	}
+}
 
-	err = MkDirAll("testdata/path/to/create/for/test")
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
-
-	err = MkDirAll("testdata/path/to/create/for/test")
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
+func removeAllFiles(files ...string) {
+	for _, f := range files {
+		_ = os.RemoveAll(f)
 	}
 }
 
