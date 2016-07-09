@@ -1,13 +1,10 @@
 // Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
-// essentails source code and usage is governed by a MIT style
+// go-aah/essentails source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package ess
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func TestLookExecutable(t *testing.T) {
 	assertEqual(t, "TestLookExecutable - go", true, LookExecutable("go"))
@@ -24,6 +21,11 @@ func TestIsImportPathExists(t *testing.T) {
 func TestGoPath(t *testing.T) {
 	gopath, err := GoPath()
 	failOnError(t, err)
+	t.Logf("gopath: %v", gopath)
+}
 
-	fmt.Println("gopath:", gopath)
+func TestIsInGoRoot(t *testing.T) {
+	assertEqual(t, "TestIsInGoRoot", true, IsInGoRoot("/usr/local/go/src/github.com/jeevatkm/myapp"))
+
+	assertEqual(t, "TestIsInGoRoot", false, IsInGoRoot("/usr/local/"))
 }

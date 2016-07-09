@@ -1,5 +1,5 @@
 // Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
-// essentails source code and usage is governed by a MIT style
+// go-aah/essentails source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package ess
@@ -29,6 +29,8 @@ func TestIsDirEmpty(t *testing.T) {
 
 func TestApplyFileMode(t *testing.T) {
 	fileName := "testdata/FileMode.txt"
+	defer removeFiles(fileName)
+
 	err := ioutil.WriteFile(fileName,
 		[]byte(`This file is for file permission testing`), 0700)
 	failOnError(t, err)
@@ -53,8 +55,6 @@ func TestApplyFileMode(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error got nil")
 	}
-
-	removeFiles(fileName)
 }
 
 func TestLineCntByFilePath(t *testing.T) {
@@ -76,6 +76,17 @@ func TestLineCntByReader(t *testing.T) {
 func TestWalk(t *testing.T) {
 	pwd, _ := os.Getwd()
 	fileName := filepath.Join(pwd, "testdata/symlinktest.txt")
+	newName1 := filepath.Join(pwd, "testdata/symlinktest1.txt")
+	newName2 := filepath.Join(pwd, "testdata/symlinktest2.txt")
+	newName3 := filepath.Join(pwd, "testdata/symlinkdata1")
+
+	defer func() {
+		removeFiles(fileName, newName1, newName2, newName3)
+		removeAllFiles("testdata/symlinkdata",
+			"/tmp/symlinktest",
+			"testdata/symlinkdata1")
+	}()
+
 	err := ioutil.WriteFile(fileName,
 		[]byte(`This file is for file permission testing 1`), 0755)
 	failOnError(t, err)
@@ -88,23 +99,17 @@ func TestWalk(t *testing.T) {
 	failOnError(t, err)
 
 	// preparing symlink for test
-	newName1 := filepath.Join(pwd, "testdata/symlinktest1.txt")
 	err = os.Symlink(fileName, newName1)
 	failOnError(t, err)
 
-	newName2 := filepath.Join(pwd, "testdata/symlinktest2.txt")
 	err = os.Symlink(fileName, newName2)
 	failOnError(t, err)
 
-	newName3 := filepath.Join(pwd, "testdata/symlinkdata1")
 	err = os.Symlink(filepath.Join(pwd, "testdata/symlinkdata"), newName3)
 	failOnError(t, err)
 
 	err = CopyDir("/tmp/symlinktest", "testdata", Excludes{})
 	failOnError(t, err)
-
-	removeFiles(fileName, newName1, newName2)
-	removeAllFiles("testdata/symlinkdata", "/tmp/symlinktest", "testdata/symlinkdata1")
 }
 
 func TestExcludes(t *testing.T) {
