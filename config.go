@@ -1,5 +1,5 @@
 // Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
-// resty source code and usage is governed by a MIT style
+// go-aah/config source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 // Package config is nice and handy thin layer around `forge` config syntax;
@@ -13,6 +13,9 @@ import (
 
 	"github.com/go-aah/forge"
 )
+
+// Version no. of go-aah/config library
+var Version = "0.1"
 
 // Config handles the configuration values and enables environment profile's,
 // merge, etc. Also it provide nice and handly methods for accessing config values.
