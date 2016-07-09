@@ -1,5 +1,5 @@
 // Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
-// resty source code and usage is governed by a MIT style
+// go-aah/log source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package log
@@ -251,7 +251,7 @@ func (r *Receiver) openFile() error {
 
 	name := r.fileName()
 	dir := filepath.Dir(name)
-	_ = ess.MkDirAll(dir)
+	_ = ess.MkDirAll(dir, 0755)
 
 	file, err := os.OpenFile(name, os.O_CREATE|os.O_APPEND|os.O_WRONLY, filePermission)
 	if err != nil {
