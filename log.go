@@ -1,5 +1,5 @@
 // Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
-// resty source code and usage is governed by a MIT style
+// go-aah/log source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 // Package log implements a simple, flexible & powerful logger. Supports
@@ -58,6 +58,9 @@ const (
 )
 
 var (
+	// Version no. of go-aah/log library
+	Version = "0.1"
+
 	// FmtFlags is the list of log format flags supported by aah/log library
 	// Usage of flag order is up to format composition.
 	//    level     - outputs INFO, DEBUG, ERROR, so on
