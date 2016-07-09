@@ -1,12 +1,11 @@
 // Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
-// resty source code and usage is governed by a MIT style
+// go-aah/log source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package log
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/go-aah/essentials"
@@ -58,6 +57,9 @@ func parseFlag(format string) (*[]FlagPart, error) {
 			}
 		default:
 			part.Format = defaultFormat
+			if flag == FmtFlagLine {
+				part.Format = "L" + defaultFormat
+			}
 		}
 
 		flagParts = append(flagParts, part)
@@ -92,12 +94,12 @@ func DefaultFormatter(flags *[]FlagPart, entry *Entry, isColor bool) (*[]byte, e
 			}
 			buf = append(buf, fmt.Sprintf(part.Format, entry.File)...)
 		case FmtFlagLine:
-			buf = append(buf, fmt.Sprintf(part.Format, "L"+strconv.Itoa(entry.Line))...)
+			buf = append(buf, fmt.Sprintf(part.Format, entry.Line)...)
 		case FmtFlagMessage:
-			if ess.StrIsEmpty(entry.Format) {
-				buf = append(buf, fmt.Sprint(entry.Values...)...)
+			if entry.Format == nil {
+				buf = append(buf, fmt.Sprint(*entry.Values...)...)
 			} else {
-				buf = append(buf, fmt.Sprintf(entry.Format, entry.Values...)...)
+				buf = append(buf, fmt.Sprintf(*entry.Format, *entry.Values...)...)
 			}
 		case FmtFlagCustom:
 			buf = append(buf, part.Format...)

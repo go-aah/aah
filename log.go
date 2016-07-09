@@ -133,8 +133,8 @@ var (
 type Entry struct {
 	Level  Level
 	Time   time.Time
-	Format string
-	Values []interface{}
+	Format *string
+	Values *[]interface{}
 	File   string
 	Line   int
 }
@@ -142,7 +142,7 @@ type Entry struct {
 // Logger is interface for `aah/log` package
 type Logger interface {
 	// Output writes the entry data into receiver
-	Output(entry *Entry) error
+	Output(level Level, calldepth int, format *string, v ...interface{}) error
 
 	// Close closes the log writer. It cannot be used after this operation
 	Close()
@@ -156,6 +156,9 @@ type Logger interface {
 
 	// SetPattern sets the log entry format
 	SetPattern(pattern string) error
+
+	// SetLevel allows to set log level dynamically
+	SetLevel(level Level)
 
 	Error(v ...interface{})
 	Errorf(format string, v ...interface{})
@@ -240,7 +243,7 @@ func levelByName(name string) Level {
 }
 
 func fetchCallerInfo(calldepth int) (string, int) {
-	_, file, line, ok := runtime.Caller(calldepth)
+	_, file, line, ok := runtime.Caller(calldepth + 1)
 	if !ok {
 		file = "???"
 		line = 0

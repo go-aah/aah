@@ -1,5 +1,5 @@
 // Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
-// resty source code and usage is governed by a MIT style
+// go-aah/log source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package log
@@ -8,52 +8,52 @@ var stdLogger Logger
 
 // Error logs message as `LevelError`
 func Error(v ...interface{}) {
-	stdLogger.Error(v...)
+	_ = stdLogger.Output(LevelError, 2, nil, v...)
 }
 
 // Errorf logs message as `LevelError`
 func Errorf(format string, v ...interface{}) {
-	stdLogger.Errorf(format, v...)
+	_ = stdLogger.Output(LevelError, 2, &format, v...)
 }
 
 // Warn logs message as `LevelWarn`
 func Warn(v ...interface{}) {
-	stdLogger.Warn(v...)
+	_ = stdLogger.Output(LevelWarn, 2, nil, v...)
 }
 
 // Warnf logs message as `LevelWarn`
 func Warnf(format string, v ...interface{}) {
-	stdLogger.Warnf(format, v...)
+	_ = stdLogger.Output(LevelWarn, 2, &format, v...)
 }
 
 // Info logs message as `LevelInfo`
 func Info(v ...interface{}) {
-	stdLogger.Info(v...)
+	_ = stdLogger.Output(LevelInfo, 2, nil, v...)
 }
 
 // Infof logs message as `LevelInfo`
 func Infof(format string, v ...interface{}) {
-	stdLogger.Infof(format, v...)
+	_ = stdLogger.Output(LevelInfo, 2, &format, v...)
 }
 
 // Debug logs message as `LevelDebug`
 func Debug(v ...interface{}) {
-	stdLogger.Debug(v...)
+	_ = stdLogger.Output(LevelDebug, 2, nil, v...)
 }
 
 // Debugf logs message as `LevelDebug`
 func Debugf(format string, v ...interface{}) {
-	stdLogger.Debugf(format, v...)
+	_ = stdLogger.Output(LevelDebug, 2, &format, v...)
 }
 
 // Trace logs message as `LevelTrace`
 func Trace(v ...interface{}) {
-	stdLogger.Trace(v...)
+	_ = stdLogger.Output(LevelTrace, 2, nil, v...)
 }
 
 // Tracef logs message as `LevelTrace`
 func Tracef(format string, v ...interface{}) {
-	stdLogger.Tracef(format, v...)
+	_ = stdLogger.Output(LevelTrace, 2, &format, v...)
 }
 
 // Stats returns current logger statistics like number of lines written,
@@ -65,6 +65,11 @@ func Stats() *ReceiverStats {
 // SetPattern sets the log entry format
 func SetPattern(pattern string) error {
 	return stdLogger.SetPattern(pattern)
+}
+
+// SetLevel allows to set log level dynamically
+func SetLevel(level Level) {
+	stdLogger.SetLevel(level)
 }
 
 func init() {

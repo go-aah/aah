@@ -47,13 +47,23 @@ type Receiver struct {
 }
 
 // Output formats the give log inputs, caller info and writes to console
-func (r *Receiver) Output(entry *Entry) error {
+func (r *Receiver) Output(level Level, calldepth int, format *string, v ...interface{}) error {
+	if level > r.level {
+		return nil
+	}
+
+	now := time.Now() // get this early
+
 	if r.Closed() {
 		return ErrWriterIsClosed
 	}
 
+	var (
+		file string
+		line int
+	)
 	if r.isFileInfo || r.isLineInfo {
-		entry.File, entry.Line = fetchCallerInfo(3)
+		file, line = fetchCallerInfo(calldepth)
 	}
 
 	r.m.Lock()
@@ -64,6 +74,15 @@ func (r *Receiver) Output(entry *Entry) error {
 		if err := r.rotateFile(); err != nil {
 			return err
 		}
+	}
+
+	entry := &Entry{
+		Level:  level,
+		Time:   now,
+		Format: format,
+		Values: &v,
+		File:   file,
+		Line:   line,
 	}
 
 	// format the log entry message as per pattern
@@ -79,10 +98,8 @@ func (r *Receiver) Output(entry *Entry) error {
 	}
 
 	// calculate receiver stats
-	if r.stats != nil {
-		r.stats.bytes += int64(size)
-		r.stats.lines++
-	}
+	r.stats.bytes += int64(size)
+	r.stats.lines++
 
 	return nil
 }
@@ -119,8 +136,18 @@ func (r *Receiver) SetPattern(pattern string) error {
 		return err
 	}
 	r.Flags = flags
+	r.isFileInfo = isFileFlagExists(flags)
+	r.isLineInfo = isFmtFlagExists(flags, FmtFlagLine)
+	r.isUTC = isFmtFlagExists(flags, FmtFlagUTCTime)
 
 	return nil
+}
+
+// SetLevel allows to set log level dyamically
+func (r *Receiver) SetLevel(level Level) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	r.level = level
 }
 
 func (r *Receiver) isFileReceiver() bool {
@@ -129,117 +156,52 @@ func (r *Receiver) isFileReceiver() bool {
 
 // Error logs message as `LevelError`
 func (r *Receiver) Error(v ...interface{}) {
-	if r.level >= LevelError {
-		_ = r.Output(&Entry{
-			Time:   time.Now(),
-			Level:  LevelError,
-			Values: v,
-		})
-	}
+	_ = r.Output(LevelError, 2, nil, v...)
 }
 
 // Errorf logs message as `LevelError`
 func (r *Receiver) Errorf(format string, v ...interface{}) {
-	if r.level >= LevelError {
-		_ = r.Output(&Entry{
-			Time:   time.Now(),
-			Level:  LevelError,
-			Format: format,
-			Values: v,
-		})
-	}
+	_ = r.Output(LevelError, 2, &format, v...)
 }
 
 // Warn logs message as `LevelWarn`
 func (r *Receiver) Warn(v ...interface{}) {
-	if r.level >= LevelWarn {
-		_ = r.Output(&Entry{
-			Time:   time.Now(),
-			Level:  LevelWarn,
-			Values: v,
-		})
-	}
+	_ = r.Output(LevelWarn, 2, nil, v...)
 }
 
 // Warnf logs message as `LevelWarn`
 func (r *Receiver) Warnf(format string, v ...interface{}) {
-	if r.level >= LevelWarn {
-		_ = r.Output(&Entry{
-			Time:   time.Now(),
-			Level:  LevelWarn,
-			Format: format,
-			Values: v,
-		})
-	}
+	_ = r.Output(LevelWarn, 2, &format, v...)
 }
 
 // Info logs message as `LevelInfo`
 func (r *Receiver) Info(v ...interface{}) {
-	if r.level >= LevelInfo {
-		_ = r.Output(&Entry{
-			Time:   time.Now(),
-			Level:  LevelInfo,
-			Values: v,
-		})
-	}
+	_ = r.Output(LevelInfo, 2, nil, v...)
 }
 
 // Infof logs message as `LevelInfo`
 func (r *Receiver) Infof(format string, v ...interface{}) {
-	if r.level >= LevelInfo {
-		_ = r.Output(&Entry{
-			Time:   time.Now(),
-			Level:  LevelInfo,
-			Format: format,
-			Values: v,
-		})
-	}
+	_ = r.Output(LevelInfo, 2, &format, v...)
 }
 
 // Debug logs message as `LevelDebug`
 func (r *Receiver) Debug(v ...interface{}) {
-	if r.level >= LevelDebug {
-		_ = r.Output(&Entry{
-			Time:   time.Now(),
-			Level:  LevelDebug,
-			Values: v,
-		})
-	}
+	_ = r.Output(LevelDebug, 2, nil, v...)
 }
 
 // Debugf logs message as `LevelDebug`
 func (r *Receiver) Debugf(format string, v ...interface{}) {
-	if r.level >= LevelDebug {
-		_ = r.Output(&Entry{
-			Time:   time.Now(),
-			Level:  LevelDebug,
-			Format: format,
-			Values: v,
-		})
-	}
+	_ = r.Output(LevelDebug, 2, &format, v...)
 }
 
 // Trace logs message as `LevelTrace`
 func (r *Receiver) Trace(v ...interface{}) {
-	if r.level >= LevelTrace {
-		_ = r.Output(&Entry{
-			Time:   time.Now(),
-			Level:  LevelTrace,
-			Values: v,
-		})
-	}
+	_ = r.Output(LevelTrace, 2, nil, v...)
 }
 
 // Tracef logs message as `LevelTrace`
 func (r *Receiver) Tracef(format string, v ...interface{}) {
-	if r.level >= LevelTrace {
-		_ = r.Output(&Entry{
-			Time:   time.Now(),
-			Level:  LevelTrace,
-			Format: format,
-			Values: v,
-		})
-	}
+	_ = r.Output(LevelTrace, 2, &format, v...)
 }
 
 // unexported methods
