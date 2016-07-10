@@ -143,7 +143,7 @@ func (r *Receiver) SetPattern(pattern string) error {
 	return nil
 }
 
-// SetLevel allows to set log level dyamically
+// SetLevel allows to set log level dynamically
 func (r *Receiver) SetLevel(level Level) {
 	r.m.Lock()
 	defer r.m.Unlock()

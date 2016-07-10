@@ -126,6 +126,8 @@ var (
 		LevelDebug: []byte("\033[0;34m"), // blue
 		LevelTrace: []byte("\033[0;35m"), // magenta (purple)
 	}
+
+	_ Logger = &Receiver{}
 )
 
 // Entry represents a log entry and contains the timestamp when the entry
