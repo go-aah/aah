@@ -1,5 +1,5 @@
 // Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
-// essentails source code and usage is governed by a MIT style
+// go-aah/essentails source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package ess
@@ -64,6 +64,11 @@ func GoPath() (string, error) {
 		// so pick first one
 		currentGoPath = goPathList[0]
 	}
-
 	return currentGoPath, nil
+}
+
+// IsInGoRoot returns true if given path has prefix of GOROOT otherwise false
+func IsInGoRoot(path string) bool {
+	return strings.HasPrefix(path, filepath.Join(build.Default.GOROOT, "src")) ||
+		strings.HasPrefix(path, filepath.Join(build.Default.GOROOT, "pkg"))
 }
