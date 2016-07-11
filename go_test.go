@@ -4,7 +4,11 @@
 
 package ess
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestLookExecutable(t *testing.T) {
 	assertEqual(t, "TestLookExecutable - go", true, LookExecutable("go"))
@@ -25,7 +29,11 @@ func TestGoPath(t *testing.T) {
 }
 
 func TestIsInGoRoot(t *testing.T) {
-	assertEqual(t, "TestIsInGoRoot", true, IsInGoRoot("/usr/local/go/src/github.com/jeevatkm/myapp"))
+	goroot := os.Getenv("GOROOT")
+	if StrIsEmpty(goroot) {
+		goroot = "/usr/local/go"
+	}
+	assertEqual(t, "TestIsInGoRoot - 1", true, IsInGoRoot(filepath.Join(goroot, "src/github.com/jeevatkm/myapp")))
 
-	assertEqual(t, "TestIsInGoRoot", false, IsInGoRoot("/usr/local/"))
+	assertEqual(t, "TestIsInGoRoot - 2", false, IsInGoRoot("/usr/local/"))
 }
