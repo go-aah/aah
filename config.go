@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
 // go-aah/config source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/go-aah/forge"
@@ -164,6 +165,15 @@ func (c *Config) Get(key string) (interface{}, bool) {
 	return c.get(key)
 }
 
+// Merge merges the given section to current section. Settings from source
+// section overwites the values in the current section
+func (c *Config) Merge(source *Config) error {
+	if source == nil {
+		return errors.New("source is nil")
+	}
+	return c.cfg.Merge(source.cfg)
+}
+
 func (c *Config) getByProfile(key string) (interface{}, bool) {
 	return c.get(fmt.Sprintf("%s.%s", c.profile, key))
 }
@@ -179,7 +189,7 @@ func (c *Config) get(key string) (interface{}, bool) {
 
 // Configuration loading methods
 
-// LoadFile loads the configuration file
+// LoadFile loads the configuration given config file
 func LoadFile(file string) (*Config, error) {
 	setting, err := forge.ParseFile(file)
 	if err != nil {
@@ -188,6 +198,26 @@ func LoadFile(file string) (*Config, error) {
 
 	return &Config{
 		cfg: setting,
+	}, nil
+}
+
+// LoadFiles loads the configuration given config files and
+// does merging of configuration in the order they are given
+func LoadFiles(files ...string) (*Config, error) {
+	settings := forge.NewSection()
+	for _, file := range files {
+		setting, err := forge.ParseFile(file)
+		if err != nil {
+			return nil, err
+		}
+
+		if err = settings.Merge(setting); err != nil {
+			return nil, err
+		}
+	}
+
+	return &Config{
+		cfg: settings,
 	}, nil
 }
 

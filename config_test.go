@@ -1,11 +1,10 @@
-// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
 // go-aah/config source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package config
 
 import (
-	"fmt"
 	"io/ioutil"
 	"reflect"
 	"strings"
@@ -146,7 +145,7 @@ func TestBoolValues(t *testing.T) {
 func TestProfile(t *testing.T) {
 	cfg := initFile(t, "testdata/test.cfg")
 
-	fmt.Println(cfg.cfg.Keys())
+	t.Log(cfg.cfg.Keys())
 
 	assertEqual(t, "TestProfile", "", cfg.Profile())
 	assertEqual(t, "TestProfile",
@@ -159,20 +158,20 @@ func TestProfile(t *testing.T) {
 
 func TestConfigLoadNotExists(t *testing.T) {
 	_, err := LoadFile("testdata/not_exists.cfg")
-	assertEqual(t, "TestConfigLoadNotExists",
+	assertEqual(t, "TestConfigLoadNotExists - 1",
 		"open testdata/not_exists.cfg: no such file or directory",
 		err.Error())
 
 	_, err = ParseString(`
   # Error configuration
   string = "a string"
-  int = 32 # adding comment with semicolon will lead to error
+  int = 32 # adding comment without semicolon will lead to error
   float32 = 32.2
   int64 = 1
   float64 = 1.1
     `)
-	assertEqual(t, "method", true,
-		strings.Contains(err.Error(), "adding comment with semicolon will lead to error"))
+	assertEqual(t, "TestConfigLoadNotExists - 2", true,
+		strings.Contains(err.Error(), "adding comment without semicolon will lead to error"))
 }
 
 func assertEqual(t *testing.T, method, e, g interface{}) (r bool) {
@@ -182,6 +181,81 @@ func assertEqual(t *testing.T, method, e, g interface{}) (r bool) {
 	}
 
 	return
+}
+
+func TestMergeConfig(t *testing.T) {
+	cfg1, err := ParseString(`
+global = "global value";
+
+prod {
+	value = "string value";
+	integer = 500
+	float = 80.80
+	boolean = true
+	negative = FALSE
+	nothing = NULL
+}
+	`)
+
+	cfg2, err := ParseString(`
+global = "global value";
+
+newvalue = "I'm new value"
+prod {
+  value = "I'm prod value"
+	nothing = 200
+}
+`)
+
+	err = cfg1.Merge(cfg2)
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	_ = cfg1.SetProfile("prod")
+
+	v1 := cfg1.IntDefault("nothing", 0)
+	assertEqual(t, "TestMergeConfig", 200, v1)
+
+	v2 := cfg1.StringDefault("value", "")
+	assertEqual(t, "TestMergeConfig", "I'm prod value", v2)
+
+	v3 := cfg1.StringDefault("newvalue", "")
+	assertEqual(t, "TestMergeConfig", "I'm new value", v3)
+
+	err = cfg1.Merge(nil)
+	assertEqual(t, "TestMergeConfig", "source is nil", err.Error())
+}
+
+func TestLoadFiles(t *testing.T) {
+	cfg, err := LoadFiles("testdata/test-1.cfg", "testdata/test-2.cfg", "testdata/test-3.cfg")
+	if err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	assertEqual(t, "TestLoadFiles", float32(10.5), cfg.Float32Default("subsection.sub_float", 0.0))
+	assertEqual(t, "TestLoadFiles", float32(32.4), cfg.Float32Default("float32", 0.0))
+
+	_ = cfg.SetProfile("dev")
+	assertEqual(t, "TestLoadFiles - dev", "a string inside dev from test-2", cfg.StringDefault("string", ""))
+	assertEqual(t, "TestLoadFiles - dev", float32(500.5), cfg.Float32Default("subsection.sub_float", 0.0))
+	assertEqual(t, "TestLoadFiles - dev", float32(62.2), cfg.Float32Default("float32", 0.0))
+
+	_ = cfg.SetProfile("prod")
+	assertEqual(t, "TestLoadFiles - prod", "a string inside prod from test-3", cfg.StringDefault("string", ""))
+	assertEqual(t, "TestLoadFiles - prod", float32(1000.5), cfg.Float32Default("subsection.sub_float", 0.0))
+	assertEqual(t, "TestLoadFiles - prod", float32(222.2), cfg.Float32Default("float32", 0.0))
+	assertEqual(t, "TestLoadFiles - prod", true, cfg.BoolDefault("falsevalue", false))
+	assertEqual(t, "TestLoadFiles - prod", false, cfg.BoolDefault("truevalue", true))
+
+	// fail cases
+	_, err = LoadFiles("testdata/not_exists.cfg")
+	assertEqual(t, "TestLoadFiles - not exists", true, strings.Contains(err.Error(), "no such file or directory"))
+
+	_, err = LoadFiles("testdata/test-1.cfg", "testdata/test-error.cfg")
+	assertEqual(t, "TestLoadFiles - merge error", true, strings.Contains(err.Error(), "source (STRING) and target (SECTION)"))
 }
 
 func compare(e, g interface{}) (r bool) {
