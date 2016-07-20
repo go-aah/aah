@@ -4,6 +4,6 @@
 
 config is nice and handy thin layer around `forge` config syntax which is very similar to [Typesafe HOCON syntax](https://github.com/typesafehub/config/blob/master/HOCON.md) :satisfied:. aah framework and modules is powered with `aah/config` library.
 
-*It's independent library, can be used separately with any `Go` language project. Feel free to use it.*
+*It's an independent library, can be used separately with any `Go` language project. Feel free to use it.*
 
 See official page [TODO]
