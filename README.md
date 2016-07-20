@@ -4,6 +4,6 @@
 
 essentials contain simple & useful utils for go lang. aah framework utilizes essentials (aka `ess`) library across.
 
-*It's independent library, can be used separately with any `Go` language project. Feel free to use it.*
+*It's an independent library, can be used separately with any `Go` language project. Feel free to use it.*
 
 See official page [TODO]
