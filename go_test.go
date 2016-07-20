@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
 // go-aah/essentails source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -8,23 +8,25 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/go-aah/test/assert"
 )
 
 func TestLookExecutable(t *testing.T) {
-	assertEqual(t, "TestLookExecutable - go", true, LookExecutable("go"))
+	assert.Equal(t, true, LookExecutable("go"))
 
-	assertEqual(t, "TestLookExecutable - mygo", false, LookExecutable("mygo"))
+	assert.Equal(t, false, LookExecutable("mygo"))
 }
 
 func TestIsImportPathExists(t *testing.T) {
-	assertEqual(t, "TestIsImportPathExists - essentials", true, IsImportPathExists("github.com/go-aah/essentials"))
+	assert.Equal(t, true, IsImportPathExists("github.com/go-aah/essentials"))
 
-	assertEqual(t, "TestIsImportPathExists - unknown", false, IsImportPathExists("github.com/go-aah/unknown"))
+	assert.Equal(t, false, IsImportPathExists("github.com/go-aah/unknown"))
 }
 
 func TestGoPath(t *testing.T) {
 	gopath, err := GoPath()
-	failOnError(t, err)
+	assert.FailOnError(t, err, "")
 	t.Logf("gopath: %v", gopath)
 }
 
@@ -33,7 +35,7 @@ func TestIsInGoRoot(t *testing.T) {
 	if StrIsEmpty(goroot) {
 		goroot = "/usr/local/go"
 	}
-	assertEqual(t, "TestIsInGoRoot - 1", true, IsInGoRoot(filepath.Join(goroot, "src/github.com/jeevatkm/myapp")))
+	assert.Equal(t, true, IsInGoRoot(filepath.Join(goroot, "src/github.com/jeevatkm/myapp")))
 
-	assertEqual(t, "TestIsInGoRoot - 2", false, IsInGoRoot("/usr/local/"))
+	assert.Equal(t, false, IsInGoRoot("/usr/local/"))
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
 // go-aah/essentails source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -9,22 +9,24 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/go-aah/test/assert"
 )
 
 func TestIsFileExists(t *testing.T) {
-	assertEqual(t, "TestIsFileExists", true, IsFileExists("testdata/sample.txt"))
-	assertEqual(t, "TestIsFileExists", false, IsFileExists("testdata/sample-not-exists.txt"))
+	assert.Equal(t, true, IsFileExists("testdata/sample.txt"))
+	assert.Equal(t, false, IsFileExists("testdata/sample-not-exists.txt"))
 
-	assertEqual(t, "TestIsFileExists", true, IsFileExists("testdata"))
-	assertEqual(t, "TestIsFileExists", false, IsFileExists("testdata-not-exists"))
+	assert.Equal(t, true, IsFileExists("testdata"))
+	assert.Equal(t, false, IsFileExists("testdata-not-exists"))
 }
 
 func TestIsDirEmpty(t *testing.T) {
-	assertEqual(t, "TestIsDirEmpty", false, IsDirEmpty("testdata"))
-	assertEqual(t, "TestIsDirEmpty", true, IsDirEmpty("testdata-not-exists.txt"))
+	assert.Equal(t, false, IsDirEmpty("testdata"))
+	assert.Equal(t, true, IsDirEmpty("testdata-not-exists.txt"))
 
 	_ = MkDirAll("testdata/path/isdirempty", 0755)
-	assertEqual(t, "TestIsDirEmpty", true, IsDirEmpty("testdata/path/isdirempty"))
+	assert.Equal(t, true, IsDirEmpty("testdata/path/isdirempty"))
 }
 
 func TestApplyFileMode(t *testing.T) {
@@ -33,44 +35,42 @@ func TestApplyFileMode(t *testing.T) {
 
 	err := ioutil.WriteFile(fileName,
 		[]byte(`This file is for file permission testing`), 0700)
-	failOnError(t, err)
+	assert.FailOnError(t, err, "file permission issue")
 
 	fileInfo, err := os.Stat(fileName)
-	failOnError(t, err)
+	assert.FailOnError(t, err, "couldn't to file stat")
 	if fileInfo.Mode() != os.FileMode(0700) {
 		t.Errorf("expected file mode: 0700 got %v", fileInfo.Mode())
 	}
 
 	err = ApplyFileMode(fileName, 0755)
-	failOnError(t, err)
+	assert.FailOnError(t, err, "couldn't apply file permission")
 
 	fileInfo, err = os.Stat(fileName)
-	failOnError(t, err)
+	assert.FailOnError(t, err, "couldn't to file stat")
 	if fileInfo.Mode() != os.FileMode(0755) {
 		t.Errorf("expected file mode: 0755 got %v", fileInfo.Mode())
 	}
 
 	// expected to fail
 	err = ApplyFileMode("/var", 0755)
-	if err == nil {
-		t.Error("Expected error got nil")
-	}
+	assert.NotNil(t, err)
 }
 
 func TestLineCntByFilePath(t *testing.T) {
 	count := LineCnt("testdata/sample.txt")
-	assertEqual(t, "TestLineCntByFilePath", 20, count)
+	assert.Equal(t, 20, count)
 
 	count = LineCnt("testdata/sample-not.txt")
-	assertEqual(t, "TestLineCntByFilePath", 0, count)
+	assert.Equal(t, 0, count)
 }
 
 func TestLineCntByReader(t *testing.T) {
 	file, err := os.Open("testdata/sample.txt")
-	failOnError(t, err)
+	assert.FailOnError(t, err, "unable to open file")
 	defer CloseQuietly(file)
 
-	assertEqual(t, "TestLineCntByReader", 20, LineCntr(file))
+	assert.Equal(t, 20, LineCntr(file))
 }
 
 func TestWalk(t *testing.T) {
@@ -89,27 +89,27 @@ func TestWalk(t *testing.T) {
 
 	err := ioutil.WriteFile(fileName,
 		[]byte(`This file is for file permission testing 1`), 0755)
-	failOnError(t, err)
+	assert.FailOnError(t, err, "unable to create file")
 
 	err = MkDirAll("testdata/symlinkdata", 0755)
-	failOnError(t, err)
+	assert.FailOnError(t, err, "")
 
 	err = ioutil.WriteFile("testdata/symlinkdata/file1.txt",
 		[]byte(`This file is for file permission testing 2`), 0755)
-	failOnError(t, err)
+	assert.FailOnError(t, err, "unable to create file")
 
 	// preparing symlink for test
 	err = os.Symlink(fileName, newName1)
-	failOnError(t, err)
+	assert.FailOnError(t, err, "unable to create symlink")
 
 	err = os.Symlink(fileName, newName2)
-	failOnError(t, err)
+	assert.FailOnError(t, err, "unable to create symlink")
 
 	err = os.Symlink(filepath.Join(pwd, "testdata/symlinkdata"), newName3)
-	failOnError(t, err)
+	assert.FailOnError(t, err, "unable to create symlink")
 
 	err = CopyDir("/tmp/symlinktest", "testdata", Excludes{})
-	failOnError(t, err)
+	assert.FailOnError(t, err, "")
 }
 
 func TestExcludes(t *testing.T) {
@@ -119,7 +119,7 @@ func TestExcludes(t *testing.T) {
 		"[^",
 		"[]a]",
 	}
-	assertEqual(t, "TestExcludes fail", true, errExcludes.Validate() != nil)
+	assert.Equal(t, true, errExcludes.Validate() != nil)
 
 	excludes := Excludes{
 		".*",
@@ -127,50 +127,36 @@ func TestExcludes(t *testing.T) {
 		"*.tmp",
 		"tmp",
 	}
-	assertEqual(t, "TestExcludes success", true, excludes.Validate() == nil)
+	assert.Equal(t, nil, excludes.Validate())
 }
 
 func TestCopyFile(t *testing.T) {
 	_, err := CopyFile("testdata/file-found.txt", "testdata/file-not-exists.txt")
-	if err == nil {
-		t.Error("Expected error got nil")
-	}
+	assert.NotNil(t, err)
 
 	_, err = CopyFile("testdata/sample.txt", "testdata/sample.txt")
-	if err == nil {
-		t.Error("Expected error got nil")
-	}
+	assert.NotNil(t, err)
 
 	_, err = CopyFile("/var/you-will-not-be-able-to-create.txt", "testdata/sample.txt")
-	if err == nil {
-		t.Error("Expected error got nil")
-	}
+	assert.NotNil(t, err)
 }
 
 func TestCopyDir(t *testing.T) {
 	err := CopyDir("/tmp/target", "testdata/not-exists-dir", Excludes{})
-	if err == nil {
-		t.Error("Expected error got nil")
-	}
+	assert.NotNil(t, err)
 
 	err = CopyDir("/tmp/target", "testdata/sample.txt", Excludes{})
-	if err == nil {
-		t.Error("Expected error got nil")
-	}
+	assert.NotNil(t, err)
 
 	err = CopyDir("/tmp", "testdata", Excludes{})
-	if err == nil {
-		t.Error("Expected error got nil")
-	}
+	assert.NotNil(t, err)
 
 	err = CopyDir("/tmp/target", "testdata", Excludes{"[]a]"})
-	if err == nil {
-		t.Error("Expected error got nil")
-	}
+	assert.NotNil(t, err)
 
 	pwd, _ := os.Getwd()
 	err = CopyDir("/tmp/test1", pwd, Excludes{"test*", "*conf", ".*"})
-	failOnError(t, err)
+	assert.FailNowOnError(t, err, "copy directory failed")
 
 	removeAllFiles("/tmp/test1")
 }
