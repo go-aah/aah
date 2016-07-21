@@ -4,7 +4,21 @@
 
 package log
 
+import "os"
+
 var stdLogger Logger
+
+// Fatal logs message as `FATAL` and calls os.Exit(1)
+func Fatal(v ...interface{}) {
+	_ = stdLogger.Output(levelFatal, 2, nil, v...)
+	os.Exit(1)
+}
+
+// Fatalf logs message as `FATAL` and calls os.Exit(1)
+func Fatalf(format string, v ...interface{}) {
+	_ = stdLogger.Output(levelFatal, 2, &format, v...)
+	os.Exit(1)
+}
 
 // Error logs message as `LevelError`
 func Error(v ...interface{}) {
@@ -70,6 +84,12 @@ func SetPattern(pattern string) error {
 // SetLevel allows to set log level dynamically
 func SetLevel(level Level) {
 	stdLogger.SetLevel(level)
+}
+
+// SetOutput allows to set standard logger implementation
+// which statisfies `Logger` interface
+func SetOutput(logger Logger) {
+	stdLogger = logger
 }
 
 func init() {

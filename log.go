@@ -22,6 +22,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-aah/config"
@@ -36,7 +37,8 @@ type FmtFlag uint8
 
 // Log Level definition
 const (
-	LevelError Level = iota
+	levelFatal Level = iota
+	LevelError
 	LevelWarn
 	LevelInfo
 	LevelDebug
@@ -102,6 +104,7 @@ var (
 	filePermission     = os.FileMode(0755)
 
 	levelNameToLevel = map[string]Level{
+		"FATAL": levelFatal,
 		"ERROR": LevelError,
 		"WARN":  LevelWarn,
 		"INFO":  LevelInfo,
@@ -110,6 +113,7 @@ var (
 	}
 
 	levelToLevelName = map[Level]string{
+		levelFatal: "FATAL",
 		LevelError: "ERROR",
 		LevelWarn:  "WARN",
 		LevelInfo:  "INFO",
@@ -120,6 +124,7 @@ var (
 	// ANSI color codes
 	resetColor   = []byte("\033[0m")
 	levelToColor = [][]byte{
+		levelFatal: []byte("\033[0;31m"), // red
 		LevelError: []byte("\033[0;31m"), // red
 		LevelWarn:  []byte("\033[0;33m"), // yellow
 		LevelInfo:  []byte("\033[0;37m"), // white
@@ -161,6 +166,9 @@ type Logger interface {
 
 	// SetLevel allows to set log level dynamically
 	SetLevel(level Level)
+
+	Fatal(v ...interface{})
+	Fatalf(format string, v ...interface{})
 
 	Error(v ...interface{})
 	Errorf(format string, v ...interface{})
@@ -260,6 +268,7 @@ func newConsoleReceiver(cfg *config.Config, receiverType string, level Level, fl
 		Type:       receiverType,
 		Flags:      flags,
 		Format:     DefaultFormatter,
+		m:          sync.Mutex{},
 		level:      level,
 		out:        os.Stderr,
 		stats:      &ReceiverStats{},

@@ -5,7 +5,6 @@
 package log
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,32 +12,6 @@ import (
 
 	"github.com/go-aah/test/assert"
 )
-
-func TestDefaultStandardLogger(t *testing.T) {
-	SetLevel(LevelInfo)
-	_ = SetPattern("%time:2006-01-02 15:04:05.000 %level:-5 %line %custom:- %message")
-	Trace("I shoudn't see this msg, because standard logger level is DEBUG")
-	Debug("I would like to see this message, debug is useful for dev")
-	Info("Yes, I would love to")
-	Warn("Yes, yes it's an warning")
-	Error("Yes, yes, yes - finally an error")
-	fmt.Println()
-
-	t.Logf("First round: %#v\n\n", Stats())
-
-	SetLevel(LevelDebug)
-	_ = SetPattern("%time:2006-01-02 15:04:05.000 %level:-5 %shortfile %line %custom:- %message")
-	Tracef("I shoudn't see this msg: %v", 4)
-	Debugf("I would like to see this message, debug is useful for dev: %v", 3)
-	Infof("Yes, I would love to: %v", 2)
-	Warnf("Yes, yes it's an warning: %v", 1)
-	Errorf("Yes, yes, yes - finally an error: %v", 0)
-
-	t.Logf("Second round: %#v\n\n", Stats())
-
-	err := SetPattern("%level:-5 %shortfile %line %unknown")
-	assert.NotNil(t, err)
-}
 
 func TestNewCustomUTCConsoleReceiver(t *testing.T) {
 	config := `
@@ -302,7 +275,7 @@ func TestNewMisc(t *testing.T) {
 
 func TestLevelUnknown(t *testing.T) {
 	var level Level
-	assert.Equal(t, "ERROR", level.String())
+	assert.Equal(t, "FATAL", level.String())
 
 	level = 9 // Unknown log level
 	assert.Equal(t, "Unknown", level.String())

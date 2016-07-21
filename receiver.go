@@ -154,6 +154,18 @@ func (r *Receiver) isFileReceiver() bool {
 	return r.Type == "FILE"
 }
 
+// Fatal logs message as `FATAL` and calls os.Exit(1)
+func (r *Receiver) Fatal(v ...interface{}) {
+	_ = r.Output(levelFatal, 2, nil, v...)
+	os.Exit(1)
+}
+
+// Fatalf logs message as `FATAL` and calls os.Exit(1)
+func (r *Receiver) Fatalf(format string, v ...interface{}) {
+	_ = r.Output(levelFatal, 2, &format, v...)
+	os.Exit(1)
+}
+
 // Error logs message as `LevelError`
 func (r *Receiver) Error(v ...interface{}) {
 	_ = r.Output(LevelError, 2, nil, v...)
