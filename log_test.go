@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
 // go-aah/log source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/go-aah/test/assert"
 )
 
 func TestDefaultStandardLogger(t *testing.T) {
@@ -35,9 +37,7 @@ func TestDefaultStandardLogger(t *testing.T) {
 	t.Logf("Second round: %#v\n\n", Stats())
 
 	err := SetPattern("%level:-5 %shortfile %line %unknown")
-	if err == nil {
-		t.Error("Expected error got nil")
-	}
+	assert.NotNil(t, err)
 }
 
 func TestNewCustomUTCConsoleReceiver(t *testing.T) {
@@ -53,10 +53,7 @@ level = "debug"
 pattern = "%utctime:2006-01-02 15:04:05.000 %level:-5 %line %shortfile:-25 %custom:- %message"
  `
 	logger, err := New(config)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-		t.FailNow()
-	}
+	assert.FailNowOnError(t, err, "unexpected error")
 
 	logger.Trace("I shoudn't see this msg, because standard logger level is DEBUG")
 	logger.Debug("I would like to see this message, debug is useful for dev")
@@ -66,9 +63,7 @@ pattern = "%utctime:2006-01-02 15:04:05.000 %level:-5 %line %shortfile:-25 %cust
 
 	stats := logger.Stats()
 	t.Logf("First round: %#v\n", stats)
-	if stats.bytes != 433 {
-		t.Errorf("Expected: 433, got: %v\n", stats.bytes)
-	}
+	assert.Equal(t, int64(433), stats.bytes)
 
 	logger.Tracef("I shoudn't see this msg, because standard logger level is DEBUG: %v", 4)
 	logger.Debugf("I would like to see this message, debug is useful for dev: %v", 3)
@@ -78,18 +73,14 @@ pattern = "%utctime:2006-01-02 15:04:05.000 %level:-5 %line %shortfile:-25 %cust
 
 	stats = logger.Stats()
 	t.Logf("Second round: %#v\n", stats)
-	if stats.bytes != 878 {
-		t.Errorf("Expected: 878, got: %v\n", stats.bytes)
-	}
+	assert.Equal(t, int64(878), stats.bytes)
 
 	Tracef("I shoudn't see this msg: %v", 46583)
 	Debugf("I would like to see this message, debug is useful for dev: %v", 334545)
 
 	stats = logger.Stats()
 	t.Logf("Third round: %#v\n", stats)
-	if stats.bytes != 878 {
-		t.Errorf("Expected: 878, got: %v\n", stats.bytes)
-	}
+	assert.Equal(t, int64(878), stats.bytes)
 }
 
 func TestNewCustomConsoleReceiver(t *testing.T) {
@@ -99,10 +90,7 @@ func TestNewCustomConsoleReceiver(t *testing.T) {
 receiver = "CONSOLE"
  `
 	logger, err := New(config)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-		t.FailNow()
-	}
+	assert.FailNowOnError(t, err, "unexpected error")
 
 	logger.Trace("I shoudn't see this msg, because standard logger level is DEBUG")
 	logger.Debug("I would like to see this message, debug is useful for dev")
@@ -112,9 +100,7 @@ receiver = "CONSOLE"
 
 	stats := logger.Stats()
 	t.Logf("First round: %#v\n", stats)
-	if stats.bytes != 313 {
-		t.Errorf("Expected: 313, got: %v", stats.bytes)
-	}
+	assert.Equal(t, int64(313), stats.bytes)
 
 	logger.Tracef("I shoudn't see this msg, because standard logger level is DEBUG: %v", 4)
 	logger.Debugf("I would like to see this message, debug is useful for dev: %v", 3)
@@ -124,18 +110,14 @@ receiver = "CONSOLE"
 
 	stats = logger.Stats()
 	t.Logf("Second round: %#v\n", stats)
-	if stats.bytes != 638 {
-		t.Errorf("Expected: 638, got: %v", stats.bytes)
-	}
+	assert.Equal(t, int64(638), stats.bytes)
 
 	Tracef("I shoudn't see this msg: %v", 46583)
 	Debugf("I would like to see this message, debug is useful for dev: %v", 334545)
 
 	stats = logger.Stats()
 	t.Logf("Third round: %#v\n", stats)
-	if stats.bytes != 638 {
-		t.Errorf("Expected: 638, got: %v", stats.bytes)
-	}
+	assert.Equal(t, int64(638), stats.bytes)
 }
 
 func TestNewCustomFileReceiverDailyRotation(t *testing.T) {
@@ -160,10 +142,7 @@ rotate {
  `
 
 	logger, err := New(fileLoggerConfig)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-		t.FailNow()
-	}
+	assert.FailNowOnError(t, err, "unexpected error")
 
 	for i := 0; i < 25; i++ {
 		logger.Trace("I shoudn't see this msg, because standard logger level is DEBUG")
@@ -184,9 +163,7 @@ rotate {
 
 	// Close scenario
 	logger.Close()
-	if !logger.Closed() {
-		t.Errorf("Expected 'true', got %v", logger.Closed())
-	}
+	assert.Equal(t, true, logger.Closed())
 
 	logger.Info("This won't be written to file")
 
@@ -222,10 +199,7 @@ rotate {
  `
 
 	logger, err := New(fileLoggerConfig)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-		t.FailNow()
-	}
+	assert.FailNowOnError(t, err, "unexpected error")
 
 	for i := 0; i < 25; i++ {
 		logger.Trace("I shoudn't see this msg, because standard logger level is DEBUG")
@@ -261,10 +235,7 @@ rotate {
  `
 
 	logger, err := New(fileLoggerConfig)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-		t.FailNow()
-	}
+	assert.FailNowOnError(t, err, "unexpected error")
 
 	// Size based rotation, dump more value into receiver
 	for i := 0; i < 5000; i++ {
@@ -284,10 +255,7 @@ rotate {
 
 func TestUnknownFormatFlag(t *testing.T) {
 	_, err := parseFlag("")
-	if err != ErrFormatStringEmpty {
-		t.Errorf("Unexpected error: %v", err)
-		t.FailNow()
-	}
+	assert.Equal(t, ErrFormatStringEmpty, err)
 
 	_, err = parseFlag("%time:2006-01-02 15:04:05.000 %level:-5 %longfile %unknown %custom:- %message")
 	if !strings.Contains(err.Error(), "unrecognized log format flag") {
@@ -298,27 +266,21 @@ func TestUnknownFormatFlag(t *testing.T) {
 
 func TestNewMisc(t *testing.T) {
 	_, err := New("")
-	if err.Error() != "logger config is empty" {
-		t.Errorf("Unexpected error: %v", err)
-		t.FailNow()
-	}
+	assert.Equal(t, "logger config is empty", err.Error())
 
 	_, err = New(`receiver = "file" level="info"`)
 	if !strings.HasPrefix(err.Error(), "syntax error") {
 		t.Errorf("Unexpected error: %v", err)
-		t.FailNow()
 	}
 
 	_, err = New(`level="info";`)
 	if !strings.HasPrefix(err.Error(), "receiver configuration") {
 		t.Errorf("Unexpected error: %v", err)
-		t.FailNow()
 	}
 
 	_, err = New(`receiver = "file"; level="unknown";`)
 	if !strings.HasPrefix(err.Error(), "unrecognized log level") {
 		t.Errorf("Unexpected error: %v", err)
-		t.FailNow()
 	}
 
 	_, err = New(`receiver = "remote"; level="debug";`)
@@ -330,26 +292,20 @@ func TestNewMisc(t *testing.T) {
 	_, err = New(`receiver = "file"; level="debug"; rotate { mode="size"; size=2500; }`)
 	if !strings.HasPrefix(err.Error(), "maximum 2GB file size") {
 		t.Errorf("Unexpected error: %v", err)
-		t.FailNow()
 	}
 
 	_, err = New(`receiver = "console"; level="debug"; pattern="%time:2006-01-02 15:04:05.000 %level:-5 %unknown %message";`)
 	if !strings.HasPrefix(err.Error(), "unrecognized log format flag") {
 		t.Errorf("Unexpected error: %v", err)
-		t.FailNow()
 	}
 }
 
 func TestLevelUnknown(t *testing.T) {
 	var level Level
-	if level.String() != "ERROR" {
-		t.Errorf("Expected level 'ERROR', got '%v'", level)
-	}
+	assert.Equal(t, "ERROR", level.String())
 
 	level = 9 // Unknown log level
-	if level.String() != "Unknown" {
-		t.Errorf("Expected level 'Unknown', got '%v'", level)
-	}
+	assert.Equal(t, "Unknown", level.String())
 }
 
 func TestStats(t *testing.T) {
@@ -358,13 +314,8 @@ func TestStats(t *testing.T) {
 		bytes: 764736,
 	}
 
-	if stats.Bytes() != 764736 {
-		t.Errorf("Expected '764736' bytes, got '%v' bytes", stats.Bytes())
-	}
-
-	if stats.Lines() != 200 {
-		t.Errorf("Expected '200' lines, got '%v' lines", stats.Lines())
-	}
+	assert.Equal(t, int64(764736), stats.Bytes())
+	assert.Equal(t, int64(200), stats.Lines())
 }
 
 func cleaupFiles(match string) {
