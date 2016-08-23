@@ -5,6 +5,7 @@
 package ahttp
 
 import (
+	"mime"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -58,7 +59,7 @@ type (
 	ContentType struct {
 		Raw    string
 		Mime   string
-		Ext    string
+		Exts   []string
 		Params map[string]string
 	}
 
@@ -88,13 +89,13 @@ func NegotiateContentType(req *http.Request) *ContentType {
 	// 1) URL extension
 	ext := filepath.Ext(req.URL.Path)
 	switch ext {
-	case ".html", ".json", ".js", ".xml", ".txt":
-		mime := "" // TODO
-		raw := mime
+	case ".html", ".htm", ".json", ".js", ".xml", ".txt":
+		mimeType := mime.TypeByExtension(ext)
+		raw := mimeType
 		return &ContentType{
 			Raw:    raw,
-			Mime:   mime,
-			Ext:    ext,
+			Mime:   mimeType,
+			Exts:   []string{ext},
 			Params: make(map[string]string),
 		}
 	}
@@ -105,10 +106,12 @@ func NegotiateContentType(req *http.Request) *ContentType {
 		return htmlContentType()
 	}
 
+	exts, _ := mime.ExtensionsByType(spec.Value)
+
 	return &ContentType{
 		Raw:    spec.Raw,
 		Mime:   spec.Value,
-		Ext:    "", // TODO
+		Exts:   exts,
 		Params: spec.Params,
 	}
 }
@@ -148,12 +151,12 @@ func ParseContentType(req *http.Request) *ContentType {
 		}
 	}
 
-	// TODO extension from type
+	exts, _ := mime.ExtensionsByType(ctype)
 
 	return &ContentType{
 		Raw:    contentType,
 		Mime:   ctype,
-		Ext:    "TODO",
+		Exts:   exts,
 		Params: params,
 	}
 }
@@ -334,7 +337,7 @@ func htmlContentType() *ContentType {
 	return &ContentType{
 		Raw:  "text/html; charset=utf-8",
 		Mime: "text/html",
-		Ext:  ".html",
+		Exts: []string{".html"},
 		Params: map[string]string{
 			"charset": "utf-8",
 		},
