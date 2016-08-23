@@ -102,14 +102,20 @@ func TestNegotiateContentType(t *testing.T) {
 	contentType = NegotiateContentType(createRequest(HeaderAccept, ""))
 	assert.Equal(t, "text/html; charset=utf-8", contentType.String())
 	assert.Equal(t, "text/html", contentType.Mime)
-	assert.Equal(t, ".html", contentType.Ext)
+	assert.Equal(t, ".html", contentType.Exts[0])
 	assert.Equal(t, "", contentType.Version())
 
 	req := createRequest(HeaderAccept, "application/json")
 	req.URL, _ = url.Parse("http://localhost:8080/testpath.json")
 	contentType = NegotiateContentType(req)
-	assert.Equal(t, "", contentType.Mime)
-	assert.Equal(t, ".json", contentType.Ext)
+	assert.Equal(t, "application/json", contentType.Mime)
+	assert.Equal(t, ".json", contentType.Exts[0])
+
+	req = createRequest(HeaderAccept, "application/json")
+	req.URL, _ = url.Parse("http://localhost:8080/testpath.html")
+	contentType = NegotiateContentType(req)
+	assert.Equal(t, "text/html; charset=utf-8", contentType.Mime)
+	assert.Equal(t, ".html", contentType.Exts[0])
 
 	req = createRequest(HeaderAccept, "application/json; version=2")
 	spec := ParseAccept(req, HeaderAccept).MostQualified()
@@ -156,7 +162,7 @@ func TestParseContentType(t *testing.T) {
 	contentType = ParseContentType(createRequest(HeaderContentType, ""))
 	assert.Equal(t, "text/html", contentType.Mime)
 	assert.Equal(t, "text/html; charset=utf-8", contentType.String())
-	assert.Equal(t, ".html", contentType.Ext)
+	assert.Equal(t, ".html", contentType.Exts[0])
 
 	contentType = ParseContentType(createRequest(HeaderContentType, "text/html;charset"))
 	assert.Equal(t, "text/html", contentType.Mime)
