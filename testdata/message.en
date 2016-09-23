@@ -1,0 +1,7 @@
+# sample testdata for i18n - en
+
+label {
+  paginate {
+    last = "Last"
+  }
+}
