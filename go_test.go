@@ -32,7 +32,7 @@ func TestGoPath(t *testing.T) {
 
 func TestIsInGoRoot(t *testing.T) {
 	goroot := os.Getenv("GOROOT")
-	if StrIsEmpty(goroot) {
+	if IsStrEmpty(goroot) {
 		goroot = "/usr/local/go"
 	}
 	assert.Equal(t, true, IsInGoRoot(filepath.Join(goroot, "src/github.com/jeevatkm/myapp")))

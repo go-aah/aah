@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
 // go-aah/essentails source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -39,7 +39,7 @@ func IsImportPathExists(path string) bool {
 // it returns first directory from GOPATH
 func GoPath() (string, error) {
 	gopath := build.Default.GOPATH
-	if StrIsEmpty(gopath) {
+	if IsStrEmpty(gopath) {
 		return "", ErrGoPathIsNotSet
 	}
 
@@ -59,7 +59,7 @@ func GoPath() (string, error) {
 		}
 	}
 
-	if StrIsEmpty(currentGoPath) {
+	if IsStrEmpty(currentGoPath) {
 		// current working dir didn't match up,
 		// so pick first one
 		currentGoPath = goPathList[0]
@@ -72,3 +72,8 @@ func IsInGoRoot(path string) bool {
 	return strings.HasPrefix(path, filepath.Join(build.Default.GOROOT, "src")) ||
 		strings.HasPrefix(path, filepath.Join(build.Default.GOROOT, "pkg"))
 }
+
+// vendoringPath := revel.BasePath + "/vendor/"
+// 	if strings.HasPrefix(root, vendoringPath) {
+// 		return filepath.ToSlash(root[len(vendoringPath):])
+// 	}

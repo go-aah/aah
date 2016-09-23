@@ -29,6 +29,18 @@ func TestIsDirEmpty(t *testing.T) {
 	assert.Equal(t, true, IsDirEmpty("testdata/path/isdirempty"))
 }
 
+func TestIsDir(t *testing.T) {
+	pwd, _ := os.Getwd()
+	result := IsDir(filepath.Join(pwd, "testdata"))
+	assert.True(t, result)
+
+	result = IsDir(filepath.Join(pwd, "testdata/sample.txt"))
+	assert.False(t, result)
+
+	result = IsDir(filepath.Join(pwd, "testdata/not-exists.txt"))
+	assert.False(t, result)
+}
+
 func TestApplyFileMode(t *testing.T) {
 	fileName := "testdata/FileMode.txt"
 	defer removeFiles(fileName)

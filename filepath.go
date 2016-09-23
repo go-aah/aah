@@ -1,5 +1,5 @@
-// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
-// essentails source code and usage is governed by a MIT style
+// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// go-aah/essentails source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package ess
@@ -59,6 +59,16 @@ func IsDirEmpty(path string) bool {
 	defer CloseQuietly(dir)
 	results, _ := dir.Readdir(1)
 	return len(results) == 0
+}
+
+// IsDir returns true if the given `path` is directory otherwise returns false.
+// Also returns false if path is not exists
+func IsDir(path string) bool {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
 }
 
 // ApplyFileMode applies the given file mode to the target{file|directory}
