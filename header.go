@@ -48,21 +48,6 @@ const (
 )
 
 type (
-	// Locale value is negotiated from HTTP header `Accept-Language`
-	Locale struct {
-		Raw      string
-		Language string
-		Region   string
-	}
-
-	// ContentType is represents request and response content type values
-	ContentType struct {
-		Raw    string
-		Mime   string
-		Exts   []string
-		Params map[string]string
-	}
-
 	// AcceptSpec used for HTTP Accept, Accept-Language, Accept-Encoding header
 	// value and it's quality. Implementation follows the specification of RFC7231
 	// https://tools.ietf.org/html/rfc7231#section-5.3
@@ -231,7 +216,7 @@ func ToLocale(a *AcceptSpec) *Locale {
 		return nil
 	}
 
-	values := strings.Split(a.Value, "-")
+	values := strings.SplitN(a.Value, "-", 2)
 	if len(values) == 2 {
 		return &Locale{
 			Raw:      a.Raw,
