@@ -188,7 +188,7 @@ type Logger interface {
 
 // New creates the logger based config supplied
 func New(configStr string) (Logger, error) {
-	if ess.StrIsEmpty(configStr) {
+	if ess.IsStrEmpty(configStr) {
 		return nil, errors.New("logger config is empty")
 	}
 

@@ -32,7 +32,7 @@ type FlagPart struct {
 //  For e.g.:
 //    %time:2006-01-02 15:04:05.000 %level %custom:- %msg
 func parseFlag(format string) (*[]FlagPart, error) {
-	if ess.StrIsEmpty(format) {
+	if ess.IsStrEmpty(format) {
 		return nil, ErrFormatStringEmpty
 	}
 
