@@ -3,7 +3,7 @@
 // All rights reserved.
 // Use of this radix_tree.go source code is governed by a BSD-style license that can be found
 // in the LICENSE file at https://raw.githubusercontent.com/julienschmidt/httprouter/master/LICENSE.
-// Last modified by previous authors on Feb 6, 2016
+// Previous author last modified on Feb 6, 2016, then I have modified it.
 
 package router
 
@@ -16,16 +16,6 @@ import (
 	"github.com/go-aah/test/assert"
 )
 
-func printChildren(n *node, prefix string) {
-	fmt.Printf(" %02d:%02d %s%s[%d] %v %t %d \r\n", n.priority, n.maxParams, prefix, n.path, len(n.edges), n.value, n.wildChild, n.nType)
-	for l := len(n.path); l > 0; l-- {
-		prefix += " "
-	}
-	for _, child := range n.edges {
-		printChildren(child, prefix)
-	}
-}
-
 type testRequests []struct {
 	path       string
 	nilHandler bool
@@ -33,68 +23,9 @@ type testRequests []struct {
 	ps         Params
 }
 
-func checkRequests(t *testing.T, tree *node, requests testRequests) {
-	for _, request := range requests {
-		handler, ps, _, _ := tree.find(request.path)
-
-		if handler == nil {
-			if !request.nilHandler {
-				t.Errorf("value mismatch for route '%s': Expected non-nil value", request.path)
-			}
-		} else if request.nilHandler {
-			t.Errorf("value mismatch for route '%s': Expected nil value", request.path)
-		} else {
-			if !reflect.DeepEqual(handler, request.route) {
-				t.Errorf("value mismatch for route '%s': Wrong value (%s != %s)", request.path, request.route, request.route)
-			}
-		}
-
-		if !reflect.DeepEqual(ps, request.ps) {
-			t.Errorf("Params mismatch for route '%s'", request.path)
-		}
-	}
-}
-
-func checkPriorities(t *testing.T, n *node) uint32 {
-	var prio uint32
-	for i := range n.edges {
-		prio += checkPriorities(t, n.edges[i])
-	}
-
-	if n.value != nil {
-		prio++
-	}
-
-	if n.priority != prio {
-		t.Errorf(
-			"priority mismatch for node '%s': is %d, should be %d",
-			n.path, n.priority, prio,
-		)
-	}
-
-	return prio
-}
-
-func checkMaxParams(t *testing.T, n *node) uint8 {
-	var maxParams uint8
-	for i := range n.edges {
-		params := checkMaxParams(t, n.edges[i])
-		if params > maxParams {
-			maxParams = params
-		}
-	}
-	if n.nType > root && !n.wildChild {
-		maxParams++
-	}
-
-	if n.maxParams != maxParams {
-		t.Errorf(
-			"maxParams mismatch for node '%s': is %d, should be %d",
-			n.path, n.maxParams, maxParams,
-		)
-	}
-
-	return maxParams
+type testRoute struct {
+	path     string
+	conflict bool
 }
 
 func TestCountParams(t *testing.T) {
@@ -166,7 +97,7 @@ func TestTreeWildcard(t *testing.T) {
 		"/info/:user/project/:project",
 	}
 	for _, route := range routes {
-		tree.addRoute(route, route)
+		_ = tree.addRoute(route, route)
 	}
 
 	//printChildren(tree, "")
@@ -190,20 +121,6 @@ func TestTreeWildcard(t *testing.T) {
 
 	checkPriorities(t, tree)
 	checkMaxParams(t, tree)
-}
-
-func catchPanic(testFunc func()) (recv interface{}) {
-	defer func() {
-		recv = recover()
-	}()
-
-	testFunc()
-	return
-}
-
-type testRoute struct {
-	path     string
-	conflict bool
 }
 
 func testRoutes(t *testing.T, routes []testRoute) {
@@ -417,6 +334,7 @@ func TestTreeTrailingSlashRedirect(t *testing.T) {
 		"/_/",
 		"/api/world/abc",
 	}
+
 	for _, route := range noTsrRoutes {
 		handler, _, tsr, _ := tree.find(route)
 		if handler != nil {
@@ -430,11 +348,9 @@ func TestTreeTrailingSlashRedirect(t *testing.T) {
 func TestTreeRootTrailingSlashRedirect(t *testing.T) {
 	tree := &node{}
 
-	recv := catchPanic(func() {
-		tree.addRoute("/:test", "/:test")
-	})
-	if recv != nil {
-		t.Fatalf("panic inserting test route: %v", recv)
+	err := tree.addRoute("/:test", "/:test")
+	if err != nil {
+		t.Fatalf("error inserting test route: %v", err)
 	}
 
 	handler, _, tsr, _ := tree.find("/")
@@ -484,11 +400,9 @@ func TestTreeFindCaseInsensitivePath(t *testing.T) {
 	}
 
 	for _, route := range routes {
-		recv := catchPanic(func() {
-			tree.addRoute(route, route)
-		})
-		if recv != nil {
-			t.Fatalf("panic inserting route '%s': %v", route, recv)
+		err := tree.addRoute(route, route)
+		if err != nil {
+			t.Fatalf("error inserting route '%s': %v", route, err)
 		}
 	}
 
@@ -502,6 +416,7 @@ func TestTreeFindCaseInsensitivePath(t *testing.T) {
 			t.Errorf("Wrong result for route '%s': %s", route, string(out))
 		}
 	}
+
 	// With fixTrailingSlash = false
 	for _, route := range routes {
 		out, found, err := tree.findCaseInsensitive(route, false)
@@ -583,6 +498,7 @@ func TestTreeFindCaseInsensitivePath(t *testing.T) {
 			return
 		}
 	}
+
 	// With fixTrailingSlash = false
 	for _, test := range tests {
 		out, found, err := tree.findCaseInsensitive(test.in, false)
@@ -616,4 +532,78 @@ func TestTreeInvalidNodeType(t *testing.T) {
 
 	_, _, err = tree.findCaseInsensitive("/test", true)
 	assert.Equal(t, "invalid node type", err.Error())
+}
+
+func checkRequests(t *testing.T, tree *node, requests testRequests) {
+	for _, request := range requests {
+		handler, ps, _, _ := tree.find(request.path)
+
+		if handler == nil {
+			if !request.nilHandler {
+				t.Errorf("value mismatch for route '%s': Expected non-nil value", request.path)
+			}
+		} else if request.nilHandler {
+			t.Errorf("value mismatch for route '%s': Expected nil value", request.path)
+		} else {
+			if !reflect.DeepEqual(handler, request.route) {
+				t.Errorf("value mismatch for route '%s': Wrong value (%s != %s)", request.path, request.route, request.route)
+			}
+		}
+
+		if !reflect.DeepEqual(ps, request.ps) {
+			t.Errorf("Params mismatch for route '%s'", request.path)
+		}
+	}
+}
+
+func checkPriorities(t *testing.T, n *node) uint32 {
+	var prio uint32
+	for i := range n.edges {
+		prio += checkPriorities(t, n.edges[i])
+	}
+
+	if n.value != nil {
+		prio++
+	}
+
+	if n.priority != prio {
+		t.Errorf(
+			"priority mismatch for node '%s': is %d, should be %d",
+			n.path, n.priority, prio,
+		)
+	}
+
+	return prio
+}
+
+func checkMaxParams(t *testing.T, n *node) uint8 {
+	var maxParams uint8
+	for i := range n.edges {
+		params := checkMaxParams(t, n.edges[i])
+		if params > maxParams {
+			maxParams = params
+		}
+	}
+	if n.nType > root && !n.wildChild {
+		maxParams++
+	}
+
+	if n.maxParams != maxParams {
+		t.Errorf(
+			"maxParams mismatch for node '%s': is %d, should be %d",
+			n.path, n.maxParams, maxParams,
+		)
+	}
+
+	return maxParams
+}
+
+func printChildren(n *node, prefix string) {
+	fmt.Printf(" %02d:%02d %s%s[%d] %v %t %d \r\n", n.priority, n.maxParams, prefix, n.path, len(n.edges), n.value, n.wildChild, n.nType)
+	for l := len(n.path); l > 0; l-- {
+		prefix += " "
+	}
+	for _, child := range n.edges {
+		printChildren(child, prefix)
+	}
 }
