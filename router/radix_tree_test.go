@@ -1,9 +1,6 @@
-// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
-// Copyright (c) 2013 Julien Schmidt (https://github.com/julienschmidt)
-// All rights reserved.
-// Use of this radix_tree.go source code is governed by a BSD-style license that can be found
-// in the LICENSE file at https://raw.githubusercontent.com/julienschmidt/httprouter/master/LICENSE.
-// Previous author last modified on Feb 6, 2016, then I have modified it.
+// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// go-aah/aah source code and usage is governed by a MIT style
+// license that can be found in the LICENSE file.
 
 package router
 
@@ -20,7 +17,7 @@ type testRequests []struct {
 	path       string
 	nilHandler bool
 	route      string
-	ps         Params
+	pp         pathParams
 }
 
 type testRoute struct {
@@ -54,7 +51,7 @@ func TestTreeAddAndGet(t *testing.T) {
 		"/β",
 	}
 	for _, route := range routes {
-		tree.addRoute(route, route)
+		tree.add(route, route)
 	}
 
 	//printChildren(tree, "")
@@ -97,26 +94,26 @@ func TestTreeWildcard(t *testing.T) {
 		"/info/:user/project/:project",
 	}
 	for _, route := range routes {
-		_ = tree.addRoute(route, route)
+		_ = tree.add(route, route)
 	}
 
 	//printChildren(tree, "")
 
 	checkRequests(t, tree, testRequests{
 		{"/", false, "/", nil},
-		{"/cmd/test/", false, "/cmd/:tool/", Params{Param{"tool", "test"}}},
-		{"/cmd/test", true, "", Params{Param{"tool", "test"}}},
-		{"/cmd/test/3", false, "/cmd/:tool/:sub", Params{Param{"tool", "test"}, Param{"sub", "3"}}},
-		{"/src/", false, "/src/*filepath", Params{Param{"filepath", "/"}}},
-		{"/src/some/file.png", false, "/src/*filepath", Params{Param{"filepath", "/some/file.png"}}},
+		{"/cmd/test/", false, "/cmd/:tool/", pathParams{pathParam{"tool", "test"}}},
+		{"/cmd/test", true, "", pathParams{pathParam{"tool", "test"}}},
+		{"/cmd/test/3", false, "/cmd/:tool/:sub", pathParams{pathParam{"tool", "test"}, pathParam{"sub", "3"}}},
+		{"/src/", false, "/src/*filepath", pathParams{pathParam{"filepath", "/"}}},
+		{"/src/some/file.png", false, "/src/*filepath", pathParams{pathParam{"filepath", "/some/file.png"}}},
 		{"/search/", false, "/search/", nil},
-		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", Params{Param{"query", "someth!ng+in+ünìcodé"}}},
-		{"/search/someth!ng+in+ünìcodé/", true, "", Params{Param{"query", "someth!ng+in+ünìcodé"}}},
-		{"/user_gopher", false, "/user_:name", Params{Param{"name", "gopher"}}},
-		{"/user_gopher/about", false, "/user_:name/about", Params{Param{"name", "gopher"}}},
-		{"/files/js/inc/framework.js", false, "/files/:dir/*filepath", Params{Param{"dir", "js"}, Param{"filepath", "/inc/framework.js"}}},
-		{"/info/gordon/public", false, "/info/:user/public", Params{Param{"user", "gordon"}}},
-		{"/info/gordon/project/go", false, "/info/:user/project/:project", Params{Param{"user", "gordon"}, Param{"project", "go"}}},
+		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", pathParams{pathParam{"query", "someth!ng+in+ünìcodé"}}},
+		{"/search/someth!ng+in+ünìcodé/", true, "", pathParams{pathParam{"query", "someth!ng+in+ünìcodé"}}},
+		{"/user_gopher", false, "/user_:name", pathParams{pathParam{"name", "gopher"}}},
+		{"/user_gopher/about", false, "/user_:name/about", pathParams{pathParam{"name", "gopher"}}},
+		{"/files/js/inc/framework.js", false, "/files/:dir/*filepath", pathParams{pathParam{"dir", "js"}, pathParam{"filepath", "/inc/framework.js"}}},
+		{"/info/gordon/public", false, "/info/:user/public", pathParams{pathParam{"user", "gordon"}}},
+		{"/info/gordon/project/go", false, "/info/:user/project/:project", pathParams{pathParam{"user", "gordon"}, pathParam{"project", "go"}}},
 	})
 
 	checkPriorities(t, tree)
@@ -127,7 +124,7 @@ func testRoutes(t *testing.T, routes []testRoute) {
 	tree := &node{}
 
 	for _, route := range routes {
-		err := tree.addRoute(route.path, nil)
+		err := tree.add(route.path, nil)
 		if route.conflict {
 			if err == nil {
 				t.Errorf("no error for conflicting route '%s'", route.path)
@@ -188,13 +185,13 @@ func TestTreeDupliatePath(t *testing.T) {
 		"/user_:name",
 	}
 	for _, route := range routes {
-		err := tree.addRoute(route, route)
+		err := tree.add(route, route)
 		if err != nil {
 			t.Fatalf("error inserting route '%s': %v", route, err)
 		}
 
 		// Add again
-		err = tree.addRoute(route, nil)
+		err = tree.add(route, nil)
 		if err == nil {
 			t.Fatalf("no error while inserting duplicate route '%s", route)
 		}
@@ -205,9 +202,9 @@ func TestTreeDupliatePath(t *testing.T) {
 	checkRequests(t, tree, testRequests{
 		{"/", false, "/", nil},
 		{"/doc/", false, "/doc/", nil},
-		{"/src/some/file.png", false, "/src/*filepath", Params{Param{"filepath", "/some/file.png"}}},
-		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", Params{Param{"query", "someth!ng+in+ünìcodé"}}},
-		{"/user_gopher", false, "/user_:name", Params{Param{"name", "gopher"}}},
+		{"/src/some/file.png", false, "/src/*filepath", pathParams{pathParam{"filepath", "/some/file.png"}}},
+		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", pathParams{pathParam{"query", "someth!ng+in+ünìcodé"}}},
+		{"/user_gopher", false, "/user_:name", pathParams{pathParam{"name", "gopher"}}},
 	})
 }
 
@@ -221,7 +218,7 @@ func TestEmptyWildcardName(t *testing.T) {
 		"/src/*",
 	}
 	for _, route := range routes {
-		err := tree.addRoute(route, nil)
+		err := tree.add(route, nil)
 		if err == nil {
 			t.Fatalf("no error while inserting route with empty wildcard name '%s", route)
 		}
@@ -256,7 +253,7 @@ func TestTreeDoubleWildcard(t *testing.T) {
 
 	for _, route := range routes {
 		tree := &node{}
-		err := tree.addRoute(route, nil)
+		err := tree.add(route, nil)
 		if !strings.HasPrefix(err.Error(), panicMsg) {
 			t.Fatalf(`"Expected error "%s" for route '%s', got "%v"`, panicMsg, route, err)
 		}
@@ -293,7 +290,7 @@ func TestTreeTrailingSlashRedirect(t *testing.T) {
 		"/api/hello/:name",
 	}
 	for _, route := range routes {
-		err := tree.addRoute(route, route)
+		err := tree.add(route, route)
 		if err != nil {
 			t.Fatalf("error inserting route '%s': %v", route, err)
 		}
@@ -348,7 +345,7 @@ func TestTreeTrailingSlashRedirect(t *testing.T) {
 func TestTreeRootTrailingSlashRedirect(t *testing.T) {
 	tree := &node{}
 
-	err := tree.addRoute("/:test", "/:test")
+	err := tree.add("/:test", "/:test")
 	if err != nil {
 		t.Fatalf("error inserting test route: %v", err)
 	}
@@ -400,7 +397,7 @@ func TestTreeFindCaseInsensitivePath(t *testing.T) {
 	}
 
 	for _, route := range routes {
-		err := tree.addRoute(route, route)
+		err := tree.add(route, route)
 		if err != nil {
 			t.Fatalf("error inserting route '%s': %v", route, err)
 		}
@@ -520,8 +517,8 @@ func TestTreeInvalidNodeType(t *testing.T) {
 	const panicMsg = "invalid node type"
 
 	tree := &node{}
-	_ = tree.addRoute("/", "/")
-	_ = tree.addRoute("/:page", "/:page")
+	_ = tree.add("/", "/")
+	_ = tree.add("/:page", "/:page")
 
 	// set invalid node type
 	tree.edges[0].nType = 42
@@ -536,7 +533,7 @@ func TestTreeInvalidNodeType(t *testing.T) {
 
 func checkRequests(t *testing.T, tree *node, requests testRequests) {
 	for _, request := range requests {
-		handler, ps, _, _ := tree.find(request.path)
+		handler, pp, _, _ := tree.find(request.path)
 
 		if handler == nil {
 			if !request.nilHandler {
@@ -550,8 +547,8 @@ func checkRequests(t *testing.T, tree *node, requests testRequests) {
 			}
 		}
 
-		if !reflect.DeepEqual(ps, request.ps) {
-			t.Errorf("Params mismatch for route '%s'", request.path)
+		if !reflect.DeepEqual(pp, request.pp) {
+			t.Errorf("pathParams mismatch for route '%s'", request.path)
 		}
 	}
 }

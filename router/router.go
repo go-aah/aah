@@ -4,24 +4,32 @@
 
 package router
 
-// Param is a single URL parameter, consisting of a key and a value.
-type Param struct {
-	Key   string
-	Value string
-}
+type (
+	// pathParam is single URL Path parameter (not a query string values)
+	pathParam struct {
+		Key   string
+		Value string
+	}
 
-// Params is a Param-slice, as returned by the router.
-// The slice is ordered, the first URL parameter is also the first slice value.
-// It is therefore safe to read values by the index.
-type Params []Param
+	// pathParams is a Param-slice, as returned by the route tree.
+	pathParams []pathParam
+)
 
-// ByName returns the value of the first Param which key matches the given name.
-// If no matching Param is found, an empty string is returned.
-func (ps Params) ByName(name string) string {
-	for i := range ps {
-		if ps[i].Key == name {
-			return ps[i].Value
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Path Param methods
+//___________________________________
+
+// Get returns the value of the first Path Param which key matches the
+// given name. Otherwise an empty string is returned.
+func (pp pathParams) Get(name string) string {
+	for i := range pp {
+		if pp[i].Key == name {
+			return pp[i].Value
 		}
 	}
 	return ""
 }
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________

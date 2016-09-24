@@ -29,6 +29,10 @@ const (
 	catchAll
 )
 
+var (
+	errInvalidNodeType = errors.New("invalid node type")
+)
+
 type nodeType uint8
 
 type node struct {
@@ -68,9 +72,9 @@ func (n *node) incrementEdgePriority(pos int) int {
 	return newPos
 }
 
-// addRoute adds a node with the given value to the path.
+// add adds a node with the given value againsts given path.
 // Not concurrency-safe!
-func (n *node) addRoute(path string, value interface{}) error {
+func (n *node) add(path string, value interface{}) error {
 	fullPath := path
 	n.priority++
 	numParams := countParams(path)
@@ -324,7 +328,7 @@ func (n *node) insertEdge(numParams uint8, path, fullPath string, value interfac
 // If no value can be found, a TSR (trailing slash redirect) recommendation is
 // made if a value exists with an extra (without the) trailing slash for the
 // given path.
-func (n *node) find(path string) (value interface{}, p Params, tsr bool, err error) {
+func (n *node) find(path string) (value interface{}, p pathParams, tsr bool, err error) {
 walk: // outer loop for walking the tree
 	for {
 		if len(path) > len(n.path) {
@@ -363,7 +367,7 @@ walk: // outer loop for walking the tree
 					// save param value
 					if p == nil {
 						// lazy allocation
-						p = make(Params, 0, n.maxParams)
+						p = make(pathParams, 0, n.maxParams)
 					}
 					i := len(p)
 					p = p[:i+1] // expand slice within preallocated capacity
@@ -398,7 +402,7 @@ walk: // outer loop for walking the tree
 					// save param value
 					if p == nil {
 						// lazy allocation
-						p = make(Params, 0, n.maxParams)
+						p = make(pathParams, 0, n.maxParams)
 					}
 					i := len(p)
 					p = p[:i+1] // expand slice within preallocated capacity
@@ -409,7 +413,7 @@ walk: // outer loop for walking the tree
 					return
 
 				default:
-					err = errors.New("invalid node type")
+					err = errInvalidNodeType
 					return
 				}
 			}
@@ -612,7 +616,7 @@ walk: // outer loop for walking the tree
 				return append(ciPath, path...), true, nil
 
 			default:
-				return nil, false, errors.New("invalid node type")
+				return nil, false, errInvalidNodeType
 			}
 		} else {
 			// We should have reached the node containing the value.
