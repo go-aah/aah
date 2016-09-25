@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	dotByte     = '.'
 	slashByte   = '/'
 	paramByte   = ':'
 	wildByte    = '*'
@@ -323,11 +324,10 @@ func (n *node) insertEdge(numParams uint8, path, fullPath string, value interfac
 	return nil
 }
 
-// Returns the value registered with the given path (key). The values of
-// wildcards are saved to a map.
-// If no value can be found, a TSR (trailing slash redirect) recommendation is
-// made if a value exists with an extra (without the) trailing slash for the
-// given path.
+// find returns the value registered with the given path (key). The values of
+// wildcards are saved to a map. If no value can be found, a TSR (trailing slash
+// redirect) recommendation is made if a value exists with an extra (without
+// the) trailing slash for the given path.
 func (n *node) find(path string) (value interface{}, p pathParams, tsr bool, err error) {
 walk: // outer loop for walking the tree
 	for {
