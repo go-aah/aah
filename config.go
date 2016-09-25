@@ -11,6 +11,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/go-aah/forge"
 )
@@ -56,6 +57,39 @@ func (c *Config) HasProfile(profile string) bool {
 // IsProfileEnabled returns true of profile enabled otherwise false
 func (c *Config) IsProfileEnabled() bool {
 	return len(c.profile) > 0
+}
+
+// Keys returns all the key names at current level
+func (c *Config) Keys() []string {
+	return c.cfg.Keys()
+}
+
+// GetSubConfig create new sub config from the given key path. Only `Section`
+// type can be created as sub config.
+func (c *Config) GetSubConfig(key string) (*Config, bool) {
+	v, err := c.cfg.Resolve(c.prepareKey(key))
+	if err != nil {
+		return nil, false
+	}
+
+	if s, ok := v.(*forge.Section); ok {
+		return &Config{cfg: s}, true
+	}
+	return nil, false
+}
+
+// KeysByPath is similar to `Config.Keys()`, however it returns key names for
+// given key path.
+func (c *Config) KeysByPath(path string) []string {
+	v, err := c.cfg.Resolve(path)
+	if err != nil {
+		return []string{}
+	}
+
+	if s, ok := v.(*forge.Section); ok {
+		return s.Keys()
+	}
+	return []string{}
 }
 
 // String gets the `string` value for the given key from the configuration.
@@ -174,20 +208,15 @@ func (c *Config) Merge(source *Config) error {
 	return c.cfg.Merge(source.cfg)
 }
 
-func (c *Config) getByProfile(key string) (interface{}, bool) {
-	return c.get(fmt.Sprintf("%s.%s", c.profile, key))
+// IsExists returns true if given is exists in the config otherwise returns false
+func (c *Config) IsExists(key string) bool {
+	_, f := c.get(c.prepareKey(key))
+	return f
 }
 
-func (c *Config) get(key string) (interface{}, bool) {
-	v, err := c.cfg.Resolve(key)
-	if err != nil {
-		return nil, false
-	}
-
-	return v.GetValue(), true
-}
-
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Configuration loading methods
+//___________________________________
 
 // LoadFile loads the configuration given config file
 func LoadFile(file string) (*Config, error) {
@@ -231,4 +260,28 @@ func ParseString(cfg string) (*Config, error) {
 	return &Config{
 		cfg: setting,
 	}, nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
+
+func (c *Config) prepareKey(key string) string {
+	if len(strings.TrimSpace(c.profile)) == 0 {
+		return key
+	}
+	return fmt.Sprintf("%s.%s", c.profile, key)
+}
+
+func (c *Config) getByProfile(key string) (interface{}, bool) {
+	return c.get(c.prepareKey(key))
+}
+
+func (c *Config) get(key string) (interface{}, bool) {
+	v, err := c.cfg.Resolve(key)
+	if err != nil {
+		return nil, false // not found
+	}
+
+	return v.GetValue(), true // found
 }

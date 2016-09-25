@@ -12,23 +12,65 @@ import (
 	"github.com/go-aah/test/assert"
 )
 
-func initString(t *testing.T, configStr string) *Config {
-	cfg, err := ParseString(configStr)
-	assert.FailNowOnError(t, err, "")
+func TestKeysAndKeysByPath(t *testing.T) {
+	cfg := initFile(t, "testdata/test.cfg")
+	keys := cfg.Keys()
+	assert.True(t, containsString(keys, "prod"))
+	assert.True(t, containsString(keys, "dev"))
+	assert.True(t, containsString(keys, "subsection"))
 
-	return cfg
+	keys = cfg.KeysByPath("prod")
+	assert.True(t, containsString(keys, "float32"))
+	assert.True(t, containsString(keys, "string"))
+	assert.True(t, containsString(keys, "truevalue"))
+
+	// Key not exists
+	keys = cfg.KeysByPath("prod.not.found")
+	assert.True(t, len(keys) == 0)
+
+	// key is not a section
+	keys = cfg.KeysByPath("prod.truevalue")
+	assert.True(t, len(keys) == 0)
 }
 
-func initFile(t *testing.T, file string) *Config {
-	cfg, err := LoadFile(file)
-	assert.FailNowOnError(t, err, "")
+func TestGetSubConfig(t *testing.T) {
+	cfg := initFile(t, "testdata/test.cfg")
 
-	return cfg
+	prod, found1 := cfg.GetSubConfig("prod")
+	assert.NotNil(t, prod)
+	assert.True(t, found1)
+
+	setProfileForTest(t, cfg, "prod")
+	subsection, found2 := cfg.GetSubConfig("subsection")
+	assert.NotNil(t, subsection)
+	assert.True(t, found2)
+
+	value, f := subsection.Float32("sub_float")
+	assert.True(t, f)
+	assert.Equal(t, float32(100.5), value)
+
+	cfg.ClearProfile()
+
+	// Key not exists
+	_, prod2NotFound := cfg.GetSubConfig("prod.not.found")
+	assert.False(t, prod2NotFound)
+
+	// key is not a section
+	_, keyNotASection := cfg.GetSubConfig("prod.truevalue")
+	assert.False(t, keyNotASection)
 }
 
-func SetProfile(t *testing.T, cfg *Config, profile string) {
-	err := cfg.SetProfile(profile)
-	assert.FailNowOnError(t, err, "")
+func TestIsExists(t *testing.T) {
+	cfg := initFile(t, "testdata/test.cfg")
+	found := cfg.IsExists("prod.string")
+	assert.True(t, found)
+
+	found = cfg.IsExists("prod.not.found")
+	assert.False(t, found)
+
+	setProfileForTest(t, cfg, "prod")
+	found = cfg.IsExists("string")
+	assert.True(t, found)
 }
 
 func TestStringValues(t *testing.T) {
@@ -39,12 +81,12 @@ func TestStringValues(t *testing.T) {
 	assert.Equal(t, cfg.StringDefault("string_not_exists", "nice 1"), "nice 1")
 	assert.Equal(t, cfg.StringDefault("string", "nice 1"), "a string")
 
-	SetProfile(t, cfg, "dev")
+	setProfileForTest(t, cfg, "dev")
 	dv1, _ := cfg.String("string")
 	assert.Equal(t, "a string inside dev", dv1)
 	assert.Equal(t, cfg.StringDefault("string_not_exists", "nice 2"), "nice 2")
 
-	SetProfile(t, cfg, "prod")
+	setProfileForTest(t, cfg, "prod")
 	pv1, _ := cfg.String("string")
 	assert.Equal(t, "a string inside prod", pv1)
 	assert.Equal(t, cfg.StringDefault("string_not_exists", "nice 3"), "nice 3")
@@ -65,7 +107,7 @@ func TestIntValues(t *testing.T) {
 	assert.Equal(t, cfg.IntDefault("int_not_exists", 99), 99)
 	assert.Equal(t, cfg.IntDefault("int", 99), 32)
 
-	SetProfile(t, cfg, "dev")
+	setProfileForTest(t, cfg, "dev")
 	dv1, _ := cfg.Int("int")
 	assert.Equal(t, 500, dv1)
 
@@ -73,7 +115,7 @@ func TestIntValues(t *testing.T) {
 	assert.Equal(t, int64(2), dv2)
 	assert.Equal(t, cfg.IntDefault("int_not_exists", 199), 199)
 
-	SetProfile(t, cfg, "prod")
+	setProfileForTest(t, cfg, "prod")
 	pv1, _ := cfg.Int("int")
 	assert.Equal(t, 1000, pv1)
 
@@ -99,7 +141,7 @@ func TestFloatValues(t *testing.T) {
 	assert.Equal(t, cfg.Float32Default("float_not_exists", float32(99.99)), float32(99.99))
 	assert.Equal(t, cfg.Float32Default("float32", float32(99.99)), float32(32.2))
 
-	SetProfile(t, cfg, "dev")
+	setProfileForTest(t, cfg, "dev")
 	dv1, _ := cfg.Float32("float32")
 	assert.Equal(t, float32(62.2), dv1)
 
@@ -110,7 +152,7 @@ func TestFloatValues(t *testing.T) {
 	assert.Equal(t, float64(50.5), dv3)
 	assert.Equal(t, cfg.Float32Default("float_not_exists", float32(199.99)), float32(199.99))
 
-	SetProfile(t, cfg, "prod")
+	setProfileForTest(t, cfg, "prod")
 	pv1, _ := cfg.Float32("float32")
 	assert.Equal(t, float32(122.2), pv1)
 
@@ -134,11 +176,11 @@ func TestBoolValues(t *testing.T) {
 	assert.Equal(t, cfg.BoolDefault("bool_not_exists", true), true)
 	assert.Equal(t, cfg.BoolDefault("falsevalue", true), false)
 
-	SetProfile(t, cfg, "dev")
+	setProfileForTest(t, cfg, "dev")
 	assert.Equal(t, cfg.BoolDefault("truevalue", true), true)    // keys is found by fallback
 	assert.Equal(t, cfg.BoolDefault("falsevalue", false), false) // keys is found by fallback
 
-	SetProfile(t, cfg, "prod")
+	setProfileForTest(t, cfg, "prod")
 	pv1, _ := cfg.Bool("truevalue")
 	assert.Equal(t, true, pv1)
 
@@ -244,4 +286,32 @@ func TestLoadFiles(t *testing.T) {
 
 	_, err = LoadFiles("testdata/test-1.cfg", "testdata/test-error.cfg")
 	assert.Equal(t, true, strings.Contains(err.Error(), "source (STRING) and target (SECTION)"))
+}
+
+func initString(t *testing.T, configStr string) *Config {
+	cfg, err := ParseString(configStr)
+	assert.FailNowOnError(t, err, "")
+
+	return cfg
+}
+
+func initFile(t *testing.T, file string) *Config {
+	cfg, err := LoadFile(file)
+	assert.FailNowOnError(t, err, "")
+
+	return cfg
+}
+
+func setProfileForTest(t *testing.T, cfg *Config, profile string) {
+	err := cfg.SetProfile(profile)
+	assert.FailNowOnError(t, err, "")
+}
+
+func containsString(s []string, v string) bool {
+	for _, p := range s {
+		if p == v {
+			return true
+		}
+	}
+	return false
 }
