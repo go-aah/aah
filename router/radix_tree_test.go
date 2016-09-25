@@ -13,25 +13,24 @@ import (
 	"github.com/go-aah/test/assert"
 )
 
-type testRequests []struct {
-	path       string
-	nilHandler bool
-	route      string
-	pp         pathParams
-}
+type (
+	testRequests []struct {
+		path       string
+		nilHandler bool
+		route      string
+		pp         pathParams
+	}
 
-type testRoute struct {
-	path     string
-	conflict bool
-}
+	testRoute struct {
+		path     string
+		conflict bool
+	}
+)
 
 func TestCountParams(t *testing.T) {
-	if countParams("/path/:param1/static/*catch-all") != 2 {
-		t.Fail()
-	}
-	if countParams(strings.Repeat("/:param", 256)) != 255 {
-		t.Fail()
-	}
+	assert.Equal(t, uint8(2), countParams("/path/:param1/static/*catch-all"))
+
+	assert.Equal(t, uint8(255), countParams(strings.Repeat("/:param", 256)))
 }
 
 func TestTreeAddAndGet(t *testing.T) {
@@ -51,7 +50,8 @@ func TestTreeAddAndGet(t *testing.T) {
 		"/β",
 	}
 	for _, route := range routes {
-		tree.add(route, route)
+		err := tree.add(route, route)
+		assert.FailOnError(t, err, "unexpected error")
 	}
 
 	//printChildren(tree, "")
@@ -126,11 +126,9 @@ func testRoutes(t *testing.T, routes []testRoute) {
 	for _, route := range routes {
 		err := tree.add(route.path, nil)
 		if route.conflict {
-			if err == nil {
-				t.Errorf("no error for conflicting route '%s'", route.path)
-			}
-		} else if err != nil {
-			t.Errorf("unexpected error for route '%s': %v", route.path, err)
+			assert.NotNilf(t, err, "no error for conflicting route '%s'", route.path)
+		} else {
+			assert.Nilf(t, err, "unexpected error for route '%s': %v", route.path, err)
 		}
 	}
 
@@ -186,15 +184,11 @@ func TestTreeDupliatePath(t *testing.T) {
 	}
 	for _, route := range routes {
 		err := tree.add(route, route)
-		if err != nil {
-			t.Fatalf("error inserting route '%s': %v", route, err)
-		}
+		assert.FailNowOnErrorf(t, err, "error inserting route '%s': %v", route, err)
 
 		// Add again
 		err = tree.add(route, nil)
-		if err == nil {
-			t.Fatalf("no error while inserting duplicate route '%s", route)
-		}
+		assert.NotNilf(t, err, "no error while inserting duplicate route '%s'", route)
 	}
 
 	// printChildren(tree, "")
@@ -219,9 +213,7 @@ func TestEmptyWildcardName(t *testing.T) {
 	}
 	for _, route := range routes {
 		err := tree.add(route, nil)
-		if err == nil {
-			t.Fatalf("no error while inserting route with empty wildcard name '%s", route)
-		}
+		assert.NotNilf(t, err, "no error while inserting route with empty wildcard name '%s'", route)
 	}
 }
 
@@ -291,9 +283,7 @@ func TestTreeTrailingSlashRedirect(t *testing.T) {
 	}
 	for _, route := range routes {
 		err := tree.add(route, route)
-		if err != nil {
-			t.Fatalf("error inserting route '%s': %v", route, err)
-		}
+		assert.FailNowOnErrorf(t, err, "error inserting route '%s': %v", route, err)
 	}
 
 	//printChildren(tree, "")
@@ -346,9 +336,7 @@ func TestTreeRootTrailingSlashRedirect(t *testing.T) {
 	tree := &node{}
 
 	err := tree.add("/:test", "/:test")
-	if err != nil {
-		t.Fatalf("error inserting test route: %v", err)
-	}
+	assert.FailNowOnError(t, err, "error inserting test route")
 
 	handler, _, tsr, _ := tree.find("/")
 	if handler != nil {
@@ -398,30 +386,24 @@ func TestTreeFindCaseInsensitivePath(t *testing.T) {
 
 	for _, route := range routes {
 		err := tree.add(route, route)
-		if err != nil {
-			t.Fatalf("error inserting route '%s': %v", route, err)
-		}
+		assert.FailNowOnErrorf(t, err, "error inserting route '%s': %v", route, err)
 	}
 
 	// Check out == in for all registered routes
 	// With fixTrailingSlash = true
 	for _, route := range routes {
 		out, found, err := tree.findCaseInsensitive(route, true)
-		if !found && err == nil {
-			t.Errorf("Route '%s' not found!", route)
-		} else if string(out) != route {
-			t.Errorf("Wrong result for route '%s': %s", route, string(out))
-		}
+		assert.Nil(t, err)
+		assert.Truef(t, found, "Route '%s' not found!", route)
+		assert.Equalf(t, route, string(out), "Wrong result for route '%s': %s", route, string(out))
 	}
 
 	// With fixTrailingSlash = false
 	for _, route := range routes {
 		out, found, err := tree.findCaseInsensitive(route, false)
-		if !found && err == nil {
-			t.Errorf("Route '%s' not found!", route)
-		} else if string(out) != route {
-			t.Errorf("Wrong result for route '%s': %s", route, string(out))
-		}
+		assert.Nil(t, err)
+		assert.Truef(t, found, "Route '%s' not found!", route)
+		assert.Equalf(t, route, string(out), "Wrong result for route '%s': %s", route, string(out))
 	}
 
 	tests := []struct {
@@ -489,26 +471,33 @@ func TestTreeFindCaseInsensitivePath(t *testing.T) {
 	// With fixTrailingSlash = true
 	for _, test := range tests {
 		out, found, err := tree.findCaseInsensitive(test.in, true)
-		if found != test.found || (found && (string(out) != test.out)) || err != nil {
-			t.Errorf("Wrong result for '%s': got %s, %t; want %s, %t",
-				test.in, string(out), found, test.out, test.found)
-			return
-		}
+		assert.FailOnError(t, err, "")
+
+		assert.Equalf(t, test.found, found,
+			"Wrong result for '%s': got %s, %t; want %s, %t",
+			test.in, string(out), found, test.out, test.found)
+
+		assert.Falsef(t, (found && (string(out) != test.out)),
+			"Wrong result for '%s': got %s, %t; want %s, %t",
+			test.in, string(out), found, test.out, test.found)
 	}
 
 	// With fixTrailingSlash = false
 	for _, test := range tests {
 		out, found, err := tree.findCaseInsensitive(test.in, false)
-		if test.slash || err != nil {
-			if found { // test needs a trailingSlash fix. It must not be found!
-				t.Errorf("Found without fixTrailingSlash: %s; got %s", test.in, string(out))
-			}
+		assert.FailOnError(t, err, "")
+
+		if test.slash {
+			// test needs a trailingSlash fix. It must not be found!
+			assert.Falsef(t, found, "Found without fixTrailingSlash: %s; got %s", test.in, string(out))
 		} else {
-			if found != test.found || (found && (string(out) != test.out)) || err != nil {
-				t.Errorf("Wrong result for '%s': got %s, %t; want %s, %t",
-					test.in, string(out), found, test.out, test.found)
-				return
-			}
+			assert.Equalf(t, test.found, found,
+				"Wrong result for '%s': got %s, %t; want %s, %t",
+				test.in, string(out), found, test.out, test.found)
+
+			assert.Falsef(t, (found && (string(out) != test.out)),
+				"Wrong result for '%s': got %s, %t; want %s, %t",
+				test.in, string(out), found, test.out, test.found)
 		}
 	}
 }
@@ -536,20 +525,19 @@ func checkRequests(t *testing.T, tree *node, requests testRequests) {
 		handler, pp, _, _ := tree.find(request.path)
 
 		if handler == nil {
-			if !request.nilHandler {
-				t.Errorf("value mismatch for route '%s': Expected non-nil value", request.path)
-			}
+			assert.Truef(t, request.nilHandler, "value mismatch for route '%s': Expected non-nil value", request.path)
 		} else if request.nilHandler {
 			t.Errorf("value mismatch for route '%s': Expected nil value", request.path)
 		} else {
-			if !reflect.DeepEqual(handler, request.route) {
-				t.Errorf("value mismatch for route '%s': Wrong value (%s != %s)", request.path, request.route, request.route)
-			}
+			assert.Truef(t,
+				reflect.DeepEqual(handler, request.route),
+				"value mismatch for route '%s': Wrong value (%s != %s)",
+				request.path, request.route, request.route)
 		}
 
-		if !reflect.DeepEqual(pp, request.pp) {
-			t.Errorf("pathParams mismatch for route '%s'", request.path)
-		}
+		assert.Truef(t,
+			reflect.DeepEqual(pp, request.pp),
+			"pathParams mismatch for route '%s'", request.path)
 	}
 }
 
@@ -563,12 +551,9 @@ func checkPriorities(t *testing.T, n *node) uint32 {
 		prio++
 	}
 
-	if n.priority != prio {
-		t.Errorf(
-			"priority mismatch for node '%s': is %d, should be %d",
-			n.path, n.priority, prio,
-		)
-	}
+	assert.Equalf(t, n.priority, prio,
+		"priority mismatch for node '%s': is %d, should be %d",
+		n.path, n.priority, prio)
 
 	return prio
 }
@@ -585,21 +570,28 @@ func checkMaxParams(t *testing.T, n *node) uint8 {
 		maxParams++
 	}
 
-	if n.maxParams != maxParams {
-		t.Errorf(
-			"maxParams mismatch for node '%s': is %d, should be %d",
-			n.path, n.maxParams, maxParams,
-		)
-	}
+	assert.Equalf(t, n.maxParams, maxParams,
+		"maxParams mismatch for node '%s': is %d, should be %d",
+		n.path, n.maxParams, maxParams)
 
 	return maxParams
 }
 
 func printChildren(n *node, prefix string) {
-	fmt.Printf(" %02d:%02d %s%s[%d] %v %t %d \r\n", n.priority, n.maxParams, prefix, n.path, len(n.edges), n.value, n.wildChild, n.nType)
+	fmt.Printf(" %02d:%02d %s%s[%d] %v %t %d \r\n",
+		n.priority,
+		n.maxParams,
+		prefix,
+		n.path,
+		len(n.edges),
+		n.value,
+		n.wildChild,
+		n.nType)
+
 	for l := len(n.path); l > 0; l-- {
 		prefix += " "
 	}
+
 	for _, child := range n.edges {
 		printChildren(child, prefix)
 	}
