@@ -12,6 +12,8 @@ package router
 import (
 	"runtime"
 	"testing"
+
+	"github.com/go-aah/test/assert"
 )
 
 var cleanTests = []struct {
@@ -69,12 +71,11 @@ var cleanTests = []struct {
 
 func TestPathClean(t *testing.T) {
 	for _, test := range cleanTests {
-		if s := cleanPath(test.path); s != test.result {
-			t.Errorf("CleanPath(%q) = %q, want %q", test.path, s, test.result)
-		}
-		if s := cleanPath(test.result); s != test.result {
-			t.Errorf("CleanPath(%q) = %q, want %q", test.result, s, test.result)
-		}
+		result := CleanPath(test.path)
+		assert.Equalf(t, test.result, result, "CleanPath(%q) = %q, want %q", test.path, result, test.result)
+
+		result = CleanPath(test.result)
+		assert.Equalf(t, test.result, result, "CleanPath(%q) = %q, want %q", test.result, result, test.result)
 	}
 }
 
@@ -88,7 +89,7 @@ func TestPathCleanMallocs(t *testing.T) {
 	}
 
 	for _, test := range cleanTests {
-		allocs := testing.AllocsPerRun(100, func() { cleanPath(test.result) })
+		allocs := testing.AllocsPerRun(100, func() { CleanPath(test.result) })
 		if allocs > 0 {
 			t.Errorf("CleanPath(%q): %v allocs, want zero", test.result, allocs)
 		}

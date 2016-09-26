@@ -11,7 +11,7 @@ package router
 
 import "github.com/go-aah/essentials"
 
-// cleanPath is the URL version of path.Clean, it returns a canonical URL path
+// CleanPath is the URL version of path.Clean, it returns a canonical URL path
 // for p, eliminating . and .. elements.
 //
 // The following rules are applied iteratively until no further processing can
@@ -24,7 +24,7 @@ import "github.com/go-aah/essentials"
 //	   that is, replace "/.." by "/" at the beginning of a path.
 //
 // If the result of this process is an empty string, "/" is returned
-func cleanPath(p string) string {
+func CleanPath(p string) string {
 	// Turn empty string into "/"
 	if ess.IsStrEmpty(p) {
 		return "/"
