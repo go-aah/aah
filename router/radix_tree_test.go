@@ -18,7 +18,7 @@ type (
 		path       string
 		nilHandler bool
 		route      string
-		pp         pathParams
+		pp         PathParams
 	}
 
 	testRoute struct {
@@ -101,19 +101,19 @@ func TestTreeWildcard(t *testing.T) {
 
 	checkRequests(t, tree, testRequests{
 		{"/", false, "/", nil},
-		{"/cmd/test/", false, "/cmd/:tool/", pathParams{pathParam{"tool", "test"}}},
-		{"/cmd/test", true, "", pathParams{pathParam{"tool", "test"}}},
-		{"/cmd/test/3", false, "/cmd/:tool/:sub", pathParams{pathParam{"tool", "test"}, pathParam{"sub", "3"}}},
-		{"/src/", false, "/src/*filepath", pathParams{pathParam{"filepath", "/"}}},
-		{"/src/some/file.png", false, "/src/*filepath", pathParams{pathParam{"filepath", "/some/file.png"}}},
+		{"/cmd/test/", false, "/cmd/:tool/", PathParams{PathParam{"tool", "test"}}},
+		{"/cmd/test", true, "", PathParams{PathParam{"tool", "test"}}},
+		{"/cmd/test/3", false, "/cmd/:tool/:sub", PathParams{PathParam{"tool", "test"}, PathParam{"sub", "3"}}},
+		{"/src/", false, "/src/*filepath", PathParams{PathParam{"filepath", "/"}}},
+		{"/src/some/file.png", false, "/src/*filepath", PathParams{PathParam{"filepath", "/some/file.png"}}},
 		{"/search/", false, "/search/", nil},
-		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", pathParams{pathParam{"query", "someth!ng+in+ünìcodé"}}},
-		{"/search/someth!ng+in+ünìcodé/", true, "", pathParams{pathParam{"query", "someth!ng+in+ünìcodé"}}},
-		{"/user_gopher", false, "/user_:name", pathParams{pathParam{"name", "gopher"}}},
-		{"/user_gopher/about", false, "/user_:name/about", pathParams{pathParam{"name", "gopher"}}},
-		{"/files/js/inc/framework.js", false, "/files/:dir/*filepath", pathParams{pathParam{"dir", "js"}, pathParam{"filepath", "/inc/framework.js"}}},
-		{"/info/gordon/public", false, "/info/:user/public", pathParams{pathParam{"user", "gordon"}}},
-		{"/info/gordon/project/go", false, "/info/:user/project/:project", pathParams{pathParam{"user", "gordon"}, pathParam{"project", "go"}}},
+		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", PathParams{PathParam{"query", "someth!ng+in+ünìcodé"}}},
+		{"/search/someth!ng+in+ünìcodé/", true, "", PathParams{PathParam{"query", "someth!ng+in+ünìcodé"}}},
+		{"/user_gopher", false, "/user_:name", PathParams{PathParam{"name", "gopher"}}},
+		{"/user_gopher/about", false, "/user_:name/about", PathParams{PathParam{"name", "gopher"}}},
+		{"/files/js/inc/framework.js", false, "/files/:dir/*filepath", PathParams{PathParam{"dir", "js"}, PathParam{"filepath", "/inc/framework.js"}}},
+		{"/info/gordon/public", false, "/info/:user/public", PathParams{PathParam{"user", "gordon"}}},
+		{"/info/gordon/project/go", false, "/info/:user/project/:project", PathParams{PathParam{"user", "gordon"}, PathParam{"project", "go"}}},
 	})
 
 	checkPriorities(t, tree)
@@ -196,9 +196,9 @@ func TestTreeDupliatePath(t *testing.T) {
 	checkRequests(t, tree, testRequests{
 		{"/", false, "/", nil},
 		{"/doc/", false, "/doc/", nil},
-		{"/src/some/file.png", false, "/src/*filepath", pathParams{pathParam{"filepath", "/some/file.png"}}},
-		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", pathParams{pathParam{"query", "someth!ng+in+ünìcodé"}}},
-		{"/user_gopher", false, "/user_:name", pathParams{pathParam{"name", "gopher"}}},
+		{"/src/some/file.png", false, "/src/*filepath", PathParams{PathParam{"filepath", "/some/file.png"}}},
+		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", PathParams{PathParam{"query", "someth!ng+in+ünìcodé"}}},
+		{"/user_gopher", false, "/user_:name", PathParams{PathParam{"name", "gopher"}}},
 	})
 }
 
@@ -537,7 +537,7 @@ func checkRequests(t *testing.T, tree *node, requests testRequests) {
 
 		assert.Truef(t,
 			reflect.DeepEqual(pp, request.pp),
-			"pathParams mismatch for route '%s'", request.path)
+			"PathParams mismatch for route '%s'", request.path)
 	}
 }
 
