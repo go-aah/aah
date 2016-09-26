@@ -40,3 +40,25 @@ func TestDefaultStandardLogger(t *testing.T) {
 	SetOutput(newLogger)
 	Info("Fresh new face ...")
 }
+
+func TestPanicDefaultStandardLogger(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			_ = r
+		}
+	}()
+
+	SetLevel(levelPanic)
+	Panic("This is panic message")
+}
+
+func TestPanicfDefaultStandardLogger(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			_ = r
+		}
+	}()
+
+	SetLevel(levelPanic)
+	Panicf("This is panic %v", "message from param")
+}

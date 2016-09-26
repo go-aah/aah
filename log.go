@@ -38,6 +38,7 @@ type FmtFlag uint8
 // Log Level definition
 const (
 	levelFatal Level = iota
+	levelPanic
 	LevelError
 	LevelWarn
 	LevelInfo
@@ -105,6 +106,7 @@ var (
 
 	levelNameToLevel = map[string]Level{
 		"FATAL": levelFatal,
+		"PANIC": levelPanic,
 		"ERROR": LevelError,
 		"WARN":  LevelWarn,
 		"INFO":  LevelInfo,
@@ -114,6 +116,7 @@ var (
 
 	levelToLevelName = map[Level]string{
 		levelFatal: "FATAL",
+		levelPanic: "PANIC",
 		LevelError: "ERROR",
 		LevelWarn:  "WARN",
 		LevelInfo:  "INFO",
@@ -125,6 +128,7 @@ var (
 	resetColor   = []byte("\033[0m")
 	levelToColor = [][]byte{
 		levelFatal: []byte("\033[0;31m"), // red
+		levelPanic: []byte("\033[0;31m"), // red
 		LevelError: []byte("\033[0;31m"), // red
 		LevelWarn:  []byte("\033[0;33m"), // yellow
 		LevelInfo:  []byte("\033[0;37m"), // white
@@ -169,6 +173,9 @@ type Logger interface {
 
 	Fatal(v ...interface{})
 	Fatalf(format string, v ...interface{})
+
+	Panic(v ...interface{})
+	Panicf(format string, v ...interface{})
 
 	Error(v ...interface{})
 	Errorf(format string, v ...interface{})

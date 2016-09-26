@@ -4,7 +4,10 @@
 
 package log
 
-import "os"
+import (
+	"fmt"
+	"os"
+)
 
 var stdLogger Logger
 
@@ -18,6 +21,18 @@ func Fatal(v ...interface{}) {
 func Fatalf(format string, v ...interface{}) {
 	_ = stdLogger.Output(levelFatal, 2, &format, v...)
 	os.Exit(1)
+}
+
+// Panic logs message as `PANIC` and calls panic()
+func Panic(v ...interface{}) {
+	_ = stdLogger.Output(levelPanic, 2, nil, v...)
+	panic("")
+}
+
+// Panicf logs message as `PANIC` and calls panic()
+func Panicf(format string, v ...interface{}) {
+	_ = stdLogger.Output(levelPanic, 2, &format, v...)
+	panic(fmt.Sprintf(format, v...))
 }
 
 // Error logs message as `LevelError`

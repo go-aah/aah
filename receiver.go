@@ -166,6 +166,18 @@ func (r *Receiver) Fatalf(format string, v ...interface{}) {
 	os.Exit(1)
 }
 
+// Panic logs message as `PANIC` and calls panic()
+func (r *Receiver) Panic(v ...interface{}) {
+	_ = r.Output(levelPanic, 2, nil, v...)
+	panic("")
+}
+
+// Panicf logs message as `PANIC` and calls panic()
+func (r *Receiver) Panicf(format string, v ...interface{}) {
+	_ = r.Output(levelPanic, 2, &format, v...)
+	panic(fmt.Sprintf(format, v...))
+}
+
 // Error logs message as `LevelError`
 func (r *Receiver) Error(v ...interface{}) {
 	_ = r.Output(LevelError, 2, nil, v...)

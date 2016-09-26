@@ -291,6 +291,46 @@ func TestStats(t *testing.T) {
 	assert.Equal(t, int64(200), stats.Lines())
 }
 
+func TestPanicCustomConsoleReceiver(t *testing.T) {
+	config := `
+# console logger configuration
+# "CONSOLE" uppercasse works too
+receiver = "CONSOLE"
+
+level = "panic"
+ `
+	defer func() {
+		if r := recover(); r != nil {
+			_ = r
+		}
+	}()
+
+	logger, err := New(config)
+	assert.FailNowOnError(t, err, "unexpected error")
+
+	logger.Panic("This is panic message")
+}
+
+func TestPanicfCustomConsoleReceiver(t *testing.T) {
+	config := `
+# console logger configuration
+# "CONSOLE" uppercasse works too
+receiver = "CONSOLE"
+
+level = "panic"
+ `
+	defer func() {
+		if r := recover(); r != nil {
+			_ = r
+		}
+	}()
+
+	logger, err := New(config)
+	assert.FailNowOnError(t, err, "unexpected error")
+
+	logger.Panicf("This is panic %v", "message from param")
+}
+
 func cleaupFiles(match string) {
 	pwd, _ := os.Getwd()
 
