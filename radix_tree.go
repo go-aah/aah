@@ -328,7 +328,7 @@ func (n *node) insertEdge(numParams uint8, path, fullPath string, value interfac
 // wildcards are saved to a map. If no value can be found, a TSR (trailing slash
 // redirect) recommendation is made if a value exists with an extra (without
 // the) trailing slash for the given path.
-func (n *node) find(path string) (value interface{}, p pathParams, tsr bool, err error) {
+func (n *node) find(path string) (value interface{}, p PathParams, tsr bool, err error) {
 walk: // outer loop for walking the tree
 	for {
 		if len(path) > len(n.path) {
@@ -367,7 +367,7 @@ walk: // outer loop for walking the tree
 					// save param value
 					if p == nil {
 						// lazy allocation
-						p = make(pathParams, 0, n.maxParams)
+						p = make(PathParams, 0, n.maxParams)
 					}
 					i := len(p)
 					p = p[:i+1] // expand slice within preallocated capacity
@@ -402,7 +402,7 @@ walk: // outer loop for walking the tree
 					// save param value
 					if p == nil {
 						// lazy allocation
-						p = make(pathParams, 0, n.maxParams)
+						p = make(PathParams, 0, n.maxParams)
 					}
 					i := len(p)
 					p = p[:i+1] // expand slice within preallocated capacity
