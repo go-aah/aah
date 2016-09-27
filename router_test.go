@@ -47,7 +47,7 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	// TODO validate routes
 }
 
-func TestRouterLoadConfigurationError(t *testing.T) {
+func TestRouterErrorLoadConfiguration(t *testing.T) {
 	router := createRouter("routes-error.conf")
 
 	err := router.Load()
@@ -109,38 +109,10 @@ func TestRouterDomainAllowed(t *testing.T) {
 // Test Domain methods
 //___________________________________
 
-func TestNewDomainAndName(t *testing.T) {
-	// IP address and Port no
-	domain1 := newDomain("127_0_0_1__8080")
-	assert.Equal(t, "127.0.0.1:8080", domain1.key())
-
-	// IP address
-	domain2 := newDomain("127_0_0_1")
-	assert.Equal(t, "127.0.0.1", domain2.key())
-
-	// alias names
-	domain3 := newDomain("localhost")
-	assert.Equal(t, "localhost", domain3.key())
-
-	// domain name and port no
-	domain4 := newDomain("www_sample_com__8000")
-	assert.Equal(t, "www.sample.com:8000", domain4.key())
-
-	// domain name
-	domain5 := newDomain("www_sample_com")
-	assert.Equal(t, "www.sample.com", domain5.key())
-
-	// short domain name
-	domain6 := newDomain("sample_com")
-	assert.Equal(t, "sample.com", domain6.key())
-
-	// short domain name
-	domain7 := newDomain("sub2_sub1_sample_com")
-	assert.Equal(t, "sub2.sub1.sample.com", domain7.key())
-}
-
 func TestDomainAddRoute(t *testing.T) {
-	domain := newDomain("aahframework.org")
+	domain := &Domain{
+		Host: "aahframework.org",
+	}
 
 	route1 := &Route{
 		Name:       "route1",
