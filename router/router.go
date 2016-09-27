@@ -48,8 +48,10 @@ type (
 		Name                  string
 		Host                  string
 		Port                  string
-		methodNotAllowed      bool
-		redirectTrailingSlash bool
+		NotFoundRoute         *Route
+		PanicRoute            *Route
+		MethodNotAllowed      bool
+		RedirectTrailingSlash bool
 		catchAll              bool
 		trees                 map[string]*node
 		routes                map[string]*Route
@@ -85,53 +87,6 @@ type (
 // New method creates a Router with given routes configuration path.
 func New(configPath string) *Router {
 	return &Router{configPath: configPath}
-}
-
-// Lookup finds a route information, path parameters, redirect trailing slash
-// indicator for given `ahttp.Request` by domain and request URI
-// otherwise returns nil and false.
-func (r *Router) Lookup(req *ahttp.Request) (*Route, *PathParams, bool) {
-	// get domain router for request
-	domain := r.Domain(req)
-	if domain == nil {
-		return nil, nil, false
-	}
-
-	// get route tree for request method
-	tree, found := domain.trees[req.Method]
-	if !found {
-		return nil, nil, false
-	}
-
-	routeName, pathParams, rts, err := tree.find(req.URL.Path)
-	if routeName != nil && err == nil {
-		return domain.routes[routeName.(string)], &pathParams, rts
-	}
-
-	log.Warnf("Error while route lookup: %v", err)
-	return nil, nil, false
-}
-
-// LookupByName method to find route information by route name
-func (r *Router) LookupByName(req *ahttp.Request, name string) *Route {
-	domain := r.Domain(req)
-	if domain == nil {
-		return nil
-	}
-
-	if route, found := domain.routes[name]; found {
-		return route
-	}
-	return nil
-}
-
-// Allowed returns the header value for `Allow` otherwise empty string.
-func (r *Router) Allowed(req *ahttp.Request) string {
-	domain := r.Domain(req)
-	if domain == nil {
-		return ""
-	}
-	return domain.allowed(req.Method, req.URL.Path)
 }
 
 // Domain returns domain routes configuration based on http request
@@ -175,9 +130,6 @@ func (r *Router) Load() (err error) {
 	for _, key := range domains {
 		domainCfg, _ := r.config.GetSubConfig(key)
 
-		// domain name
-		name := domainCfg.StringDefault("name", key)
-
 		// domain host name
 		host, found := domainCfg.String("host")
 		if !found {
@@ -185,13 +137,10 @@ func (r *Router) Load() (err error) {
 			return
 		}
 
-		// domain host port no.
-		port := domainCfg.StringDefault("port", "")
-
 		domain := &Domain{
-			Name: name,
+			Name: domainCfg.StringDefault("name", key),
 			Host: host,
-			Port: port,
+			Port: domainCfg.StringDefault("port", ""),
 		}
 		log.Tracef("Domain key: %v", domain.key())
 
@@ -200,22 +149,36 @@ func (r *Router) Load() (err error) {
 			globalCfg, _ := domainCfg.GetSubConfig("global")
 
 			domain.catchAll = globalCfg.BoolDefault("catch_all", true)
-			domain.methodNotAllowed = globalCfg.BoolDefault("method_not_allowed", true)
-			domain.redirectTrailingSlash = globalCfg.BoolDefault("redirect_trailing_slash", true)
+			domain.MethodNotAllowed = globalCfg.BoolDefault("method_not_allowed", true)
+			domain.RedirectTrailingSlash = globalCfg.BoolDefault("redirect_trailing_slash", true)
 			log.Tracef("Domain global config [catchAll: %v, methodNotAllowed: %v, redirectTrailingSlash: %v]",
-				domain.catchAll, domain.methodNotAllowed, domain.redirectTrailingSlash)
+				domain.catchAll, domain.MethodNotAllowed, domain.RedirectTrailingSlash)
 
 			if domain.catchAll {
-				// TODO catch all
+				domain.addCatchAllRoutes()
 			}
 
-			// TODO process not_found & panic
-			notFoundHandle := createRoute(globalCfg, "not_found")
-			panicHandle := createRoute(globalCfg, "panic")
-			_ = notFoundHandle
-			_ = panicHandle
-			// log.Tracef("Not found handler: %v.%v", notFoundHandle.Controller, notFoundHandle.Action)
-			// log.Tracef("Panic handler: %v.%v", panicHandle.Controller, panicHandle.Action)
+			// not found route
+			if globalCfg.IsExists("not_found") {
+				domain.NotFoundRoute, err = createGlobalRoute(globalCfg, "not_found")
+				if err != nil {
+					return
+				}
+
+				log.Tracef("Not found route: %v.%v", domain.NotFoundRoute.Controller,
+					domain.NotFoundRoute.Action)
+			}
+
+			// not found route
+			if globalCfg.IsExists("panic") {
+				domain.PanicRoute, err = createGlobalRoute(globalCfg, "panic")
+				if err != nil {
+					return
+				}
+
+				log.Tracef("Panic route: %v.%v", domain.PanicRoute.Controller,
+					domain.PanicRoute.Action)
+			}
 		}
 
 		// loading static routes
@@ -235,14 +198,14 @@ func (r *Router) Load() (err error) {
 			}
 			log.Tracef("No. of routes found: %v", len(routes))
 
-			for _, route := range routes {
-				log.Tracef("Route Name: %v, Path: %v, Method: %v, Controller: %v, Action: %v",
-					route.Name, route.Path, route.Method, route.Controller, route.Action)
-
-				err = domain.addRoute(&route)
-				if err != nil {
+			for idx := range routes {
+				route := routes[idx]
+				if err = domain.addRoute(&route); err != nil {
 					return
 				}
+
+				log.Tracef("Route Name: %v, Path: %v, Method: %v, Controller: %v, Action: %v",
+					route.Name, route.Path, route.Method, route.Controller, route.Action)
 			}
 		}
 
@@ -311,44 +274,37 @@ func parseRoutesSection(cfg *config.Config, prefixPath string) (routes Routes, e
 // Domain methods
 //___________________________________
 
-func createRoute(cfg *config.Config, routeName string) *Route {
+// Lookup finds a route information, path parameters, redirect trailing slash
+// indicator for given `ahttp.Request` by domain and request URI
+// otherwise returns nil and false.
+func (d *Domain) Lookup(req *ahttp.Request) (*Route, *PathParams, bool) {
+	// get route tree for request method
+	tree, found := d.trees[req.Method]
+	if !found {
+		return nil, nil, false
+	}
+
+	routeName, pathParams, rts, err := tree.find(req.URL.Path)
+	if routeName != nil && err == nil {
+		return d.routes[routeName.(string)], &pathParams, rts
+	} else if rts { // possible Redirect Trailing Slash
+		return nil, nil, rts
+	}
+
+	log.Warnf("Route lookup error: %v", err)
+	return nil, nil, false
+}
+
+// LookupByName method to find route information by route name
+func (d *Domain) LookupByName(name string) *Route {
+	if route, found := d.routes[name]; found {
+		return route
+	}
 	return nil
 }
 
-func (d *Domain) initIfNot() {
-	if d.trees == nil {
-		d.trees = make(map[string]*node)
-	}
-
-	if d.routes == nil {
-		d.routes = make(map[string]*Route)
-	}
-}
-
-func (d *Domain) key() string {
-	if ess.IsStrEmpty(d.Port) {
-		return strings.ToLower(d.Host)
-	}
-	return strings.ToLower(d.Host + ":" + d.Port)
-}
-
-func (d *Domain) addRoute(route *Route) error {
-	d.initIfNot()
-
-	tree := d.trees[route.Method]
-	if tree == nil {
-		tree = new(node)
-		d.trees[route.Method] = tree
-	}
-
-	err := tree.add(route.Path, route.Name)
-	if err == nil {
-		d.routes[route.Name] = route
-	}
-	return err
-}
-
-func (d *Domain) allowed(requestMethod, path string) (allow string) {
+// Allowed returns the header value for `Allow` otherwise empty string.
+func (d *Domain) Allowed(requestMethod, path string) (allow string) {
 	if path == "*" { // server-wide
 		for method := range d.trees {
 			if method == ahttp.MethodOptions {
@@ -375,6 +331,57 @@ func (d *Domain) allowed(requestMethod, path string) (allow string) {
 
 	allow = suffixCommaValue(allow, ahttp.MethodOptions)
 	return
+}
+
+func createGlobalRoute(cfg *config.Config, routeName string) (*Route, error) {
+	controller, found := cfg.String(routeName + ".controller")
+	if !found {
+		return nil, fmt.Errorf("'%v.controller' key is missing", routeName)
+	}
+
+	action, found := cfg.String(routeName + ".action")
+	if !found {
+		return nil, fmt.Errorf("'%v.action' key is missing", routeName)
+	}
+
+	return &Route{
+		Controller: controller,
+		Action:     action,
+	}, nil
+}
+
+func (d *Domain) key() string {
+	if ess.IsStrEmpty(d.Port) {
+		return strings.ToLower(d.Host)
+	}
+	return strings.ToLower(d.Host + ":" + d.Port)
+}
+
+func (d *Domain) addRoute(route *Route) error {
+	if d.trees == nil {
+		d.trees = make(map[string]*node)
+	}
+
+	if d.routes == nil {
+		d.routes = make(map[string]*Route)
+	}
+
+	tree := d.trees[route.Method]
+	if tree == nil {
+		tree = new(node)
+		d.trees[route.Method] = tree
+	}
+
+	if err := tree.add(route.Path, route.Name); err != nil {
+		return err
+	}
+
+	d.routes[route.Name] = route
+	return nil
+}
+
+func (d *Domain) addCatchAllRoutes() {
+	// TODO add it
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

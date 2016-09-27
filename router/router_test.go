@@ -44,7 +44,22 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	err := router.Load()
 	assert.FailNowOnError(t, err, "")
 
-	// TODO validate routes
+	// After loading just couple assertion
+
+	reqCancelBooking1 := createHTTPRequest("localhost:8000", "/hotels/12345/cancel")
+	reqCancelBooking1.Method = ahttp.MethodPost
+	domain := router.Domain(reqCancelBooking1)
+	route, pathParam, rts := domain.Lookup(reqCancelBooking1)
+	assert.Equal(t, "cancel_booking", route.Name)
+	assert.Equal(t, "12345", pathParam.Get("id"))
+	assert.False(t, rts)
+
+	// possible redirect trailing slash
+	reqCancelBooking2 := createHTTPRequest("localhost:8000", "/hotels/12345/cancel/")
+	reqCancelBooking2.Method = ahttp.MethodPost
+	domain = router.Domain(reqCancelBooking2)
+	_, _, rts = domain.Lookup(reqCancelBooking2)
+	assert.True(t, rts)
 }
 
 func TestRouterErrorLoadConfiguration(t *testing.T) {
@@ -82,32 +97,33 @@ func TestRouterDomainConfig(t *testing.T) {
 	assert.Nil(t, domain)
 }
 
-func TestRouterDomainAllowed(t *testing.T) {
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Test Domain methods
+//___________________________________
+
+func TestDomainAllowed(t *testing.T) {
 	router := createRouter("routes.conf")
 	err := router.Load()
 	assert.FailNowOnError(t, err, "")
 
 	req := createHTTPRequest("localhost:8000", "/")
-	allow := router.Allowed(req)
+	domain := router.Domain(req)
+	allow := domain.Allowed(ahttp.MethodGet, "/")
 	assert.NotNil(t, allow)
 	assert.True(t, strings.Contains(allow, ahttp.MethodOptions))
 
-	domain := router.Domain(req)
-	allow = domain.allowed("POST", "*")
+	domain = router.Domain(req)
+	allow = domain.Allowed(ahttp.MethodPost, "*")
 	assert.NotNil(t, allow)
 	assert.True(t, strings.Contains(allow, ahttp.MethodOptions))
 
 	// domain not exists
 	reqNotExists := createHTTPRequest("notexists:8000", "/")
-	allow = router.Allowed(reqNotExists)
-	assert.True(t, ess.IsStrEmpty(allow))
+	domain = router.Domain(reqNotExists)
+	assert.Nil(t, domain)
 
 	// TODO do more
 }
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Test Domain methods
-//___________________________________
 
 func TestDomainAddRoute(t *testing.T) {
 	domain := &Domain{
