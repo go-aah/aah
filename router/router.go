@@ -6,6 +6,8 @@ package router
 
 import (
 	"errors"
+	"fmt"
+	"path"
 	"strings"
 
 	"github.com/go-aah/aah/ahttp"
@@ -18,13 +20,13 @@ var (
 	// HTTPMethodActionMap is default Controller Action name for corresponding
 	// HTTP Method. If it's not provided in the route configuration.
 	HTTPMethodActionMap = map[string]string{
-		"get":     "Index",
-		"post":    "Create",
-		"put":     "Update",
-		"patch":   "Update",
-		"delete":  "Delete",
-		"options": "Options",
-		"head":    "Head",
+		ahttp.MethodGet:     "Index",
+		ahttp.MethodPost:    "Create",
+		ahttp.MethodPut:     "Update",
+		ahttp.MethodPatch:   "Update",
+		ahttp.MethodDelete:  "Delete",
+		ahttp.MethodOptions: "Options",
+		ahttp.MethodHead:    "Head",
 	}
 
 	// ErrNoRoutesConfigFound returned when routes config file not found or doesn't
@@ -43,8 +45,9 @@ type (
 
 	// Domain is used to hold domain related routes and it's route configuration
 	Domain struct {
-		name                  string
-		port                  string
+		Name                  string
+		Host                  string
+		Port                  string
 		methodNotAllowed      bool
 		redirectTrailingSlash bool
 		catchAll              bool
@@ -62,13 +65,16 @@ type (
 		ActionParams []string
 	}
 
+	// Routes is a Route-slice
+	Routes []Route
+
 	// PathParam is single URL Path parameter (not a query string values)
 	PathParam struct {
 		Key   string
 		Value string
 	}
 
-	// PathParams is a Param-slice, as returned by the route tree.
+	// PathParams is a PathParam-slice, as returned by the route tree.
 	PathParams []PathParam
 )
 
@@ -164,52 +170,148 @@ func (r *Router) Load() (err error) {
 
 	// allocate for no. of domains
 	r.domains = make(map[string]*Domain, len(domains))
+	log.Tracef("No. of domain route configs found: %v", len(domains))
 
 	for _, key := range domains {
-		// fmt.Println("domain:", key)
-		domain := newDomain(key)
 		domainCfg, _ := r.config.GetSubConfig(key)
 
-		// Global configuration
-		domain.catchAll = domainCfg.BoolDefault("global.catch_all", true)
-		domain.methodNotAllowed = domainCfg.BoolDefault("global.method_not_allowed", true)
-		domain.redirectTrailingSlash = domainCfg.BoolDefault("global.redirect_trailing_slash", true)
+		// domain name
+		name := domainCfg.StringDefault("name", key)
 
-		// TODO process not_found & panic
-		notFoundInfo := createRouteInfo(domainCfg, "global.not_found")
-		panicInfo := createRouteInfo(domainCfg, "global.panic")
-		_ = notFoundInfo
-		_ = panicInfo
+		// domain host name
+		host, found := domainCfg.String("host")
+		if !found {
+			err = fmt.Errorf("''%v.host' key is missing", key)
+			return
+		}
 
-		// Routes configuration
+		// domain host port no.
+		port := domainCfg.StringDefault("port", "")
+
+		domain := &Domain{
+			Name: name,
+			Host: host,
+			Port: port,
+		}
+		log.Tracef("Domain key: %v", domain.key())
+
+		// loading global configuration
+		if domainCfg.IsExists("global") {
+			globalCfg, _ := domainCfg.GetSubConfig("global")
+
+			domain.catchAll = globalCfg.BoolDefault("catch_all", true)
+			domain.methodNotAllowed = globalCfg.BoolDefault("method_not_allowed", true)
+			domain.redirectTrailingSlash = globalCfg.BoolDefault("redirect_trailing_slash", true)
+			log.Tracef("Domain global config [catchAll: %v, methodNotAllowed: %v, redirectTrailingSlash: %v]",
+				domain.catchAll, domain.methodNotAllowed, domain.redirectTrailingSlash)
+
+			if domain.catchAll {
+				// TODO catch all
+			}
+
+			// TODO process not_found & panic
+			notFoundHandle := createRoute(globalCfg, "not_found")
+			panicHandle := createRoute(globalCfg, "panic")
+			_ = notFoundHandle
+			_ = panicHandle
+			// log.Tracef("Not found handler: %v.%v", notFoundHandle.Controller, notFoundHandle.Action)
+			// log.Tracef("Panic handler: %v.%v", panicHandle.Controller, panicHandle.Action)
+		}
+
+		// loading static routes
+		if domainCfg.IsExists("static") {
+			log.Info("static routes exists")
+		}
+
+		// loading namespace routes
+		if domainCfg.IsExists("routes") {
+			routesCfg, _ := domainCfg.GetSubConfig("routes")
+			// var routes Routes
+
+			routes, er := parseRoutesSection(routesCfg, "")
+			if er != nil {
+				err = er
+				return
+			}
+			log.Tracef("No. of routes found: %v", len(routes))
+
+			for _, route := range routes {
+				log.Tracef("Route Name: %v, Path: %v, Method: %v, Controller: %v, Action: %v",
+					route.Name, route.Path, route.Method, route.Controller, route.Action)
+
+				err = domain.addRoute(&route)
+				if err != nil {
+					return
+				}
+			}
+		}
 
 		// add domain routes
 		r.domains[domain.key()] = domain
-		// fmt.Println(domain.Trees["get"], domain.Trees["post"])
+		// fmt.Println(domain.trees["GET"], domain.trees["POST"])
 		// fmt.Println(domain.routes)
 	} // End of domains
 
-	return nil
+	return
+}
+
+func parseRoutesSection(cfg *config.Config, prefixPath string) (routes Routes, err error) {
+	for _, routeName := range cfg.Keys() {
+		// getting 'path'
+		routePath, found := cfg.String(routeName + ".path")
+		if !found {
+			err = fmt.Errorf("'%v.path' key is missing", routeName)
+			return
+		}
+
+		// getting 'method'
+		routeMethod, found := cfg.String(routeName + ".method")
+		if !found {
+			// default to GET, if method not found
+			routeMethod = ahttp.MethodGet
+		}
+
+		// getting 'controller'
+		routeController, found := cfg.String(routeName + ".controller")
+		if !found {
+			err = fmt.Errorf("'%v.controller' key is missing", routeName)
+			return
+		}
+
+		// getting 'action', if not found it will default to `HTTPMethodActionMap`
+		// based on `routeMethod`
+		routeAction := cfg.StringDefault(routeName+".action", HTTPMethodActionMap[strings.ToUpper(routeMethod)])
+
+		// TODO action params
+
+		routes = append(routes, Route{
+			Name:       routeName,
+			Path:       path.Join(prefixPath, routePath),
+			Method:     routeMethod,
+			Controller: routeController,
+			Action:     routeAction,
+		})
+
+		// loading child routes
+		if childRoutes, found := cfg.GetSubConfig(routeName + ".routes"); found {
+			croutes, er := parseRoutesSection(childRoutes, routePath)
+			if er != nil {
+				err = er
+				return
+			}
+
+			routes = append(routes, croutes...)
+		}
+	}
+
+	return
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Domain methods
 //___________________________________
 
-func newDomain(key string) *Domain {
-	portIdx := strings.Index(key, "__")
-	if portIdx == -1 {
-		return &Domain{
-			name: strings.ToLower(strings.Replace(key, "_", ".", -1)),
-		}
-	}
-
-	parts := strings.Split(key, "__")
-	parts[0] = strings.ToLower(strings.Replace(parts[0], "_", ".", -1))
-	return &Domain{name: parts[0], port: parts[1]}
-}
-
-func createRouteInfo(cfg *config.Config, routeName string) *Route {
+func createRoute(cfg *config.Config, routeName string) *Route {
 	return nil
 }
 
@@ -224,10 +326,10 @@ func (d *Domain) initIfNot() {
 }
 
 func (d *Domain) key() string {
-	if ess.IsStrEmpty(d.port) {
-		return strings.ToLower(d.name)
+	if ess.IsStrEmpty(d.Port) {
+		return strings.ToLower(d.Host)
 	}
-	return strings.ToLower(d.name + ":" + d.port)
+	return strings.ToLower(d.Host + ":" + d.Port)
 }
 
 func (d *Domain) addRoute(route *Route) error {
@@ -273,6 +375,16 @@ func (d *Domain) allowed(requestMethod, path string) (allow string) {
 
 	allow = suffixCommaValue(allow, ahttp.MethodOptions)
 	return
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Route methods
+//___________________________________
+
+// Add method adds route into slice
+func (r Routes) Add(route Route) {
+	r = append(r, route)
+	_ = r
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
