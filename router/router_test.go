@@ -125,6 +125,24 @@ func TestDomainAllowed(t *testing.T) {
 	// TODO do more
 }
 
+func TestDomainReverseURL(t *testing.T) {
+	router := createRouter("routes.conf")
+	err := router.Load()
+	assert.FailNowOnError(t, err, "")
+
+	req := createHTTPRequest("localhost:8000", "/")
+	domain := router.Domain(req)
+
+	loginURL := domain.Reverse("login")
+	assert.Equal(t, "/login", loginURL)
+
+	bookingURL := domain.Reverse("book_hotels", 12345678)
+	assert.Equal(t, "/hotels/12345678/booking", bookingURL)
+
+	bookingURLWrong := domain.Reverse("book_hotels")
+	assert.Equal(t, "/hotels/:id/booking", bookingURLWrong)
+}
+
 func TestDomainAddRoute(t *testing.T) {
 	domain := &Domain{
 		Host: "aahframework.org",
