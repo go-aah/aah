@@ -333,6 +333,44 @@ func (d *Domain) Allowed(requestMethod, path string) (allow string) {
 	return
 }
 
+// Reverse composes reverse URL by route name and order of arguments or zero
+// otherwise returns empty string
+func (d *Domain) Reverse(routeName string, args ...interface{}) string {
+	route, found := d.routes[routeName]
+	if !found {
+		return ""
+	}
+
+	routePath := route.Path
+	argsLen := len(args)
+	paramCnt := countParams(routePath)
+	if paramCnt == 0 && argsLen == 0 { // static URLs
+		return routePath
+	} else if int(paramCnt) != argsLen { // not enough arguments suppiled
+		log.Errorf("Not enough arguments, path: '%v' params count: %v, suppiled args count: %v",
+			routePath, paramCnt, argsLen)
+		return routePath
+	}
+
+	// compose URL with values
+	url := "/"
+	idx := 0
+	for _, segment := range strings.Split(route.Path, "/") {
+		if ess.IsStrEmpty(segment) {
+			continue
+		}
+
+		if segment[0] == paramByte || segment[0] == wildByte {
+			url = path.Join(url, fmt.Sprintf("%v", args[idx]))
+			idx++
+			continue
+		}
+		url = path.Join(url, segment)
+	}
+
+	return url
+}
+
 func createGlobalRoute(cfg *config.Config, routeName string) (*Route, error) {
 	controller, found := cfg.String(routeName + ".controller")
 	if !found {
@@ -382,16 +420,6 @@ func (d *Domain) addRoute(route *Route) error {
 
 func (d *Domain) addCatchAllRoutes() {
 	// TODO add it
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Route methods
-//___________________________________
-
-// Add method adds route into slice
-func (r Routes) Add(route Route) {
-	r = append(r, route)
-	_ = r
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
