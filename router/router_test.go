@@ -133,14 +133,33 @@ func TestDomainReverseURL(t *testing.T) {
 	req := createHTTPRequest("localhost:8000", "/")
 	domain := router.Domain(req)
 
+	// route name not exists
+	emptyURL := domain.Reverse("not_exists_routename")
+	assert.Equal(t, "", emptyURL)
+
+	// non key-value pair value leads to error
+	emptyURL = domain.Reverse("book_hotels", 12345678)
+	assert.Equal(t, "", emptyURL)
+
+	// not enough arguments
+	emptyURL = domain.Reverse("book_hotels")
+	assert.Equal(t, "", emptyURL)
+
+	// incorrect key name scenario
+	emptyURL = domain.Reverse("book_hotels", map[string]string{
+		"idvalue": "12345678",
+	})
+	assert.Equal(t, "", emptyURL)
+
+	// static URL
 	loginURL := domain.Reverse("login")
 	assert.Equal(t, "/login", loginURL)
 
-	bookingURL := domain.Reverse("book_hotels", 12345678)
+	// success scenario
+	bookingURL := domain.Reverse("book_hotels", map[string]string{
+		"id": "12345678",
+	})
 	assert.Equal(t, "/hotels/12345678/booking", bookingURL)
-
-	bookingURLWrong := domain.Reverse("book_hotels")
-	assert.Equal(t, "/hotels/:id/booking", bookingURLWrong)
 }
 
 func TestDomainAddRoute(t *testing.T) {

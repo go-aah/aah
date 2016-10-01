@@ -333,37 +333,55 @@ func (d *Domain) Allowed(requestMethod, path string) (allow string) {
 	return
 }
 
-// Reverse composes reverse URL by route name and order of arguments or zero
-// otherwise returns empty string
+// Reverse composes reverse URL by route name and key-value pair arguments or
+// zero argument for static URL. If anything goes wrong then method logs
+// error info and returns empty string
 func (d *Domain) Reverse(routeName string, args ...interface{}) string {
 	route, found := d.routes[routeName]
 	if !found {
+		log.Errorf("route name '%v' not found", routeName)
 		return ""
 	}
 
-	routePath := route.Path
+	if len(args) > 1 {
+		log.Error("expected no. of arguments is 1 and key-value pair")
+		return ""
+	}
+
+	// routePath := route.Path
 	argsLen := len(args)
-	paramCnt := countParams(routePath)
-	if paramCnt == 0 && argsLen == 0 { // static URLs
-		return routePath
-	} else if int(paramCnt) != argsLen { // not enough arguments suppiled
-		log.Errorf("Not enough arguments, path: '%v' params count: %v, suppiled args count: %v",
-			routePath, paramCnt, argsLen)
-		return routePath
+	pathParamCnt := countParams(route.Path)
+	if pathParamCnt == 0 && argsLen == 0 { // static URLs
+		return route.Path
+	}
+
+	if int(pathParamCnt) != argsLen { // not enough arguments suppiled
+		log.Errorf("not enough arguments, path: '%v' params count: %v, suppiled values count: %v",
+			route.Path, pathParamCnt, argsLen)
+		return ""
+	}
+
+	keyValues, ok := args[0].(map[string]string)
+	if !ok {
+		log.Error("key-value pair expected")
+		return ""
 	}
 
 	// compose URL with values
 	url := "/"
-	idx := 0
 	for _, segment := range strings.Split(route.Path, "/") {
 		if ess.IsStrEmpty(segment) {
 			continue
 		}
 
 		if segment[0] == paramByte || segment[0] == wildByte {
-			url = path.Join(url, fmt.Sprintf("%v", args[idx]))
-			idx++
-			continue
+			if arg, found := keyValues[segment[1:]]; found {
+				url = path.Join(url, arg)
+				continue
+			}
+
+			log.Errorf("'%v' param not found in given map", segment[1:])
+			return ""
 		}
 		url = path.Join(url, segment)
 	}
