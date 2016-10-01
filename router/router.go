@@ -7,6 +7,7 @@ package router
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"path"
 	"strings"
 
@@ -27,6 +28,7 @@ var (
 		ahttp.MethodDelete:  "Delete",
 		ahttp.MethodOptions: "Options",
 		ahttp.MethodHead:    "Head",
+		ahttp.MethodTrace:   "Trace",
 	}
 
 	// ErrNoRoutesConfigFound returned when routes config file not found or doesn't
@@ -368,25 +370,38 @@ func (d *Domain) Reverse(routeName string, args ...interface{}) string {
 	}
 
 	// compose URL with values
-	url := "/"
+	reverseURL := "/"
 	for _, segment := range strings.Split(route.Path, "/") {
 		if ess.IsStrEmpty(segment) {
 			continue
 		}
 
 		if segment[0] == paramByte || segment[0] == wildByte {
-			if arg, found := keyValues[segment[1:]]; found {
-				url = path.Join(url, arg)
+			argName := segment[1:]
+			if arg, found := keyValues[argName]; found {
+				reverseURL = path.Join(reverseURL, arg)
+				delete(keyValues, argName)
 				continue
 			}
 
 			log.Errorf("'%v' param not found in given map", segment[1:])
 			return ""
 		}
-		url = path.Join(url, segment)
+		reverseURL = path.Join(reverseURL, segment)
 	}
 
-	return url
+	// add remaining params into URL Query parameters, if any
+	if len(keyValues) > 0 {
+		urlValues := url.Values{}
+
+		for k, v := range keyValues {
+			urlValues.Add(k, v)
+		}
+
+		reverseURL = fmt.Sprintf("%s?%s", reverseURL, urlValues.Encode())
+	}
+
+	return reverseURL
 }
 
 func createGlobalRoute(cfg *config.Config, routeName string) (*Route, error) {

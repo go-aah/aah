@@ -160,6 +160,13 @@ func TestDomainReverseURL(t *testing.T) {
 		"id": "12345678",
 	})
 	assert.Equal(t, "/hotels/12345678/booking", bookingURL)
+
+	bookingURL = domain.Reverse("book_hotels", map[string]string{
+		"id":     "12345678",
+		"param1": "param1value",
+		"param2": "param2value",
+	})
+	assert.Equal(t, "/hotels/12345678/booking?param1=param1value&param2=param2value", bookingURL)
 }
 
 func TestDomainAddRoute(t *testing.T) {
