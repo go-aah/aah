@@ -67,6 +67,7 @@ type (
 		Controller   string
 		Action       string
 		ActionParams []string
+		ParentName   string
 
 		// static route fields in-addition to above
 		IsStatic bool
@@ -216,7 +217,7 @@ func (r *Router) Load() (err error) {
 		if domainCfg.IsExists("routes") {
 			routesCfg, _ := domainCfg.GetSubConfig("routes")
 
-			routes, er := parseRoutesSection(routesCfg, "")
+			routes, er := parseRoutesSection(routesCfg, "", "")
 			if er != nil {
 				err = er
 				return
@@ -229,8 +230,8 @@ func (r *Router) Load() (err error) {
 					return
 				}
 
-				log.Tracef("Route Name: %v, Path: %v, Method: %v, Controller: %v, Action: %v",
-					route.Name, route.Path, route.Method, route.Controller, route.Action)
+				log.Infof("Route Name: %v (%v), Path: %v, Method: %v, Controller: %v, Action: %v",
+					route.Name, route.ParentName, route.Path, route.Method, route.Controller, route.Action)
 			}
 		}
 
@@ -243,7 +244,7 @@ func (r *Router) Load() (err error) {
 	return
 }
 
-func parseRoutesSection(cfg *config.Config, prefixPath string) (routes Routes, err error) {
+func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (routes Routes, err error) {
 	for _, routeName := range cfg.Keys() {
 		// getting 'path'
 		routePath, found := cfg.String(routeName + ".path")
@@ -278,11 +279,12 @@ func parseRoutesSection(cfg *config.Config, prefixPath string) (routes Routes, e
 			Method:     routeMethod,
 			Controller: routeController,
 			Action:     routeAction,
+			ParentName: parentName,
 		})
 
 		// loading child routes
 		if childRoutes, found := cfg.GetSubConfig(routeName + ".routes"); found {
-			croutes, er := parseRoutesSection(childRoutes, routePath)
+			croutes, er := parseRoutesSection(childRoutes, routeName, routePath)
 			if er != nil {
 				err = er
 				return
