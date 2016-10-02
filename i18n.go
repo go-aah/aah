@@ -88,11 +88,11 @@ func Msg(locale *ahttp.Locale, key string, args ...interface{}) string {
 			return ""
 		}
 
-		log.Tracef("Message is retrived from locale: %v", locale.Language)
+		log.Tracef("Message is retrieved from locale: %v", locale.Language)
 		return retriveMsg(store, key, args...)
 	}
 
-	log.Tracef("Message is retrived from locale: %v", locale.String())
+	log.Tracef("Message is retrieved from locale: %v", locale.String())
 	msg := retriveMsg(store, key, args...)
 	if ess.IsStrEmpty(msg) {
 		// If return value is empty then lookup by language. for eg.: en
