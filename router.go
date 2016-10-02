@@ -230,7 +230,7 @@ func (r *Router) Load() (err error) {
 					return
 				}
 
-				log.Infof("Route Name: %v (%v), Path: %v, Method: %v, Controller: %v, Action: %v",
+				log.Tracef("Route Name: %v (%v), Path: %v, Method: %v, Controller: %v, Action: %v",
 					route.Name, route.ParentName, route.Path, route.Method, route.Controller, route.Action)
 			}
 		}
