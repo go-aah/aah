@@ -14,7 +14,7 @@ import (
 
 func TestParseAcceptHeaderLanguage(t *testing.T) {
 	req1 := createRequest(HeaderAcceptLanguage, "en-us;q=0.0,en;q=0.7, da, en-gb;q=0.8")
-	specs := ParseAccept(req1, HeaderAcceptLanguage)
+	specs := req1.ParseAccept(HeaderAcceptLanguage)
 	assert.Equal(t, "da", specs.MostQualified().Value)
 	assert.Equal(t, 4, len(specs))
 	assert.Equal(t, specs[1].Value, "en-gb")
@@ -23,7 +23,7 @@ func TestParseAcceptHeaderLanguage(t *testing.T) {
 	assert.Equal(t, specs[2].Q, float32(0.7))
 
 	req2 := createRequest(HeaderAcceptLanguage, "en-gb;leve=1;q=0.8, da, en;level=2;q=0.7, en-us;q=gg")
-	specs = ParseAccept(req2, HeaderAcceptLanguage)
+	specs = req2.ParseAccept(HeaderAcceptLanguage)
 	assert.Equal(t, "da", specs.MostQualified().Value)
 	assert.Equal(t, 4, len(specs))
 	assert.Equal(t, specs[1].Value, "en-gb")
@@ -32,7 +32,7 @@ func TestParseAcceptHeaderLanguage(t *testing.T) {
 	assert.Equal(t, specs[2].Q, float32(0.7))
 
 	req3 := createRequest(HeaderAcceptLanguage, "zh, en-us; q=0.8, en; q=0.6")
-	specs = ParseAccept(req3, HeaderAcceptLanguage)
+	specs = req3.ParseAccept(HeaderAcceptLanguage)
 	assert.Equal(t, "zh", specs.MostQualified().Value)
 	assert.Equal(t, 3, len(specs))
 	assert.Equal(t, specs[1].Value, "en-us")
@@ -41,7 +41,7 @@ func TestParseAcceptHeaderLanguage(t *testing.T) {
 	assert.Equal(t, specs[2].Q, float32(0.6))
 
 	req4 := createRequest(HeaderAcceptLanguage, "en-gb;q=0.8, da, en;level=2;q=0.7, en-us;leve=1;q=gg")
-	specs = ParseAccept(req4, HeaderAcceptLanguage)
+	specs = req4.ParseAccept(HeaderAcceptLanguage)
 	assert.Equal(t, "da", specs.MostQualified().Value)
 	assert.Equal(t, 4, len(specs))
 	assert.Equal(t, specs[1].Value, "en-gb")
@@ -50,14 +50,14 @@ func TestParseAcceptHeaderLanguage(t *testing.T) {
 	assert.Equal(t, specs[2].Q, float32(0.7))
 
 	req5 := createRequest(HeaderAcceptLanguage, "zh, en-us; q=wrong, en; q=0.6")
-	specs = ParseAccept(req5, HeaderAcceptLanguage)
+	specs = req5.ParseAccept(HeaderAcceptLanguage)
 	assert.Equal(t, "zh", specs.MostQualified().Value)
 	assert.Equal(t, 3, len(specs))
 	assert.Equal(t, specs[1].Value, "en")
 	assert.Equal(t, specs[1].Q, float32(0.6))
 
 	req6 := createRequest(HeaderAcceptLanguage, "es-mx, es, en")
-	specs = ParseAccept(req6, HeaderAcceptLanguage)
+	specs = req6.ParseAccept(HeaderAcceptLanguage)
 	assert.Equal(t, "es-mx", specs.MostQualified().Value)
 	assert.Equal(t, 3, len(specs))
 	assert.Equal(t, specs[1].Value, "es")
@@ -67,39 +67,46 @@ func TestParseAcceptHeaderLanguage(t *testing.T) {
 }
 
 func TestNegotiateLocale(t *testing.T) {
-	locale := NegotiateLocale(createRequest(HeaderAcceptLanguage, "es-mx, es, en"))
+	req1 := createRequest(HeaderAcceptLanguage, "es-mx, es, en")
+	locale := req1.NegotiateLocale()
 	assert.Equal(t, "es-mx", locale.Raw)
 	assert.Equal(t, "es", locale.Language)
 	assert.Equal(t, "mx", locale.Region)
 	assert.Equal(t, "es-mx", locale.String())
 
-	locale = NegotiateLocale(createRequest(HeaderAcceptLanguage, "es"))
+	req2 := createRequest(HeaderAcceptLanguage, "es")
+	locale = req2.NegotiateLocale()
 	assert.Equal(t, "es", locale.Raw)
 	assert.Equal(t, "es", locale.Language)
 	assert.Equal(t, "", locale.Region)
 	assert.Equal(t, "es", locale.String())
 
-	locale = NegotiateLocale(createRequest(HeaderAcceptLanguage, ""))
+	req3 := createRequest(HeaderAcceptLanguage, "")
+	locale = req3.NegotiateLocale()
 	assert.Equal(t, true, locale == nil)
 }
 
 func TestNegotiateContentType(t *testing.T) {
-	contentType := NegotiateContentType(createRequest(HeaderAccept, "audio/*; q=0.2, audio/basic"))
+	req1 := createRequest(HeaderAccept, "audio/*; q=0.2, audio/basic")
+	contentType := req1.NegotiateContentType()
 	assert.Equal(t, "audio/basic", contentType.String())
 	assert.Equal(t, "audio/basic", contentType.Mime)
 	assert.Equal(t, "", contentType.Version())
 
-	contentType = NegotiateContentType(createRequest(HeaderAccept, "application/json;version=2"))
+	req2 := createRequest(HeaderAccept, "application/json;version=2")
+	contentType = req2.NegotiateContentType()
 	assert.Equal(t, "application/json;version=2", contentType.String())
 	assert.Equal(t, "application/json", contentType.Mime)
 	assert.Equal(t, "2", contentType.Version())
 
-	contentType = NegotiateContentType(createRequest(HeaderAccept, "text/plain; q=0.5, text/html, text/x-dvi; q=0.8, text/x-c"))
+	req3 := createRequest(HeaderAccept, "text/plain; q=0.5, text/html, text/x-dvi; q=0.8, text/x-c")
+	contentType = req3.NegotiateContentType()
 	assert.Equal(t, "text/html", contentType.String())
 	assert.Equal(t, "text/html", contentType.Mime)
 	assert.Equal(t, "", contentType.Version())
 
-	contentType = NegotiateContentType(createRequest(HeaderAccept, ""))
+	req4 := createRequest(HeaderAccept, "")
+	contentType = req4.NegotiateContentType()
 	assert.Equal(t, "text/html; charset=utf-8", contentType.String())
 	assert.Equal(t, "text/html", contentType.Mime)
 	assert.Equal(t, ".html", contentType.Exts[0])
@@ -107,75 +114,83 @@ func TestNegotiateContentType(t *testing.T) {
 
 	req := createRequest(HeaderAccept, "application/json")
 	req.URL, _ = url.Parse("http://localhost:8080/testpath.json")
-	contentType = NegotiateContentType(req)
+	contentType = req.NegotiateContentType()
 	assert.Equal(t, "application/json", contentType.Mime)
 	assert.Equal(t, ".json", contentType.Exts[0])
 
 	req = createRequest(HeaderAccept, "application/json")
 	req.URL, _ = url.Parse("http://localhost:8080/testpath.html")
-	contentType = NegotiateContentType(req)
+	contentType = req.NegotiateContentType()
 	assert.Equal(t, "text/html; charset=utf-8", contentType.Mime)
 	assert.Equal(t, ".html", contentType.Exts[0])
 
 	req = createRequest(HeaderAccept, "application/json; version=2")
-	spec := ParseAccept(req, HeaderAccept).MostQualified()
+	spec := req.ParseAccept(HeaderAccept).MostQualified()
 	assert.Equal(t, "2", spec.GetParam("version", "1"))
 
 	req = createRequest(HeaderAccept, "application/json")
-	spec = ParseAccept(req, HeaderAccept).MostQualified()
+	spec = req.ParseAccept(HeaderAccept).MostQualified()
 	assert.Equal(t, "1", spec.GetParam("version", "1"))
 
 	req = createRequest(HeaderAccept, "application/json; version")
-	spec = ParseAccept(req, HeaderAccept).MostQualified()
+	spec = req.ParseAccept(HeaderAccept).MostQualified()
 	assert.Equal(t, "", spec.GetParam("version", "1"))
 }
 
 func TestNegotiateEncoding(t *testing.T) {
-	encoding := NegotiateEncoding(createRequest(HeaderAcceptEncoding, "compress;q=0.5, gzip;q=1.0"))
+	req1 := createRequest(HeaderAcceptEncoding, "compress;q=0.5, gzip;q=1.0")
+	encoding := req1.NegotiateEncoding()
 	assert.Equal(t, "gzip", encoding.Value)
 	assert.Equal(t, "gzip;q=1.0", encoding.Raw)
 
-	encoding = NegotiateEncoding(createRequest(HeaderAcceptEncoding, "gzip;q=1.0, identity; q=0.5, *;q=0"))
+	req2 := createRequest(HeaderAcceptEncoding, "gzip;q=1.0, identity; q=0.5, *;q=0")
+	encoding = req2.NegotiateEncoding()
 	assert.Equal(t, "gzip", encoding.Value)
 	assert.Equal(t, "gzip;q=1.0", encoding.Raw)
 
-	encoding = NegotiateEncoding(createRequest(HeaderAcceptEncoding, ""))
+	req3 := createRequest(HeaderAcceptEncoding, "")
+	encoding = req3.NegotiateEncoding()
 	assert.Equal(t, true, encoding == nil)
 }
 
 func TestParseContentType(t *testing.T) {
-	contentType := ParseContentType(createRequest(HeaderContentType, "text/html; charset=utf-8"))
+	req1 := createRequest(HeaderContentType, "text/html; charset=utf-8")
+	contentType := req1.ParseContentType()
 	assert.Equal(t, "text/html", contentType.Mime)
 	assert.Equal(t, "text/html; charset=utf-8", contentType.String())
 	assert.Equal(t, "utf-8", contentType.Charset("iso-8859-1"))
 
-	contentType = ParseContentType(createRequest(HeaderContentType, "text/html"))
+	req2 := createRequest(HeaderContentType, "text/html")
+	contentType = req2.ParseContentType()
 	assert.Equal(t, "text/html", contentType.Mime)
 	assert.Equal(t, "text/html", contentType.String())
 	assert.Equal(t, "iso-8859-1", contentType.Charset("iso-8859-1"))
 
-	contentType = ParseContentType(createRequest(HeaderContentType, "application/json"))
+	req3 := createRequest(HeaderContentType, "application/json")
+	contentType = req3.ParseContentType()
 	assert.Equal(t, "application/json", contentType.Mime)
 	assert.Equal(t, "application/json", contentType.String())
 	assert.Equal(t, "", contentType.Charset(""))
 
-	contentType = ParseContentType(createRequest(HeaderContentType, ""))
+	req4 := createRequest(HeaderContentType, "")
+	contentType = req4.ParseContentType()
 	assert.Equal(t, "text/html", contentType.Mime)
 	assert.Equal(t, "text/html; charset=utf-8", contentType.String())
 	assert.Equal(t, ".html", contentType.Exts[0])
 
-	contentType = ParseContentType(createRequest(HeaderContentType, "text/html;charset"))
+	req5 := createRequest(HeaderContentType, "text/html;charset")
+	contentType = req5.ParseContentType()
 	assert.Equal(t, "text/html", contentType.Mime)
 	assert.Equal(t, "text/html;charset", contentType.String())
 	assert.Equal(t, "", contentType.Charset("iso-8859-1"))
 }
 
-func createRequest(hdrKey, value string) *http.Request {
+func createRequest(hdrKey, value string) *Request {
 	hdr := http.Header{}
 	hdr.Set(hdrKey, value)
 	url, _ := url.Parse("http://localhost:8080/testpath")
-	return &http.Request{
+	return &Request{Request: &http.Request{
 		URL:    url,
 		Header: hdr,
-	}
+	}}
 }

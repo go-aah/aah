@@ -18,6 +18,7 @@ const (
 	MethodPatch   = "PATCH"
 	MethodDelete  = "DELETE"
 	MethodConnect = "CONNECT"
+	MethodTrace   = "TRACE"
 )
 
 type (

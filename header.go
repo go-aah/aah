@@ -6,7 +6,6 @@ package ahttp
 
 import (
 	"mime"
-	"net/http"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -70,9 +69,9 @@ type (
 // NegotiateContentType negotiates the response `Content-Type` from the given HTTP
 // `Accept` header. The resolve order is- 1) URL extension 2) Accept header
 // Most quailfied one based quality factor otherwise default is HTML
-func NegotiateContentType(req *http.Request) *ContentType {
+func (r *Request) NegotiateContentType() *ContentType {
 	// 1) URL extension
-	ext := filepath.Ext(req.URL.Path)
+	ext := filepath.Ext(r.URL.Path)
 	switch ext {
 	case ".html", ".htm", ".json", ".js", ".xml", ".txt":
 		mimeType := mime.TypeByExtension(ext)
@@ -86,7 +85,7 @@ func NegotiateContentType(req *http.Request) *ContentType {
 	}
 
 	// 2) From Accept header
-	spec := ParseAccept(req, HeaderAccept).MostQualified()
+	spec := r.ParseAccept(HeaderAccept).MostQualified()
 	if spec == nil {
 		return htmlContentType()
 	}
@@ -103,22 +102,22 @@ func NegotiateContentType(req *http.Request) *ContentType {
 
 // NegotiateLocale negotiates the `Accept-Language` from the given HTTP
 // request. Most quailfied one based quality factor
-func NegotiateLocale(req *http.Request) *Locale {
-	return ToLocale(ParseAccept(req, HeaderAcceptLanguage).MostQualified())
+func (r *Request) NegotiateLocale() *Locale {
+	return ToLocale(r.ParseAccept(HeaderAcceptLanguage).MostQualified())
 }
 
 // NegotiateEncoding negotiates the `Accept-Encoding` from the given HTTP
 // request. Most quailfied one based quality factor
-func NegotiateEncoding(req *http.Request) *AcceptSpec {
-	return ParseAccept(req, HeaderAcceptEncoding).MostQualified()
+func (r *Request) NegotiateEncoding() *AcceptSpec {
+	return r.ParseAccept(HeaderAcceptEncoding).MostQualified()
 }
 
 // ParseContentType resolves the request `Content-Type` from the given HTTP
 // request via header `Content-Type`. Partial implentation of
 // https://tools.ietf.org/html/rfc1521#section-4 i.e. parsing only
 // type, subtype, parameters based on RFC
-func ParseContentType(req *http.Request) *ContentType {
-	contentType := req.Header.Get(HeaderContentType)
+func (r *Request) ParseContentType() *ContentType {
+	contentType := r.Header.Get(HeaderContentType)
 
 	if ess.IsStrEmpty(contentType) {
 		return htmlContentType()
@@ -155,8 +154,8 @@ func ParseContentType(req *http.Request) *ContentType {
 //
 // Known issues with WebKit and IE
 // http://www.newmediacampaigns.com/blog/browser-rest-http-accept-headers
-func ParseAccept(req *http.Request, hdrKey string) AcceptSpecs {
-	hdrValue := req.Header.Get(hdrKey)
+func (r *Request) ParseAccept(hdrKey string) AcceptSpecs {
+	hdrValue := r.Header.Get(hdrKey)
 	var specs AcceptSpecs
 
 	for _, hv := range strings.Split(hdrValue, ",") {
