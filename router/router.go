@@ -67,12 +67,18 @@ type (
 		Controller   string
 		Action       string
 		ActionParams []string
+
+		// static route fields in-addition to above
+		IsStatic bool
+		Dir      string
+		File     string
+		ListDir  bool
 	}
 
 	// Routes is a Route-slice
 	Routes []Route
 
-	// PathParam is single URL Path parameter (not a query string values)
+	// PathParam is single URL path parameter (not a query string values)
 	PathParam struct {
 		Key   string
 		Value string
@@ -185,13 +191,30 @@ func (r *Router) Load() (err error) {
 
 		// loading static routes
 		if domainCfg.IsExists("static") {
-			log.Info("static routes exists")
+			staticCfg, _ := domainCfg.GetSubConfig("static")
+
+			routes, er := parseStaticRoutesSection(staticCfg)
+			if er != nil {
+				err = er
+				return
+			}
+
+			log.Tracef("No. of static routes found: %v", len(routes))
+
+			for idx := range routes {
+				route := routes[idx]
+				if err = domain.addRoute(&route); err != nil {
+					return
+				}
+
+				log.Tracef("Route Name: %v, Path: %v, Dir: %v, ListDir: %v, File: %v",
+					route.Name, route.Path, route.Dir, route.ListDir, route.File)
+			}
 		}
 
 		// loading namespace routes
 		if domainCfg.IsExists("routes") {
 			routesCfg, _ := domainCfg.GetSubConfig("routes")
-			// var routes Routes
 
 			routes, er := parseRoutesSection(routesCfg, "")
 			if er != nil {
@@ -267,6 +290,52 @@ func parseRoutesSection(cfg *config.Config, prefixPath string) (routes Routes, e
 
 			routes = append(routes, croutes...)
 		}
+	}
+
+	return
+}
+
+func parseStaticRoutesSection(cfg *config.Config) (routes Routes, err error) {
+	for _, routeName := range cfg.Keys() {
+		route := Route{Name: routeName, Method: ahttp.MethodGet, IsStatic: true}
+
+		// getting 'path'
+		routePath, found := cfg.String(routeName + ".path")
+		if !found {
+			err = fmt.Errorf("'%v.path' key is missing", routeName)
+			return
+		}
+
+		if strings.Contains(routePath, ":") || strings.Contains(routePath, "*") {
+			err = fmt.Errorf("'%v.path' parameters can not be used with static", routeName)
+			return
+		}
+
+		route.Path = routePath
+
+		routeDir, dirFound := cfg.String(routeName + ".dir")
+		routeFile, fileFound := cfg.String(routeName + ".file")
+		if dirFound && fileFound {
+			err = fmt.Errorf("'%v.dir' & '%v.file' key(s) cannot be used together", routeName, routeName)
+			return
+		}
+
+		if !dirFound && !fileFound {
+			err = fmt.Errorf("'%v.dir' or '%v.file' key have to be present", routeName, routeName)
+			return
+		}
+
+		if dirFound {
+			route.Path = path.Join(route.Path, "*filepath")
+		}
+
+		route.Dir = routeDir
+		route.File = routeFile
+		route.ListDir = cfg.BoolDefault(routeName+".list", false)
+
+		// TODO controller name and action
+
+		routes = append(routes, route)
 	}
 
 	return

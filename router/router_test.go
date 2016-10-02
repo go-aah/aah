@@ -62,6 +62,38 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	assert.True(t, rts)
 }
 
+func TestRouterStaticLoadConfiguration(t *testing.T) {
+	router := createRouter("routes.conf")
+
+	err := router.Load()
+	assert.FailNowOnError(t, err, "")
+
+	// After loading just couple assertion for static
+
+	// /favicon.ico
+	req1 := createHTTPRequest("localhost:8000", "/favicon.ico")
+	req1.Method = ahttp.MethodGet
+	domain := router.Domain(req1)
+	route, pathParam, rts := domain.Lookup(req1)
+	assert.NotNil(t, pathParam)
+	assert.False(t, rts)
+	assert.True(t, route.IsStatic)
+	assert.Equal(t, "/public/img/favicon.png", route.File)
+	assert.Equal(t, "", route.Dir)
+
+	// /static/img/aahframework.png
+	req2 := createHTTPRequest("localhost:8000", "/static/img/aahframework.png")
+	req2.Method = ahttp.MethodGet
+	domain = router.Domain(req2)
+	route, pathParam, rts = domain.Lookup(req2)
+	assert.NotNil(t, pathParam)
+	assert.False(t, rts)
+	assert.True(t, route.IsStatic)
+	assert.Equal(t, "/public", route.Dir)
+	assert.Equal(t, "/img/aahframework.png", pathParam.Get("filepath"))
+	assert.Equal(t, "", route.File)
+}
+
 func TestRouterErrorLoadConfiguration(t *testing.T) {
 	router := createRouter("routes-error.conf")
 
