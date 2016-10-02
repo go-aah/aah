@@ -44,6 +44,7 @@ const (
 	HeaderXXSSProtection      = "X-XSS-Protection"
 	HeaderXContentTypeOptions = "X-Content-Type-Options"
 	HeaderXRealIP             = "X-Real-Ip"
+	HeaderXHTTPMethodOverride = "X-HTTP-Method-Override"
 )
 
 type (
