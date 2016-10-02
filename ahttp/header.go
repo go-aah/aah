@@ -113,7 +113,7 @@ func (r *Request) NegotiateEncoding() *AcceptSpec {
 }
 
 // ParseContentType resolves the request `Content-Type` from the given HTTP
-// request via header `Content-Type`. Partial implentation of
+// request via header `Content-Type`. Partial implementation of
 // https://tools.ietf.org/html/rfc1521#section-4 i.e. parsing only
 // type, subtype, parameters based on RFC
 func (r *Request) ParseContentType() *ContentType {
