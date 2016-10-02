@@ -142,7 +142,7 @@ func (r *Router) Load() (err error) {
 		// domain host name
 		host, found := domainCfg.String("host")
 		if !found {
-			err = fmt.Errorf("''%v.host' key is missing", key)
+			err = fmt.Errorf("'%v.host' key is missing", key)
 			return
 		}
 
@@ -351,6 +351,12 @@ func parseStaticRoutesSection(cfg *config.Config) (routes Routes, err error) {
 // indicator for given `ahttp.Request` by domain and request URI
 // otherwise returns nil and false.
 func (d *Domain) Lookup(req *ahttp.Request) (*Route, *PathParams, bool) {
+	// HTTP method override support
+	overrideMethod := req.Header.Get(ahttp.HeaderXHTTPMethodOverride)
+	if !ess.IsStrEmpty(overrideMethod) && req.Method == ahttp.MethodPost {
+		req.Method = overrideMethod
+	}
+
 	// get route tree for request method
 	tree, found := d.trees[req.Method]
 	if !found {

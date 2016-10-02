@@ -5,6 +5,7 @@
 package router
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -60,6 +61,13 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	domain = router.Domain(reqCancelBooking2)
 	_, _, rts = domain.Lookup(reqCancelBooking2)
 	assert.True(t, rts)
+
+	// Lookup by name
+	cancelBooking := domain.LookupByName("cancel_booking")
+	assert.Equal(t, "hotels_group", cancelBooking.ParentName)
+	assert.Equal(t, "cancel_booking", cancelBooking.Name)
+	assert.Equal(t, "Hotels", cancelBooking.Controller)
+	assert.Equal(t, "POST", cancelBooking.Method)
 }
 
 func TestRouterStaticLoadConfiguration(t *testing.T) {
@@ -98,7 +106,57 @@ func TestRouterErrorLoadConfiguration(t *testing.T) {
 	router := createRouter("routes-error.conf")
 
 	err := router.Load()
-	assert.NotNilf(t, err, "expected error loading ''%v'", "routes-error.conf")
+	assert.NotNilf(t, err, "expected error loading '%v'", "routes-error.conf")
+}
+
+func TestRouterErrorHostLoadConfiguration(t *testing.T) {
+	router := createRouter("routes-no-hostname.conf")
+
+	err := router.Load()
+	assert.NotNilf(t, err, "expected error loading '%v'", "routes-no-hostname.conf")
+}
+
+func TestRouterErrorPathLoadConfiguration(t *testing.T) {
+	router := createRouter("routes-path-error.conf")
+
+	err := router.Load()
+	assert.NotNilf(t, err, "expected error loading '%v'", "routes-path-error.conf")
+}
+
+func TestRouterErrorControllerLoadConfiguration(t *testing.T) {
+	router := createRouter("routes-controller-error.conf")
+
+	err := router.Load()
+	assert.NotNilf(t, err, "expected error loading '%v'", "routes-controller-error.conf")
+}
+
+func TestRouterErrorStaticPathLoadConfiguration(t *testing.T) {
+	router := createRouter("routes-static-path-error.conf")
+
+	err := router.Load()
+	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-path-error.conf")
+}
+
+func TestRouterErrorStaticPathPatternLoadConfiguration(t *testing.T) {
+	router := createRouter("routes-static-path-pattern-error.conf")
+
+	err := router.Load()
+	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-path-pattern-error.conf")
+}
+
+func TestRouterErrorStaticDirFileLoadConfiguration(t *testing.T) {
+	router := createRouter("routes-static-dir-file-error.conf")
+
+	err := router.Load()
+	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-dir-file-error.conf")
+}
+
+func TestRouterErrorStaticNoDirFileLoadConfiguration(t *testing.T) {
+	router := createRouter("routes-static-no-dir-file-error.conf")
+
+	err := router.Load()
+	fmt.Println(err)
+	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-no-dir-file-error.conf")
 }
 
 func TestRouterNoDomainRoutesFound(t *testing.T) {
