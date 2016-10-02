@@ -1,0 +1,26 @@
+language: go
+
+sudo: false
+
+branches:
+  only:
+    - master
+    - develop
+
+go:
+  - 1.6
+  - 1.7
+  - tip
+
+before_install:
+  - go get -v -t ./...
+
+script:
+  - bash go.test.sh
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
+matrix:
+  allow_failures:
+    - go: tip
