@@ -456,14 +456,16 @@ walk: // outer loop for walking the tree
 // It can optionally also fix trailing slashes.
 // It returns the case-corrected path and a bool indicating whether the lookup
 // was successful.
-func (n *node) findCaseInsensitive(path string, fixTrailingSlash bool) (ciPath []byte, found bool, err error) {
-	return n.findCaseInsensitiveRec(
+func (n *node) findCaseInsensitive(path string, fixTrailingSlash bool) (string, bool, error) {
+	ciPath, found, err := n.findCaseInsensitiveRec(
 		path,
 		strings.ToLower(path),
 		make([]byte, 0, len(path)+1), // preallocate enough memory for new path
 		[4]byte{},                    // empty rune buffer
 		fixTrailingSlash,
 	)
+
+	return string(ciPath), found, err
 }
 
 // shift bytes in array by n bytes left

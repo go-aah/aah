@@ -253,6 +253,12 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 			return
 		}
 
+		// path must begin with '/'
+		if routePath[0] != '/' {
+			err = fmt.Errorf("'%v.path' [%v], path must begin with '/'", routeName, routePath)
+			return
+		}
+
 		// getting 'method'
 		routeMethod, found := cfg.String(routeName + ".method")
 		if !found {
@@ -305,6 +311,12 @@ func parseStaticRoutesSection(cfg *config.Config) (routes Routes, err error) {
 		routePath, found := cfg.String(routeName + ".path")
 		if !found {
 			err = fmt.Errorf("'%v.path' key is missing", routeName)
+			return
+		}
+
+		// path must begin with '/'
+		if routePath[0] != '/' {
+			err = fmt.Errorf("'%v.path' [%v], path must begin with '/'", routeName, routePath)
 			return
 		}
 
