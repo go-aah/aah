@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-aah/test/assert"
+	"aahframework.org/test/assert"
 )
 
 func TestLookExecutable(t *testing.T) {
@@ -19,9 +19,9 @@ func TestLookExecutable(t *testing.T) {
 }
 
 func TestIsImportPathExists(t *testing.T) {
-	assert.Equal(t, true, IsImportPathExists("github.com/go-aah/essentials"))
+	assert.Equal(t, true, IsImportPathExists("aahframework.org/essentials"))
 
-	assert.Equal(t, false, IsImportPathExists("github.com/go-aah/unknown"))
+	assert.Equal(t, false, IsImportPathExists("aahframework.org/unknown"))
 }
 
 func TestGoPath(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/go-aah/test/assert"
+	"aahframework.org/test/assert"
 )
 
 func TestCloseQuietly(t *testing.T) {
