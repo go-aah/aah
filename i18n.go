@@ -32,10 +32,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-aah/aah/ahttp"
-	"github.com/go-aah/config"
-	"github.com/go-aah/essentials"
-	"github.com/go-aah/log"
+	"aahframework.org/aah/ahttp"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/log"
 )
 
 var (
