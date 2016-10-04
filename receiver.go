@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-aah/config"
-	"github.com/go-aah/essentials"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
 )
 
 // Receiver represents aah logger object that statisfy console, file, logging

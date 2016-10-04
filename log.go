@@ -25,8 +25,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-aah/config"
-	"github.com/go-aah/essentials"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
 )
 
 // Level type definition

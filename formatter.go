@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-aah/essentials"
+	"aahframework.org/essentials"
 )
 
 // FormatterFunc is the handler function to implement log entry
