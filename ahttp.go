@@ -6,8 +6,6 @@
 // Like parse HTTP headers, ResponseWriter, content type, etc.
 package ahttp
 
-import "net/http"
-
 // HTTP Method names
 const (
 	MethodGet     = "GET"
@@ -35,15 +33,5 @@ type (
 		Mime   string
 		Exts   []string
 		Params map[string]string
-	}
-
-	// Request is extends `http.Request` for aah framework
-	Request struct {
-		*http.Request
-	}
-
-	// Response is extends `http.Response` for aah framework
-	Response struct {
-		http.Response
 	}
 )

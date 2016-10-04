@@ -6,10 +6,16 @@ package ahttp
 
 import (
 	"net"
+	"net/http"
 	"strings"
 
-	"github.com/go-aah/essentials"
+	"aahframework.org/essentials"
 )
+
+// Request is extends `http.Request` for aah framework
+type Request struct {
+	*http.Request
+}
 
 // ClientIP returns IP address from HTTP request, typically known as ClientIP or
 // Remote IP. It parses the IP in the order of X-Forwarded-For, X-Real-IP
