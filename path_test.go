@@ -13,7 +13,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/go-aah/test/assert"
+	"aahframework.org/test/assert"
 )
 
 var cleanTests = []struct {

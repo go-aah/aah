@@ -9,7 +9,7 @@
 
 package router
 
-import "github.com/go-aah/essentials"
+import "aahframework.org/essentials"
 
 // CleanPath is the URL version of path.Clean, it returns a canonical URL path
 // for p, eliminating . and .. elements.
