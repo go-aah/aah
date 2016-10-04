@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-aah/forge"
+	"aahframework.org/forge"
 )
 
 // Version no. of go-aah/config library
