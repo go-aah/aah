@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-aah/aah/ahttp"
-	"github.com/go-aah/test/assert"
+	"aahframework.org/aah/ahttp"
+	"aahframework.org/test/assert"
 )
 
 func TestLoadMessage(t *testing.T) {

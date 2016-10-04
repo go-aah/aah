@@ -11,10 +11,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/go-aah/aah/ahttp"
-	"github.com/go-aah/config"
-	"github.com/go-aah/essentials"
-	"github.com/go-aah/log"
+	"aahframework.org/aah/ahttp"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/log"
 )
 
 var (
@@ -259,12 +259,8 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 			return
 		}
 
-		// getting 'method'
-		routeMethod, found := cfg.String(routeName + ".method")
-		if !found {
-			// default to GET, if method not found
-			routeMethod = ahttp.MethodGet
-		}
+		// getting 'method', default to GET, if method not found
+		routeMethod := strings.ToUpper(cfg.StringDefault(routeName+".method", ahttp.MethodGet))
 
 		// getting 'controller'
 		routeController, found := cfg.String(routeName + ".controller")
@@ -275,7 +271,7 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 
 		// getting 'action', if not found it will default to `HTTPMethodActionMap`
 		// based on `routeMethod`
-		routeAction := cfg.StringDefault(routeName+".action", HTTPMethodActionMap[strings.ToUpper(routeMethod)])
+		routeAction := cfg.StringDefault(routeName+".action", HTTPMethodActionMap[routeMethod])
 
 		// TODO action params
 

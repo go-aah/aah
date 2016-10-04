@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/go-aah/test/assert"
+	"aahframework.org/test/assert"
 )
 
 func TestParseAcceptHeaderLanguage(t *testing.T) {

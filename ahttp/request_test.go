@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/go-aah/test/assert"
+	"aahframework.org/test/assert"
 )
 
 func TestClientIP(t *testing.T) {

@@ -5,7 +5,6 @@
 package router
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-aah/aah/ahttp"
-	"github.com/go-aah/essentials"
-	"github.com/go-aah/test/assert"
+	"aahframework.org/aah/ahttp"
+	"aahframework.org/essentials"
+	"aahframework.org/test/assert"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -155,7 +154,6 @@ func TestRouterErrorStaticNoDirFileLoadConfiguration(t *testing.T) {
 	router := createRouter("routes-static-no-dir-file-error.conf")
 
 	err := router.Load()
-	fmt.Println(err)
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-no-dir-file-error.conf")
 }
 
