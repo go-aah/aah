@@ -13,9 +13,13 @@ go:
   - tip
 
 before_install:
-  - go get -v -t ./...
+  - bash prepare-aah-env.sh "forge essentials config log test" "aah"
+
+install:
+  - go get -v -t aahframework.org/aah/...
 
 script:
+  - cd $GOPATH/src/aahframework.org/aah
   - bash go.test.sh
 
 after_success:
