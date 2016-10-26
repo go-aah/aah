@@ -19,6 +19,7 @@ install:
   - go get -v -t aahframework.org/essentials/...
 
 script:
+  - cd $GOPATH/src/aahframework.org/essentials
   - bash go.test.sh
 
 after_success:
