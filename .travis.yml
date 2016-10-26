@@ -13,15 +13,14 @@ go:
   - tip
 
 before_install:
-  - go get github.com/onsi/gomega
-  - go get github.com/onsi/ginkgo
-  - go get golang.org/x/tools/cmd/cover
+  - bash prepare-aah-env.sh "forge essentials config test" "log"
 
 install:
-  - go get -v -t ./...
+  - go get -v -t aahframework.org/log/...
 
 script:
-  - go test -v ./... -coverprofile=coverage.txt -covermode=atomic
+  - cd $GOPATH/src/aahframework.org/log
+  - bash go.test.sh
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
