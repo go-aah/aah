@@ -90,6 +90,10 @@ func TestStringValues(t *testing.T) {
 	pv1, _ := cfg.String("string")
 	assert.Equal(t, "a string inside prod", pv1)
 	assert.Equal(t, cfg.StringDefault("string_not_exists", "nice 3"), "nice 3")
+
+	cfg.SetString("prod.string", "a string is inside prod")
+	pv2, _ := cfg.String("string")
+	assert.Equal(t, "a string is inside prod", pv2)
 }
 
 func TestIntValues(t *testing.T) {

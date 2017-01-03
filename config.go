@@ -199,6 +199,13 @@ func (c *Config) Get(key string) (interface{}, bool) {
 	return c.get(key)
 }
 
+// SetString sets the given value for config key
+func (c *Config) SetString(key string, value string) {
+	if v, found := c.getraw(key); found {
+		_ = v.UpdateValue(value)
+	}
+}
+
 // Merge merges the given section to current section. Settings from source
 // section overwites the values in the current section
 func (c *Config) Merge(source *Config) error {
@@ -278,10 +285,18 @@ func (c *Config) getByProfile(key string) (interface{}, bool) {
 }
 
 func (c *Config) get(key string) (interface{}, bool) {
+	if v, found := c.getraw(key); found {
+		return v.GetValue(), true // found
+	}
+
+	return nil, false // not found
+}
+
+func (c *Config) getraw(key string) (forge.Value, bool) {
 	v, err := c.cfg.Resolve(key)
 	if err != nil {
 		return nil, false // not found
 	}
 
-	return v.GetValue(), true // found
+	return v, true // found
 }
