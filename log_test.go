@@ -263,7 +263,7 @@ func TestNewMisc(t *testing.T) {
 	}
 
 	_, err = New(`receiver = "file"; level="debug"; rotate { mode="size"; size=2500; }`)
-	if !strings.HasPrefix(err.Error(), "maximum 2GB file size") {
+	if !strings.HasPrefix(err.Error(), "max size > 2GB") {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
