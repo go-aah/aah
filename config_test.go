@@ -91,7 +91,7 @@ func TestStringValues(t *testing.T) {
 	assert.Equal(t, "a string inside prod", pv1)
 	assert.Equal(t, cfg.StringDefault("string_not_exists", "nice 3"), "nice 3")
 
-	cfg.SetString("prod.string", "a string is inside prod")
+	cfg.SetString("string", "a string is inside prod")
 	pv2, _ := cfg.String("string")
 	assert.Equal(t, "a string is inside prod", pv2)
 }
@@ -110,6 +110,10 @@ func TestIntValues(t *testing.T) {
 	assert.Equal(t, int64(0), v3)
 	assert.Equal(t, cfg.IntDefault("int_not_exists", 99), 99)
 	assert.Equal(t, cfg.IntDefault("int", 99), 32)
+
+	cfg.SetInt("int", 30)
+	v4, _ := cfg.Int("int")
+	assert.Equal(t, 30, v4)
 
 	setProfileForTest(t, cfg, "dev")
 	dv1, _ := cfg.Int("int")
@@ -145,6 +149,10 @@ func TestFloatValues(t *testing.T) {
 	assert.Equal(t, cfg.Float32Default("float_not_exists", float32(99.99)), float32(99.99))
 	assert.Equal(t, cfg.Float32Default("float32", float32(99.99)), float32(32.2))
 
+	cfg.SetFloat32("float32", float32(38.2))
+	v5, _ := cfg.Float32("float32")
+	assert.Equal(t, float32(38.2), v5)
+
 	setProfileForTest(t, cfg, "dev")
 	dv1, _ := cfg.Float32("float32")
 	assert.Equal(t, float32(62.2), dv1)
@@ -173,12 +181,17 @@ func TestBoolValues(t *testing.T) {
 	cfg := initString(t, string(bytes))
 
 	v1, _ := cfg.Bool("truevalue")
-	assert.Equal(t, true, v1)
+	assert.True(t, v1)
 
 	v2, _ := cfg.Bool("falsevalue")
-	assert.Equal(t, false, v2)
+	assert.False(t, v2)
 	assert.Equal(t, cfg.BoolDefault("bool_not_exists", true), true)
 	assert.Equal(t, cfg.BoolDefault("falsevalue", true), false)
+
+	cfg.SetBool("truevalue", false)
+	v3, _ := cfg.Bool("truevalue")
+	assert.False(t, v3)
+	cfg.SetBool("truevalue", true)
 
 	setProfileForTest(t, cfg, "dev")
 	assert.Equal(t, cfg.BoolDefault("truevalue", true), true)    // keys is found by fallback
@@ -186,10 +199,10 @@ func TestBoolValues(t *testing.T) {
 
 	setProfileForTest(t, cfg, "prod")
 	pv1, _ := cfg.Bool("truevalue")
-	assert.Equal(t, true, pv1)
+	assert.True(t, pv1)
 
 	pv2, _ := cfg.Bool("falsevalue")
-	assert.Equal(t, false, pv2)
+	assert.False(t, pv2)
 	assert.Equal(t, cfg.BoolDefault("bool_not_exists", true), true)
 }
 

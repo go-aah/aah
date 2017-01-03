@@ -199,9 +199,52 @@ func (c *Config) Get(key string) (interface{}, bool) {
 	return c.get(key)
 }
 
-// SetString sets the given value for config key
+// SetString sets the given value string for config key
+// First it tries to get value within enabled profile
+// otherwise it tries without profile
 func (c *Config) SetString(key string, value string) {
-	if v, found := c.getraw(key); found {
+	if v, found := c.getraw(c.prepareKey(key)); found {
+		_ = v.UpdateValue(value)
+	}
+}
+
+// SetInt sets the given value int for config key
+// First it tries to get value within enabled profile
+// otherwise it tries without profile
+func (c *Config) SetInt(key string, value int) {
+	c.SetInt64(key, int64(value))
+}
+
+// SetInt64 sets the given value int64 for config key
+// First it tries to get value within enabled profile
+// otherwise it tries without profile
+func (c *Config) SetInt64(key string, value int64) {
+	if v, found := c.getraw(c.prepareKey(key)); found {
+		_ = v.UpdateValue(value)
+	}
+}
+
+// SetFloat32 sets the given value float32 for config key
+// First it tries to get value within enabled profile
+// otherwise it tries without profile
+func (c *Config) SetFloat32(key string, value float32) {
+	c.SetFloat64(key, float64(value))
+}
+
+// SetFloat64 sets the given value float64 for config key
+// First it tries to get value within enabled profile
+// otherwise it tries without profile
+func (c *Config) SetFloat64(key string, value float64) {
+	if v, found := c.getraw(c.prepareKey(key)); found {
+		_ = v.UpdateValue(value)
+	}
+}
+
+// SetBool sets the given value bool for config key
+// First it tries to get value within enabled profile
+// otherwise it tries without profile
+func (c *Config) SetBool(key string, value bool) {
+	if v, found := c.getraw(c.prepareKey(key)); found {
 		_ = v.UpdateValue(value)
 	}
 }
