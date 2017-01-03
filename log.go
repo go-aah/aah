@@ -193,7 +193,7 @@ type Logger interface {
 	Tracef(format string, v ...interface{})
 }
 
-// New creates the logger based config supplied
+// New creates the aah logger based on supplied config string
 func New(configStr string) (Logger, error) {
 	if ess.IsStrEmpty(configStr) {
 		return nil, errors.New("logger config is empty")
@@ -202,6 +202,15 @@ func New(configStr string) (Logger, error) {
 	cfg, err := config.ParseString(configStr)
 	if err != nil {
 		return nil, err
+	}
+
+	return Newc(cfg)
+}
+
+// Newc creates the aah logger based on supplied `config.Config`
+func Newc(cfg *config.Config) (Logger, error) {
+	if cfg == nil {
+		return nil, errors.New("logger config is nil")
 	}
 
 	receiverType, found := cfg.String("receiver")
@@ -290,7 +299,7 @@ func newConsoleReceiver(cfg *config.Config, receiverType string, level Level, fl
 func newFileReceiver(cfg *config.Config, receiverType string, level Level, flags *[]FlagPart) (*Receiver, error) {
 	maxSize := cfg.IntDefault("rotate.size", 100)
 	if maxSize > 2048 { // maximum 2GB file size
-		return nil, errors.New("maximum 2GB file size supported for rotation")
+		return nil, errors.New("max size > 2GB, please set it to 2048 for size rotation")
 	}
 
 	receiver := Receiver{
@@ -311,8 +320,6 @@ func newFileReceiver(cfg *config.Config, receiverType string, level Level, flags
 	}
 
 	receiver.rotate = cfg.StringDefault("rotate.mode", "daily")
-	// rotate, _ := cfg.GetSection("rotate")
-	// receiver.rotate, _ = rotate.GetString("mode")
 	switch receiver.rotate {
 	case "daily":
 		receiver.setOpenDay()
