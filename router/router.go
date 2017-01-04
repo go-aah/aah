@@ -136,6 +136,7 @@ func (r *Router) DomainAddresses() []string {
 
 // Load method loads a configuration from `routes.conf`
 func (r *Router) Load() (err error) {
+	log.Info("Loading routes config ...")
 	r.config, err = config.LoadFile(r.configPath)
 	if err != nil {
 		return err
@@ -150,9 +151,10 @@ func (r *Router) Load() (err error) {
 
 	// allocate for no. of domains
 	r.domains = make(map[string]*Domain, len(domains))
-	log.Debugf("No. of domain route configs found: %v", len(domains))
+	log.Debugf("No. of domain found: %v", len(domains))
 
 	for _, key := range domains {
+		log.Debug("-----------------------------")
 		domainCfg, _ := r.config.GetSubConfig(key)
 
 		// domain host name
@@ -176,7 +178,7 @@ func (r *Router) Load() (err error) {
 			domain.catchAll = globalCfg.BoolDefault("catch_all", true)
 			domain.MethodNotAllowed = globalCfg.BoolDefault("method_not_allowed", true)
 			domain.RedirectTrailingSlash = globalCfg.BoolDefault("redirect_trailing_slash", true)
-			log.Debugf("Domain global config [catchAll: %v, methodNotAllowed: %v, redirectTrailingSlash: %v]",
+			log.Tracef("Domain global config [catchAll: %v, methodNotAllowed: %v, redirectTrailingSlash: %v]",
 				domain.catchAll, domain.MethodNotAllowed, domain.RedirectTrailingSlash)
 
 			if domain.catchAll {
@@ -190,7 +192,7 @@ func (r *Router) Load() (err error) {
 					return
 				}
 
-				log.Debugf("Not found route: %v.%v", domain.NotFoundRoute.Controller,
+				log.Tracef("Not found route: %v.%v", domain.NotFoundRoute.Controller,
 					domain.NotFoundRoute.Action)
 			}
 
@@ -201,7 +203,7 @@ func (r *Router) Load() (err error) {
 					return
 				}
 
-				log.Debugf("Panic route: %v.%v", domain.PanicRoute.Controller,
+				log.Tracef("Panic route: %v.%v", domain.PanicRoute.Controller,
 					domain.PanicRoute.Action)
 			}
 		}
@@ -224,7 +226,7 @@ func (r *Router) Load() (err error) {
 					return
 				}
 
-				log.Debugf("Route Name: %v, Path: %v, Dir: %v, ListDir: %v, File: %v",
+				log.Tracef("Route Name: %v, Path: %v, Dir: %v, ListDir: %v, File: %v",
 					route.Name, route.Path, route.Dir, route.ListDir, route.File)
 			}
 		}
@@ -246,7 +248,7 @@ func (r *Router) Load() (err error) {
 					return
 				}
 
-				log.Debugf("Route Name: %v (%v), Path: %v, Method: %v, Controller: %v, Action: %v",
+				log.Tracef("Route Name: %v (%v), Path: %v, Method: %v, Controller: %v, Action: %v",
 					route.Name, route.ParentName, route.Path, route.Method, route.Controller, route.Action)
 			}
 		}

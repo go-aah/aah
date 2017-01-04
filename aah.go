@@ -73,23 +73,23 @@ func Init(importPath, profile string) {
 		appProfile = profile
 	}
 
+	log.Info("----- aah framework -----")
+
 	logAsFatal(initConfig(appConfigDir()))
+	appName = AppConfig().StringDefault("name", filepath.Base(appBaseDir))
+	log.Infof("App Name: %v", AppName())
 
 	logAsFatal(appConfig.SetProfile(AppProfile()))
+	log.Infof("App Profile: %v", AppProfile())
 
 	logAsFatal(initLogs(appLogsDir(), AppConfig()))
 
 	logAsFatal(initI18n(appI18nDir()))
+	log.Infof("App i18n Locales: %v", strings.Join(i18n.Locales(), ", "))
 
 	logAsFatal(initRoutes(appConfigDir()))
-
-	appName = AppConfig().StringDefault("name", filepath.Base(appBaseDir))
-
-	log.Info("----- aah framework -----")
-	log.Infof("App Name: %v", AppName())
-	log.Infof("App Profile: %v", AppProfile())
-	log.Infof("App i18n Locales: %v", strings.Join(i18n.Locales(), ", "))
 	log.Infof("App Route Domain Addresses: %v", strings.Join(appRoutes.DomainAddresses(), ", "))
+
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
