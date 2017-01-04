@@ -185,6 +185,15 @@ func TestRouterDomainConfig(t *testing.T) {
 	assert.Nil(t, domain)
 }
 
+func TestRouterDomainAddresses(t *testing.T) {
+	router := createRouter("routes.conf")
+	err := router.Load()
+	assert.FailNowOnError(t, err, "")
+
+	addresses := router.DomainAddresses()
+	assert.Equal(t, "localhost:8000", addresses[0])
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Test Domain methods
 //___________________________________

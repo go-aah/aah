@@ -90,13 +90,17 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Router methods
+// Global methods
 //___________________________________
 
 // New method creates a Router with given routes configuration path.
 func New(configPath string) *Router {
 	return &Router{configPath: configPath}
 }
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Router methods
+//___________________________________
 
 // Domain returns domain routes configuration based on http request
 // otherwise nil.
@@ -118,6 +122,18 @@ func (r *Router) Reload() error {
 	return r.Load()
 }
 
+// DomainAddresses method returns domain addresses (host:port) from
+// routes configuration.
+func (r *Router) DomainAddresses() []string {
+	var addresses []string
+
+	for k := range r.domains {
+		addresses = append(addresses, k)
+	}
+
+	return addresses
+}
+
 // Load method loads a configuration from `routes.conf`
 func (r *Router) Load() (err error) {
 	r.config, err = config.LoadFile(r.configPath)
@@ -134,7 +150,7 @@ func (r *Router) Load() (err error) {
 
 	// allocate for no. of domains
 	r.domains = make(map[string]*Domain, len(domains))
-	log.Tracef("No. of domain route configs found: %v", len(domains))
+	log.Debugf("No. of domain route configs found: %v", len(domains))
 
 	for _, key := range domains {
 		domainCfg, _ := r.config.GetSubConfig(key)
@@ -151,7 +167,7 @@ func (r *Router) Load() (err error) {
 			Host: host,
 			Port: domainCfg.StringDefault("port", ""),
 		}
-		log.Tracef("Domain key: %v", domain.key())
+		log.Debugf("Domain key: %v", domain.key())
 
 		// loading global configuration
 		if domainCfg.IsExists("global") {
@@ -160,7 +176,7 @@ func (r *Router) Load() (err error) {
 			domain.catchAll = globalCfg.BoolDefault("catch_all", true)
 			domain.MethodNotAllowed = globalCfg.BoolDefault("method_not_allowed", true)
 			domain.RedirectTrailingSlash = globalCfg.BoolDefault("redirect_trailing_slash", true)
-			log.Tracef("Domain global config [catchAll: %v, methodNotAllowed: %v, redirectTrailingSlash: %v]",
+			log.Debugf("Domain global config [catchAll: %v, methodNotAllowed: %v, redirectTrailingSlash: %v]",
 				domain.catchAll, domain.MethodNotAllowed, domain.RedirectTrailingSlash)
 
 			if domain.catchAll {
@@ -174,7 +190,7 @@ func (r *Router) Load() (err error) {
 					return
 				}
 
-				log.Tracef("Not found route: %v.%v", domain.NotFoundRoute.Controller,
+				log.Debugf("Not found route: %v.%v", domain.NotFoundRoute.Controller,
 					domain.NotFoundRoute.Action)
 			}
 
@@ -185,7 +201,7 @@ func (r *Router) Load() (err error) {
 					return
 				}
 
-				log.Tracef("Panic route: %v.%v", domain.PanicRoute.Controller,
+				log.Debugf("Panic route: %v.%v", domain.PanicRoute.Controller,
 					domain.PanicRoute.Action)
 			}
 		}
@@ -200,7 +216,7 @@ func (r *Router) Load() (err error) {
 				return
 			}
 
-			log.Tracef("No. of static routes found: %v", len(routes))
+			log.Debugf("No. of static routes found: %v", len(routes))
 
 			for idx := range routes {
 				route := routes[idx]
@@ -208,7 +224,7 @@ func (r *Router) Load() (err error) {
 					return
 				}
 
-				log.Tracef("Route Name: %v, Path: %v, Dir: %v, ListDir: %v, File: %v",
+				log.Debugf("Route Name: %v, Path: %v, Dir: %v, ListDir: %v, File: %v",
 					route.Name, route.Path, route.Dir, route.ListDir, route.File)
 			}
 		}
@@ -222,7 +238,7 @@ func (r *Router) Load() (err error) {
 				err = er
 				return
 			}
-			log.Tracef("No. of routes found: %v", len(routes))
+			log.Debugf("No. of routes found: %v", len(routes))
 
 			for idx := range routes {
 				route := routes[idx]
@@ -230,123 +246,15 @@ func (r *Router) Load() (err error) {
 					return
 				}
 
-				log.Tracef("Route Name: %v (%v), Path: %v, Method: %v, Controller: %v, Action: %v",
+				log.Debugf("Route Name: %v (%v), Path: %v, Method: %v, Controller: %v, Action: %v",
 					route.Name, route.ParentName, route.Path, route.Method, route.Controller, route.Action)
 			}
 		}
 
 		// add domain routes
 		r.domains[domain.key()] = domain
-		// fmt.Println(domain.trees["GET"], domain.trees["POST"])
-		// fmt.Println(domain.routes)
+
 	} // End of domains
-
-	return
-}
-
-func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (routes Routes, err error) {
-	for _, routeName := range cfg.Keys() {
-		// getting 'path'
-		routePath, found := cfg.String(routeName + ".path")
-		if !found {
-			err = fmt.Errorf("'%v.path' key is missing", routeName)
-			return
-		}
-
-		// path must begin with '/'
-		if routePath[0] != '/' {
-			err = fmt.Errorf("'%v.path' [%v], path must begin with '/'", routeName, routePath)
-			return
-		}
-
-		// getting 'method', default to GET, if method not found
-		routeMethod := strings.ToUpper(cfg.StringDefault(routeName+".method", ahttp.MethodGet))
-
-		// getting 'controller'
-		routeController, found := cfg.String(routeName + ".controller")
-		if !found {
-			err = fmt.Errorf("'%v.controller' key is missing", routeName)
-			return
-		}
-
-		// getting 'action', if not found it will default to `HTTPMethodActionMap`
-		// based on `routeMethod`
-		routeAction := cfg.StringDefault(routeName+".action", HTTPMethodActionMap[routeMethod])
-
-		// TODO action params
-
-		routes = append(routes, Route{
-			Name:       routeName,
-			Path:       path.Join(prefixPath, routePath),
-			Method:     routeMethod,
-			Controller: routeController,
-			Action:     routeAction,
-			ParentName: parentName,
-		})
-
-		// loading child routes
-		if childRoutes, found := cfg.GetSubConfig(routeName + ".routes"); found {
-			croutes, er := parseRoutesSection(childRoutes, routeName, routePath)
-			if er != nil {
-				err = er
-				return
-			}
-
-			routes = append(routes, croutes...)
-		}
-	}
-
-	return
-}
-
-func parseStaticRoutesSection(cfg *config.Config) (routes Routes, err error) {
-	for _, routeName := range cfg.Keys() {
-		route := Route{Name: routeName, Method: ahttp.MethodGet, IsStatic: true}
-
-		// getting 'path'
-		routePath, found := cfg.String(routeName + ".path")
-		if !found {
-			err = fmt.Errorf("'%v.path' key is missing", routeName)
-			return
-		}
-
-		// path must begin with '/'
-		if routePath[0] != '/' {
-			err = fmt.Errorf("'%v.path' [%v], path must begin with '/'", routeName, routePath)
-			return
-		}
-
-		if strings.Contains(routePath, ":") || strings.Contains(routePath, "*") {
-			err = fmt.Errorf("'%v.path' parameters can not be used with static", routeName)
-			return
-		}
-
-		route.Path = routePath
-
-		routeDir, dirFound := cfg.String(routeName + ".dir")
-		routeFile, fileFound := cfg.String(routeName + ".file")
-		if dirFound && fileFound {
-			err = fmt.Errorf("'%v.dir' & '%v.file' key(s) cannot be used together", routeName, routeName)
-			return
-		}
-
-		if !dirFound && !fileFound {
-			err = fmt.Errorf("'%v.dir' or '%v.file' key have to be present", routeName, routeName)
-			return
-		}
-
-		if dirFound {
-			route.Path = path.Join(route.Path, "*filepath")
-		}
-
-		route.Dir = routeDir
-		route.File = routeFile
-		route.ListDir = cfg.BoolDefault(routeName+".list", false)
-
-		// TODO controller name and action
-
-		routes = append(routes, route)
-	}
 
 	return
 }
@@ -556,7 +464,7 @@ func (pp PathParams) Get(name string) string {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Common unexported methods
+// Unexported methods
 //___________________________________
 
 func suffixCommaValue(s, v string) string {
@@ -566,4 +474,111 @@ func suffixCommaValue(s, v string) string {
 		s += ", " + v
 	}
 	return s
+}
+
+func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (routes Routes, err error) {
+	for _, routeName := range cfg.Keys() {
+		// getting 'path'
+		routePath, found := cfg.String(routeName + ".path")
+		if !found {
+			err = fmt.Errorf("'%v.path' key is missing", routeName)
+			return
+		}
+
+		// path must begin with '/'
+		if routePath[0] != '/' {
+			err = fmt.Errorf("'%v.path' [%v], path must begin with '/'", routeName, routePath)
+			return
+		}
+
+		// getting 'method', default to GET, if method not found
+		routeMethod := strings.ToUpper(cfg.StringDefault(routeName+".method", ahttp.MethodGet))
+
+		// getting 'controller'
+		routeController, found := cfg.String(routeName + ".controller")
+		if !found {
+			err = fmt.Errorf("'%v.controller' key is missing", routeName)
+			return
+		}
+
+		// getting 'action', if not found it will default to `HTTPMethodActionMap`
+		// based on `routeMethod`
+		routeAction := cfg.StringDefault(routeName+".action", HTTPMethodActionMap[routeMethod])
+
+		// TODO action params
+
+		routes = append(routes, Route{
+			Name:       routeName,
+			Path:       path.Join(prefixPath, routePath),
+			Method:     routeMethod,
+			Controller: routeController,
+			Action:     routeAction,
+			ParentName: parentName,
+		})
+
+		// loading child routes
+		if childRoutes, found := cfg.GetSubConfig(routeName + ".routes"); found {
+			croutes, er := parseRoutesSection(childRoutes, routeName, routePath)
+			if er != nil {
+				err = er
+				return
+			}
+
+			routes = append(routes, croutes...)
+		}
+	}
+
+	return
+}
+
+func parseStaticRoutesSection(cfg *config.Config) (routes Routes, err error) {
+	for _, routeName := range cfg.Keys() {
+		route := Route{Name: routeName, Method: ahttp.MethodGet, IsStatic: true}
+
+		// getting 'path'
+		routePath, found := cfg.String(routeName + ".path")
+		if !found {
+			err = fmt.Errorf("'%v.path' key is missing", routeName)
+			return
+		}
+
+		// path must begin with '/'
+		if routePath[0] != '/' {
+			err = fmt.Errorf("'%v.path' [%v], path must begin with '/'", routeName, routePath)
+			return
+		}
+
+		if strings.Contains(routePath, ":") || strings.Contains(routePath, "*") {
+			err = fmt.Errorf("'%v.path' parameters can not be used with static", routeName)
+			return
+		}
+
+		route.Path = routePath
+
+		routeDir, dirFound := cfg.String(routeName + ".dir")
+		routeFile, fileFound := cfg.String(routeName + ".file")
+		if dirFound && fileFound {
+			err = fmt.Errorf("'%v.dir' & '%v.file' key(s) cannot be used together", routeName, routeName)
+			return
+		}
+
+		if !dirFound && !fileFound {
+			err = fmt.Errorf("'%v.dir' or '%v.file' key have to be present", routeName, routeName)
+			return
+		}
+
+		if dirFound {
+			route.Path = path.Join(route.Path, "*filepath")
+		}
+
+		route.Dir = routeDir
+		route.File = routeFile
+		route.ListDir = cfg.BoolDefault(routeName+".list", false)
+
+		// TODO controller name and action
+
+		routes = append(routes, route)
+	}
+
+	return
 }
