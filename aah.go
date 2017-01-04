@@ -63,7 +63,7 @@ func AppConfig() *config.Config {
 // Init method initializes `aah` application, if anything goes wrong during
 // initialize process, it will log it as fatal msg and exit.
 func Init(importPath, profile string) {
-	logAsFatal(initialzePath(importPath))
+	logAsFatal(initPath(importPath))
 
 	if ess.IsStrEmpty(profile) {
 		appProfile = appDefaultProfile
@@ -71,13 +71,15 @@ func Init(importPath, profile string) {
 		appProfile = profile
 	}
 
-	logAsFatal(initialzeConfig(appConfigDir()))
+	logAsFatal(initConfig(appConfigDir()))
 
 	logAsFatal(appConfig.SetProfile(AppProfile()))
 
-	logAsFatal(initialzeLogs(appLogsDir(), AppConfig()))
+	logAsFatal(initLogs(appLogsDir(), AppConfig()))
 
-	logAsFatal(initialzeI18n(appI18nDir()))
+	logAsFatal(initI18n(appI18nDir()))
+
+	logAsFatal(initRoutes(appConfigDir()))
 
 	appName = AppConfig().StringDefault("name", filepath.Base(appBaseDir))
 
@@ -124,7 +126,7 @@ func logAsFatal(err error) {
 	}
 }
 
-func initialzePath(importPath string) error {
+func initPath(importPath string) error {
 	var err error
 	goPath, err = ess.GoPath()
 	if err != nil {
@@ -144,7 +146,7 @@ func initialzePath(importPath string) error {
 	return nil
 }
 
-func initialzeConfig(cfgDir string) error {
+func initConfig(cfgDir string) error {
 	confPath := filepath.Join(cfgDir, "app.conf")
 	if !ess.IsFileExists(confPath) {
 		return fmt.Errorf("aah application configuration does not exists: %v", confPath)
@@ -160,7 +162,7 @@ func initialzeConfig(cfgDir string) error {
 	return nil
 }
 
-func initialzeLogs(logsDir string, cfg *config.Config) error {
+func initLogs(logsDir string, cfg *config.Config) error {
 	if logCfg, found := cfg.GetSubConfig("log"); found {
 		receiver := logCfg.StringDefault("receiver", "")
 		if strings.EqualFold(receiver, "file") {
@@ -184,6 +186,15 @@ func initialzeLogs(logsDir string, cfg *config.Config) error {
 	return nil
 }
 
-func initialzeI18n(i18nDir string) error {
+func initI18n(i18nDir string) error {
 	return i18n.LoadMessage(i18nDir)
+}
+
+func initRoutes(cfgDir string) error {
+	routesPath := filepath.Join(cfgDir, "routes.conf")
+	if !ess.IsFileExists(routesPath) {
+		return fmt.Errorf("aah application routes configuration does not exists: %v", routesPath)
+	}
+
+	return nil
 }
