@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"aahframework.org/aah/i18n"
+	"aahframework.org/aah/router"
 	"aahframework.org/config"
 	"aahframework.org/essentials"
 	"aahframework.org/log"
@@ -24,6 +25,7 @@ var (
 	appBaseDir    string
 	appIsPackaged bool
 	appConfig     *config.Config
+	appRoutes     *router.Router
 
 	goPath   string
 	goSrcDir string
@@ -87,6 +89,7 @@ func Init(importPath, profile string) {
 	log.Infof("App Name: %v", AppName())
 	log.Infof("App Profile: %v", AppProfile())
 	log.Infof("App i18n Locales: %v", strings.Join(i18n.Locales(), ", "))
+	log.Infof("App Route Domain Addresses: %v", strings.Join(appRoutes.DomainAddresses(), ", "))
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -196,5 +199,6 @@ func initRoutes(cfgDir string) error {
 		return fmt.Errorf("aah application routes configuration does not exists: %v", routesPath)
 	}
 
-	return nil
+	appRoutes = router.New(routesPath)
+	return appRoutes.Load()
 }
