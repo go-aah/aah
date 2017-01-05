@@ -21,11 +21,13 @@ type Request struct {
 // Request methods
 //___________________________________
 
-// ClientIP returns IP address from HTTP request, typically known as ClientIP or
+// ClientIP returns IP address from HTTP request, typically known as Client IP or
 // Remote IP. It parses the IP in the order of X-Forwarded-For, X-Real-IP
-// and `http.Request.RemoteAddr`
+// and finally `http.Request.RemoteAddr`.
 //
-// TODO for config name
+// Set aah application configuration `http.proxy = true`, if you're running
+// application behind proxy server like nginx, haproxy, apache, etc. otherwise
+// this method might return inaccurate Client IP address.
 func (r *Request) ClientIP(proxy bool) string {
 	if proxy {
 		// Header X-Forwarded-For
