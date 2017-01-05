@@ -6,6 +6,8 @@
 // in the LICENSE file at
 // https://raw.githubusercontent.com/julienschmidt/httprouter/master/LICENSE &
 // https://raw.githubusercontent.com/golang/go/master/LICENSE
+//
+// From upstream updated as of last commit date Dec 14, 2013 git#cdd9d50.
 
 package router
 

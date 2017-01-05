@@ -5,7 +5,7 @@
 // in the LICENSE file at https://raw.githubusercontent.com/julienschmidt/httprouter/master/LICENSE.
 //
 // Customized and improved for aah framework purpose.
-// From upstream updated as on Dec 03, 2016 git#d35c3c3.
+// From upstream updated as of last commit date Dec 03, 2016 git#d35c3c3.
 
 package router
 
