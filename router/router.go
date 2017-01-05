@@ -2,6 +2,12 @@
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
+// Package router provides routes implementation for aah framework application.
+// Routes config format is `forge` config syntax (go-aah/config) which
+// is similar to HOCON syntax aka typesafe config.
+//
+// aah framework router uses radix tree of
+// https://github.com/julienschmidt/httprouter
 package router
 
 import (
