@@ -31,6 +31,7 @@ var (
 	goSrcDir string
 
 	appDefaultProfile = "dev"
+	appProfilePrefix  = "env_"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -62,6 +63,56 @@ func AppConfig() *config.Config {
 	return appConfig
 }
 
+// AppMode method returns aah application mode. Default is "web" For e.g.: web or api
+func AppMode() string {
+	return AppConfig().StringDefault("mode", "web")
+}
+
+// AppDefaultI18nLang method returns aah application i18n default language if
+// configured other framework defaults to "en".
+func AppDefaultI18nLang() string {
+	return AppConfig().StringDefault("i18n.default", "en")
+}
+
+// AllAppProfiles method returns all the aah application environment profile names.
+func AllAppProfiles() []string {
+	var profiles []string
+
+	for _, v := range AppConfig().Keys() {
+		if strings.HasPrefix(v, appProfilePrefix) {
+			profiles = append(profiles, v[4:])
+		}
+	}
+
+	return profiles
+}
+
+// IsSSLEnabled method returns true if aah application is enabled with SSL
+// otherwise false.
+func IsSSLEnabled() bool {
+	return AppConfig().BoolDefault("http.ssl.enable", false)
+}
+
+// IsBehindProxy method returns true if aah application configured behind proxy
+// based on application configuration.
+func IsBehindProxy() bool {
+	return AppConfig().BoolDefault("http.proxy", false)
+}
+
+// IsCookieEnabled method returns true if aah application is enabled with Cookie
+// otherwise false.
+func IsCookieEnabled() bool {
+	return AppConfig().BoolDefault("cookie.enable", false)
+}
+
+// SetAppProfile method sets given profile as current aah application profile.
+//		For Example:
+//
+//		aah.SetAppProfile("prod")
+func SetAppProfile(profile string) error {
+	return AppConfig().SetProfile(appProfilePrefix + AppProfile())
+}
+
 // Init method initializes `aah` application, if anything goes wrong during
 // initialize process, it will log it as fatal msg and exit.
 func Init(importPath, profile string) {
@@ -73,22 +124,31 @@ func Init(importPath, profile string) {
 		appProfile = profile
 	}
 
-	log.Info("----- aah framework -----")
-
 	logAsFatal(initConfig(appConfigDir()))
 	appName = AppConfig().StringDefault("name", filepath.Base(appBaseDir))
-	log.Infof("App Name: %v", AppName())
 
-	logAsFatal(appConfig.SetProfile(AppProfile()))
-	log.Infof("App Profile: %v", AppProfile())
+	logAsFatal(SetAppProfile(AppProfile()))
 
 	logAsFatal(initLogs(appLogsDir(), AppConfig()))
+
+	log.Info("----- aah framework -----")
+	log.Infof("App Name: %v", AppName())
+	log.Infof("App Profile: %v", AppProfile())
+	log.Infof("App Mode: %v", AppMode())
 
 	logAsFatal(initI18n(appI18nDir()))
 	log.Infof("App i18n Locales: %v", strings.Join(i18n.Locales(), ", "))
 
 	logAsFatal(initRoutes(appConfigDir()))
 	log.Infof("App Route Domain Addresses: %v", strings.Join(appRoutes.DomainAddresses(), ", "))
+
+	// TODO initControllers
+
+	// TODO Validate Routes
+
+	logAsFatal(initViews(appViewsDir()))
+
+	logAsFatal(initTests(appTestsDir()))
 
 }
 
@@ -201,4 +261,18 @@ func initRoutes(cfgDir string) error {
 
 	appRoutes = router.New(routesPath)
 	return appRoutes.Load()
+}
+
+func initViews(viewsDir string) error {
+
+	// TODO initViews
+
+	return nil
+}
+
+func initTests(testsDir string) error {
+
+	// TODO initTests
+
+	return nil
 }
