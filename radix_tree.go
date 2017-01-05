@@ -3,7 +3,9 @@
 // All rights reserved.
 // Use of this radix_tree.go source code is governed by a BSD-style license that can be found
 // in the LICENSE file at https://raw.githubusercontent.com/julienschmidt/httprouter/master/LICENSE.
-// Previous author last modified on Feb 6, 2016, then I have modified it.
+//
+// Customized and improved for aah framework purpose.
+// From upstream updated as on Dec 03, 2016 git#d35c3c3.
 
 package router
 
@@ -56,10 +58,11 @@ func (n *node) incrementEdgePriority(pos int) int {
 	newPos := pos
 	for newPos > 0 && n.edges[newPos-1].priority < prio {
 		// swap node positions
-		tmpN := n.edges[newPos-1]
-		n.edges[newPos-1] = n.edges[newPos]
-		n.edges[newPos] = tmpN
+		n.edges[newPos-1], n.edges[newPos] = n.edges[newPos], n.edges[newPos-1]
 
+		// tmpN := n.edges[newPos-1]
+		// n.edges[newPos-1] = n.edges[newPos]
+		// n.edges[newPos] = tmpN
 		newPos--
 	}
 
@@ -140,15 +143,18 @@ func (n *node) add(path string, value interface{}) error {
 					numParams--
 
 					// Check if the wildcard matches
-					if len(path) >= len(n.path) && n.path == path[:len(n.path)] {
-						// check for longer wildcard, e.g. :name and :names
-						if len(n.path) >= len(path) || path[len(n.path)] == slashByte {
-							continue walk
-						}
-					}
+					if len(path) >= len(n.path) && n.path == path[:len(n.path)] &&
+						// Check for longer wildcard, e.g. :name and :names
+						(len(n.path) >= len(path) || path[len(n.path)] == slashByte) {
+						continue walk
+					} else {
+						// Wildcard conflict
+						pathSeg := strings.SplitN(path, slashString, 2)[0]
+						prefix := fullPath[:strings.Index(fullPath, pathSeg)] + n.path
 
-					return fmt.Errorf("path segment '%s' conflicts with existing "+
-						"wildcard '%s' in path '%s'", path, n.path, fullPath)
+						return fmt.Errorf("'%s' in new path '%s' conflicts with existing "+
+							"wildcard '%s' in existing prefix '%s'", pathSeg, fullPath, n.path, prefix)
+					}
 				}
 
 				c := path[0]
