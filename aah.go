@@ -5,10 +5,16 @@
 package aah
 
 import (
+	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"aahframework.org/aah/i18n"
 	"aahframework.org/aah/router"
@@ -19,19 +25,26 @@ import (
 
 // aah application variables
 var (
-	appName       string
-	appImportPath string
-	appProfile    string
-	appBaseDir    string
-	appIsPackaged bool
-	appConfig     *config.Config
-	appRoutes     *router.Router
+	appName             string
+	appImportPath       string
+	appProfile          string
+	appBaseDir          string
+	appIsPackaged       bool
+	appConfig           *config.Config
+	appRoutes           *router.Router
+	appHTTPReadTimeout  time.Duration
+	appHTTPWriteTimeout time.Duration
+	appSSLCert          string
+	appSSLKey           string
 
 	goPath   string
 	goSrcDir string
 
-	appDefaultProfile = "dev"
-	appProfilePrefix  = "env."
+	appDefaultProfile        = "dev"
+	appProfilePrefix         = "env."
+	appDefaultHTTPPort       = 8000
+	appDefaultDateFormat     = "2006-01-02"
+	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -66,6 +79,27 @@ func AppConfig() *config.Config {
 // AppMode method returns aah application mode. Default is "web" For e.g.: web or api
 func AppMode() string {
 	return AppConfig().StringDefault("mode", "web")
+}
+
+// AppHTTPAddress method returns aah application HTTP address otherwise empty string
+func AppHTTPAddress() string {
+	return AppConfig().StringDefault("http.address", "")
+}
+
+// AppHTTPPort method returns aah application HTTP port number if available
+// otherwise returns default port number 8000.
+func AppHTTPPort() int {
+	return AppConfig().IntDefault("http.port", appDefaultHTTPPort)
+}
+
+// AppDateFormat method returns aah application date format
+func AppDateFormat() string {
+	return AppConfig().StringDefault("format.date", appDefaultDateFormat)
+}
+
+// AppDateTimeFormat method returns aah application date format
+func AppDateTimeFormat() string {
+	return AppConfig().StringDefault("format.datetime", appDefaultDateTimeFormat)
 }
 
 // AppDefaultI18nLang method returns aah application i18n default language if
@@ -115,8 +149,7 @@ func Init(importPath string) {
 
 	logAsFatal(initConfig(appConfigDir()))
 
-	appName = AppConfig().StringDefault("name", filepath.Base(appBaseDir))
-	appProfile = AppConfig().StringDefault("env.default", appDefaultProfile)
+	logAsFatal(initAppVariables())
 
 	logAsFatal(SetAppProfile(AppProfile()))
 
@@ -131,7 +164,6 @@ func Init(importPath string) {
 	log.Infof("App i18n Locales: %v", strings.Join(i18n.Locales(), ", "))
 
 	logAsFatal(initRoutes(appConfigDir()))
-	log.Infof("App Route Domain Addresses: %v", strings.Join(appRoutes.DomainAddresses(), ", "))
 
 	// TODO initControllers
 
@@ -141,6 +173,52 @@ func Init(importPath string) {
 
 	logAsFatal(initTests(appTestsDir()))
 
+}
+
+// Start ... TODO
+func Start() {
+	address := AppHTTPAddress()
+	server := &http.Server{
+		Handler:      &engine{},
+		ReadTimeout:  appHTTPReadTimeout,
+		WriteTimeout: appHTTPWriteTimeout,
+	}
+
+	// Unix Socket
+	if strings.HasPrefix(address, "unix") {
+		log.Infof("Listening and serving HTTP on %v", address)
+
+		sockFile := address[5:]
+		err := os.Remove(sockFile)
+		if !os.IsNotExist(err) {
+			logAsFatal(err)
+		}
+
+		listener, err := net.Listen("unix", sockFile)
+		logAsFatal(err)
+
+		defer func() {
+			_ = listener.Close()
+		}()
+
+		server.Addr = address
+		logAsFatal(server.Serve(listener))
+
+		return
+	}
+
+	server.Addr = fmt.Sprintf("%s:%s", AppHTTPAddress(), strconv.Itoa(AppHTTPPort()))
+
+	// HTTPS
+	if IsSSLEnabled() {
+		log.Infof("Listening and serving HTTPS on %v", server.Addr)
+		logAsFatal(server.ListenAndServeTLS(appSSLCert, appSSLKey))
+		return
+	}
+
+	// HTTP
+	log.Infof("Listening and serving HTTP on %v", server.Addr)
+	logAsFatal(server.ListenAndServe())
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -212,6 +290,31 @@ func initConfig(cfgDir string) error {
 	}
 
 	appConfig = cfg
+
+	return nil
+}
+
+func initAppVariables() error {
+	var err error
+
+	appName = AppConfig().StringDefault("name", filepath.Base(appBaseDir))
+	appProfile = AppConfig().StringDefault("env.default", appDefaultProfile)
+
+	appHTTPReadTimeout, err = time.ParseDuration(AppConfig().StringDefault("http.timeout.read", "90s"))
+	if err != nil {
+		return err
+	}
+
+	appHTTPWriteTimeout, err = time.ParseDuration(AppConfig().StringDefault("http.timeout.write", "90s"))
+	if err != nil {
+		return err
+	}
+
+	appSSLCert = AppConfig().StringDefault("http.ssl.cert", "")
+	appSSLKey = AppConfig().StringDefault("http.ssl.key", "")
+	if IsSSLEnabled() && (ess.IsStrEmpty(appSSLCert) || ess.IsStrEmpty(appSSLKey)) {
+		return errors.New("HTTP SSL is enabled, so 'http.ssl.cert' & 'http.ssl.key' value is required")
+	}
 
 	return nil
 }
