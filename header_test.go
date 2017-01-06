@@ -186,11 +186,15 @@ func TestParseContentType(t *testing.T) {
 }
 
 func createRequest(hdrKey, value string) *Request {
+	return &Request{Request: createRawHTTPRequest(hdrKey, value)}
+}
+
+func createRawHTTPRequest(hdrKey, value string) *http.Request {
 	hdr := http.Header{}
 	hdr.Set(hdrKey, value)
 	url, _ := url.Parse("http://localhost:8080/testpath")
-	return &Request{Request: &http.Request{
+	return &http.Request{
 		URL:    url,
 		Header: hdr,
-	}}
+	}
 }

@@ -18,34 +18,29 @@ type Request struct {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Request methods
+// Unexported methods
 //___________________________________
 
-// ClientIP returns IP address from HTTP request, typically known as Client IP or
+// clientIP returns IP address from HTTP request, typically known as Client IP or
 // Remote IP. It parses the IP in the order of X-Forwarded-For, X-Real-IP
 // and finally `http.Request.RemoteAddr`.
-//
-// Set aah application configuration `http.proxy = true`, if you're running
-// application behind proxy server like nginx, haproxy, apache, etc. otherwise
-// this method might return inaccurate Client IP address.
-func (r *Request) ClientIP(proxy bool) string {
-	if proxy {
-		// Header X-Forwarded-For
-		if fwdFor := r.Header.Get(HeaderXForwardedFor); !ess.IsStrEmpty(fwdFor) {
-			index := strings.Index(fwdFor, ",")
-			if index == -1 {
-				return strings.TrimSpace(fwdFor)
-			}
-			return strings.TrimSpace(fwdFor[:index])
+func clientIP(req *http.Request) string {
+	// Header X-Forwarded-For
+	if fwdFor := req.Header.Get(HeaderXForwardedFor); !ess.IsStrEmpty(fwdFor) {
+		index := strings.Index(fwdFor, ",")
+		if index == -1 {
+			return strings.TrimSpace(fwdFor)
 		}
-
-		// Header X-Real-Ip
-		if realIP := r.Header.Get(HeaderXRealIP); !ess.IsStrEmpty(realIP) {
-			return strings.TrimSpace(realIP)
-		}
+		return strings.TrimSpace(fwdFor[:index])
 	}
 
-	if remoteAddr, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+	// Header X-Real-Ip
+	if realIP := req.Header.Get(HeaderXRealIP); !ess.IsStrEmpty(realIP) {
+		return strings.TrimSpace(realIP)
+	}
+
+	// Remote Address
+	if remoteAddr, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
 		return strings.TrimSpace(remoteAddr)
 	}
 
