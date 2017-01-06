@@ -50,8 +50,8 @@ func (c *Config) ClearProfile() {
 
 // HasProfile checks given configuration profile is exists or not
 func (c *Config) HasProfile(profile string) bool {
-	_, err := c.cfg.GetSection(profile)
-	return err == nil
+	cfg, found := c.getraw(profile)
+	return found && cfg.GetType() == forge.SECTION
 }
 
 // IsProfileEnabled returns true of profile enabled otherwise false
