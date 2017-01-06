@@ -12,29 +12,27 @@ import (
 )
 
 func TestClientIP(t *testing.T) {
-	req1 := createRequest(HeaderXForwardedFor, "10.0.0.1, 10.0.0.2")
-	ipAddress := req1.ClientIP(true)
+	req1 := createRawHTTPRequest(HeaderXForwardedFor, "10.0.0.1, 10.0.0.2")
+	ipAddress := clientIP(req1)
 	assert.Equal(t, "10.0.0.1", ipAddress)
 
-	req2 := createRequest(HeaderXForwardedFor, "10.0.0.2")
-	ipAddress = req2.ClientIP(true)
+	req2 := createRawHTTPRequest(HeaderXForwardedFor, "10.0.0.2")
+	ipAddress = clientIP(req2)
 	assert.Equal(t, "10.0.0.2", ipAddress)
 
-	req3 := createRequest(HeaderXRealIP, "10.0.0.3")
-	ipAddress = req3.ClientIP(true)
+	req3 := createRawHTTPRequest(HeaderXRealIP, "10.0.0.3")
+	ipAddress = clientIP(req3)
 	assert.Equal(t, "10.0.0.3", ipAddress)
 
 	req4 := createRequestWithHost("127.0.0.1:8080", "192.168.0.1:1234")
-	ipAddress = req4.ClientIP(false)
+	ipAddress = clientIP(req4)
 	assert.Equal(t, "192.168.0.1", ipAddress)
 
 	req5 := createRequestWithHost("127.0.0.1:8080", "")
-	ipAddress = req5.ClientIP(false)
+	ipAddress = clientIP(req5)
 	assert.Equal(t, "", ipAddress)
 }
 
-func createRequestWithHost(host, remote string) *Request {
-	return &Request{
-		Request: &http.Request{Host: host, RemoteAddr: remote},
-	}
+func createRequestWithHost(host, remote string) *http.Request {
+	return &http.Request{Host: host, RemoteAddr: remote}
 }
