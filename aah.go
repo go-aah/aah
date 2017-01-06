@@ -31,7 +31,7 @@ var (
 	goSrcDir string
 
 	appDefaultProfile = "dev"
-	appProfilePrefix  = "env_"
+	appProfilePrefix  = "env."
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -78,10 +78,11 @@ func AppDefaultI18nLang() string {
 func AllAppProfiles() []string {
 	var profiles []string
 
-	for _, v := range AppConfig().Keys() {
-		if strings.HasPrefix(v, appProfilePrefix) {
-			profiles = append(profiles, v[4:])
+	for _, v := range AppConfig().KeysByPath("env") {
+		if v == "default" {
+			continue
 		}
+		profiles = append(profiles, v)
 	}
 
 	return profiles
@@ -91,12 +92,6 @@ func AllAppProfiles() []string {
 // otherwise false.
 func IsSSLEnabled() bool {
 	return AppConfig().BoolDefault("http.ssl.enable", false)
-}
-
-// IsBehindProxy method returns true if aah application configured behind proxy
-// based on application configuration.
-func IsBehindProxy() bool {
-	return AppConfig().BoolDefault("http.proxy", false)
 }
 
 // IsCookieEnabled method returns true if aah application is enabled with Cookie
@@ -115,17 +110,13 @@ func SetAppProfile(profile string) error {
 
 // Init method initializes `aah` application, if anything goes wrong during
 // initialize process, it will log it as fatal msg and exit.
-func Init(importPath, profile string) {
+func Init(importPath string) {
 	logAsFatal(initPath(importPath))
 
-	if ess.IsStrEmpty(profile) {
-		appProfile = appDefaultProfile
-	} else {
-		appProfile = profile
-	}
-
 	logAsFatal(initConfig(appConfigDir()))
+
 	appName = AppConfig().StringDefault("name", filepath.Base(appBaseDir))
+	appProfile = AppConfig().StringDefault("env.default", appDefaultProfile)
 
 	logAsFatal(SetAppProfile(AppProfile()))
 
