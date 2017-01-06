@@ -27,7 +27,7 @@ func TestGetFunctionName(t *testing.T) {
 }
 
 func TestGetCallerInfo(t *testing.T) {
-	caller := GetCallerName()
+	caller := GetCallerInfo()
 	assert.Equal(t, "TestGetCallerInfo", caller.FunctionName)
 	assert.Equal(t, "aahframework.org/essentials.TestGetCallerInfo", caller.QualifiedName)
 	assert.Equal(t, "reflect_test.go", caller.FileName)
