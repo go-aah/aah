@@ -246,11 +246,6 @@ func TestNewMisc(t *testing.T) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
-	_, err = New(`level="info";`)
-	if !strings.HasPrefix(err.Error(), "receiver configuration") {
-		t.Errorf("Unexpected error: %v", err)
-	}
-
 	_, err = New(`receiver = "file"; level="unknown";`)
 	if !strings.HasPrefix(err.Error(), "unrecognized log level") {
 		t.Errorf("Unexpected error: %v", err)

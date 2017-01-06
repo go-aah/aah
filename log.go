@@ -213,11 +213,7 @@ func Newc(cfg *config.Config) (Logger, error) {
 		return nil, errors.New("logger config is nil")
 	}
 
-	receiverType, found := cfg.String("receiver")
-	if !found {
-		return nil, errors.New("receiver configuration is required")
-	}
-	receiverType = strings.ToUpper(receiverType)
+	receiverType := strings.ToUpper(cfg.StringDefault("receiver", "CONSOLE"))
 
 	levelName := cfg.StringDefault("level", "DEBUG")
 	level := levelByName(levelName)
