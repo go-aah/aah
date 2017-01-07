@@ -147,6 +147,18 @@ func SetAppProfile(profile string) error {
 // Init method initializes `aah` application, if anything goes wrong during
 // initialize process, it will log it as fatal msg and exit.
 func Init(importPath string) {
+	defer func() {
+		if r := recover(); r != nil {
+			err, ok := r.(error)
+			if ok {
+				log.Fatal(err)
+			}
+
+			// TODO panic stack trace parsing and handling
+			// string(debug.Stack())
+		}
+	}()
+
 	logAsFatal(initPath(importPath))
 
 	logAsFatal(initConfig(appConfigDir()))
@@ -185,6 +197,18 @@ func Init(importPath string) {
 
 // Start ... TODO
 func Start() {
+	defer func() {
+		if r := recover(); r != nil {
+			err, ok := r.(error)
+			if ok {
+				log.Fatal(err)
+			}
+
+			// TODO panic stack trace parsing and handling
+			// string(debug.Stack())
+		}
+	}()
+
 	if !appInitialized {
 		log.Fatal("aah application is not initialized, call `aah.Init` before the `aah.Start`.")
 	}
@@ -312,14 +336,19 @@ func initAppVariables() error {
 	appName = AppConfig().StringDefault("name", filepath.Base(appBaseDir))
 	appProfile = AppConfig().StringDefault("env.default", appDefaultProfile)
 
-	appHTTPReadTimeout, err = time.ParseDuration(AppConfig().StringDefault("http.timeout.read", "90s"))
-	if err != nil {
-		return err
+	readTimeout := AppConfig().StringDefault("http.timeout.read", "90s")
+	writeTimeout := AppConfig().StringDefault("http.timeout.write", "90s")
+	if !(strings.HasSuffix(readTimeout, "s") || strings.HasSuffix(readTimeout, "m")) &&
+		!(strings.HasSuffix(writeTimeout, "s") || strings.HasSuffix(writeTimeout, "m")) {
+		return errors.New("'http.timeout.{read|write}' value is not a valid time unit")
 	}
 
-	appHTTPWriteTimeout, err = time.ParseDuration(AppConfig().StringDefault("http.timeout.write", "90s"))
-	if err != nil {
-		return err
+	if appHTTPReadTimeout, err = time.ParseDuration(readTimeout); err != nil {
+		return fmt.Errorf("app config - 'http.timeout.read': %s", err)
+	}
+
+	if appHTTPWriteTimeout, err = time.ParseDuration(writeTimeout); err != nil {
+		return fmt.Errorf("app config - 'http.timeout.write': %s", err)
 	}
 
 	appSSLCert = AppConfig().StringDefault("http.ssl.cert", "")
