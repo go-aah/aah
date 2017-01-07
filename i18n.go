@@ -46,7 +46,6 @@ var (
 // LoadMessage processes the given message file or directory and adds to the
 // message store
 func LoadMessage(paths ...string) error {
-	log.Info("Loading i18n messages ...")
 	for _, path := range paths {
 		if !ess.IsFileExists(path) {
 			log.Warnf("Path: %v not exists, let's move on", path)
