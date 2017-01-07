@@ -37,6 +37,8 @@ var (
 	appSSLCert          string
 	appSSLKey           string
 
+	appInitialized bool
+
 	goPath   string
 	goSrcDir string
 
@@ -160,10 +162,13 @@ func Init(importPath string) {
 	log.Infof("App Profile: %v", AppProfile())
 	log.Infof("App Mode: %v", AppMode())
 
+	log.Info("App loading i18n messages ...")
 	logAsFatal(initI18n(appI18nDir()))
-	log.Infof("App i18n Locales: %v", strings.Join(i18n.Locales(), ", "))
+	log.Debugf("App i18n Locales: %v", strings.Join(i18n.Locales(), ", "))
 
+	log.Info("App loading routes configuration ...")
 	logAsFatal(initRoutes(appConfigDir()))
+	log.Debugf("App Route Domains: %v", strings.Join(appRoutes.DomainAddresses(), ", "))
 
 	// TODO initControllers
 
@@ -173,10 +178,17 @@ func Init(importPath string) {
 
 	logAsFatal(initTests(appTestsDir()))
 
+	appInitialized = true
+	log.Info("aah application is initialized successfully")
+	log.Info("")
 }
 
 // Start ... TODO
 func Start() {
+	if !appInitialized {
+		log.Fatal("aah application is not initialized, call `aah.Init` before the `aah.Start`.")
+	}
+
 	address := AppHTTPAddress()
 	server := &http.Server{
 		Handler:      &engine{},

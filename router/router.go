@@ -142,7 +142,6 @@ func (r *Router) DomainAddresses() []string {
 
 // Load method loads a configuration from `routes.conf`
 func (r *Router) Load() (err error) {
-	log.Info("Loading routes config ...")
 	r.config, err = config.LoadFile(r.configPath)
 	if err != nil {
 		return err
