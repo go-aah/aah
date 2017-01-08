@@ -286,7 +286,7 @@ func (d *Domain) Lookup(req *ahttp.Request) (*Route, *PathParams, bool) {
 		return nil, nil, false
 	}
 
-	routeName, pathParams, rts, err := tree.find(req.URL.Path)
+	routeName, pathParams, rts, err := tree.find(req.Path)
 	if routeName != nil && err == nil {
 		return d.routes[routeName.(string)], &pathParams, rts
 	} else if rts { // possible Redirect Trailing Slash
