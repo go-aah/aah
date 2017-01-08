@@ -6,6 +6,7 @@ package ahttp
 
 import (
 	"mime"
+	"net/http"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -31,6 +32,7 @@ const (
 	HeaderIfModifiedSince     = "If-Modified-Since"
 	HeaderLocation            = "Location"
 	HeaderLastModified        = "Last-Modified"
+	HeaderMethod              = "Method"
 	HeaderReferer             = "Referer"
 	HeaderServer              = "Server"
 	HeaderSetCookie           = "Set-Cookie"
@@ -65,7 +67,7 @@ type (
 	}
 
 	// AcceptSpecs is list of values parsed from header and sorted by
-	// quality factor
+	// quality factor.
 	AcceptSpecs []AcceptSpec
 )
 
@@ -75,10 +77,10 @@ type (
 
 // NegotiateContentType negotiates the response `Content-Type` from the given HTTP
 // `Accept` header. The resolve order is- 1) URL extension 2) Accept header
-// Most quailfied one based quality factor otherwise default is HTML
-func (r *Request) NegotiateContentType() *ContentType {
+// Most quailfied one based quality factor otherwise default is HTML.
+func NegotiateContentType(req *http.Request) *ContentType {
 	// 1) URL extension
-	ext := filepath.Ext(r.URL.Path)
+	ext := filepath.Ext(req.URL.Path)
 	switch ext {
 	case ".html", ".htm", ".json", ".js", ".xml", ".txt":
 		mimeType := mime.TypeByExtension(ext)
@@ -92,7 +94,7 @@ func (r *Request) NegotiateContentType() *ContentType {
 	}
 
 	// 2) From Accept header
-	spec := r.ParseAccept(HeaderAccept).MostQualified()
+	spec := ParseAccept(req, HeaderAccept).MostQualified()
 	if spec == nil {
 		return htmlContentType()
 	}
@@ -108,23 +110,23 @@ func (r *Request) NegotiateContentType() *ContentType {
 }
 
 // NegotiateLocale negotiates the `Accept-Language` from the given HTTP
-// request. Most quailfied one based quality factor
-func (r *Request) NegotiateLocale() *Locale {
-	return ToLocale(r.ParseAccept(HeaderAcceptLanguage).MostQualified())
+// request. Most quailfied one based on quality factor.
+func NegotiateLocale(req *http.Request) *Locale {
+	return ToLocale(ParseAccept(req, HeaderAcceptLanguage).MostQualified())
 }
 
 // NegotiateEncoding negotiates the `Accept-Encoding` from the given HTTP
-// request. Most quailfied one based quality factor
-func (r *Request) NegotiateEncoding() *AcceptSpec {
-	return r.ParseAccept(HeaderAcceptEncoding).MostQualified()
+// request. Most quailfied one based on quality factor.
+func NegotiateEncoding(req *http.Request) *AcceptSpec {
+	return ParseAccept(req, HeaderAcceptEncoding).MostQualified()
 }
 
 // ParseContentType resolves the request `Content-Type` from the given HTTP
 // request via header `Content-Type`. Partial implementation of
 // https://tools.ietf.org/html/rfc1521#section-4 i.e. parsing only
-// type, subtype, parameters based on RFC
-func (r *Request) ParseContentType() *ContentType {
-	contentType := r.Header.Get(HeaderContentType)
+// type, subtype, parameters based on RFC.
+func ParseContentType(req *http.Request) *ContentType {
+	contentType := req.Header.Get(HeaderContentType)
 
 	if ess.IsStrEmpty(contentType) {
 		return htmlContentType()
@@ -161,8 +163,8 @@ func (r *Request) ParseContentType() *ContentType {
 //
 // Known issues with WebKit and IE
 // http://www.newmediacampaigns.com/blog/browser-rest-http-accept-headers
-func (r *Request) ParseAccept(hdrKey string) AcceptSpecs {
-	hdrValue := r.Header.Get(hdrKey)
+func ParseAccept(req *http.Request, hdrKey string) AcceptSpecs {
+	hdrValue := req.Header.Get(hdrKey)
 	var specs AcceptSpecs
 
 	for _, hv := range strings.Split(hdrValue, ",") {
@@ -241,7 +243,7 @@ func ToLocale(a *AcceptSpec) *Locale {
 // Locale methods
 //___________________________________
 
-// String is stringer interface
+// String is stringer interface.
 func (l *Locale) String() string {
 	return l.Raw
 }
@@ -298,7 +300,7 @@ func (a AcceptSpec) GetParam(key string, defaultValue string) string {
 }
 
 // MostQualified returns the most quailfied accept spec, since `AcceptSpec` is
-// sorted by quaity factor. First position is the most quailfied otherwise `nil`
+// sorted by quaity factor. First position is the most quailfied otherwise `nil`.
 func (specs AcceptSpecs) MostQualified() *AcceptSpec {
 	if len(specs) > 0 {
 		return &specs[0]
