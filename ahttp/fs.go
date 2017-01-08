@@ -7,12 +7,14 @@ package ahttp
 import (
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 // FileOnlyFilesystem extends/wraps `http.FileSystem` to disable directory listing
 // fucntionality
 type FileOnlyFilesystem struct {
-	Fs http.FileSystem
+	Fs  http.FileSystem
+	dir string
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -27,7 +29,7 @@ func Dir(path string, listDir bool) http.FileSystem {
 	if listDir {
 		return fs
 	}
-	return FileOnlyFilesystem{Fs: fs}
+	return FileOnlyFilesystem{Fs: fs, dir: path}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -37,7 +39,7 @@ func Dir(path string, listDir bool) http.FileSystem {
 // Open method is compilance with `http.FileSystem` interface and disables
 // directory listing
 func (fs FileOnlyFilesystem) Open(name string) (http.File, error) {
-	stat, err := os.Lstat(name)
+	stat, err := os.Lstat(filepath.Join(fs.dir, name))
 	if err != nil {
 		return nil, err
 	}
