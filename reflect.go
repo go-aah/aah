@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// CallerInfo struct is store Go caller info
+// CallerInfo struct stores Go caller info
 type CallerInfo struct {
 	QualifiedName string
 	FunctionName  string
@@ -20,19 +20,36 @@ type CallerInfo struct {
 	Line          int
 }
 
-// GetFunctionName method returns the function name for given interface value.
-func GetFunctionName(f interface{}) string {
+// FunctionInfo structs Go function info
+type FunctionInfo struct {
+	Name          string
+	Package       string
+	QualifiedName string
+}
+
+// GetFunctionInfo method returns the function name for given interface value.
+func GetFunctionInfo(f interface{}) (fi *FunctionInfo) {
 	if f == nil {
-		return ""
+		fi = &FunctionInfo{}
+		return
 	}
 
 	defer func() {
 		if r := recover(); r != nil {
 			// recovered
+			fi = &FunctionInfo{}
 		}
 	}()
 
-	return runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
+	info := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
+	idx := strings.LastIndexByte(info, '.')
+	fi = &FunctionInfo{
+		Name:          info[idx+1:],
+		Package:       info[:idx-1],
+		QualifiedName: info,
+	}
+
+	return
 }
 
 // GetCallerInfo method returns caller's QualifiedName, FunctionName, File,

@@ -11,19 +11,20 @@ import (
 	"aahframework.org/test/assert"
 )
 
-func TestGetFunctionName(t *testing.T) {
+func TestGetFunctionInfo(t *testing.T) {
 	type SampleStr struct {
 		Name string
 	}
 
-	name := GetFunctionName(testFunc1)
-	assert.Equal(t, "aahframework.org/essentials.testFunc1", name)
+	info := GetFunctionInfo(testFunc1)
+	assert.Equal(t, "aahframework.org/essentials.testFunc1", info.QualifiedName)
 
-	name = GetFunctionName(SampleStr{})
-	assert.Equal(t, "", name)
+	info = GetFunctionInfo(SampleStr{})
+	assert.Equal(t, "", info.Name)
 
-	name = GetFunctionName(nil)
-	assert.Equal(t, "", name)
+	info = GetFunctionInfo(nil)
+	assert.NotNil(t, info)
+	assert.Equal(t, "", info.Name)
 }
 
 func TestGetCallerInfo(t *testing.T) {
