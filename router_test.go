@@ -309,11 +309,14 @@ func createRouter(filename string) *Router {
 
 func createHTTPRequest(host, path string) *ahttp.Request {
 	req := &ahttp.Request{
-		Request: &http.Request{Host: host},
+		Raw: &http.Request{Host: host},
 	}
 
+	req.Host = req.Raw.Host
+
 	if !ess.IsStrEmpty(path) {
-		req.URL = &url.URL{Path: path}
+		req.Raw.URL = &url.URL{Path: path}
+		req.Path = req.Raw.URL.Path
 	}
 
 	return req
