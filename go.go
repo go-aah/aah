@@ -72,8 +72,3 @@ func IsInGoRoot(path string) bool {
 	return strings.HasPrefix(path, filepath.Join(build.Default.GOROOT, "src")) ||
 		strings.HasPrefix(path, filepath.Join(build.Default.GOROOT, "pkg"))
 }
-
-// vendoringPath := revel.BasePath + "/vendor/"
-// 	if strings.HasPrefix(root, vendoringPath) {
-// 		return filepath.ToSlash(root[len(vendoringPath):])
-// 	}
