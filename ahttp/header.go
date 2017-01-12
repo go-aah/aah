@@ -52,6 +52,7 @@ const (
 	HeaderXFrameOptions       = "X-Frame-Options"
 	HeaderXHTTPMethodOverride = "X-HTTP-Method-Override"
 	HeaderXRealIP             = "X-Real-Ip"
+	HeaderXRequestedWith      = "X-Requested-With"
 	HeaderXXSSProtection      = "X-XSS-Protection"
 )
 

@@ -73,6 +73,11 @@ func AppBaseDir() string {
 	return appBaseDir
 }
 
+// AppImportPath method returns the application Go import path.
+func AppImportPath() string {
+	return appImportPath
+}
+
 // AppConfig method returns aah application configuration instance.
 func AppConfig() *config.Config {
 	return appConfig
@@ -141,7 +146,27 @@ func IsCookieEnabled() bool {
 //
 //		aah.SetAppProfile("prod")
 func SetAppProfile(profile string) error {
-	return AppConfig().SetProfile(appProfilePrefix + AppProfile())
+	if err := AppConfig().SetProfile(appProfilePrefix + profile); err != nil {
+		return err
+	}
+
+	appProfile = profile
+	return nil
+}
+
+// MergeAppConfig method allows to you to merge external config into aah
+// application anytime.
+func MergeAppConfig(cfg *config.Config) {
+	if err := AppConfig().Merge(cfg); err != nil {
+		log.Errorf("Unable to merge config into aah application[%s]: %s", AppName(), err)
+	}
+
+	newProfile := AppConfig().StringDefault("env.active", AppProfile())
+	if newProfile != AppProfile() {
+		if err := SetAppProfile(newProfile); err != nil {
+			log.Errorf("Unable to refesh config update: %s", err)
+		}
+	}
 }
 
 // Init method initializes `aah` application, if anything goes wrong during
@@ -334,7 +359,7 @@ func initAppVariables() error {
 	var err error
 
 	appName = AppConfig().StringDefault("name", filepath.Base(appBaseDir))
-	appProfile = AppConfig().StringDefault("env.default", appDefaultProfile)
+	appProfile = AppConfig().StringDefault("env.active", appDefaultProfile)
 
 	readTimeout := AppConfig().StringDefault("http.timeout.read", "90s")
 	writeTimeout := AppConfig().StringDefault("http.timeout.write", "90s")
