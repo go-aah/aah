@@ -234,3 +234,27 @@ func CopyDir(dest, src string, excludes Excludes) error {
 		return ApplyFileMode(destPath, info.Mode())
 	})
 }
+
+// DeleteFiles method deletes give files or directories. ensure your supplying
+// appropriate paths.
+func DeleteFiles(files ...string) (errs []error) {
+	for _, f := range files {
+		if IsFileExists(f) {
+			errs = append(errs, fmt.Errorf("path does not exists: %s", f))
+			continue
+		}
+
+		var err error
+		if IsDir(f) {
+			err = os.RemoveAll(f)
+		} else {
+			err = os.Remove(f)
+		}
+
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return
+}

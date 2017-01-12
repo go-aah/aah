@@ -10,3 +10,14 @@ import "strings"
 func IsStrEmpty(v string) bool {
 	return len(strings.TrimSpace(v)) == 0
 }
+
+// IsSliceContainsString method checks given string in the slice if found returns
+// true otherwise false.
+func IsSliceContainsString(strSlice []string, search string) bool {
+	for _, str := range strSlice {
+		if strings.EqualFold(str, search) {
+			return true
+		}
+	}
+	return false
+}
