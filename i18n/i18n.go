@@ -43,9 +43,9 @@ var (
 	messageStore    = make(map[string]*config.Config, 0)
 )
 
-// LoadMessage processes the given message file or directory and adds to the
+// Load processes the given message file or directory and adds to the
 // message store
-func LoadMessage(paths ...string) error {
+func Load(paths ...string) error {
 	for _, path := range paths {
 		if !ess.IsFileExists(path) {
 			log.Warnf("Path: %v not exists, let's move on", path)

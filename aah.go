@@ -31,7 +31,6 @@ var (
 	appBaseDir          string
 	appIsPackaged       bool
 	appConfig           *config.Config
-	appRoutes           *router.Router
 	appHTTPReadTimeout  time.Duration
 	appHTTPWriteTimeout time.Duration
 	appSSLCert          string
@@ -157,86 +156,40 @@ func SetAppProfile(profile string) error {
 // MergeAppConfig method allows to you to merge external config into aah
 // application anytime.
 func MergeAppConfig(cfg *config.Config) {
+	defer aahRecover()
+
 	if err := AppConfig().Merge(cfg); err != nil {
 		log.Errorf("Unable to merge config into aah application[%s]: %s", AppName(), err)
 	}
 
-	newProfile := AppConfig().StringDefault("env.active", AppProfile())
-	if newProfile != AppProfile() {
-		if err := SetAppProfile(newProfile); err != nil {
-			log.Errorf("Unable to refesh config update: %s", err)
-		}
-	}
+	initInternal()
 }
 
 // Init method initializes `aah` application, if anything goes wrong during
 // initialize process, it will log it as fatal msg and exit.
 func Init(importPath string) {
-	defer func() {
-		if r := recover(); r != nil {
-			err, ok := r.(error)
-			if ok {
-				log.Fatal(err)
-			}
-
-			// TODO panic stack trace parsing and handling
-			// string(debug.Stack())
-		}
-	}()
+	defer aahRecover()
 
 	logAsFatal(initPath(importPath))
-
 	logAsFatal(initConfig(appConfigDir()))
 
-	logAsFatal(initAppVariables())
+	initInternal()
+}
 
-	logAsFatal(SetAppProfile(AppProfile()))
+// Start ... TODO
+func Start() {
+	defer aahRecover()
 
-	logAsFatal(initLogs(appLogsDir(), AppConfig()))
+	if !appInitialized {
+		log.Fatal("aah application is not initialized, call `aah.Init` before the `aah.Start`.")
+	}
 
 	log.Info("----- aah framework -----")
 	log.Infof("App Name: %v", AppName())
 	log.Infof("App Profile: %v", AppProfile())
 	log.Infof("App Mode: %v", AppMode())
-
-	log.Info("App loading i18n messages ...")
-	logAsFatal(initI18n(appI18nDir()))
 	log.Debugf("App i18n Locales: %v", strings.Join(i18n.Locales(), ", "))
-
-	log.Info("App loading routes configuration ...")
-	logAsFatal(initRoutes(appConfigDir()))
-	log.Debugf("App Route Domains: %v", strings.Join(appRoutes.DomainAddresses(), ", "))
-
-	// TODO initControllers
-
-	// TODO Validate Routes
-
-	logAsFatal(initViews(appViewsDir()))
-
-	logAsFatal(initTests(appTestsDir()))
-
-	appInitialized = true
-	log.Info("aah application is initialized successfully")
-	log.Info("")
-}
-
-// Start ... TODO
-func Start() {
-	defer func() {
-		if r := recover(); r != nil {
-			err, ok := r.(error)
-			if ok {
-				log.Fatal(err)
-			}
-
-			// TODO panic stack trace parsing and handling
-			// string(debug.Stack())
-		}
-	}()
-
-	if !appInitialized {
-		log.Fatal("aah application is not initialized, call `aah.Init` before the `aah.Start`.")
-	}
+	log.Debugf("App Route Domains: %v", strings.Join(router.DomainAddresses(), ", "))
 
 	address := AppHTTPAddress()
 	server := &http.Server{
@@ -286,6 +239,18 @@ func Start() {
 // Unexported methods
 //___________________________________
 
+func aahRecover() {
+	if r := recover(); r != nil {
+		err, ok := r.(error)
+		if ok {
+			log.Fatal(err)
+		}
+
+		// TODO panic stack trace parsing and handling
+		// string(debug.Stack())
+	}
+}
+
 func appDir() string {
 	if appIsPackaged {
 		return AppBaseDir()
@@ -319,6 +284,26 @@ func logAsFatal(err error) {
 	}
 }
 
+func initInternal() {
+	logAsFatal(initAppVariables())
+
+	logAsFatal(initLogs(appLogsDir(), AppConfig()))
+
+	logAsFatal(initI18n(appI18nDir()))
+
+	logAsFatal(initRoutes(appConfigDir()))
+
+	// TODO initControllers
+
+	// TODO Validate Routes
+
+	logAsFatal(initViews(appViewsDir()))
+
+	logAsFatal(initTests(appTestsDir()))
+
+	appInitialized = true
+}
+
 func initPath(importPath string) error {
 	var err error
 	goPath, err = ess.GoPath()
@@ -331,7 +316,7 @@ func initPath(importPath string) error {
 	appBaseDir = filepath.Join(goSrcDir, filepath.FromSlash(appImportPath))
 
 	if !ess.IsFileExists(appBaseDir) {
-		return fmt.Errorf("aah application directory does not exists: %s", appImportPath)
+		return fmt.Errorf("aah application does not exists: %s", appImportPath)
 	}
 
 	appIsPackaged = !ess.IsFileExists(appDir())
@@ -382,6 +367,8 @@ func initAppVariables() error {
 		return errors.New("HTTP SSL is enabled, so 'http.ssl.cert' & 'http.ssl.key' value is required")
 	}
 
+	logAsFatal(SetAppProfile(AppProfile()))
+
 	return nil
 }
 
@@ -410,7 +397,7 @@ func initLogs(logsDir string, cfg *config.Config) error {
 }
 
 func initI18n(i18nDir string) error {
-	return i18n.LoadMessage(i18nDir)
+	return i18n.Load(i18nDir)
 }
 
 func initRoutes(cfgDir string) error {
@@ -419,8 +406,7 @@ func initRoutes(cfgDir string) error {
 		return fmt.Errorf("aah application routes configuration does not exists: %v", routesPath)
 	}
 
-	appRoutes = router.New(routesPath)
-	return appRoutes.Load()
+	return router.Load(routesPath)
 }
 
 func initViews(viewsDir string) error {

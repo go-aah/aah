@@ -40,6 +40,8 @@ var (
 	// ErrNoRoutesConfigFound returned when routes config file not found or doesn't
 	// have config information.
 	ErrNoRoutesConfigFound = errors.New("no domain routes config found")
+
+	router *Router
 )
 
 type (
@@ -82,7 +84,7 @@ type (
 		ListDir  bool
 	}
 
-	// Routes is a Route-slice
+	// Routes is a Route-slice type
 	Routes []Route
 
 	// PathParam is single URL path parameter (not a query string values)
@@ -99,68 +101,29 @@ type (
 // Global methods
 //___________________________________
 
-// New method creates a Router with given routes configuration path.
-func New(configPath string) *Router {
-	return &Router{configPath: configPath}
-}
+// Load method loads a configuration from given file e.g. `routes.conf`
+func Load(configPath string) (err error) {
+	router = &Router{configPath: configPath}
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Router methods
-//___________________________________
-
-// Domain returns domain routes configuration based on http request
-// otherwise nil.
-func (r *Router) Domain(req *ahttp.Request) *Domain {
-	if domain, found := r.domains[strings.ToLower(req.Host)]; found {
-		return domain
-	}
-	return nil
-}
-
-// Reload method clears existing routes configuration and loads from
-// routes configuration.
-func (r *Router) Reload() error {
-	// clean it
-	r.domains = make(map[string]*Domain)
-	r.config = nil
-
-	// load fresh
-	return r.Load()
-}
-
-// DomainAddresses method returns domain addresses (host:port) from
-// routes configuration.
-func (r *Router) DomainAddresses() []string {
-	var addresses []string
-
-	for k := range r.domains {
-		addresses = append(addresses, k)
-	}
-
-	return addresses
-}
-
-// Load method loads a configuration from `routes.conf`
-func (r *Router) Load() (err error) {
-	r.config, err = config.LoadFile(r.configPath)
+	router.config, err = config.LoadFile(router.configPath)
 	if err != nil {
 		return err
 	}
 
-	domains := r.config.KeysByPath("domains")
+	domains := router.config.KeysByPath("domains")
 	if len(domains) == 0 {
 		return ErrNoRoutesConfigFound
 	}
 
-	_ = r.config.SetProfile("domains")
+	_ = router.config.SetProfile("domains")
 
 	// allocate for no. of domains
-	r.domains = make(map[string]*Domain, len(domains))
+	router.domains = make(map[string]*Domain, len(domains))
 	log.Debugf("No. of domain found: %v", len(domains))
 
 	for _, key := range domains {
 		log.Debug("-----------------------------")
-		domainCfg, _ := r.config.GetSubConfig(key)
+		domainCfg, _ := router.config.GetSubConfig(key)
 
 		// domain host name
 		host, found := domainCfg.String("host")
@@ -259,11 +222,78 @@ func (r *Router) Load() (err error) {
 		}
 
 		// add domain routes
-		r.domains[domain.key()] = domain
+		router.domains[domain.key()] = domain
 
 	} // End of domains
 
 	return
+}
+
+// Reload method clears existing routes configuration and loads from
+// routes configuration.
+func Reload() error {
+	// clean it
+	router.domains = make(map[string]*Domain)
+	router.config = nil
+
+	// load fresh
+	configPath := router.configPath
+	return Load(configPath)
+}
+
+// FindDomain returns domain routes configuration based on http request
+// otherwise nil.
+func FindDomain(req *ahttp.Request) *Domain {
+	if domain, found := router.domains[strings.ToLower(req.Host)]; found {
+		return domain
+	}
+	return nil
+}
+
+// DomainAddresses method returns domain addresses (host:port) from
+// routes configuration.
+func DomainAddresses() []string {
+	var addresses []string
+
+	for k := range router.domains {
+		addresses = append(addresses, k)
+	}
+
+	return addresses
+}
+
+// AllControllerMethods method returns all the controller names and its actions
+// configured in the "routes.conf"
+func AllControllerMethods() map[string]map[string]uint8 {
+	methods := map[string]map[string]uint8{}
+	for _, d := range router.domains {
+		for _, r := range d.routes {
+			if r.IsStatic {
+				continue
+			}
+
+			if c, found := methods[r.Controller]; found {
+				c[r.Action] = 1
+			} else {
+				methods[r.Controller] = map[string]uint8{
+					r.Action: 1,
+				}
+			}
+		}
+	}
+
+	return methods
+}
+
+// IsDefaultAction method is to identify given action name is defined by
+// aah framework in absense of user configured route action name.
+func IsDefaultAction(action string) bool {
+	for _, a := range HTTPMethodActionMap {
+		if a == action {
+			return true
+		}
+	}
+	return false
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

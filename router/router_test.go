@@ -39,16 +39,14 @@ func TestPathParamGet(t *testing.T) {
 //___________________________________
 
 func TestRouterLoadConfiguration(t *testing.T) {
-	router := createRouter("routes.conf")
-
-	err := router.Load()
+	err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
 	// After loading just couple assertion
 
 	reqCancelBooking1 := createHTTPRequest("localhost:8000", "/hotels/12345/cancel")
 	reqCancelBooking1.Method = ahttp.MethodPost
-	domain := router.Domain(reqCancelBooking1)
+	domain := FindDomain(reqCancelBooking1)
 	route, pathParam, rts := domain.Lookup(reqCancelBooking1)
 	assert.Equal(t, "cancel_booking", route.Name)
 	assert.Equal(t, "12345", pathParam.Get("id"))
@@ -57,7 +55,7 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	// possible redirect trailing slash
 	reqCancelBooking2 := createHTTPRequest("localhost:8000", "/hotels/12345/cancel/")
 	reqCancelBooking2.Method = ahttp.MethodPost
-	domain = router.Domain(reqCancelBooking2)
+	domain = FindDomain(reqCancelBooking2)
 	_, _, rts = domain.Lookup(reqCancelBooking2)
 	assert.True(t, rts)
 
@@ -70,9 +68,7 @@ func TestRouterLoadConfiguration(t *testing.T) {
 }
 
 func TestRouterStaticLoadConfiguration(t *testing.T) {
-	router := createRouter("routes.conf")
-
-	err := router.Load()
+	err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
 	// After loading just couple assertion for static
@@ -80,7 +76,7 @@ func TestRouterStaticLoadConfiguration(t *testing.T) {
 	// /favicon.ico
 	req1 := createHTTPRequest("localhost:8000", "/favicon.ico")
 	req1.Method = ahttp.MethodGet
-	domain := router.Domain(req1)
+	domain := FindDomain(req1)
 	route, pathParam, rts := domain.Lookup(req1)
 	assert.NotNil(t, pathParam)
 	assert.False(t, rts)
@@ -91,7 +87,7 @@ func TestRouterStaticLoadConfiguration(t *testing.T) {
 	// /static/img/aahframework.png
 	req2 := createHTTPRequest("localhost:8000", "/static/img/aahframework.png")
 	req2.Method = ahttp.MethodGet
-	domain = router.Domain(req2)
+	domain = FindDomain(req2)
 	route, pathParam, rts = domain.Lookup(req2)
 	assert.NotNil(t, pathParam)
 	assert.False(t, rts)
@@ -102,96 +98,96 @@ func TestRouterStaticLoadConfiguration(t *testing.T) {
 }
 
 func TestRouterErrorLoadConfiguration(t *testing.T) {
-	router := createRouter("routes-error.conf")
-
-	err := router.Load()
+	err := createRouter("routes-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-error.conf")
 }
 
 func TestRouterErrorHostLoadConfiguration(t *testing.T) {
-	router := createRouter("routes-no-hostname.conf")
-
-	err := router.Load()
+	err := createRouter("routes-no-hostname.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-no-hostname.conf")
 }
 
 func TestRouterErrorPathLoadConfiguration(t *testing.T) {
-	router := createRouter("routes-path-error.conf")
-
-	err := router.Load()
+	err := createRouter("routes-path-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-path-error.conf")
 }
 
 func TestRouterErrorControllerLoadConfiguration(t *testing.T) {
-	router := createRouter("routes-controller-error.conf")
-
-	err := router.Load()
+	err := createRouter("routes-controller-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-controller-error.conf")
 }
 
 func TestRouterErrorStaticPathLoadConfiguration(t *testing.T) {
-	router := createRouter("routes-static-path-error.conf")
-
-	err := router.Load()
+	err := createRouter("routes-static-path-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-path-error.conf")
 }
 
 func TestRouterErrorStaticPathPatternLoadConfiguration(t *testing.T) {
-	router := createRouter("routes-static-path-pattern-error.conf")
-
-	err := router.Load()
+	err := createRouter("routes-static-path-pattern-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-path-pattern-error.conf")
 }
 
 func TestRouterErrorStaticDirFileLoadConfiguration(t *testing.T) {
-	router := createRouter("routes-static-dir-file-error.conf")
-
-	err := router.Load()
+	err := createRouter("routes-static-dir-file-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-dir-file-error.conf")
 }
 
 func TestRouterErrorStaticNoDirFileLoadConfiguration(t *testing.T) {
-	router := createRouter("routes-static-no-dir-file-error.conf")
-
-	err := router.Load()
+	err := createRouter("routes-static-no-dir-file-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-no-dir-file-error.conf")
 }
 
 func TestRouterNoDomainRoutesFound(t *testing.T) {
-	router := createRouter("routes-no-domains.conf")
-
-	err := router.Load()
+	err := createRouter("routes-no-domains.conf")
 	assert.Equal(t, ErrNoRoutesConfigFound, err)
 }
 
 func TestRouterReloadConfiguration(t *testing.T) {
-	router := createRouter("routes.conf")
+	err := createRouter("routes.conf")
+	assert.FailNowOnError(t, err, "")
 
-	err := router.Reload()
+	err = Reload()
 	assert.FailNowOnError(t, err, "")
 
 	// TODO validate routes after reload
 }
 
 func TestRouterDomainConfig(t *testing.T) {
-	router := createRouter("routes.conf")
-	err := router.Load()
+	err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
-	domain := router.Domain(createHTTPRequest("localhost:8000", ""))
+	domain := FindDomain(createHTTPRequest("localhost:8000", ""))
 	assert.NotNil(t, domain)
 
-	domain = router.Domain(createHTTPRequest("www.aahframework.org", ""))
+	domain = FindDomain(createHTTPRequest("www.aahframework.org", ""))
 	assert.Nil(t, domain)
 }
 
 func TestRouterDomainAddresses(t *testing.T) {
-	router := createRouter("routes.conf")
-	err := router.Load()
+	err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
-	addresses := router.DomainAddresses()
+	addresses := DomainAddresses()
 	assert.Equal(t, "localhost:8000", addresses[0])
+}
+
+func TestAllControllerMethods(t *testing.T) {
+	err := createRouter("routes.conf")
+	assert.FailNowOnError(t, err, "")
+
+	methods := AllControllerMethods()
+	assert.NotNil(t, methods)
+}
+
+func TestIsDefaultAction(t *testing.T) {
+	v1 := IsDefaultAction("Index")
+	assert.True(t, v1)
+
+	v2 := IsDefaultAction("Head")
+	assert.True(t, v2)
+
+	v3 := IsDefaultAction("Show")
+	assert.False(t, v3)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -199,36 +195,34 @@ func TestRouterDomainAddresses(t *testing.T) {
 //___________________________________
 
 func TestDomainAllowed(t *testing.T) {
-	router := createRouter("routes.conf")
-	err := router.Load()
+	err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
 	req := createHTTPRequest("localhost:8000", "/")
-	domain := router.Domain(req)
+	domain := FindDomain(req)
 	allow := domain.Allowed(ahttp.MethodGet, "/")
 	assert.NotNil(t, allow)
 	assert.True(t, strings.Contains(allow, ahttp.MethodOptions))
 
-	domain = router.Domain(req)
+	domain = FindDomain(req)
 	allow = domain.Allowed(ahttp.MethodPost, "*")
 	assert.NotNil(t, allow)
 	assert.True(t, strings.Contains(allow, ahttp.MethodOptions))
 
 	// domain not exists
 	reqNotExists := createHTTPRequest("notexists:8000", "/")
-	domain = router.Domain(reqNotExists)
+	domain = FindDomain(reqNotExists)
 	assert.Nil(t, domain)
 
 	// TODO do more
 }
 
 func TestDomainReverseURL(t *testing.T) {
-	router := createRouter("routes.conf")
-	err := router.Load()
+	err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
 	req := createHTTPRequest("localhost:8000", "/")
-	domain := router.Domain(req)
+	domain := FindDomain(req)
 
 	// route name not exists
 	emptyURL := domain.Reverse("not_exists_routename")
@@ -302,9 +296,9 @@ func TestDomainAddRoute(t *testing.T) {
 	assert.True(t, strings.Contains(err.Error(), "value is already registered"))
 }
 
-func createRouter(filename string) *Router {
+func createRouter(filename string) error {
 	wd, _ := os.Getwd()
-	return New(filepath.Join(wd, "testdata", filename))
+	return Load(filepath.Join(wd, "testdata", filename))
 }
 
 func createHTTPRequest(host, path string) *ahttp.Request {
