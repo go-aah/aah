@@ -16,9 +16,9 @@ import (
 
 func TestLoadMessage(t *testing.T) {
 	wd, _ := os.Getwd()
-	_ = LoadMessage(filepath.Join(wd, "testdata"))
-	_ = LoadMessage(filepath.Join(wd, "testdata", "english", "message.en"))
-	_ = LoadMessage(filepath.Join(wd, "testdata", "english", "message-not-exists.en"))
+	_ = Load(filepath.Join(wd, "testdata"))
+	_ = Load(filepath.Join(wd, "testdata", "english", "message.en"))
+	_ = Load(filepath.Join(wd, "testdata", "english", "message-not-exists.en"))
 
 	locales := Locales()
 
@@ -32,7 +32,7 @@ func TestLoadMessage(t *testing.T) {
 
 func TestMsgRetrive_enUS(t *testing.T) {
 	wd, _ := os.Getwd()
-	_ = LoadMessage(filepath.Join(wd, "testdata"))
+	_ = Load(filepath.Join(wd, "testdata"))
 
 	locale := ahttp.Locale{Raw: "en-US", Language: "en", Region: "US"}
 
@@ -48,7 +48,7 @@ func TestMsgRetrive_enUS(t *testing.T) {
 
 func TestMsgRetrive_enGB(t *testing.T) {
 	wd, _ := os.Getwd()
-	_ = LoadMessage(filepath.Join(wd, "testdata"))
+	_ = Load(filepath.Join(wd, "testdata"))
 
 	locale := ahttp.Locale{Raw: "en-GB", Language: "en", Region: "GB"}
 
@@ -67,7 +67,7 @@ func TestMsgRetrive_enGB(t *testing.T) {
 
 func TestMsgRetrive_en(t *testing.T) {
 	wd, _ := os.Getwd()
-	_ = LoadMessage(filepath.Join(wd, "testdata"))
+	_ = Load(filepath.Join(wd, "testdata"))
 
 	locale := ahttp.Locale{Raw: "en", Language: "en"}
 
@@ -89,7 +89,7 @@ func TestMsgRetrive_en(t *testing.T) {
 
 func TestMsgRetrive_frCA(t *testing.T) {
 	wd, _ := os.Getwd()
-	_ = LoadMessage(filepath.Join(wd, "testdata"))
+	_ = Load(filepath.Join(wd, "testdata"))
 
 	locale := ahttp.Locale{Raw: "fr-CA", Language: "fr", Region: "CA"}
 
@@ -105,7 +105,7 @@ func TestMsgRetrive_frCA(t *testing.T) {
 
 func TestMsgRetrive_fr(t *testing.T) {
 	wd, _ := os.Getwd()
-	_ = LoadMessage(filepath.Join(wd, "testdata"))
+	_ = Load(filepath.Join(wd, "testdata"))
 
 	locale := ahttp.Locale{Raw: "fr", Language: "fr"}
 
@@ -118,7 +118,7 @@ func TestMsgRetrive_fr(t *testing.T) {
 
 func TestMsgRetrive_it(t *testing.T) {
 	wd, _ := os.Getwd()
-	_ = LoadMessage(filepath.Join(wd, "testdata"))
+	_ = Load(filepath.Join(wd, "testdata"))
 
 	locale := ahttp.Locale{Raw: "it-IT", Language: "it", Region: "IT"}
 
@@ -132,7 +132,7 @@ func TestMsgRetrive_it(t *testing.T) {
 
 func TestMsgRetriveNotFoundLocale(t *testing.T) {
 	wd, _ := os.Getwd()
-	_ = LoadMessage(filepath.Join(wd, "testdata"))
+	_ = Load(filepath.Join(wd, "testdata"))
 
 	locale := ahttp.Locale{Raw: "pl-PT", Language: "pl", Region: "PL"}
 
