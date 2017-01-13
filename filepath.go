@@ -65,10 +65,7 @@ func IsDirEmpty(path string) bool {
 // Also returns false if path is not exists
 func IsDir(path string) bool {
 	info, err := os.Lstat(path)
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
+	return err == nil && info.IsDir()
 }
 
 // ApplyFileMode applies the given file mode to the target{file|directory}
