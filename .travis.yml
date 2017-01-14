@@ -5,7 +5,7 @@ sudo: false
 branches:
   only:
     - master
-    - develop
+    - integration
 
 go:
   - 1.6
