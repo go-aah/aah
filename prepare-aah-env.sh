@@ -5,7 +5,7 @@ echo "Preparing aahframework custom environment for travis"
 
 # export variables
 export PATH=$GOPATH/bin:$PATH
-export CURRENT_BRANCH="develop"
+export CURRENT_BRANCH="integration"
 export AAH_SRC_PATH=$GOPATH/src/aahframework.org
 
 # find out current git branch
