@@ -262,9 +262,9 @@ func DomainAddresses() []string {
 	return addresses
 }
 
-// AllControllerMethods method returns all the controller names and its actions
-// configured in the "routes.conf"
-func AllControllerMethods() map[string]map[string]uint8 {
+// RegisteredActions method returns all the controller name and it's actions
+// configured in the "routes.conf".
+func RegisteredActions() map[string]map[string]uint8 {
 	methods := map[string]map[string]uint8{}
 	for _, d := range router.domains {
 		for _, r := range d.routes {
@@ -275,9 +275,7 @@ func AllControllerMethods() map[string]map[string]uint8 {
 			if c, found := methods[r.Controller]; found {
 				c[r.Action] = 1
 			} else {
-				methods[r.Controller] = map[string]uint8{
-					r.Action: 1,
-				}
+				methods[r.Controller] = map[string]uint8{r.Action: 1}
 			}
 		}
 	}
