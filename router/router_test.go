@@ -171,11 +171,11 @@ func TestRouterDomainAddresses(t *testing.T) {
 	assert.Equal(t, "localhost:8000", addresses[0])
 }
 
-func TestAllControllerMethods(t *testing.T) {
+func TestRegisteredActions(t *testing.T) {
 	err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
-	methods := AllControllerMethods()
+	methods := RegisteredActions()
 	assert.NotNil(t, methods)
 }
 
