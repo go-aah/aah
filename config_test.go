@@ -207,7 +207,12 @@ func TestBoolValues(t *testing.T) {
 }
 
 func TestStringList(t *testing.T) {
-	cfg := initFile(t, "/Users/jeeva/pscm/go-home/src/aahtest.com/user/niceapp/aah.project")
+	cfg, _ := ParseString(`
+	# build config read from here during a command 'aah package' and 'aah run'
+build {
+  # Valid exclude patterns refer: https://golang.org/pkg/path/filepath/#Match
+  excludes = ["*_test.go", ".*", "*.bak", "*.tmp", "vendor"]
+}`)
 
 	lst1, found1 := cfg.StringList("build.excludes")
 	assert.True(t, found1)
