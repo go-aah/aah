@@ -61,8 +61,8 @@ const (
 )
 
 var (
-	// Version no. of go-aah/log library
-	Version = "0.1"
+	// Version no. of aahframework.org/log library
+	Version = "0.2"
 
 	// FmtFlags is the list of log format flags supported by aah/log library
 	// Usage of flag order is up to format composition.
