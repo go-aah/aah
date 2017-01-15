@@ -16,8 +16,8 @@ import (
 	"aahframework.org/forge"
 )
 
-// Version no. of go-aah/config library
-var Version = "0.1"
+// Version no. of aahframework.org/config library
+var Version = "0.2"
 
 // Config handles the configuration values and enables environment profile's,
 // merge, etc. Also it provide nice and handly methods for accessing config values.
@@ -198,6 +198,66 @@ func (c *Config) Get(key string) (interface{}, bool) {
 
 	return c.get(key)
 }
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// List methods
+//___________________________________
+
+// StringList method returns the string slice value for the given key.
+// 		Eaxmple:-
+//
+// 		Config:
+// 			...
+// 			excludes = ["*_test.go", ".*", "*.bak", "*.tmp", "vendor"]
+// 			...
+//
+// 		Accessing Values:
+// 			values, found := cfg.StringList("excludes")
+// 			fmt.Println("Found:", found)
+// 			fmt.Println("Values:", strings.Join(values, ", "))
+//
+// 		Output:
+// 			Found: true
+// 			Values: *_test.go, .*, *.bak, *.tmp, vendor
+//
+func (c *Config) StringList(key string) ([]string, bool) {
+	values := []string{}
+	lst, found := c.getListValue(key)
+	if lst == nil || !found {
+		return values, found
+	}
+
+	for idx := 0; idx < lst.Length(); idx++ {
+		v, err := lst.GetString(idx)
+		if err == nil {
+			values = append(values, v)
+		}
+	}
+
+	return values, true
+}
+
+func (c *Config) getListValue(key string) (*forge.List, bool) {
+	value, found := c.getraw(c.prepareKey(key))
+	if !found {
+		return nil, found
+	}
+
+	if value.GetType() != forge.LIST {
+		return nil, false
+	}
+
+	lst, ok := value.(*forge.List)
+	if !ok {
+		return nil, false
+	}
+
+	return lst, true
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Setter methods
+//___________________________________
 
 // SetString sets the given value string for config key
 // First it tries to get value within enabled profile

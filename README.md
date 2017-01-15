@@ -4,7 +4,7 @@
 
 ***v0.1 [released](https://github.com/go-aah/config/releases/latest) and tagged on Jan 14, 2017***
 
-`config` library is powerful and flexible for configuartion purpose. It's thin layer around `forge` config syntax which is very similar to [Typesafe HOCON syntax](https://github.com/typesafehub/config/blob/master/HOCON.md) :satisfied:. aah framework and it's modules is powered with `aah/config` library.
+`config` library is powerful and flexible for configuration purpose. It's thin layer around `forge` config syntax which is very similar to [Typesafe HOCON syntax](https://github.com/typesafehub/config/blob/master/HOCON.md) :satisfied:. aah framework and it's modules is powered with `aah/config` library.
 
 *`config` developed for aah framework. However it's an independent library, can be used separately with any `Go` language project. Feel free to use it.*
 

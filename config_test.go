@@ -206,6 +206,18 @@ func TestBoolValues(t *testing.T) {
 	assert.Equal(t, cfg.BoolDefault("bool_not_exists", true), true)
 }
 
+func TestStringList(t *testing.T) {
+	cfg := initFile(t, "/Users/jeeva/pscm/go-home/src/aahtest.com/user/niceapp/aah.project")
+
+	lst1, found1 := cfg.StringList("build.excludes")
+	assert.True(t, found1)
+	assert.True(t, len(lst1) > 0)
+
+	lst2, found2 := cfg.StringList("name")
+	assert.False(t, found2)
+	assert.True(t, len(lst2) == 0)
+}
+
 func TestProfile(t *testing.T) {
 	cfg := initFile(t, "testdata/test.cfg")
 
