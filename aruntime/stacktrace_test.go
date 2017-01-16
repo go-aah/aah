@@ -45,9 +45,8 @@ func TestStacktrace(t *testing.T) {
 
 func TestNewStacktrace(t *testing.T) {
 	cfg, _ := config.ParseString(``)
-	strace, err := NewStacktrace("testing", cfg)
+	strace := NewStacktrace("testing", cfg)
 
-	assert.Nil(t, err)
 	assert.NotNil(t, strace)
 }
 
@@ -58,9 +57,8 @@ func TestNewFullStacktrace(t *testing.T) {
     }
   `)
 
-	strace, err := NewStacktrace("testing", cfg)
+	strace := NewStacktrace("testing", cfg)
 
-	assert.Nil(t, err)
 	assert.NotNil(t, strace)
 }
 
@@ -71,71 +69,71 @@ func TestPrintNilWriter(t *testing.T) {
 
 func getStacktrace() string {
 	return `goroutine 5 [running]:
-	runtime/debug.Stack(0xc420041bc0, 0x2, 0x2)
-		/usr/local/go/src/runtime/debug/stack.go:24 +0x79
-	aahframework.org/aah.Init.func1()
-		/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:155 +0x15c
-	panic(0x33f780, 0xc420011cc0)
-		/usr/local/go/src/runtime/panic.go:458 +0x243
-	aahframework.org/config.(*Config).String(0xc420103160, 0x39f26f, 0x11, 0xc4200fe5b8, 0x3, 0xc420016a01)
-		/Users/jeeva/pscm/go-home/src/aahframework.org/config/config.go:98 +0x90
-	aahframework.org/config.(*Config).StringDefault(0xc420103160, 0x39f26f, 0x11, 0x39a58b, 0x3, 0xc4200fe5b8, 0x3)
-		/Users/jeeva/pscm/go-home/src/aahframework.org/config/config.go:107 +0x3f
-	aahframework.org/aah.initAppVariables(0x0, 0x0)
-		/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:325 +0x143
-	aahframework.org/aah.Init(0x3a1f18, 0x18)
-		/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:164 +0xc1
-	aahframework.org/aah.TestStart(0xc420090180)
-		/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah_test.go:48 +0x36
-	testing.tRunner(0xc420090180, 0x3c9d68)
-		/usr/local/go/src/testing/testing.go:610 +0x81
-	created by testing.(*T).Run
-		/usr/local/go/src/testing/testing.go:646 +0x2ec
+runtime/debug.Stack(0xc420041bc0, 0x2, 0x2)
+	/usr/local/go/src/runtime/debug/stack.go:24 +0x79
+aahframework.org/aah.Init.func1()
+	/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:155 +0x15c
+panic(0x33f780, 0xc420011cc0)
+	/usr/local/go/src/runtime/panic.go:458 +0x243
+aahframework.org/config.(*Config).String(0xc420103160, 0x39f26f, 0x11, 0xc4200fe5b8, 0x3, 0xc420016a01)
+	/Users/jeeva/pscm/go-home/src/aahframework.org/config/config.go:98 +0x90
+aahframework.org/config.(*Config).StringDefault(0xc420103160, 0x39f26f, 0x11, 0x39a58b, 0x3, 0xc4200fe5b8, 0x3)
+	/Users/jeeva/pscm/go-home/src/aahframework.org/config/config.go:107 +0x3f
+aahframework.org/aah.initAppVariables(0x0, 0x0)
+	/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:325 +0x143
+aahframework.org/aah.Init(0x3a1f18, 0x18)
+	/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:164 +0xc1
+aahframework.org/aah.TestStart(0xc420090180)
+	/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah_test.go:48 +0x36
+testing.tRunner(0xc420090180, 0x3c9d68)
+	/usr/local/go/src/testing/testing.go:610 +0x81
+created by testing.(*T).Run
+	/usr/local/go/src/testing/testing.go:646 +0x2ec
 
-	goroutine 1 [running]:
-	runtime/debug.Stack(0xc420051b90, 0x2, 0x2)
-		/usr/local/go/src/runtime/debug/stack.go:24 +0x79
-	aahframework.org/aah.Init.func1()
-		/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:155 +0x15c
-	panic(0x31cf00, 0xc4200117c0)
-		/usr/local/go/src/runtime/panic.go:458 +0x243
-	aahframework.org/config.(*Config).String(0xc4200f9100, 0x377f69, 0x11, 0xc4200ee338, 0x3, 0xc420016a01)
-		/Users/jeeva/pscm/go-home/src/aahframework.org/config/config.go:98 +0x90
-	aahframework.org/config.(*Config).StringDefault(0xc4200f9100, 0x377f69, 0x11, 0x373727, 0x3, 0xc4200ee338, 0x3)
-		/Users/jeeva/pscm/go-home/src/aahframework.org/config/config.go:107 +0x3f
-	aahframework.org/aah.initAppVariables(0x0, 0x0)
-		/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:325 +0x143
-	aahframework.org/aah.Init(0x37adff, 0x19)
-		/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:164 +0xc1
-	main.main()
-		/Users/jeeva/pscm/go-home/src/aahtest.com/user/niceapp/main.go:18 +0x36
+goroutine 1 [running]:
+runtime/debug.Stack(0xc420051b90, 0x2, 0x2)
+	/usr/local/go/src/runtime/debug/stack.go:24 +0x79
+aahframework.org/aah.Init.func1()
+	/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:155 +0x15c
+panic(0x31cf00, 0xc4200117c0)
+	/usr/local/go/src/runtime/panic.go:458 +0x243
+aahframework.org/config.(*Config).String(0xc4200f9100, 0x377f69, 0x11, 0xc4200ee338, 0x3, 0xc420016a01)
+	/Users/jeeva/pscm/go-home/src/aahframework.org/config/config.go:98 +0x90
+aahframework.org/config.(*Config).StringDefault(0xc4200f9100, 0x377f69, 0x11, 0x373727, 0x3, 0xc4200ee338, 0x3)
+	/Users/jeeva/pscm/go-home/src/aahframework.org/config/config.go:107 +0x3f
+aahframework.org/aah.initAppVariables(0x0, 0x0)
+	/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:325 +0x143
+aahframework.org/aah.Init(0x37adff, 0x19)
+	/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:164 +0xc1
+main.main()
+	/Users/jeeva/pscm/go-home/src/aahtest.com/user/niceapp/main.go:18 +0x36
 
-  goroutine 1 [IO wait]:
-  net.runtime_pollWait(0x1849060, 0x72, 0x0)
-  	/usr/local/go/src/runtime/netpoll.go:160 +0x59
-  net.(*pollDesc).wait(0xc42014ab50, 0x72, 0xc420051b50, 0xc42000c0b8)
-  	/usr/local/go/src/net/fd_poll_runtime.go:73 +0x38
-  net.(*pollDesc).waitRead(0xc42014ab50, 0x4e5f40, 0xc42000c0b8)
-  	/usr/local/go/src/net/fd_poll_runtime.go:78 +0x34
-  net.(*netFD).accept(0xc42014aaf0, 0x0, 0x4e4900, 0xc42017f300)
-  	/usr/local/go/src/net/fd_unix.go:419 +0x238
-  net.(*TCPListener).accept(0xc4200301d8, 0x29e8d60800, 0x0, 0x0)
-  	/usr/local/go/src/net/tcpsock_posix.go:132 +0x2e
-  net.(*TCPListener).AcceptTCP(0xc4200301d8, 0xc420051c78, 0xc420051c80, 0xc420051c70)
-  	/usr/local/go/src/net/tcpsock.go:209 +0x49
-  net/http.tcpKeepAliveListener.Accept(0xc4200301d8, 0x3a4ed8, 0xc420080e00, 0x4e97c0, 0xc420174bd0)
-  	/usr/local/go/src/net/http/server.go:2608 +0x2f
-  net/http.(*Server).Serve(0xc420080d00, 0x4e9300, 0xc4200301d8, 0x0, 0x0)
-  	/usr/local/go/src/net/http/server.go:2273 +0x1ce
-  net/http.(*Server).ListenAndServe(0xc420080d00, 0x20, 0xc42017de10)
-  	/usr/local/go/src/net/http/server.go:2219 +0xb4
-  aahframework.org/aah.Start()
-  	/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:235 +0xb93
-  main.main()
-  	/Users/jeeva/pscm/go-home/src/aahtest.com/user/niceapp/main.go:150 +0x3b
+goroutine 1 [IO wait]:
+net.runtime_pollWait(0x1849060, 0x72, 0x0)
+	/usr/local/go/src/runtime/netpoll.go:160 +0x59
+net.(*pollDesc).wait(0xc42014ab50, 0x72, 0xc420051b50, 0xc42000c0b8)
+	/usr/local/go/src/net/fd_poll_runtime.go:73 +0x38
+net.(*pollDesc).waitRead(0xc42014ab50, 0x4e5f40, 0xc42000c0b8)
+	/usr/local/go/src/net/fd_poll_runtime.go:78 +0x34
+net.(*netFD).accept(0xc42014aaf0, 0x0, 0x4e4900, 0xc42017f300)
+	/usr/local/go/src/net/fd_unix.go:419 +0x238
+net.(*TCPListener).accept(0xc4200301d8, 0x29e8d60800, 0x0, 0x0)
+	/usr/local/go/src/net/tcpsock_posix.go:132 +0x2e
+net.(*TCPListener).AcceptTCP(0xc4200301d8, 0xc420051c78, 0xc420051c80, 0xc420051c70)
+	/usr/local/go/src/net/tcpsock.go:209 +0x49
+net/http.tcpKeepAliveListener.Accept(0xc4200301d8, 0x3a4ed8, 0xc420080e00, 0x4e97c0, 0xc420174bd0)
+	/usr/local/go/src/net/http/server.go:2608 +0x2f
+net/http.(*Server).Serve(0xc420080d00, 0x4e9300, 0xc4200301d8, 0x0, 0x0)
+	/usr/local/go/src/net/http/server.go:2273 +0x1ce
+net/http.(*Server).ListenAndServe(0xc420080d00, 0x20, 0xc42017de10)
+	/usr/local/go/src/net/http/server.go:2219 +0xb4
+aahframework.org/aah.Start()
+	/Users/jeeva/pscm/go-home/src/aahframework.org/aah/aah.go:235 +0xb93
+main.main()
+	/Users/jeeva/pscm/go-home/src/aahtest.com/user/niceapp/main.go:150 +0x3b
 
-  goroutine 17 [syscall, locked to thread]:
-  runtime.goexit()
-  	/usr/local/go/src/runtime/asm_amd64.s:2086 +0x1
+goroutine 17 [syscall, locked to thread]:
+runtime.goexit()
+	/usr/local/go/src/runtime/asm_amd64.s:2086 +0x1
 	`
 }

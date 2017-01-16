@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net"
@@ -16,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"aahframework.org/aah/aruntime"
 	"aahframework.org/aah/i18n"
 	"aahframework.org/aah/router"
 	"aahframework.org/config"
@@ -241,13 +243,12 @@ func Start() {
 
 func aahRecover() {
 	if r := recover(); r != nil {
-		err, ok := r.(error)
-		if ok {
-			log.Fatal(err)
-		}
+		strace := aruntime.NewStacktrace(r, AppConfig())
+		buf := &bytes.Buffer{}
+		strace.Print(buf)
 
-		// TODO panic stack trace parsing and handling
-		// string(debug.Stack())
+		log.Error("Recovered from panic:")
+		log.Error(buf.String())
 	}
 }
 

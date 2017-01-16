@@ -5,8 +5,9 @@
 package aah
 
 import (
-	"runtime/debug"
+	"os"
 
+	"aahframework.org/aah/aruntime"
 	"aahframework.org/log"
 )
 
@@ -42,13 +43,12 @@ func panicMiddleware(c *Controller, m *Middleware) {
 	log.Info("panicMiddleware before")
 	defer func() {
 		if r := recover(); r != nil {
-			err, ok := r.(error)
-			if ok {
-				log.Errorf("Internal server error occurred: %s", err)
-			}
+			log.Error("Internal server error occurred")
 
-			// TODO panic stack trace parsing and handling
-			log.Error(string(debug.Stack()))
+			st := aruntime.NewStacktrace(r, AppConfig())
+			st.Print(os.Stdout)
+
+			// TODO HTTP error handling
 		}
 	}()
 

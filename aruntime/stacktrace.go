@@ -43,7 +43,7 @@ type Stacktrace struct {
 
 // NewStacktrace method collects debug stack information and parsing them into
 // easy understanding and returns the instance.
-func NewStacktrace(r interface{}, appCfg *config.Config) (*Stacktrace, error) {
+func NewStacktrace(r interface{}, appCfg *config.Config) *Stacktrace {
 	strace := &Stacktrace{
 		Raw:     string(debug.Stack()),
 		Recover: r,
@@ -63,7 +63,7 @@ func NewStacktrace(r interface{}, appCfg *config.Config) (*Stacktrace, error) {
 
 	strace.initPath()
 
-	return strace, nil
+	return strace
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -147,6 +147,10 @@ func (st *Stacktrace) Print(w io.Writer) {
 		}
 	}
 }
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
 
 func (st *Stacktrace) initPath() {
 	gopath, _ := ess.GoPath()
