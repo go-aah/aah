@@ -25,21 +25,28 @@ const (
 
 var goroutineRegEx = regexp.MustCompile(`goroutine\s?\d+\s\[.*\]\:`)
 
-// Stacktrace holds the parse information of `debug.Stack()`. It's easier to
-// debug and understand.
-type Stacktrace struct {
-	Raw        string
-	Recover    interface{}
-	RoutineCnt int
-	IsParsed   bool
-	Routines   []string
-	Files      [][]string
-	Functions  [][]string
+type (
+	// Stacktrace holds the parse information of `debug.Stack()`. It's easier to
+	// debug and understand.
+	Stacktrace struct {
+		Raw        string
+		Recover    interface{}
+		RoutineCnt int
+		IsParsed   bool
+		GoRoutines []*GoRoutine
 
-	maxFileLen int
-	gopathSrc  string
-	gorootSrc  string
-}
+		maxFileLen int
+		gopathSrc  string
+		gorootSrc  string
+	}
+
+	// GoRoutine holds information of single Go routine stack trace.
+	GoRoutine struct {
+		Header    string
+		Packages  []string
+		Functions []string
+	}
+)
 
 // NewStacktrace method collects debug stack information and parsing them into
 // easy understanding and returns the instance.
@@ -72,14 +79,15 @@ func NewStacktrace(r interface{}, appCfg *config.Config) *Stacktrace {
 
 // Parse method parses the go debug stacktrace into easy to understand.
 func (st *Stacktrace) Parse() {
-	st.Routines = goroutineRegEx.FindAllString(st.Raw, -1)
-	st.RoutineCnt = len(st.Routines)
-	st.Files, st.Functions = make([][]string, st.RoutineCnt), make([][]string, st.RoutineCnt)
+	routines := goroutineRegEx.FindAllString(st.Raw, -1)
+	st.RoutineCnt = len(routines)
+	st.GoRoutines = make([]*GoRoutine, st.RoutineCnt)
 
 	ri := -1
 	lines := strings.Split(st.Raw, "\n")
 	gopathSrcLen := len(st.gopathSrc) + 1
 	gorootSrcLen := len(st.gorootSrc) + 1
+
 	for linePos := 0; linePos < len(lines); linePos++ {
 		sline := strings.TrimSpace(lines[linePos])
 		if len(sline) == 0 {
@@ -88,7 +96,12 @@ func (st *Stacktrace) Parse() {
 
 		if strings.HasPrefix(sline, goroutinePrefix) {
 			ri++
-			st.Files[ri], st.Functions[ri] = []string{}, []string{}
+			st.GoRoutines[ri] = &GoRoutine{
+				Header:    sline,
+				Packages:  []string{},
+				Functions: []string{},
+			}
+
 			continue
 		}
 
@@ -104,7 +117,7 @@ func (st *Stacktrace) Parse() {
 				st.maxFileLen = len(sline)
 			}
 
-			st.Files[ri] = append(st.Files[ri], sline)
+			st.GoRoutines[ri].Packages = append(st.GoRoutines[ri].Packages, sline)
 		} else {
 			isCreatedBy := strings.HasPrefix(sline, createdByPrefix)
 			sline = filepath.Base(sline)
@@ -119,7 +132,7 @@ func (st *Stacktrace) Parse() {
 				}
 			}
 
-			st.Functions[ri] = append(st.Functions[ri], sline)
+			st.GoRoutines[ri].Functions = append(st.GoRoutines[ri].Functions, sline)
 		}
 
 	}
@@ -140,10 +153,10 @@ func (st *Stacktrace) Print(w io.Writer) {
 	printFmt := "\t%-" + strconv.Itoa(st.maxFileLen+1) + "s-> %v\n"
 	_, _ = w.Write([]byte(fmt.Sprintf("\n%v\n", st.Recover)))
 
-	for ri, rv := range st.Routines {
-		_, _ = w.Write([]byte("\n" + rv + "\n"))
-		for idx, f := range st.Files[ri] {
-			_, _ = w.Write([]byte(fmt.Sprintf(printFmt, f, st.Functions[ri][idx])))
+	for _, rv := range st.GoRoutines {
+		_, _ = w.Write([]byte("\n" + rv.Header + "\n"))
+		for idx, f := range rv.Packages {
+			_, _ = w.Write([]byte(fmt.Sprintf(printFmt, f, rv.Functions[idx])))
 		}
 	}
 }
