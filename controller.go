@@ -6,10 +6,15 @@ package aah
 
 import (
 	"fmt"
-	"path/filepath"
+	"reflect"
+	"strings"
 
 	"aahframework.org/aah/ahttp"
-	"aahframework.org/essentials"
+)
+
+var (
+	controllerRegistry   = map[string]*controllerInfo{}
+	aahControllerPtrType = reflect.TypeOf((*Controller)(nil))
 )
 
 type (
@@ -21,63 +26,122 @@ type (
 		res ahttp.ResponseWriter
 	}
 
-	// TypeInfo holds the information about Controller Name, Methods,
-	// Embedded types etc.
-	TypeInfo struct {
-		Name          string
-		ImportPath    string
-		Methods       []*MethodInfo
-		EmbeddedTypes []*TypeInfo
+	// ControllerInfo holds information of single controller information.
+	controllerInfo struct {
+		Name            string
+		Type            reflect.Type
+		Methods         []*MethodInfo
+		EmbeddedIndexes [][]int
+		lowerName       string
 	}
 
-	// MethodInfo holds the information of single method and it's Parameters.
+	// MethodInfo holds information of single method information in the controller.
 	MethodInfo struct {
 		Name       string
-		StructName string
 		Parameters []*ParameterInfo
+		lowerName  string
 	}
 
-	// ParameterInfo holds the information of single Parameter in the method.
+	// ParameterInfo holds information of single parameter in the method.
 	ParameterInfo struct {
-		Name       string
-		ImportPath string
-		Type       *TypeExpr
-	}
-
-	// TypeExpr holds the information of single parameter data type.
-	TypeExpr struct {
-		Expr         string
-		IsBuiltIn    bool
-		PackageName  string
-		ImportPath   string
-		PackageIndex uint8
-		Valid        bool
+		Name string
+		Type reflect.Type
 	}
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// TypeInfo methods
+// Global methods
 //___________________________________
 
-// FullyQualifiedName method returns the fully qualified type name.
-func (t *TypeInfo) FullyQualifiedName() string {
-	return fmt.Sprintf("%s.%s", t.ImportPath, t.Name)
-}
+// AddController method adds given controller into controller registory.
+// with "dereferenced" a.k.a "indirecting".
+func AddController(c interface{}, methods []*MethodInfo) {
+	fmt.Println(c, methods)
 
-// PackageName method returns types package name from import path.
-func (t *TypeInfo) PackageName() string {
-	return filepath.Base(t.ImportPath)
+	ct := actualType(c)
+	fmt.Println("ct name:", ct.Name())
+
+	indexes := findEmbeddedController(ct)
+	fmt.Println("indexes:", indexes)
+
+	_ = controllerRegistry
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// TypeExpr methods
+// ControllerInfo methods
 //___________________________________
 
-// Name method returns type name for expression.
-func (te *TypeExpr) Name() string {
-	if te.IsBuiltIn || ess.IsStrEmpty(te.PackageName) {
-		return te.Expr
+// FindMethod method returns the `aah.MethodInfo` by given name
+// (case insensitive) otherwise nil.
+func (ci *controllerInfo) FindMethod(name string) *MethodInfo {
+	name = strings.ToLower(name)
+	for _, m := range ci.Methods {
+		if m.lowerName == name {
+			return m
+		}
+	}
+	return nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
+
+func actualType(v interface{}) reflect.Type {
+	vt := reflect.TypeOf(v)
+	if vt.Kind() == reflect.Ptr {
+		vt = vt.Elem()
 	}
 
-	return fmt.Sprintf("%s%s.%s", te.Expr[:te.PackageIndex], te.PackageName, te.Expr[te.PackageIndex:])
+	return vt
+}
+
+// findEmbeddedController method does breadth-first search on struct anonymous
+// field to find `aah.Controller` index positions.
+func findEmbeddedController(controllerType reflect.Type) [][]int {
+	var indexes [][]int
+	type nodeType struct {
+		val   reflect.Value
+		index []int
+	}
+
+	queue := []nodeType{{reflect.New(controllerType), []int{}}}
+
+	for len(queue) > 0 {
+		var (
+			node     = queue[0]
+			elem     = node.val
+			elemType = elem.Type()
+		)
+
+		if elemType.Kind() == reflect.Ptr {
+			elem = elem.Elem()
+			elemType = elem.Type()
+		}
+
+		queue = queue[1:]
+		if elemType.Kind() != reflect.Struct {
+			continue
+		}
+
+		for i := 0; i < elem.NumField(); i++ {
+			// skip non-anonymous fields
+			field := elemType.Field(i)
+			if !field.Anonymous {
+				continue
+			}
+
+			// If it's a `aah.Controller`, record the field indexes
+			if field.Type == aahControllerPtrType {
+				indexes = append(indexes, append(node.index, i))
+				continue
+			}
+
+			fieldValue := elem.Field(i)
+			queue = append(queue,
+				nodeType{fieldValue, append(append([]int{}, node.index...), i)})
+		}
+	}
+
+	return indexes
 }

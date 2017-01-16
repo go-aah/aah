@@ -25,22 +25,22 @@ func TestStacktrace(t *testing.T) {
 	t.Log(buf.String())
 
 	assert.Equal(t, 4, strace.RoutineCnt)
-	assert.Equal(t, "goroutine 5 [running]:", strace.Routines[0])
-	assert.Equal(t, "goroutine 1 [running]:", strace.Routines[1])
-	assert.Equal(t, "goroutine 1 [IO wait]:", strace.Routines[2])
-	assert.Equal(t, "goroutine 17 [syscall, locked to thread]:", strace.Routines[3])
+	assert.Equal(t, "goroutine 5 [running]:", strace.GoRoutines[0].Header)
+	assert.Equal(t, "goroutine 1 [running]:", strace.GoRoutines[1].Header)
+	assert.Equal(t, "goroutine 1 [IO wait]:", strace.GoRoutines[2].Header)
+	assert.Equal(t, "goroutine 17 [syscall, locked to thread]:", strace.GoRoutines[3].Header)
 
-	assert.Equal(t, 10, len(strace.Files[0]))
-	assert.Equal(t, 10, len(strace.Functions[0]))
+	assert.Equal(t, 10, len(strace.GoRoutines[0].Packages))
+	assert.Equal(t, 10, len(strace.GoRoutines[0].Functions))
 
-	assert.Equal(t, 8, len(strace.Files[1]))
-	assert.Equal(t, 8, len(strace.Functions[1]))
+	assert.Equal(t, 8, len(strace.GoRoutines[1].Packages))
+	assert.Equal(t, 8, len(strace.GoRoutines[1].Functions))
 
-	assert.Equal(t, 11, len(strace.Files[2]))
-	assert.Equal(t, 11, len(strace.Functions[2]))
+	assert.Equal(t, 11, len(strace.GoRoutines[2].Packages))
+	assert.Equal(t, 11, len(strace.GoRoutines[2].Functions))
 
-	assert.Equal(t, 1, len(strace.Files[3]))
-	assert.Equal(t, 1, len(strace.Functions[3]))
+	assert.Equal(t, 1, len(strace.GoRoutines[3].Packages))
+	assert.Equal(t, 1, len(strace.GoRoutines[3].Functions))
 }
 
 func TestNewStacktrace(t *testing.T) {
