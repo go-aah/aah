@@ -56,7 +56,7 @@ func NewStacktrace(r interface{}, appCfg *config.Config) *Stacktrace {
 		Recover: r,
 	}
 
-	if appCfg.BoolDefault("runtime.all_goroutines", false) {
+	if appCfg.BoolDefault("runtime.debug.all_goroutines", false) {
 		buf := make([]byte, 2<<20) // TODO implement config size instead of hardcode 2mb
 		length := runtime.Stack(buf, true)
 		if length < len(buf) {

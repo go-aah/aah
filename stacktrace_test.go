@@ -53,7 +53,9 @@ func TestNewStacktrace(t *testing.T) {
 func TestNewFullStacktrace(t *testing.T) {
 	cfg, _ := config.ParseString(`
     runtime {
-      all_goroutines = true
+			debug {
+				all_goroutines = true
+			}      
     }
   `)
 
