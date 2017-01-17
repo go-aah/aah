@@ -39,7 +39,7 @@ import (
 )
 
 var (
-	msgFileExtRegex = `message\.[a-z]{2}(\-[a-zA-Z]{2})?$`
+	msgFileExtRegex = `messages\.[a-z]{2}(\-[a-zA-Z]{2})?$`
 	messageStore    = make(map[string]*config.Config, 0)
 )
 

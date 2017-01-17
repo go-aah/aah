@@ -25,6 +25,9 @@ import (
 	"aahframework.org/log"
 )
 
+// Version no. of aah framework
+const Version = "0.1"
+
 // aah application variables
 var (
 	appName             string
@@ -186,7 +189,6 @@ func Start() {
 		log.Fatal("aah application is not initialized, call `aah.Init` before the `aah.Start`.")
 	}
 
-	log.Info("----- aah framework -----")
 	log.Infof("App Name: %v", AppName())
 	log.Infof("App Profile: %v", AppProfile())
 	log.Infof("App Mode: %v", AppMode())
@@ -195,7 +197,9 @@ func Start() {
 
 	address := AppHTTPAddress()
 	server := &http.Server{
-		Handler:      &engine{},
+		Handler: &engine{
+			cPool: newCPool(),
+		},
 		ReadTimeout:  appHTTPReadTimeout,
 		WriteTimeout: appHTTPWriteTimeout,
 	}
@@ -316,7 +320,7 @@ func initPath(importPath string) error {
 	goSrcDir = filepath.Join(goPath, "src")
 	appBaseDir = filepath.Join(goSrcDir, filepath.FromSlash(appImportPath))
 
-	if !ess.IsFileExists(appBaseDir) {
+	if !ess.IsFileExists(appBaseDir) { // TODO change it to importPath check
 		return fmt.Errorf("aah application does not exists: %s", appImportPath)
 	}
 
@@ -326,7 +330,7 @@ func initPath(importPath string) error {
 }
 
 func initConfig(cfgDir string) error {
-	confPath := filepath.Join(cfgDir, "app.conf")
+	confPath := filepath.Join(cfgDir, "aah.conf")
 	if !ess.IsFileExists(confPath) {
 		return fmt.Errorf("aah application configuration does not exists: %v", confPath)
 	}
@@ -376,6 +380,7 @@ func initAppVariables() error {
 func initLogs(logsDir string, cfg *config.Config) error {
 	if logCfg, found := cfg.GetSubConfig("log"); found {
 		receiver := logCfg.StringDefault("receiver", "")
+
 		if strings.EqualFold(receiver, "file") {
 			file := logCfg.StringDefault("file", "")
 			if ess.IsStrEmpty(file) {
@@ -407,7 +412,11 @@ func initRoutes(cfgDir string) error {
 		return fmt.Errorf("aah application routes configuration does not exists: %v", routesPath)
 	}
 
-	return router.Load(routesPath)
+	if err := router.Load(routesPath); err != nil {
+		return fmt.Errorf("routes.conf: %s", err)
+	}
+
+	return nil
 }
 
 func initViews(viewsDir string) error {

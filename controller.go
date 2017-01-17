@@ -5,16 +5,22 @@
 package aah
 
 import (
-	"fmt"
+	"errors"
 	"reflect"
 	"strings"
+	"sync"
 
 	"aahframework.org/aah/ahttp"
+	"aahframework.org/aah/router"
 )
 
 var (
-	controllerRegistry   = map[string]*controllerInfo{}
-	aahControllerPtrType = reflect.TypeOf((*Controller)(nil))
+	cRegistry   = controllerRegistry{}
+	cPkgName    = "controllers"
+	cPkgNameLen = len(cPkgName)
+	cPtrType    = reflect.TypeOf((*Controller)(nil))
+
+	errTargetNotFound = errors.New("target not found")
 )
 
 type (
@@ -23,23 +29,26 @@ type (
 		// Req is HTTP request instance
 		Req *ahttp.Request
 
-		res ahttp.ResponseWriter
+		controller string
+		action     string
+		target     interface{}
+		res        ahttp.ResponseWriter
 	}
+
+	// ControllerInfo holds all application controller
+	controllerRegistry map[string]*controllerInfo
 
 	// ControllerInfo holds information of single controller information.
 	controllerInfo struct {
-		Name            string
 		Type            reflect.Type
-		Methods         []*MethodInfo
+		Methods         map[string]*MethodInfo
 		EmbeddedIndexes [][]int
-		lowerName       string
 	}
 
 	// MethodInfo holds information of single method information in the controller.
 	MethodInfo struct {
 		Name       string
 		Parameters []*ParameterInfo
-		lowerName  string
 	}
 
 	// ParameterInfo holds information of single parameter in the method.
@@ -56,30 +65,91 @@ type (
 // AddController method adds given controller into controller registory.
 // with "dereferenced" a.k.a "indirecting".
 func AddController(c interface{}, methods []*MethodInfo) {
-	fmt.Println(c, methods)
+	cType := actualType(c)
 
-	ct := actualType(c)
-	fmt.Println("ct name:", ct.Name())
+	methodMapping := map[string]*MethodInfo{}
+	for _, method := range methods {
+		for _, param := range method.Parameters {
+			param.Type = actualType(param.Type)
+		}
+		methodMapping[strings.ToLower(method.Name)] = method
+	}
 
-	indexes := findEmbeddedController(ct)
-	fmt.Println("indexes:", indexes)
+	cRegistry[strings.ToLower(cType.Name())] = &controllerInfo{
+		Type:            cType,
+		Methods:         methodMapping,
+		EmbeddedIndexes: findEmbeddedController(cType),
+	}
+}
 
-	_ = controllerRegistry
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Controller methods
+//___________________________________
+
+// reset method resets controller instance for reuse.
+func (c *Controller) reset() {
+	c.Req = nil
+	c.res = nil
+	c.target = nil
+}
+
+// setTarget method sets contoller, action, embedded controller into
+// controller
+func (c *Controller) setTarget(route *router.Route) error {
+	controller := cRegistry.Lookup(route)
+	if controller == nil {
+		return errTargetNotFound
+	}
+
+	action := controller.FindMethod(route.Action)
+	if action == nil {
+		return errTargetNotFound
+	}
+
+	c.controller = controller.Name()
+	c.action = action.Name
+
+	targetPtr := reflect.New(controller.Type)
+	target := targetPtr.Elem()
+	cv := reflect.ValueOf(c)
+	for _, index := range controller.EmbeddedIndexes {
+		target.FieldByIndex(index).Set(cv)
+	}
+
+	c.target = targetPtr
+	return nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// ControllerRegistry methods
+//___________________________________
+
+// Lookup method retuns `controllerInfo` if given route controller and
+// action exists in the controller registory.
+func (cr controllerRegistry) Lookup(route *router.Route) *controllerInfo {
+	if ci, found := cr[strings.ToLower(route.Controller)]; found {
+		return ci
+	}
+
+	return nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // ControllerInfo methods
 //___________________________________
 
+// Name method returns name of the controller.
+func (ci *controllerInfo) Name() string {
+	return ci.Type.Name()
+}
+
 // FindMethod method returns the `aah.MethodInfo` by given name
 // (case insensitive) otherwise nil.
 func (ci *controllerInfo) FindMethod(name string) *MethodInfo {
-	name = strings.ToLower(name)
-	for _, m := range ci.Methods {
-		if m.lowerName == name {
-			return m
-		}
+	if method, found := ci.Methods[strings.ToLower(name)]; found {
+		return method
 	}
+
 	return nil
 }
 
@@ -132,7 +202,7 @@ func findEmbeddedController(controllerType reflect.Type) [][]int {
 			}
 
 			// If it's a `aah.Controller`, record the field indexes
-			if field.Type == aahControllerPtrType {
+			if field.Type == cPtrType {
 				indexes = append(indexes, append(node.index, i))
 				continue
 			}
@@ -144,4 +214,12 @@ func findEmbeddedController(controllerType reflect.Type) [][]int {
 	}
 
 	return indexes
+}
+
+func newCPool() sync.Pool {
+	return sync.Pool{
+		New: func() interface{} {
+			return &Controller{}
+		},
+	}
 }

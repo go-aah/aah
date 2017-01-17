@@ -119,10 +119,9 @@ func Load(configPath string) (err error) {
 
 	// allocate for no. of domains
 	router.domains = make(map[string]*Domain, len(domains))
-	log.Debugf("No. of domain found: %v", len(domains))
+	log.Debugf("No. of domains found: %v", len(domains))
 
 	for _, key := range domains {
-		log.Debug("-----------------------------")
 		domainCfg, _ := router.config.GetSubConfig(key)
 
 		// domain host name
@@ -137,7 +136,7 @@ func Load(configPath string) (err error) {
 			Host: host,
 			Port: domainCfg.StringDefault("port", ""),
 		}
-		log.Debugf("Domain key: %v", domain.key())
+		log.Debugf("Domain: %v", domain.key())
 
 		// loading global configuration
 		if domainCfg.IsExists("global") {
@@ -186,7 +185,7 @@ func Load(configPath string) (err error) {
 				return
 			}
 
-			log.Debugf("No. of static routes found: %v", len(routes))
+			log.Debugf("Static routes found: %v", len(routes))
 
 			for idx := range routes {
 				route := routes[idx]
@@ -194,7 +193,7 @@ func Load(configPath string) (err error) {
 					return
 				}
 
-				log.Tracef("Route Name: %v, Path: %v, Dir: %v, ListDir: %v, File: %v",
+				log.Tracef("Static:: Route Name: %v, Path: %v, Dir: %v, ListDir: %v, File: %v",
 					route.Name, route.Path, route.Dir, route.ListDir, route.File)
 			}
 		}
@@ -208,7 +207,7 @@ func Load(configPath string) (err error) {
 				err = er
 				return
 			}
-			log.Debugf("No. of routes found: %v", len(routes))
+			log.Debugf("Routes found: %v", len(routes))
 
 			for idx := range routes {
 				route := routes[idx]

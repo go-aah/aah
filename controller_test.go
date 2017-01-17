@@ -22,7 +22,7 @@ func TestActualType(t *testing.T) {
 	assert.Equal(t, "aah.engine", ct.String())
 }
 
-func TestFindEmbeddedControllers(t *testing.T) {
+func TestAddController(t *testing.T) {
 	type (
 		Level1 struct{ *Controller }
 
@@ -41,7 +41,7 @@ func TestFindEmbeddedControllers(t *testing.T) {
 		}
 	)
 
-	controllerRegistry = map[string]*controllerInfo{}
+	cRegistry = controllerRegistry{}
 
 	AddController((*Level1)(nil), nil)
 	AddController((*Level2)(nil), nil)

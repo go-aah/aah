@@ -6,8 +6,10 @@ package aah
 
 import (
 	"net/http"
+	"sync"
 
 	"aahframework.org/aah/ahttp"
+	"aahframework.org/log"
 )
 
 var (
@@ -19,6 +21,7 @@ type (
 	// Engine is the aah framework application server handler for request and response.
 	// Implements `http.Handler` interface.
 	engine struct {
+		cPool sync.Pool
 	}
 )
 
@@ -41,14 +44,16 @@ func Middlewares(middlewares ...MiddlewareType) {
 
 // ServeHTTP method implementation of http.Handler interface.
 func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	req := ahttp.ParseRequest(r)
-	res := ahttp.WrapResponseWriter(w)
+	c := e.cPool.Get().(*Controller)
+	defer e.cPool.Put(c)
+	c.reset()
 
-	c := &Controller{Req: req, res: res}
-	chain := mwChain[0]
-	if chain != nil {
-		chain.Next(c)
-	}
+	c.Req = ahttp.ParseRequest(r)
+	c.res = ahttp.WrapResponseWriter(w)
+
+	log.Info("ServeHTTP called:", c.Req.Path)
+
+	mwChain[0].Next(c)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

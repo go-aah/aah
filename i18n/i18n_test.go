@@ -17,7 +17,7 @@ import (
 func TestLoadMessage(t *testing.T) {
 	wd, _ := os.Getwd()
 	_ = Load(filepath.Join(wd, "testdata"))
-	_ = Load(filepath.Join(wd, "testdata", "english", "message.en"))
+	_ = Load(filepath.Join(wd, "testdata", "english", "messages.en"))
 	_ = Load(filepath.Join(wd, "testdata", "english", "message-not-exists.en"))
 
 	locales := Locales()
