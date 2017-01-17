@@ -63,7 +63,7 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	cancelBooking := domain.LookupByName("cancel_booking")
 	assert.Equal(t, "hotels_group", cancelBooking.ParentName)
 	assert.Equal(t, "cancel_booking", cancelBooking.Name)
-	assert.Equal(t, "Hotels", cancelBooking.Controller)
+	assert.Equal(t, "Hotel", cancelBooking.Controller)
 	assert.Equal(t, "POST", cancelBooking.Method)
 }
 
