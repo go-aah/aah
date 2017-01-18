@@ -69,13 +69,12 @@ type (
 
 	// Route holds the single route details.
 	Route struct {
-		Name         string
-		Path         string
-		Method       string
-		Controller   string
-		Action       string
-		ActionParams []string
-		ParentName   string
+		Name       string
+		Path       string
+		Method     string
+		Controller string
+		Action     string
+		ParentName string
 
 		// static route fields in-addition to above
 		IsStatic bool
@@ -320,7 +319,6 @@ func (d *Domain) Lookup(req *ahttp.Request) (*Route, *PathParams, bool) {
 		return nil, nil, rts
 	}
 
-	log.Warnf("Route lookup error: %v", err)
 	return nil, nil, false
 }
 
@@ -539,8 +537,6 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 		// based on `routeMethod`
 		routeAction := cfg.StringDefault(routeName+".action", HTTPMethodActionMap[routeMethod])
 
-		// TODO action params
-
 		routes = append(routes, Route{
 			Name:       routeName,
 			Path:       path.Join(prefixPath, routePath),
@@ -609,7 +605,7 @@ func parseStaticRoutesSection(cfg *config.Config) (routes Routes, err error) {
 		route.File = routeFile
 		route.ListDir = cfg.BoolDefault(routeName+".list", false)
 
-		// TODO controller name and action
+		// TODO controller name and action Static content serve
 
 		routes = append(routes, route)
 	}

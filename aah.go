@@ -181,7 +181,7 @@ func Init(importPath string) {
 	initInternal()
 }
 
-// Start ... TODO
+// Start method starts the HTTP server based on aah config "http.*".
 func Start() {
 	defer aahRecover()
 
@@ -199,6 +199,7 @@ func Start() {
 	server := &http.Server{
 		Handler: &engine{
 			cPool: newCPool(),
+			rPool: newRPool(),
 		},
 		ReadTimeout:  appHTTPReadTimeout,
 		WriteTimeout: appHTTPWriteTimeout,
@@ -209,8 +210,7 @@ func Start() {
 		log.Infof("Listening and serving HTTP on %v", address)
 
 		sockFile := address[5:]
-		err := os.Remove(sockFile)
-		if !os.IsNotExist(err) {
+		if err := os.Remove(sockFile); !os.IsNotExist(err) {
 			logAsFatal(err)
 		}
 
@@ -298,10 +298,6 @@ func initInternal() {
 
 	logAsFatal(initRoutes(appConfigDir()))
 
-	// TODO initControllers
-
-	// TODO Validate Routes
-
 	logAsFatal(initViews(appViewsDir()))
 
 	logAsFatal(initTests(appTestsDir()))
@@ -320,9 +316,9 @@ func initPath(importPath string) error {
 	goSrcDir = filepath.Join(goPath, "src")
 	appBaseDir = filepath.Join(goSrcDir, filepath.FromSlash(appImportPath))
 
-	if !ess.IsFileExists(appBaseDir) { // TODO change it to importPath check
-		return fmt.Errorf("aah application does not exists: %s", appImportPath)
-	}
+	// if !ess.IsFileExists(appBaseDir) {
+	// 	return fmt.Errorf("aah application does not exists: %s", appImportPath)
+	// }
 
 	appIsPackaged = !ess.IsFileExists(appDir())
 

@@ -5,10 +5,18 @@
 package aah
 
 import (
-	"os"
+	"fmt"
+	"net/http"
+	"reflect"
 
-	"aahframework.org/aah/aruntime"
+	"aahframework.org/aah/ahttp"
+	"aahframework.org/aah/router"
 	"aahframework.org/log"
+)
+
+var (
+	mwStack []MiddlewareType
+	mwChain []*Middleware
 )
 
 type (
@@ -23,6 +31,19 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Global methods
+//___________________________________
+
+// Middlewares method adds given middleware into middleware stack
+func Middlewares(middlewares ...MiddlewareType) {
+	mwStack = mwStack[:len(mwStack)-1]
+	mwStack = append(mwStack, middlewares...)
+	mwStack = append(mwStack, actionMiddleware)
+
+	invalidateMwChain()
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Middleware methods
 //___________________________________
 
@@ -34,43 +55,65 @@ func (mw *Middleware) Next(c *Controller) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Painc middleware
-//___________________________________
-
-// PanicMiddleware handles panic calls and recovers from it then converts
-// panic into HTTP Internal Server Error (Status 500).
-func panicMiddleware(c *Controller, m *Middleware) {
-	log.Info("panicMiddleware before")
-	defer func() {
-		if r := recover(); r != nil {
-			log.Error("Internal server error occurred")
-
-			st := aruntime.NewStacktrace(r, AppConfig())
-			st.Print(os.Stdout)
-
-			// TODO HTTP error handling
-		}
-	}()
-
-	m.Next(c)
-
-	log.Info("panicMiddleware after")
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Router middleware
 //___________________________________
 
 // RouterMiddleware finds the route of incoming request and moves forward.
 // If routes not found it does appropriate response for the request.
 func routerMiddleware(c *Controller, m *Middleware) {
+	domain := router.FindDomain(c.Req)
+	if domain == nil {
+		fmt.Println("domain not found") // TODO no domain mapping
+	}
 
-	log.Info("routerMiddleware before")
+	route, pathParams, rts := domain.Lookup(c.Req)
+	if route != nil {
+		if err := c.setTarget(route); err == errTargetNotFound {
+			// TODO Action Not found
+			fmt.Println("Action not found")
+			return
+		}
 
-	m.Next(c)
+		c.pathParams = pathParams
+		m.Next(c)
 
-	log.Info("routerMiddleware after")
+		return
+	}
 
+	if c.Req.Method != ahttp.MethodConnect && c.Req.Path != router.SlashString {
+		if rts && domain.RedirectTrailingSlash {
+			redirectTrailingSlash(c)
+			return
+		}
+	}
+
+	if domain.MethodNotAllowed {
+		allowed := domain.Allowed(c.Req.Method, c.Req.Path)
+		log.Debugf("Allowed HTTP Methods: %s", allowed)
+		c.res.Header().Set(ahttp.HeaderAllow, allowed) // TODO change it after Reply module is donw
+		return
+	}
+
+	// TODO 404 not found
+}
+
+// Redirect method redirects request to given URL.
+func redirectTrailingSlash(c *Controller) {
+	code := http.StatusMovedPermanently
+	if c.Req.Method != ahttp.MethodGet {
+		code = http.StatusTemporaryRedirect
+	}
+
+	path := c.Req.Path
+	req := c.Req.Raw
+	if len(path) > 1 && path[len(path)-1] == '/' {
+		req.URL.Path = path[:len(path)-1]
+	} else {
+		req.URL.Path = path + "/"
+	}
+
+	log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", code, path, req.URL.String())
+	http.Redirect(c.res, req, req.URL.String(), code)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -91,20 +134,86 @@ func paramsMiddleware(c *Controller, m *Middleware) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Dispatch middleware
+// Action middleware
 //___________________________________
 
-// DispatchMiddleware calls the requested action on controller and calls
-// pre-defined actions (Before, After, Error, Finally) from controller.
-// It is Last middleware in the aah framework middleware chain.
-func dispatchMiddleware(c *Controller, m *Middleware) {
+// ActionMiddleware calls the requested action on controller and calls
+// pre-defined actions (Before, After, Panic, Finally) from controller.
+func actionMiddleware(c *Controller, m *Middleware) {
+	target := reflect.ValueOf(c.target)
 
-	log.Info("dispatchMiddleware")
-	c.res.WriteHeader(200)
-	_, _ = c.res.Write([]byte("OK"))
+	// Finally action
+	defer func() {
+		if finallyAction := target.MethodByName(incpFinallyActionName); finallyAction.IsValid() {
+			log.Debugf("Calling finally interceptor on controller: %s", c.controller)
+			finallyAction.Call(emptyArg)
+		}
+	}()
 
+	// Panic action
+	defer func() {
+		if r := recover(); r != nil {
+			rv := append([]reflect.Value{}, reflect.ValueOf(r))
+			if panicAction := target.MethodByName(incpPanicActionName); panicAction.IsValid() {
+				log.Debugf("Calling panic interceptor on controller: %s", c.controller)
+				panicAction.Call(rv)
+			}
+		}
+	}()
+
+	// Before action
+	if beforeAction := target.MethodByName(incpBeforeActionName); beforeAction.IsValid() {
+		log.Debugf("Calling before interceptor on controller: %s", c.controller)
+		beforeAction.Call(emptyArg)
+	}
+
+	action := target.MethodByName(c.action.Name)
+	if action.IsValid() {
+		actionArgs := make([]reflect.Value, len(c.action.Parameters))
+
+		// TODO Auto Binder for arguments
+
+		log.Debugf("Calling controller: %s, action: %s", c.controller, c.action.Name)
+		if action.Type().IsVariadic() {
+			action.CallSlice(actionArgs)
+		} else {
+			action.Call(actionArgs)
+		}
+	}
+
+	// After action
+	if afterAction := target.MethodByName(incpAfterActionName); afterAction.IsValid() {
+		log.Debugf("Calling after interceptor on controller: %s", c.controller)
+		afterAction.Call(emptyArg)
+	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
+
+func invalidateMwChain() {
+	mwChain = nil
+	cnt := len(mwStack)
+	mwChain = make([]*Middleware, cnt, cnt)
+
+	for idx := 0; idx < cnt; idx++ {
+		mwChain[idx] = &Middleware{next: mwStack[idx]}
+	}
+
+	for idx := cnt - 1; idx > 0; idx-- {
+		mwChain[idx-1].further = mwChain[idx]
+	}
+
+	mwChain[cnt-1].further = &Middleware{}
+}
+
+func init() {
+	mwStack = append(mwStack,
+		routerMiddleware,
+		paramsMiddleware,
+		actionMiddleware,
+	)
+
+	invalidateMwChain()
+}

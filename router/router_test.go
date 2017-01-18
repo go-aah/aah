@@ -42,8 +42,7 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
-	// After loading just couple assertion
-
+	// After loading just couple of assertion
 	reqCancelBooking1 := createHTTPRequest("localhost:8000", "/hotels/12345/cancel")
 	reqCancelBooking1.Method = ahttp.MethodPost
 	domain := FindDomain(reqCancelBooking1)
@@ -149,7 +148,28 @@ func TestRouterReloadConfiguration(t *testing.T) {
 	err = Reload()
 	assert.FailNowOnError(t, err, "")
 
-	// TODO validate routes after reload
+	// After loading just couple of assertion
+	reqCancelBooking1 := createHTTPRequest("localhost:8000", "/hotels/12345/cancel")
+	reqCancelBooking1.Method = ahttp.MethodPost
+	domain := FindDomain(reqCancelBooking1)
+	route, pathParam, rts := domain.Lookup(reqCancelBooking1)
+	assert.Equal(t, "cancel_booking", route.Name)
+	assert.Equal(t, "12345", pathParam.Get("id"))
+	assert.False(t, rts)
+
+	// possible redirect trailing slash
+	reqCancelBooking2 := createHTTPRequest("localhost:8000", "/hotels/12345/cancel/")
+	reqCancelBooking2.Method = ahttp.MethodPost
+	domain = FindDomain(reqCancelBooking2)
+	_, _, rts = domain.Lookup(reqCancelBooking2)
+	assert.True(t, rts)
+
+	// Lookup by name
+	cancelBooking := domain.LookupByName("cancel_booking")
+	assert.Equal(t, "hotels_group", cancelBooking.ParentName)
+	assert.Equal(t, "cancel_booking", cancelBooking.Name)
+	assert.Equal(t, "Hotel", cancelBooking.Controller)
+	assert.Equal(t, "POST", cancelBooking.Method)
 }
 
 func TestRouterDomainConfig(t *testing.T) {
@@ -213,8 +233,6 @@ func TestDomainAllowed(t *testing.T) {
 	reqNotExists := createHTTPRequest("notexists:8000", "/")
 	domain = FindDomain(reqNotExists)
 	assert.Nil(t, domain)
-
-	// TODO do more
 }
 
 func TestDomainReverseURL(t *testing.T) {

@@ -114,18 +114,23 @@ func TestNegotiateContentType(t *testing.T) {
 
 	req := createRawHTTPRequest(HeaderAccept, "application/json")
 	req.URL, _ = url.Parse("http://localhost:8080/testpath.json")
-	// req.Path = req.Raw.URL.Path
 	contentType = NegotiateContentType(req)
 	assert.Equal(t, "application/json", contentType.Mime)
 	assert.Equal(t, ".json", contentType.Exts[0])
 
 	req = createRawHTTPRequest(HeaderAccept, "application/json")
 	req.URL, _ = url.Parse("http://localhost:8080/testpath.html")
-	// req.Path = req.Raw.URL.Path
 	contentType = NegotiateContentType(req)
 	assert.Equal(t, "text/html; charset=utf-8", contentType.Mime)
 	assert.Equal(t, ".html", contentType.Exts[0])
 
+	req = createRawHTTPRequest(HeaderAccept, "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	contentType = NegotiateContentType(req)
+	assert.Equal(t, "text/html", contentType.String())
+	assert.Equal(t, "text/html", contentType.Mime)
+	assert.Equal(t, "", contentType.Version())
+
+	// ParseAccept
 	req = createRawHTTPRequest(HeaderAccept, "application/json; version=2")
 	spec := ParseAccept(req, HeaderAccept).MostQualified()
 	assert.Equal(t, "2", spec.GetParam("version", "1"))
@@ -137,6 +142,7 @@ func TestNegotiateContentType(t *testing.T) {
 	req = createRawHTTPRequest(HeaderAccept, "application/json; version")
 	spec = ParseAccept(req, HeaderAccept).MostQualified()
 	assert.Equal(t, "", spec.GetParam("version", "1"))
+
 }
 
 func TestNegotiateEncoding(t *testing.T) {

@@ -8,17 +8,26 @@ import (
 	"errors"
 	"reflect"
 	"strings"
-	"sync"
 
 	"aahframework.org/aah/ahttp"
 	"aahframework.org/aah/router"
 )
 
-var (
-	cRegistry   = controllerRegistry{}
+const (
 	cPkgName    = "controllers"
 	cPkgNameLen = len(cPkgName)
-	cPtrType    = reflect.TypeOf((*Controller)(nil))
+
+	// Interceptor Action Name
+	incpBeforeActionName  = "Before"
+	incpAfterActionName   = "After"
+	incpPanicActionName   = "Panic"
+	incpFinallyActionName = "Finally"
+)
+
+var (
+	cRegistry = controllerRegistry{}
+	cPtrType  = reflect.TypeOf((*Controller)(nil))
+	emptyArg  = make([]reflect.Value, 0)
 
 	errTargetNotFound = errors.New("target not found")
 )
@@ -30,7 +39,8 @@ type (
 		Req *ahttp.Request
 
 		controller string
-		action     string
+		action     *MethodInfo
+		pathParams *router.PathParams
 		target     interface{}
 		res        ahttp.ResponseWriter
 	}
@@ -86,11 +96,26 @@ func AddController(c interface{}, methods []*MethodInfo) {
 // Controller methods
 //___________________________________
 
-// reset method resets controller instance for reuse.
-func (c *Controller) reset() {
+// GetPathParam method returns the URL path param value.
+// 		Example:
+// 			Mapping: /users/:userId
+// 			URL: /users/1000001
+//
+// 		userId := c.GetPathParam("userId")
+// 		userId == 1000001
+//
+func (c *Controller) GetPathParam(name string) string {
+	return c.pathParams.Get(name)
+}
+
+// Reset method resets controller instance for reuse.
+func (c *Controller) Reset() {
 	c.Req = nil
 	c.res = nil
 	c.target = nil
+	c.controller = ""
+	c.action = nil
+	c.pathParams = nil
 }
 
 // setTarget method sets contoller, action, embedded controller into
@@ -101,13 +126,11 @@ func (c *Controller) setTarget(route *router.Route) error {
 		return errTargetNotFound
 	}
 
-	action := controller.FindMethod(route.Action)
-	if action == nil {
+	c.controller = controller.Name()
+	c.action = controller.FindMethod(route.Action)
+	if c.action == nil {
 		return errTargetNotFound
 	}
-
-	c.controller = controller.Name()
-	c.action = action.Name
 
 	targetPtr := reflect.New(controller.Type)
 	target := targetPtr.Elem()
@@ -116,7 +139,7 @@ func (c *Controller) setTarget(route *router.Route) error {
 		target.FieldByIndex(index).Set(cv)
 	}
 
-	c.target = targetPtr
+	c.target = targetPtr.Interface()
 	return nil
 }
 
@@ -214,12 +237,4 @@ func findEmbeddedController(controllerType reflect.Type) [][]int {
 	}
 
 	return indexes
-}
-
-func newCPool() sync.Pool {
-	return sync.Pool{
-		New: func() interface{} {
-			return &Controller{}
-		},
-	}
 }

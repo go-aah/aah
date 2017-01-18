@@ -18,11 +18,13 @@ import (
 )
 
 const (
-	dotByte     = '.'
-	slashByte   = '/'
-	paramByte   = ':'
-	wildByte    = '*'
-	slashString = "/"
+	// SlashString const for comparison use
+	SlashString = "/"
+
+	dotByte   = '.'
+	slashByte = '/'
+	paramByte = ':'
+	wildByte  = '*'
 )
 
 const (
@@ -149,7 +151,7 @@ func (n *node) add(path string, value interface{}) error {
 						continue walk
 					} else {
 						// Wildcard conflict
-						pathSeg := strings.SplitN(path, slashString, 2)[0]
+						pathSeg := strings.SplitN(path, SlashString, 2)[0]
 						prefix := fullPath[:strings.Index(fullPath, pathSeg)] + n.path
 
 						return fmt.Errorf("'%s' in new path '%s' conflicts with existing "+
@@ -355,7 +357,7 @@ walk: // outer loop for walking the tree
 					// Nothing found.
 					// We can recommend to redirect to the same URL without a
 					// trailing slash if a leaf exists for that path.
-					tsr = (path == slashString && n.value != nil)
+					tsr = (path == SlashString && n.value != nil)
 					return
 
 				}
@@ -399,7 +401,7 @@ walk: // outer loop for walking the tree
 						// No value found. Check if a value for this path + a
 						// trailing slash exists for TSR recommendation
 						n = n.edges[0]
-						tsr = (n.path == slashString && n.value != nil)
+						tsr = (n.path == SlashString && n.value != nil)
 					}
 
 					return
@@ -430,7 +432,7 @@ walk: // outer loop for walking the tree
 				return
 			}
 
-			if path == slashString && n.wildChild && n.nType != root {
+			if path == SlashString && n.wildChild && n.nType != root {
 				tsr = true
 				return
 			}
@@ -451,7 +453,7 @@ walk: // outer loop for walking the tree
 
 		// Nothing found. We can recommend to redirect to the same URL with an
 		// extra trailing slash if a leaf exists for that path
-		tsr = (path == slashString) ||
+		tsr = (path == SlashString) ||
 			(len(n.path) == len(path)+1 && n.path[len(path)] == slashByte &&
 				path == n.path[:len(n.path)-1] && n.value != nil)
 		return
@@ -575,7 +577,7 @@ walk: // outer loop for walking the tree
 
 				// Nothing found. We can recommend to redirect to the same URL
 				// without a trailing slash if a leaf exists for that path
-				return ciPath, (fixTrailingSlash && path == slashString && n.value != nil), nil
+				return ciPath, (fixTrailingSlash && path == SlashString && n.value != nil), nil
 			}
 
 			n = n.edges[0]
@@ -614,7 +616,7 @@ walk: // outer loop for walking the tree
 					// No value found. Check if a value for this path + a
 					// trailing slash exists
 					n = n.edges[0]
-					if n.path == slashString && n.value != nil {
+					if n.path == SlashString && n.value != nil {
 						return append(ciPath, slashByte), true, nil
 					}
 				}
@@ -654,7 +656,7 @@ walk: // outer loop for walking the tree
 	// Nothing found.
 	// Try to fix the path by adding / removing a trailing slash
 	if fixTrailingSlash {
-		if path == slashString {
+		if path == SlashString {
 			return ciPath, true, nil
 		}
 		if len(loPath)+1 == len(loNPath) && loNPath[len(loPath)] == slashByte &&
