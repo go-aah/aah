@@ -55,7 +55,7 @@ func TestParseRequest(t *testing.T) {
 	req.Header.Add(HeaderAcceptLanguage, "en-gb;leve=1;q=0.8, da, en;level=2;q=0.7, en-us;q=gg")
 	req.URL, _ = url.Parse("http://localhost:8000/welcome1.html?_ref=true")
 
-	aahReq := ParseRequest(req)
+	aahReq := ParseRequest(req, &Request{})
 
 	assert.Equal(t, "127.0.0.1:8080", aahReq.Host)
 	assert.Equal(t, "GET", aahReq.Method)

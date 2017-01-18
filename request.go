@@ -43,9 +43,6 @@ type Request struct {
 	// and PATCH body parameters take precedence over URL query string values.
 	Params url.Values
 
-	// PathParams contains values of request path parameters. e.g. /hello/{name}.
-	PathParams url.Values
-
 	// Referer value of the HTTP 'Referrer' (or 'Referer') header.
 	Referer string
 
@@ -60,25 +57,34 @@ type Request struct {
 	Raw *http.Request
 }
 
-// ParseRequest method creates aah framework `ahttp.Request` instance from go
-// HTTP request.
-func ParseRequest(r *http.Request) *Request {
-	req := &Request{
-		Host:              r.Host,
-		Method:            r.Method,
-		Path:              r.URL.Path,
-		Header:            r.Header,
-		ContentType:       ParseContentType(r),
-		AcceptContentType: NegotiateContentType(r),
-		Params:            url.Values{},
-		PathParams:        url.Values{},
-		Referer:           getReferer(r.Header),
-		ClientIP:          ClientIP(r),
-		Locale:            NegotiateLocale(r),
-		Raw:               r,
-	}
+// ParseRequest method populates the given aah framework `ahttp.Request`
+// instance from Go HTTP request.
+func ParseRequest(r *http.Request, req *Request) *Request {
+	req.Host = r.Host
+	req.Method = r.Method
+	req.Path = r.URL.Path
+	req.Header = r.Header
+	req.ContentType = ParseContentType(r)
+	req.AcceptContentType = NegotiateContentType(r)
+	req.Params = url.Values{}
+	req.Referer = getReferer(r.Header)
+	req.ClientIP = ClientIP(r)
+	req.Locale = NegotiateLocale(r)
+	req.Raw = r
 
 	return req
+}
+
+// Reset method resets request instance for reuse.
+func (r *Request) Reset() {
+	r.Header = nil
+	r.ContentType = nil
+	r.AcceptContentType = nil
+	r.Params = nil
+	r.Referer = ""
+	r.ClientIP = ""
+	r.Locale = nil
+	r.Raw = nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
