@@ -25,7 +25,7 @@ const (
 )
 
 var (
-	cRegistry = controllerRegistry{}
+	cRegistry = make(controllerRegistry)
 	cPtrType  = reflect.TypeOf((*Controller)(nil))
 	emptyArg  = make([]reflect.Value, 0)
 

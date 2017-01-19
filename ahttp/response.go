@@ -130,6 +130,13 @@ func (r *Response) BytesWritten() int {
 	return r.bytesWritten
 }
 
+// Close method closes the writer if possible.
+func (r *Response) Close() {
+	if c, ok := r.w.(io.Closer); ok {
+		c.Close()
+	}
+}
+
 // Unwrap method returns the underlying `ResponseWriter`
 func (r *Response) Unwrap() http.ResponseWriter {
 	return r.w

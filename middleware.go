@@ -5,12 +5,12 @@
 package aah
 
 import (
-	"fmt"
 	"net/http"
 	"reflect"
 
 	"aahframework.org/aah/ahttp"
 	"aahframework.org/aah/router"
+	"aahframework.org/essentials"
 	"aahframework.org/log"
 )
 
@@ -63,14 +63,22 @@ func (mw *Middleware) Next(c *Controller) {
 func routerMiddleware(c *Controller, m *Middleware) {
 	domain := router.FindDomain(c.Req)
 	if domain == nil {
-		fmt.Println("domain not found") // TODO no domain mapping
+		c.res.WriteHeader(http.StatusNotFound) // TODO change it after Reply module is done
+		_, _ = c.res.Write([]byte("404 Route Not Exists\n"))
+		return
 	}
 
 	route, pathParams, rts := domain.Lookup(c.Req)
-	if route != nil {
+	if route != nil { // route found
+		if route.IsStatic {
+			if err := serveStatic(c, route, pathParams); err == errFileNotFound {
+				handleNotFound(c, domain, route.IsStatic)
+			}
+			return
+		}
+
 		if err := c.setTarget(route); err == errTargetNotFound {
-			// TODO Action Not found
-			fmt.Println("Action not found")
+			handleNotFound(c, domain, false)
 			return
 		}
 
@@ -80,6 +88,7 @@ func routerMiddleware(c *Controller, m *Middleware) {
 		return
 	}
 
+	// Redirect Trailing Slash
 	if c.Req.Method != ahttp.MethodConnect && c.Req.Path != router.SlashString {
 		if rts && domain.RedirectTrailingSlash {
 			redirectTrailingSlash(c)
@@ -87,33 +96,33 @@ func routerMiddleware(c *Controller, m *Middleware) {
 		}
 	}
 
+	// HTTP: OPTIONS
+	if c.Req.Method == ahttp.MethodOptions {
+		if domain.AutoOptions {
+			if allowed := domain.Allowed(c.Req.Method, c.Req.Path); !ess.IsStrEmpty(allowed) {
+				log.Debugf("Auto 'OPTIONS' allowed HTTP Methods: %s", allowed)
+				c.res.Header().Set(ahttp.HeaderAllow, allowed) // TODO change it after Reply module is done
+				return
+			}
+		}
+	}
+
+	// 405 Method Not Allowed
 	if domain.MethodNotAllowed {
-		allowed := domain.Allowed(c.Req.Method, c.Req.Path)
-		log.Debugf("Allowed HTTP Methods: %s", allowed)
-		c.res.Header().Set(ahttp.HeaderAllow, allowed) // TODO change it after Reply module is donw
-		return
+		if allowed := domain.Allowed(c.Req.Method, c.Req.Path); !ess.IsStrEmpty(allowed) {
+			allowed += ", " + ahttp.MethodOptions
+			log.Debugf("Allowed HTTP Methods: %s", allowed)
+
+			c.res.Header().Set(ahttp.HeaderAllow, allowed) // TODO change it after Reply module is done
+			c.res.WriteHeader(http.StatusMethodNotAllowed)
+			_, _ = c.res.Write([]byte("405 Method Not Allowed\n"))
+
+			return
+		}
 	}
 
-	// TODO 404 not found
-}
-
-// Redirect method redirects request to given URL.
-func redirectTrailingSlash(c *Controller) {
-	code := http.StatusMovedPermanently
-	if c.Req.Method != ahttp.MethodGet {
-		code = http.StatusTemporaryRedirect
-	}
-
-	path := c.Req.Path
-	req := c.Req.Raw
-	if len(path) > 1 && path[len(path)-1] == '/' {
-		req.URL.Path = path[:len(path)-1]
-	} else {
-		req.URL.Path = path + "/"
-	}
-
-	log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", code, path, req.URL.String())
-	http.Redirect(c.res, req, req.URL.String(), code)
+	// 404 not found
+	handleNotFound(c, domain, false)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -153,10 +162,12 @@ func actionMiddleware(c *Controller, m *Middleware) {
 	// Panic action
 	defer func() {
 		if r := recover(); r != nil {
-			rv := append([]reflect.Value{}, reflect.ValueOf(r))
 			if panicAction := target.MethodByName(incpPanicActionName); panicAction.IsValid() {
 				log.Debugf("Calling panic interceptor on controller: %s", c.controller)
+				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicAction.Call(rv)
+			} else { // propagate it
+				panic(r)
 			}
 		}
 	}()

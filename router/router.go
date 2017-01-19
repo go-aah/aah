@@ -62,6 +62,7 @@ type (
 		PanicRoute            *Route
 		MethodNotAllowed      bool
 		RedirectTrailingSlash bool
+		AutoOptions           bool
 		catchAll              bool
 		trees                 map[string]*node
 		routes                map[string]*Route
@@ -131,9 +132,11 @@ func Load(configPath string) (err error) {
 		}
 
 		domain := &Domain{
-			Name: domainCfg.StringDefault("name", key),
-			Host: host,
-			Port: domainCfg.StringDefault("port", ""),
+			Name:   domainCfg.StringDefault("name", key),
+			Host:   host,
+			Port:   domainCfg.StringDefault("port", ""),
+			trees:  make(map[string]*node),
+			routes: make(map[string]*Route),
 		}
 		log.Debugf("Domain: %v", domain.key())
 
@@ -144,8 +147,10 @@ func Load(configPath string) (err error) {
 			domain.catchAll = globalCfg.BoolDefault("catch_all", true)
 			domain.MethodNotAllowed = globalCfg.BoolDefault("method_not_allowed", true)
 			domain.RedirectTrailingSlash = globalCfg.BoolDefault("redirect_trailing_slash", true)
-			log.Tracef("Domain global config [catchAll: %v, methodNotAllowed: %v, redirectTrailingSlash: %v]",
-				domain.catchAll, domain.MethodNotAllowed, domain.RedirectTrailingSlash)
+			domain.AutoOptions = globalCfg.BoolDefault("auto_options", true)
+			log.Tracef("Domain global config "+
+				"[catchAll: %v, methodNotAllowed: %v, redirectTrailingSlash: %v, autoOptions]",
+				domain.catchAll, domain.MethodNotAllowed, domain.RedirectTrailingSlash, domain.AutoOptions)
 
 			if domain.catchAll {
 				domain.addCatchAllRoutes()
@@ -265,16 +270,17 @@ func DomainAddresses() []string {
 func RegisteredActions() map[string]map[string]uint8 {
 	methods := map[string]map[string]uint8{}
 	for _, d := range router.domains {
-		for _, r := range d.routes {
-			if r.IsStatic {
+		for _, route := range d.routes {
+			if route.IsStatic {
 				continue
 			}
 
-			if c, found := methods[r.Controller]; found {
-				c[r.Action] = 1
-			} else {
-				methods[r.Controller] = map[string]uint8{r.Action: 1}
-			}
+			addRegisteredAction(methods, route)
+		}
+
+		// adding not found controller if present
+		if d.NotFoundRoute != nil {
+			addRegisteredAction(methods, d.NotFoundRoute)
 		}
 	}
 
@@ -331,7 +337,7 @@ func (d *Domain) LookupByName(name string) *Route {
 }
 
 // Allowed returns the header value for `Allow` otherwise empty string.
-func (d *Domain) Allowed(requestMethod, path string) (allow string) {
+func (d *Domain) Allowed(requestMethod, path string) (allowed string) {
 	if path == "*" { // server-wide
 		for method := range d.trees {
 			if method == ahttp.MethodOptions {
@@ -339,7 +345,7 @@ func (d *Domain) Allowed(requestMethod, path string) (allow string) {
 			}
 
 			// add request method to list of allowed methods
-			allow = suffixCommaValue(allow, method)
+			allowed = suffixCommaValue(allowed, method)
 		}
 	} else { // specific path
 		for method := range d.trees {
@@ -351,12 +357,11 @@ func (d *Domain) Allowed(requestMethod, path string) (allow string) {
 			value, _, _, _ := d.trees[method].find(path)
 			if value != nil {
 				// add request method to list of allowed methods
-				allow = suffixCommaValue(allow, method)
+				allowed = suffixCommaValue(allowed, method)
 			}
 		}
 	}
 
-	allow = suffixCommaValue(allow, ahttp.MethodOptions)
 	return
 }
 
@@ -432,12 +437,12 @@ func (d *Domain) Reverse(routeName string, args ...interface{}) string {
 func createGlobalRoute(cfg *config.Config, routeName string) (*Route, error) {
 	controller, found := cfg.String(routeName + ".controller")
 	if !found {
-		return nil, fmt.Errorf("'%v.controller' key is missing", routeName)
+		return nil, fmt.Errorf("'global.%v.controller' key is missing", routeName)
 	}
 
 	action, found := cfg.String(routeName + ".action")
 	if !found {
-		return nil, fmt.Errorf("'%v.action' key is missing", routeName)
+		return nil, fmt.Errorf("'global.%v.action' key is missing", routeName)
 	}
 
 	return &Route{
@@ -454,14 +459,6 @@ func (d *Domain) key() string {
 }
 
 func (d *Domain) addRoute(route *Route) error {
-	if d.trees == nil {
-		d.trees = make(map[string]*node)
-	}
-
-	if d.routes == nil {
-		d.routes = make(map[string]*Route)
-	}
-
 	tree := d.trees[route.Method]
 	if tree == nil {
 		tree = new(node)
@@ -478,6 +475,20 @@ func (d *Domain) addRoute(route *Route) error {
 
 func (d *Domain) addCatchAllRoutes() {
 	// TODO add it
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Route methods
+//___________________________________
+
+// IsDir method returns true if serving directory otherwise false.
+func (r *Route) IsDir() bool {
+	return !ess.IsStrEmpty(r.Dir)
+}
+
+// IsFile method returns true if serving single file otherwise false.
+func (r *Route) IsFile() bool {
+	return !ess.IsStrEmpty(r.File)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -506,6 +517,14 @@ func suffixCommaValue(s, v string) string {
 		s += ", " + v
 	}
 	return s
+}
+
+func addRegisteredAction(methods map[string]map[string]uint8, route *Route) {
+	if controller, found := methods[route.Controller]; found {
+		controller[route.Action] = 1
+	} else {
+		methods[route.Controller] = map[string]uint8{route.Action: 1}
+	}
 }
 
 func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (routes Routes, err error) {
@@ -568,32 +587,32 @@ func parseStaticRoutesSection(cfg *config.Config) (routes Routes, err error) {
 		// getting 'path'
 		routePath, found := cfg.String(routeName + ".path")
 		if !found {
-			err = fmt.Errorf("'%v.path' key is missing", routeName)
+			err = fmt.Errorf("'static.%v.path' key is missing", routeName)
 			return
 		}
 
 		// path must begin with '/'
 		if routePath[0] != '/' {
-			err = fmt.Errorf("'%v.path' [%v], path must begin with '/'", routeName, routePath)
+			err = fmt.Errorf("'static.%v.path' [%v], path must begin with '/'", routeName, routePath)
 			return
 		}
 
 		if strings.Contains(routePath, ":") || strings.Contains(routePath, "*") {
-			err = fmt.Errorf("'%v.path' parameters can not be used with static", routeName)
+			err = fmt.Errorf("'static.%v.path' parameters can not be used with static", routeName)
 			return
 		}
 
-		route.Path = routePath
+		route.Path = path.Clean(routePath)
 
 		routeDir, dirFound := cfg.String(routeName + ".dir")
 		routeFile, fileFound := cfg.String(routeName + ".file")
 		if dirFound && fileFound {
-			err = fmt.Errorf("'%v.dir' & '%v.file' key(s) cannot be used together", routeName, routeName)
+			err = fmt.Errorf("'static.%v.dir' & 'static.%v.file' key(s) cannot be used together", routeName, routeName)
 			return
 		}
 
 		if !dirFound && !fileFound {
-			err = fmt.Errorf("'%v.dir' or '%v.file' key have to be present", routeName, routeName)
+			err = fmt.Errorf("either 'static.%v.dir' or 'static.%v.file' key have to be present", routeName, routeName)
 			return
 		}
 
@@ -604,8 +623,6 @@ func parseStaticRoutesSection(cfg *config.Config) (routes Routes, err error) {
 		route.Dir = routeDir
 		route.File = routeFile
 		route.ListDir = cfg.BoolDefault(routeName+".list", false)
-
-		// TODO controller name and action Static content serve
 
 		routes = append(routes, route)
 	}
