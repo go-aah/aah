@@ -26,12 +26,4 @@ type (
 		Language string
 		Region   string
 	}
-
-	// ContentType is represents request and response content type values
-	ContentType struct {
-		Raw    string
-		Mime   string
-		Exts   []string
-		Params map[string]string
-	}
 )

@@ -85,9 +85,7 @@ func NegotiateContentType(req *http.Request) *ContentType {
 	switch ext {
 	case ".html", ".htm", ".json", ".js", ".xml", ".txt":
 		mimeType := mime.TypeByExtension(ext)
-		raw := mimeType
 		return &ContentType{
-			Raw:    raw,
 			Mime:   mimeType,
 			Exts:   []string{ext},
 			Params: make(map[string]string),
@@ -97,13 +95,12 @@ func NegotiateContentType(req *http.Request) *ContentType {
 	// 2) From Accept header
 	spec := ParseAccept(req, HeaderAccept).MostQualified()
 	if spec == nil {
-		return htmlContentType()
+		return ContentTypeHTML
 	}
 
 	exts, _ := mime.ExtensionsByType(spec.Value)
 
 	return &ContentType{
-		Raw:    spec.Raw,
 		Mime:   spec.Value,
 		Exts:   exts,
 		Params: spec.Params,
@@ -130,7 +127,7 @@ func ParseContentType(req *http.Request) *ContentType {
 	contentType := req.Header.Get(HeaderContentType)
 
 	if ess.IsStrEmpty(contentType) {
-		return htmlContentType()
+		return ContentTypeHTML
 	}
 
 	values := strings.Split(strings.ToLower(contentType), ";")
@@ -148,7 +145,6 @@ func ParseContentType(req *http.Request) *ContentType {
 	exts, _ := mime.ExtensionsByType(ctype)
 
 	return &ContentType{
-		Raw:    contentType,
 		Mime:   ctype,
 		Exts:   exts,
 		Params: params,
@@ -250,40 +246,6 @@ func (l *Locale) String() string {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Content-Type methods
-//___________________________________
-
-// Charset returns charset of content-type otherwise `defaultCharset` is returned
-// 	For e.g.:
-// 		Content-Type: application/json; charset=utf-8
-//
-// 		Method returns `utf-8`
-func (c *ContentType) Charset(defaultCharset string) string {
-	if v, ok := c.Params["charset"]; ok {
-		return v
-	}
-	return defaultCharset
-}
-
-// Version returns Accept header version paramater value if present otherwise
-// empty string
-// 	For e.g.:
-// 		Accept: application/json; version=2
-//
-// 		Method returns `2`
-func (c *ContentType) Version() string {
-	if v, ok := c.Params["version"]; ok {
-		return v
-	}
-	return ""
-}
-
-// String is stringer interface
-func (c *ContentType) String() string {
-	return c.Raw
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // AcceptSpecs methods
 //___________________________________
 
@@ -321,19 +283,4 @@ func (specs AcceptSpecs) Swap(i, j int) {
 
 func (specs AcceptSpecs) Less(i, j int) bool {
 	return specs[i].Q > specs[j].Q
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
-
-func htmlContentType() *ContentType {
-	return &ContentType{
-		Raw:  "text/html; charset=utf-8",
-		Mime: "text/html",
-		Exts: []string{".html"},
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
 }

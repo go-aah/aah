@@ -61,7 +61,7 @@ func TestParseRequest(t *testing.T) {
 	assert.Equal(t, "GET", aahReq.Method)
 	assert.Equal(t, "/welcome1.html", aahReq.Path)
 	assert.Equal(t, "en-gb;leve=1;q=0.8, da, en;level=2;q=0.7, en-us;q=gg", aahReq.Header.Get(HeaderAcceptLanguage))
-	assert.Equal(t, "application/json;charset=utf-8", aahReq.ContentType.String())
+	assert.Equal(t, "application/json; charset=utf-8", aahReq.ContentType.String())
 	assert.Equal(t, "192.168.0.1", aahReq.ClientIP)
 	assert.Equal(t, "http://localhost:8000/home.html", aahReq.Referer)
 }
