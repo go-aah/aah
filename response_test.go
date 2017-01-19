@@ -20,6 +20,7 @@ import (
 func TestResponseWriter(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		writer := WrapResponseWriter(w)
+		defer writer.(*Response).Close()
 
 		writer.WriteHeader(http.StatusOK)
 		assert.Equal(t, http.StatusOK, writer.Status())
