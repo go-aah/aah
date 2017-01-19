@@ -222,12 +222,13 @@ func TestDomainAllowed(t *testing.T) {
 	domain := FindDomain(req)
 	allow := domain.Allowed(ahttp.MethodGet, "/")
 	assert.NotNil(t, allow)
-	assert.True(t, strings.Contains(allow, ahttp.MethodOptions))
+	assert.True(t, ess.IsStrEmpty(allow))
 
 	domain = FindDomain(req)
 	allow = domain.Allowed(ahttp.MethodPost, "*")
 	assert.NotNil(t, allow)
-	assert.True(t, strings.Contains(allow, ahttp.MethodOptions))
+	assert.True(t, strings.Contains(allow, ahttp.MethodPost))
+	assert.True(t, strings.Contains(allow, ahttp.MethodGet))
 
 	// domain not exists
 	reqNotExists := createHTTPRequest("notexists:8000", "/")
@@ -280,7 +281,9 @@ func TestDomainReverseURL(t *testing.T) {
 
 func TestDomainAddRoute(t *testing.T) {
 	domain := &Domain{
-		Host: "aahframework.org",
+		Host:   "aahframework.org",
+		trees:  make(map[string]*node),
+		routes: make(map[string]*Route),
 	}
 
 	route1 := &Route{
