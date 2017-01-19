@@ -31,8 +31,10 @@ type Request struct {
 	ContentType *ContentType
 
 	// AcceptContentType negotiated value from HTTP Header `Accept`.
-	// The resolve order is- 1) URL extension 2) Accept header. Most quailfied
-	// one based quality factor otherwise default is HTML.
+	// The resolve order is-
+	// 1) URL extension
+	// 2) Accept header.
+	// Most quailfied one based on quality factor otherwise default is HTML.
 	AcceptContentType *ContentType
 
 	// AcceptEncoding negotiated value from HTTP Header the `Accept-Encoding`
@@ -51,6 +53,9 @@ type Request struct {
 
 	// Locale negotiated value from HTTP Header `Accept-Language`.
 	Locale *Locale
+
+	// IsJSONP is true if request query string has "callback=function_name".
+	IsJSONP bool
 
 	// Raw an object that Go HTTP server provied, Direct interaction with
 	// raw object is not encouraged.
@@ -84,6 +89,7 @@ func (r *Request) Reset() {
 	r.Referer = ""
 	r.ClientIP = ""
 	r.Locale = nil
+	r.IsJSONP = false
 	r.Raw = nil
 }
 
