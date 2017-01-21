@@ -474,7 +474,7 @@ func (d *Domain) addRoute(route *Route) error {
 }
 
 func (d *Domain) addCatchAllRoutes() {
-	// TODO add it
+	// TODO implement CatchAllRoutes
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
