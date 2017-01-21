@@ -19,6 +19,7 @@ import (
 
 	"aahframework.org/aah/aruntime"
 	"aahframework.org/aah/i18n"
+	"aahframework.org/aah/render"
 	"aahframework.org/aah/router"
 	"aahframework.org/config"
 	"aahframework.org/essentials"
@@ -197,10 +198,7 @@ func Start() {
 
 	address := AppHTTPAddress()
 	server := &http.Server{
-		Handler: &engine{
-			cPool: newCPool(),
-			rPool: newRPool(),
-		},
+		Handler:      newEngine(),
 		ReadTimeout:  appHTTPReadTimeout,
 		WriteTimeout: appHTTPWriteTimeout,
 	}
@@ -369,6 +367,8 @@ func initAppVariables() error {
 	}
 
 	logAsFatal(SetAppProfile(AppProfile()))
+
+	render.Init(AppConfig())
 
 	return nil
 }

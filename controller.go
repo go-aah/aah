@@ -14,9 +14,6 @@ import (
 )
 
 const (
-	cPkgName    = "controllers"
-	cPkgNameLen = len(cPkgName)
-
 	// Interceptor Action Name
 	incpBeforeActionName  = "Before"
 	incpAfterActionName   = "After"
@@ -42,6 +39,7 @@ type (
 		action     *MethodInfo
 		pathParams *router.PathParams
 		target     interface{}
+		reply      *Reply
 		res        ahttp.ResponseWriter
 	}
 
@@ -96,6 +94,12 @@ func AddController(c interface{}, methods []*MethodInfo) {
 // Controller methods
 //___________________________________
 
+// Reply method gives you control and convenient way to write
+// a response effectively.
+func (c *Controller) Reply() *Reply {
+	return c.reply
+}
+
 // GetPathParam method returns the URL path param value.
 // 		Example:
 // 			Mapping: /users/:userId
@@ -116,6 +120,7 @@ func (c *Controller) Reset() {
 	c.controller = ""
 	c.action = nil
 	c.pathParams = nil
+	c.reply = nil
 }
 
 // setTarget method sets contoller, action, embedded controller into
@@ -147,7 +152,7 @@ func (c *Controller) setTarget(route *router.Route) error {
 // ControllerRegistry methods
 //___________________________________
 
-// Lookup method retuns `controllerInfo` if given route controller and
+// Lookup method returns `controllerInfo` if given route controller and
 // action exists in the controller registory.
 func (cr controllerRegistry) Lookup(route *router.Route) *controllerInfo {
 	if ci, found := cr[strings.ToLower(route.Controller)]; found {

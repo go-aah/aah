@@ -10,12 +10,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-
-	"aahframework.org/log"
-)
-
-const (
-	defaultStatus = http.StatusOK
 )
 
 type (
@@ -32,19 +26,15 @@ type (
 
 		// Unwrap returns the original `ResponseWriter`
 		Unwrap() http.ResponseWriter
-
-		// WriteHeaderNow method write status and header on the wire
-		WriteHeaderNow()
 	}
 
 	// Response implements multiple interface (ReaderFrom, CloseNotifier, Flusher,
 	// Hijacker) and handy methods for aah framework.
 	Response struct {
-		w                 http.ResponseWriter
-		status            int
-		wroteStatus       bool
-		wroteStatusHeader bool
-		bytesWritten      int
+		w            http.ResponseWriter
+		status       int
+		wroteStatus  bool
+		bytesWritten int
 	}
 )
 
@@ -77,27 +67,11 @@ func (r *Response) Status() int {
 
 // WriteHeader method writes given status code into Response.
 func (r *Response) WriteHeader(code int) {
-	if code > 0 {
-		if r.wroteStatus && r.status != code {
-			log.Warnf("Status already written, overriding status code %d with %d", r.status, code)
-		}
+	if code > 0 && !r.wroteStatus {
 		r.status = code
 		r.wroteStatus = true
+		r.w.WriteHeader(code)
 	}
-}
-
-// WriteHeaderNow method writes the status code on the wire.
-func (r *Response) WriteHeaderNow() {
-	if r.wroteStatusHeader {
-		return
-	}
-
-	if r.status == 0 {
-		r.status = defaultStatus
-	}
-
-	r.w.WriteHeader(r.status)
-	r.wroteStatusHeader = true
 }
 
 // Header method returns response header map.
@@ -107,7 +81,7 @@ func (r *Response) Header() http.Header {
 
 // Write method writes bytes into Response.
 func (r *Response) Write(buf []byte) (int, error) {
-	r.WriteHeaderNow()
+	r.WriteHeader(http.StatusOK)
 	size, err := r.w.Write(buf)
 	r.bytesWritten += size
 	return size, err
@@ -117,7 +91,7 @@ func (r *Response) Write(buf []byte) (int, error) {
 // compatiable and writes HTTP status OK (200) if it's not written yet.
 func (r *Response) ReadFrom(rdr io.Reader) (int64, error) {
 	if rf, ok := r.w.(io.ReaderFrom); ok {
-		r.WriteHeaderNow()
+		r.WriteHeader(http.StatusOK)
 		size, err := rf.ReadFrom(rdr)
 		r.bytesWritten += int(size) // might lose size info
 		return size, err
