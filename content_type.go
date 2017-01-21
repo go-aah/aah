@@ -36,6 +36,19 @@ var (
 			"charset": "utf-8",
 		},
 	}
+
+	// ContentTypePlainText content type.
+	ContentTypePlainText = &ContentType{
+		Mime: "text/plain",
+		Params: map[string]string{
+			"charset": "utf-8",
+		},
+	}
+
+	// ContentTypeOctetStream content type for bytes.
+	ContentTypeOctetStream = &ContentType{
+		Mime: "application/octet-stream",
+	}
 )
 
 type (
