@@ -70,21 +70,23 @@ func TestHijackCall(t *testing.T) {
 
 		con, rw, err := writer.(http.Hijacker).Hijack()
 		assert.FailOnError(t, err, "")
-		defer con.Close()
+		defer func() {
+			_ = con.Close()
+		}()
 
 		bytes := []byte("aah framework calling hijack")
-		rw.WriteString("HTTP/1.1 200 OK\r\n")
-		rw.WriteString("Date: " + time.Now().Format(http.TimeFormat) + "\r\n")
-		rw.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
-		rw.WriteString("Content-Length: " + strconv.Itoa(len(bytes)))
-		rw.WriteString(string(bytes) + "\r\n")
+		_, _ = rw.WriteString("HTTP/1.1 200 OK\r\n")
+		_, _ = rw.WriteString("Date: " + time.Now().Format(http.TimeFormat) + "\r\n")
+		_, _ = rw.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
+		_, _ = rw.WriteString("Content-Length: " + strconv.Itoa(len(bytes)))
+		_, _ = rw.WriteString(string(bytes) + "\r\n")
 		_ = rw.Flush()
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(handler))
 	defer server.Close()
 
-	http.Get(server.URL)
+	_, _ = http.Get(server.URL)
 }
 
 func TestCallCloseNotifyAndFlush(t *testing.T) {
@@ -110,7 +112,9 @@ func callAndValidate(t *testing.T, handler http.HandlerFunc, response string) {
 	if err != nil {
 		t.Fatalf("Error Get: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	bytes, _ := ioutil.ReadAll(resp.Body)
 	assert.Equal(t, response, string(bytes))

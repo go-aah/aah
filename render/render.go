@@ -39,6 +39,16 @@ type (
 		Data interface{}
 	}
 
+	// Bytes renders the bytes into response.
+	Bytes struct {
+		Data []byte
+	}
+
+	// File renders given ReadCloser into response and closes the file.
+	File struct {
+		Data io.ReadCloser
+	}
+
 	// TODO HTML template and rendering
 )
 
@@ -60,9 +70,7 @@ func (t *Text) Render(w io.Writer) error {
 	if len(t.Values) > 0 {
 		fmt.Fprintf(w, t.Format, t.Values...)
 	} else {
-		if _, err := io.WriteString(w, t.Format); err != nil {
-			return err
-		}
+		_, _ = io.WriteString(w, t.Format)
 	}
 
 	return nil
@@ -134,4 +142,28 @@ func (x *XML) Render(w io.Writer) error {
 	}
 
 	return nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Bytes Render methods
+//___________________________________
+
+// Render methods writes XML to HTTP response.
+func (b *Bytes) Render(w io.Writer) error {
+	_, err := w.Write(b.Data)
+	return err
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// File Render methods
+//___________________________________
+
+// Render methods writes File to HTTP response.
+func (f *File) Render(w io.Writer) error {
+	defer func() {
+		_ = f.Data.Close()
+	}()
+
+	_, err := io.Copy(w, f.Data)
+	return err
 }

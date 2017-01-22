@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"aahframework.org/aah/ahttp"
+	"aahframework.org/aah/reply"
 	"aahframework.org/aah/router"
 )
 
@@ -39,7 +40,7 @@ type (
 		action     *MethodInfo
 		pathParams *router.PathParams
 		target     interface{}
-		reply      *Reply
+		reply      *reply.Reply
 		res        ahttp.ResponseWriter
 	}
 
@@ -96,7 +97,7 @@ func AddController(c interface{}, methods []*MethodInfo) {
 
 // Reply method gives you control and convenient way to write
 // a response effectively.
-func (c *Controller) Reply() *Reply {
+func (c *Controller) Reply() *reply.Reply {
 	return c.reply
 }
 
@@ -146,6 +147,11 @@ func (c *Controller) setTarget(route *router.Route) error {
 
 	c.target = targetPtr.Interface()
 	return nil
+}
+
+// close method tries to close if `io.Closer` interface satisfies.
+func (c *Controller) close() {
+	c.res.(*ahttp.Response).Close()
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

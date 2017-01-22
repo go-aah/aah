@@ -2,9 +2,10 @@
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package aah
+package reply
 
 import (
+	"io"
 	"net/http"
 
 	"aahframework.org/aah/ahttp"
@@ -14,90 +15,101 @@ import (
 
 // Reply gives you control and convenient way to write a response effectively.
 type Reply struct {
-	status      int
-	contentType string
-	header      http.Header
-	render      render.Render
+	Code     int
+	ContType string
+	Hdr      http.Header
+	Rdr      render.Render
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Reply methods - Status Codes
+// Global methods
 //___________________________________
 
-// Status method sets the HTTP status code for the response.
+// NewReply method returns the new instance on reply builder.
+func NewReply() *Reply {
+	return &Reply{
+		Hdr: http.Header{},
+	}
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Reply methods - Code Codes
+//___________________________________
+
+// Status method sets the HTTP Code code for the response.
 // Also Reply instance provides easy to use method for very frequently used
-// HTTP Status Codes reference: http://www.restapitutorial.com/httpstatuscodes.html
+// HTTP Status Codes reference: http://www.restapitutorial.com/httpCodecodes.html
 func (r *Reply) Status(code int) *Reply {
-	r.status = code
+	r.Code = code
 	return r
 }
 
-// Ok method sets the HTTP status as 200 RFC 7231, 6.3.1.
+// Ok method sets the HTTP Code as 200 RFC 7231, 6.3.1.
 func (r *Reply) Ok() *Reply {
 	return r.Status(http.StatusOK)
 }
 
-// Created method sets the HTTP status as 201 RFC 7231, 6.3.2.
+// Created method sets the HTTP Code as 201 RFC 7231, 6.3.2.
 func (r *Reply) Created() *Reply {
 	return r.Status(http.StatusCreated)
 }
 
-// Accepted method sets the HTTP status as 202 RFC 7231, 6.3.3.
+// Accepted method sets the HTTP Code as 202 RFC 7231, 6.3.3.
 func (r *Reply) Accepted() *Reply {
 	return r.Status(http.StatusAccepted)
 }
 
-// NoContent method sets the HTTP status as 204 RFC 7231, 6.3.5.
+// NoContent method sets the HTTP Code as 204 RFC 7231, 6.3.5.
 func (r *Reply) NoContent() *Reply {
 	return r.Status(http.StatusNoContent)
 }
 
-// MovedPermanently method sets the HTTP status as 301 RFC 7231, 6.4.2.
+// MovedPermanently method sets the HTTP Code as 301 RFC 7231, 6.4.2.
 func (r *Reply) MovedPermanently() *Reply {
 	return r.Status(http.StatusMovedPermanently)
 }
 
-// TemporaryRedirect method sets the HTTP status as 307 RFC 7231, 6.4.7.
+// TemporaryRedirect method sets the HTTP Code as 307 RFC 7231, 6.4.7.
 func (r *Reply) TemporaryRedirect() *Reply {
 	return r.Status(http.StatusTemporaryRedirect)
 }
 
-// BadRequest method sets the HTTP status as 400 RFC 7231, 6.5.1.
+// BadRequest method sets the HTTP Code as 400 RFC 7231, 6.5.1.
 func (r *Reply) BadRequest() *Reply {
 	return r.Status(http.StatusBadRequest)
 }
 
-// Unauthorized method sets the HTTP status as 401 RFC 7235, 3.1.
+// Unauthorized method sets the HTTP Code as 401 RFC 7235, 3.1.
 func (r *Reply) Unauthorized() *Reply {
 	return r.Status(http.StatusUnauthorized)
 }
 
-// Forbidden method sets the HTTP status as 403 RFC 7231, 6.5.3.
+// Forbidden method sets the HTTP Code as 403 RFC 7231, 6.5.3.
 func (r *Reply) Forbidden() *Reply {
 	return r.Status(http.StatusForbidden)
 }
 
-// NotFound method sets the HTTP status as 404 RFC 7231, 6.5.4.
+// NotFound method sets the HTTP Code as 404 RFC 7231, 6.5.4.
 func (r *Reply) NotFound() *Reply {
 	return r.Status(http.StatusNotFound)
 }
 
-// MethodNotAllowed method sets the HTTP status as 405 RFC 7231, 6.5.5.
+// MethodNotAllowed method sets the HTTP Code as 405 RFC 7231, 6.5.5.
 func (r *Reply) MethodNotAllowed() *Reply {
 	return r.Status(http.StatusMethodNotAllowed)
 }
 
-// Conflict method sets the HTTP status as 409  RFC 7231, 6.5.8.
+// Conflict method sets the HTTP Code as 409  RFC 7231, 6.5.8.
 func (r *Reply) Conflict() *Reply {
 	return r.Status(http.StatusConflict)
 }
 
-// InternalServerError method sets the HTTP status as 500 RFC 7231, 6.6.1.
+// InternalServerError method sets the HTTP Code as 500 RFC 7231, 6.6.1.
 func (r *Reply) InternalServerError() *Reply {
 	return r.Status(http.StatusInternalServerError)
 }
 
-// ServiceUnavailable method sets the HTTP status as 503 RFC 7231, 6.6.4.
+// ServiceUnavailable method sets the HTTP Code as 503 RFC 7231, 6.6.4.
 func (r *Reply) ServiceUnavailable() *Reply {
 	return r.Status(http.StatusServiceUnavailable)
 }
@@ -113,7 +125,7 @@ func (r *Reply) ServiceUnavailable() *Reply {
 // By default aah framework try to determine response 'Content-Type' from
 // 'ahttp.Request.AcceptContentType'.
 func (r *Reply) ContentType(contentType string) *Reply {
-	r.contentType = contentType
+	r.ContType = contentType
 	return r
 }
 
@@ -121,7 +133,7 @@ func (r *Reply) ContentType(contentType string) *Reply {
 // Also it sets HTTP 'Content-Type' as 'application/json; charset=utf-8'.
 // Response rendered pretty if 'render.pretty' is true.
 func (r *Reply) JSON(data interface{}) *Reply {
-	r.render = &render.JSON{Data: data}
+	r.Rdr = &render.JSON{Data: data}
 	r.ContentType(ahttp.ContentTypeJSON.Raw())
 	return r
 }
@@ -130,7 +142,7 @@ func (r *Reply) JSON(data interface{}) *Reply {
 // Also it sets HTTP 'Content-Type' as 'application/json; charset=utf-8'.
 // Response rendered pretty if 'render.pretty' is true.
 func (r *Reply) JSONP(data interface{}, callback string) *Reply {
-	r.render = &render.JSON{Data: data, IsJSONP: true, Callback: callback}
+	r.Rdr = &render.JSON{Data: data, IsJSONP: true, Callback: callback}
 	r.ContentType(ahttp.ContentTypeJSON.Raw())
 	return r
 }
@@ -139,7 +151,7 @@ func (r *Reply) JSONP(data interface{}, callback string) *Reply {
 // HTTP Content-Type as 'application/xml; charset=utf-8'.
 // Response rendered pretty if 'render.pretty' is true.
 func (r *Reply) XML(data interface{}) *Reply {
-	r.render = &render.XML{Data: data}
+	r.Rdr = &render.XML{Data: data}
 	r.ContentType(ahttp.ContentTypeXML.Raw())
 	return r
 }
@@ -147,9 +159,34 @@ func (r *Reply) XML(data interface{}) *Reply {
 // Text method renders given data as Plain Text response with given values.
 // Also it sets HTTP Content-Type as 'text/plain; charset=utf-8'.
 func (r *Reply) Text(format string, values ...interface{}) *Reply {
-	r.render = &render.Text{Format: format, Values: values}
+	r.Rdr = &render.Text{Format: format, Values: values}
 	r.ContentType(ahttp.ContentTypePlainText.Raw())
 	return r
+}
+
+// Bytes method writes the given bytes into response with given 'Content-Type'.
+func (r *Reply) Bytes(contentType string, data []byte) *Reply {
+	r.Rdr = &render.Bytes{Data: data}
+	r.ContentType(contentType)
+	return r
+}
+
+// File method writes the given file into response and close the file
+// after write. Also it sets HTTP 'Content-Type' as 'application/octet-stream'
+// and adds the header 'Content-Disposition' as 'attachment' with given filename.
+// Note: Method does close the given 'io.ReadCloser' after writing a response.
+func (r *Reply) File(filename string, file io.ReadCloser) *Reply {
+	r.Header(ahttp.HeaderContentDisposition, "attachment; filename="+filename)
+	return r.fileReply(filename, file)
+}
+
+// FileInline method writes the given file into response and close the file
+// after write. Also it sets HTTP 'Content-Type' as 'application/octet-stream'
+// and adds the header 'Content-Disposition' as 'inline' with given filename.
+// Note: Method does close the given 'io.ReadCloser' after writing a response.
+func (r *Reply) FileInline(filename string, file io.ReadCloser) *Reply {
+	r.Header(ahttp.HeaderContentDisposition, "inline; filename="+filename)
+	return r.fileReply(filename, file)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -161,9 +198,9 @@ func (r *Reply) Text(format string, values ...interface{}) *Reply {
 // Note: It overwrites existing header value if it's present.
 func (r *Reply) Header(key, value string) *Reply {
 	if ess.IsStrEmpty(value) {
-		r.header.Del(key)
+		r.Hdr.Del(key)
 	} else {
-		r.header.Set(key, value)
+		r.Hdr.Set(key, value)
 	}
 
 	return r
@@ -172,18 +209,28 @@ func (r *Reply) Header(key, value string) *Reply {
 // HeaderAppend method appends the given header and value for the response.
 // Note: It does not overwrite existing header, it just appends to it.
 func (r *Reply) HeaderAppend(key, value string) *Reply {
-	r.header.Add(key, value)
+	r.Hdr.Add(key, value)
 	return r
 }
 
 // IsContentTypeSet method returns true if Content-Type is set otherwise
 // false.
 func (r *Reply) IsContentTypeSet() bool {
-	return ess.IsStrEmpty(r.contentType)
+	return ess.IsStrEmpty(r.ContType)
 }
 
-// IsStatusSet method returns true if HTTP Status is set for the 'Reply'
+// IsStatusSet method returns true if HTTP Code is set for the 'Reply'
 // otherwise false.
 func (r *Reply) IsStatusSet() bool {
-	return r.status != 0
+	return r.Code != 0
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported Reply methods
+//___________________________________
+
+func (r *Reply) fileReply(filename string, file io.ReadCloser) *Reply {
+	r.Rdr = &render.File{Data: file}
+	r.ContentType(ahttp.ContentTypeOctetStream.Raw())
+	return r
 }

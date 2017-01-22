@@ -11,7 +11,7 @@ import (
 )
 
 // FileOnlyFilesystem extends/wraps `http.FileSystem` to disable directory listing
-// fucntionality
+// functionality
 type FileOnlyFilesystem struct {
 	Fs  http.FileSystem
 	dir string
@@ -36,7 +36,7 @@ func Dir(path string, listDir bool) http.FileSystem {
 // FileOnlyFilesystem methods
 //___________________________________
 
-// Open method is compilance with `http.FileSystem` interface and disables
+// Open method is compliance with `http.FileSystem` interface and disables
 // directory listing
 func (fs FileOnlyFilesystem) Open(name string) (http.File, error) {
 	stat, err := os.Lstat(filepath.Join(fs.dir, name))

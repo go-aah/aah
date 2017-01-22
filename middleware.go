@@ -63,8 +63,7 @@ func (mw *Middleware) Next(c *Controller) {
 func routerMiddleware(c *Controller, m *Middleware) {
 	domain := router.FindDomain(c.Req)
 	if domain == nil {
-		c.res.WriteHeader(http.StatusNotFound) // TODO change it after Reply module is done
-		_, _ = c.res.Write([]byte("404 Route Not Exists\n"))
+		c.Reply().NotFound().Text("404 Route Not Exists")
 		return
 	}
 
@@ -100,8 +99,9 @@ func routerMiddleware(c *Controller, m *Middleware) {
 	if c.Req.Method == ahttp.MethodOptions {
 		if domain.AutoOptions {
 			if allowed := domain.Allowed(c.Req.Method, c.Req.Path); !ess.IsStrEmpty(allowed) {
+				allowed += ", " + ahttp.MethodOptions
 				log.Debugf("Auto 'OPTIONS' allowed HTTP Methods: %s", allowed)
-				c.res.Header().Set(ahttp.HeaderAllow, allowed) // TODO change it after Reply module is done
+				c.Reply().Header(ahttp.HeaderAllow, allowed)
 				return
 			}
 		}
@@ -111,12 +111,11 @@ func routerMiddleware(c *Controller, m *Middleware) {
 	if domain.MethodNotAllowed {
 		if allowed := domain.Allowed(c.Req.Method, c.Req.Path); !ess.IsStrEmpty(allowed) {
 			allowed += ", " + ahttp.MethodOptions
-			log.Debugf("Allowed HTTP Methods: %s", allowed)
-
-			c.res.Header().Set(ahttp.HeaderAllow, allowed) // TODO change it after Reply module is done
-			c.res.WriteHeader(http.StatusMethodNotAllowed)
-			_, _ = c.res.Write([]byte("405 Method Not Allowed\n"))
-
+			log.Debugf("Allowed HTTP Methods for 405 response: %s", allowed)
+			c.Reply().
+				Status(http.StatusMethodNotAllowed).
+				Header(ahttp.HeaderAllow, allowed).
+				Text("405 Method Not Allowed")
 			return
 		}
 	}
@@ -134,11 +133,8 @@ func routerMiddleware(c *Controller, m *Middleware) {
 // parameters made available in render context.
 func paramsMiddleware(c *Controller, m *Middleware) {
 
-	log.Info("paramsMiddleware before")
-
+	// TODO implement params parsing
 	m.Next(c)
-
-	log.Info("paramsMiddleware after")
 
 }
 

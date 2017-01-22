@@ -13,6 +13,8 @@ import (
 	"aahframework.org/essentials"
 )
 
+const jsonpReqParamKey = "callback"
+
 // Request is extends `http.Request` for aah framework
 type Request struct {
 	// Host value of the HTTP 'Host' header (e.g. 'example.com:8080').
@@ -75,6 +77,7 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 	req.Referer = getReferer(r.Header)
 	req.ClientIP = ClientIP(r)
 	req.Locale = NegotiateLocale(r)
+	req.IsJSONP = isJSONPReqeust(r)
 	req.Raw = r
 
 	return req
@@ -131,4 +134,10 @@ func getReferer(hdr http.Header) string {
 	}
 
 	return referer
+}
+
+func isJSONPReqeust(r *http.Request) bool {
+	query := r.URL.Query()
+	callback := query.Get(jsonpReqParamKey)
+	return !ess.IsStrEmpty(callback)
 }

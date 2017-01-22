@@ -13,6 +13,7 @@ import (
 
 	"aahframework.org/aah/ahttp"
 	"aahframework.org/aah/aruntime"
+	"aahframework.org/aah/reply"
 	"aahframework.org/aah/router"
 	"aahframework.org/essentials"
 	"aahframework.org/log"
@@ -37,18 +38,22 @@ type (
 
 // ServeHTTP method implementation of http.Handler interface.
 func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	log.Debugf("Request for %s", req.URL.Path)
-
 	c, r := e.getController(), e.getRequest()
-	defer e.putController(c)
-	defer e.putRequest(r)
+	defer func() {
+		c.close()
+		e.putRequest(r)
+		e.putController(c)
+	}()
 
 	c.Req = ahttp.ParseRequest(req, r)
 	c.res = ahttp.WrapResponseWriter(w)
-	c.reply = &Reply{}
+	c.reply = reply.NewReply()
 
-	// panic handling
-	defer e.handlePanic(c)
+	// recovery handling
+	defer e.handleRecovery(c)
+
+	// TODO Detailed server access log to separate file later on
+	log.Debugf("Request %s", c.Req.Path)
 
 	// Middlewares
 	mwChain[0].Next(c)
@@ -57,45 +62,43 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	e.writeResponse(c)
 }
 
-// handlePanic handles application panics and recovers from it. Panic gets
+// handleRecovery handles application panics and recovers from it. Panic gets
 // translated into HTTP Internal Server Error (Status 500).
-func (e *engine) handlePanic(c *Controller) {
+func (e *engine) handleRecovery(c *Controller) {
 	if r := recover(); r != nil {
-		log.Errorf("Internal Server Error for %s", c.Req.Path)
+		log.Errorf("Internal Server Error on %s", c.Req.Path)
 
 		st := aruntime.NewStacktrace(r, AppConfig())
 		buf := e.getBuffer()
 		defer e.putBuffer(buf)
 
 		st.Print(buf)
-
-		log.Error("Recovered from panic:")
 		log.Error(buf.String())
 
 		if AppProfile() != "prod" { // detailed error info
 			// TODO design server error page with stack trace info
+			c.Reply().Status(http.StatusInternalServerError).Text("Internal Server Error: %s", buf.String())
+			e.writeResponse(c)
 			return
 		}
 
 		// For "prod", detailed information gets logged
-		c.res.WriteHeader(http.StatusInternalServerError)
-		_, _ = c.res.Write([]byte("Internal Server Error\n"))
+		c.Reply().Status(http.StatusInternalServerError).Text("Internal Server Error")
+		e.writeResponse(c)
 	}
 }
 
 // writeResponse method writes the response on the wire based on `Reply` values.
 func (e *engine) writeResponse(c *Controller) {
-	defer c.res.(*ahttp.Response).Close()
-
-	re := c.Reply()
+	reply := c.Reply()
 	buf := e.getBuffer()
 	defer e.putBuffer(buf)
 
 	// Render and detect the errors earlier, framework can write error info
 	// without messing with response.
 	// HTTP Body
-	if re.render != nil {
-		if err := re.render.Render(buf); err != nil {
+	if reply.Rdr != nil {
+		if err := reply.Rdr.Render(buf); err != nil {
 			log.Error("Render error:", err)
 			c.res.WriteHeader(http.StatusInternalServerError)
 			_, _ = c.res.Write([]byte("Render error: " + err.Error() + "\n"))
@@ -104,15 +107,15 @@ func (e *engine) writeResponse(c *Controller) {
 	}
 
 	// HTTP headers
-	for k, v := range re.header {
+	for k, v := range reply.Hdr {
 		for _, vv := range v {
 			c.res.Header().Add(k, vv)
 		}
 	}
 
 	// Content Type
-	if !ess.IsStrEmpty(re.contentType) {
-		c.res.Header().Set(ahttp.HeaderContentType, re.contentType)
+	if !ess.IsStrEmpty(reply.ContType) {
+		c.res.Header().Set(ahttp.HeaderContentType, reply.ContType)
 	} else if !ess.IsStrEmpty(c.Req.AcceptContentType.Mime) {
 		// based on 'Accept' Header
 		c.res.Header().Set(ahttp.HeaderContentType, c.Req.AcceptContentType.Raw())
@@ -122,8 +125,8 @@ func (e *engine) writeResponse(c *Controller) {
 	}
 
 	// HTTP status
-	if re.IsStatusSet() {
-		c.res.WriteHeader(re.status)
+	if reply.IsStatusSet() {
+		c.res.WriteHeader(reply.Code)
 	} else {
 		c.res.WriteHeader(http.StatusOK)
 	}
@@ -208,10 +211,12 @@ func handleNotFound(c *Controller, domain *router.Domain, isStatic bool) {
 	if err := c.setTarget(domain.NotFoundRoute); err != errTargetNotFound {
 		target := reflect.ValueOf(c.target)
 		if notFoundAction := target.MethodByName(c.action.Name); notFoundAction.IsValid() {
-			log.Debugf("Calling not-found on controller: %s.%s", c.controller, c.action.Name)
+			log.Debugf("Calling custom defined not-found action: %s.%s", c.controller, c.action.Name)
 			notFoundAction.Call([]reflect.Value{reflect.ValueOf(isStatic)})
+		} else {
+			c.Reply().NotFound().Text("404 Not Found")
 		}
-	} // may be later on else part
+	}
 }
 
 // Redirect method redirects request to given URL.

@@ -151,7 +151,7 @@ func (st *Stacktrace) Print(w io.Writer) {
 	}
 
 	printFmt := "\t%-" + strconv.Itoa(st.maxFileLen+1) + "s-> %v\n"
-	_, _ = w.Write([]byte(fmt.Sprintf("\n%v\n", st.Recover)))
+	_, _ = w.Write([]byte(fmt.Sprintf("STACKTRACE:\n%v\n", st.Recover)))
 
 	for _, rv := range st.GoRoutines {
 		_, _ = w.Write([]byte("\n" + rv.Header + "\n"))

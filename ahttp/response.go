@@ -38,7 +38,7 @@ type (
 	}
 )
 
-// interface compilance
+// interface compliance
 var _ http.CloseNotifier = &Response{}
 var _ http.Flusher = &Response{}
 var _ http.Hijacker = &Response{}
@@ -88,7 +88,7 @@ func (r *Response) Write(buf []byte) (int, error) {
 }
 
 // ReadFrom method calls underlying ReadFrom method with given reader if it's
-// compatiable and writes HTTP status OK (200) if it's not written yet.
+// compatible and writes HTTP status OK (200) if it's not written yet.
 func (r *Response) ReadFrom(rdr io.Reader) (int64, error) {
 	if rf, ok := r.w.(io.ReaderFrom); ok {
 		r.WriteHeader(http.StatusOK)
@@ -107,7 +107,7 @@ func (r *Response) BytesWritten() int {
 // Close method closes the writer if possible.
 func (r *Response) Close() {
 	if c, ok := r.w.(io.Closer); ok {
-		c.Close()
+		_ = c.Close()
 	}
 }
 
@@ -116,20 +116,20 @@ func (r *Response) Unwrap() http.ResponseWriter {
 	return r.w
 }
 
-// CloseNotify method calls underlying CloseNotify method if it's compatiable
+// CloseNotify method calls underlying CloseNotify method if it's compatible
 func (r *Response) CloseNotify() <-chan bool {
 	n := r.w.(http.CloseNotifier)
 	return n.CloseNotify()
 }
 
-// Flush method calls underlying Flush method if it's compatiable
+// Flush method calls underlying Flush method if it's compatible
 func (r *Response) Flush() {
 	if f, ok := r.w.(http.Flusher); ok {
 		f.Flush()
 	}
 }
 
-// Hijack method calls underlying Hijack method if it's compatiable otherwise
+// Hijack method calls underlying Hijack method if it's compatible otherwise
 // returns an error. It becomes the caller's responsibility to manage
 // and close the connection.
 func (r *Response) Hijack() (net.Conn, *bufio.ReadWriter, error) {
@@ -137,5 +137,5 @@ func (r *Response) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 		return h.Hijack()
 	}
 
-	return nil, nil, errors.New("http.Hijacker interface is not compatiable")
+	return nil, nil, errors.New("http.Hijacker interface is not compatible")
 }
