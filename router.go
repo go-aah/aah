@@ -288,7 +288,7 @@ func RegisteredActions() map[string]map[string]uint8 {
 }
 
 // IsDefaultAction method is to identify given action name is defined by
-// aah framework in absense of user configured route action name.
+// aah framework in absence of user configured route action name.
 func IsDefaultAction(action string) bool {
 	for _, a := range HTTPMethodActionMap {
 		if a == action {
