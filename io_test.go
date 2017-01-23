@@ -1,5 +1,5 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// essentails source code and usage is governed by a MIT style
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
+// go-aah/essentials source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package ess
