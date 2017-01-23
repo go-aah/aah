@@ -1,5 +1,5 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/essentails source code and usage is governed by a MIT style
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
+// go-aah/essentials source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package ess
@@ -217,7 +217,7 @@ func CopyDir(dest, src string, excludes Excludes) error {
 		destPath := filepath.Join(dest, relativeSrcPath)
 
 		if info.IsDir() {
-			// directory permisions is not preserved from source
+			// directory permissions is not preserved from source
 			return MkDirAll(destPath, 0755)
 		}
 
@@ -236,7 +236,7 @@ func CopyDir(dest, src string, excludes Excludes) error {
 // appropriate paths.
 func DeleteFiles(files ...string) (errs []error) {
 	for _, f := range files {
-		if IsFileExists(f) {
+		if !IsFileExists(f) {
 			errs = append(errs, fmt.Errorf("path does not exists: %s", f))
 			continue
 		}
@@ -254,4 +254,24 @@ func DeleteFiles(files ...string) (errs []error) {
 	}
 
 	return
+}
+
+// DirsPath method returns all directories path from given base path recursively.
+func DirsPath(basePath string) (pdirs []string, err error) {
+	err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			pdirs = append(pdirs, srcPath)
+		}
+		return nil
+	})
+	return
+}
+
+// StripExt method returns name of the file without extension.
+//    E.g.: index.html => index
+func StripExt(name string) string {
+	if IsStrEmpty(name) {
+		return name
+	}
+	return name[:strings.IndexByte(name, '.')]
 }

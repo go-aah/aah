@@ -5,23 +5,27 @@
 package ess
 
 import (
+	"runtime"
 	"testing"
 
 	"aahframework.org/test/assert"
 )
 
 func TestMkDirAll(t *testing.T) {
-	defer removeAllFiles("testdata/path")
+	testdataPath := getTestdataPath()
+	defer DeleteFiles(join(testdataPath, "path"))
 
-	err := MkDirAll("testdata/path/to/create", 0755)
+	err := MkDirAll(join(testdataPath, "path", "to", "create"), 0755)
 	assert.FailOnError(t, err, "")
 
-	err = MkDirAll("testdata/path/to/create/for/test", 0755)
+	err = MkDirAll(join(testdataPath, "path", "to", "create", "for", "test"), 0755)
 	assert.FailOnError(t, err, "")
 
-	err = MkDirAll("testdata/path/to/create/for/test", 0755)
+	err = MkDirAll(join(testdataPath, "path", "to", "create", "for", "test"), 0755)
 	assert.FailOnError(t, err, "")
 
-	err = MkDirAll("/var/testdata/[^[]", 0755)
-	assert.NotNil(t, err)
+	if runtime.GOOS != "windows" {
+		err = MkDirAll("/var/testdata/[^[]", 0755)
+		assert.NotNil(t, err)
+	}
 }

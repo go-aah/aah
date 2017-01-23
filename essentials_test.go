@@ -4,16 +4,16 @@
 
 package ess
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+)
 
-func removeFiles(files ...string) {
-	for _, f := range files {
-		_ = os.Remove(f)
-	}
+func getTestdataPath() string {
+	pwd, _ := os.Getwd()
+	return filepath.Join(pwd, "testdata")
 }
 
-func removeAllFiles(files ...string) {
-	for _, f := range files {
-		_ = os.RemoveAll(f)
-	}
+func join(elem ...string) string {
+	return filepath.Join(elem...)
 }
