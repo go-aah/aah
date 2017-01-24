@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -68,7 +68,7 @@ type (
 //    E.g.:
 //      contentType.IsEqual("application/json")
 func (c *ContentType) IsEqual(contentType string) bool {
-	return strings.EqualFold(c.Mime, strings.ToLower(contentType))
+	return strings.HasPrefix(c.Raw(), strings.ToLower(contentType))
 }
 
 // Charset returns charset of content-type otherwise `defaultCharset` is returned

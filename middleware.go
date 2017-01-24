@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -6,9 +6,12 @@ package aah
 
 import (
 	"net/http"
+	"path/filepath"
 	"reflect"
+	"strings"
 
 	"aahframework.org/aah/ahttp"
+	"aahframework.org/aah/render"
 	"aahframework.org/aah/router"
 	"aahframework.org/essentials"
 	"aahframework.org/log"
@@ -36,9 +39,9 @@ type (
 
 // Middlewares method adds given middleware into middleware stack
 func Middlewares(middlewares ...MiddlewareType) {
-	mwStack = mwStack[:len(mwStack)-1]
+	mwStack = mwStack[:len(mwStack)-2]
 	mwStack = append(mwStack, middlewares...)
-	mwStack = append(mwStack, actionMiddleware)
+	mwStack = append(mwStack, templateMiddleware, actionMiddleware)
 
 	invalidateMwChain()
 }
@@ -139,6 +142,62 @@ func paramsMiddleware(c *Controller, m *Middleware) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Template middleware
+//___________________________________
+
+// TemplateMiddleware finds appropriate template based request and route
+// information.
+func templateMiddleware(c *Controller, m *Middleware) {
+	m.Next(c)
+
+	reply := c.Reply()
+
+	// ContentType
+	if ess.IsStrEmpty(reply.ContType) {
+		if !ess.IsStrEmpty(c.Req.AcceptContentType.Mime) &&
+			c.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
+			reply.ContentType(c.Req.AcceptContentType.Raw())
+		} else { // default Content-Type defined 'render.default' in aah.conf
+			reply.ContentType(defaultContentType().Raw())
+		}
+	}
+
+	// HTML response
+	if AppMode() == appModeWeb && ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
+		if reply.Rdr == nil {
+			reply.Rdr = &render.HTML{}
+		}
+
+		htmlRdr := reply.Rdr.(*render.HTML)
+
+		if ess.IsStrEmpty(htmlRdr.TemplateName) {
+			htmlRdr.TemplateName = appDefaultTmplLayout
+		}
+
+		if htmlRdr.ViewArgs == nil {
+			htmlRdr.ViewArgs = make(map[string]interface{})
+		}
+
+		for k, v := range c.ViewArgs() {
+			htmlRdr.ViewArgs[k] = v
+		}
+
+		tmplPath := filepath.Join("pages", c.controller)
+		tmplName := c.action.Name + appTemplateExt
+
+		htmlRdr.Template = appTemplateEngine.Get(htmlRdr.TemplateName, tmplPath, tmplName)
+		if htmlRdr.Template == nil {
+			tmplFile := filepath.Join("views", "pages", c.controller, tmplName)
+			if !AppConfig().BoolDefault("template.case_sensitive", false) {
+				tmplFile = strings.ToLower(tmplFile)
+			}
+
+			log.Errorf("template not found: %s", tmplFile)
+		}
+	}
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Action middleware
 //___________________________________
 
@@ -219,6 +278,7 @@ func init() {
 	mwStack = append(mwStack,
 		routerMiddleware,
 		paramsMiddleware,
+		templateMiddleware,
 		actionMiddleware,
 	)
 

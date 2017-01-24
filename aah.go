@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"html/template"
 	"net"
 	"net/http"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"aahframework.org/aah/aruntime"
+	"aahframework.org/aah/atemplate"
 	"aahframework.org/aah/i18n"
 	"aahframework.org/aah/render"
 	"aahframework.org/aah/router"
@@ -41,8 +43,11 @@ var (
 	appHTTPWriteTimeout time.Duration
 	appSSLCert          string
 	appSSLKey           string
+	appTemplateEngine   atemplate.TemplateEnginer
+	appTemplateExt      string
 
-	appInitialized bool
+	appInitialized    bool
+	isExternalTmplEng bool
 
 	goPath   string
 	goSrcDir string
@@ -52,6 +57,9 @@ var (
 	appDefaultHTTPPort       = 8000
 	appDefaultDateFormat     = "2006-01-02"
 	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
+	appDefaultTmplLayout     = "master"
+	appModeWeb               = "web"
+	appModeAPI               = "api"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -90,7 +98,7 @@ func AppConfig() *config.Config {
 
 // AppMode method returns aah application mode. Default is "web" For e.g.: web or api
 func AppMode() string {
-	return AppConfig().StringDefault("mode", "web")
+	return AppConfig().StringDefault("mode", appModeWeb)
 }
 
 // AppHTTPAddress method returns aah application HTTP address otherwise empty string
@@ -157,6 +165,11 @@ func SetAppProfile(profile string) error {
 
 	appProfile = profile
 	return nil
+}
+
+// AddTemplateFunc method adds given Go template funcs into function map.
+func AddTemplateFunc(funcMap template.FuncMap) {
+	atemplate.AddTemplateFunc(funcMap)
 }
 
 // MergeAppConfig method allows to you to merge external config into aah
@@ -296,7 +309,9 @@ func initInternal() {
 
 	logAsFatal(initRoutes(appConfigDir()))
 
-	logAsFatal(initViews(appViewsDir()))
+	if AppMode() == appModeWeb {
+		logAsFatal(initTemplateEngine(appViewsDir(), AppConfig()))
+	}
 
 	logAsFatal(initTests(appTestsDir()))
 
@@ -314,6 +329,7 @@ func initPath(importPath string) error {
 	goSrcDir = filepath.Join(goPath, "src")
 	appBaseDir = filepath.Join(goSrcDir, filepath.FromSlash(appImportPath))
 
+	// TODO import path check
 	// if !ess.IsFileExists(appBaseDir) {
 	// 	return fmt.Errorf("aah application does not exists: %s", appImportPath)
 	// }
@@ -325,13 +341,10 @@ func initPath(importPath string) error {
 
 func initConfig(cfgDir string) error {
 	confPath := filepath.Join(cfgDir, "aah.conf")
-	if !ess.IsFileExists(confPath) {
-		return fmt.Errorf("aah application configuration does not exists: %v", confPath)
-	}
 
 	cfg, err := config.LoadFile(confPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("aah application %s", err)
 	}
 
 	appConfig = cfg
@@ -370,6 +383,8 @@ func initAppVariables() error {
 
 	render.Init(AppConfig())
 
+	appTemplateExt = AppConfig().StringDefault("template.ext", ".html")
+
 	return nil
 }
 
@@ -404,9 +419,6 @@ func initI18n(i18nDir string) error {
 
 func initRoutes(cfgDir string) error {
 	routesPath := filepath.Join(cfgDir, "routes.conf")
-	if !ess.IsFileExists(routesPath) {
-		return fmt.Errorf("aah application routes configuration does not exists: %v", routesPath)
-	}
 
 	if err := router.Load(routesPath); err != nil {
 		return fmt.Errorf("routes.conf: %s", err)
@@ -415,11 +427,17 @@ func initRoutes(cfgDir string) error {
 	return nil
 }
 
-func initViews(viewsDir string) error {
+func initTemplateEngine(viewsDir string, cfg *config.Config) error {
+	// initialize only if external TemplateEngine is not registered.
+	if appTemplateEngine == nil {
+		appTemplateEngine = &atemplate.TemplateEngine{}
+		isExternalTmplEng = false
+	} else {
+		isExternalTmplEng = true
+	}
 
-	// TODO initViews
-
-	return nil
+	appTemplateEngine.Init(AppConfig(), viewsDir)
+	return appTemplateEngine.Load()
 }
 
 func initTests(testsDir string) error {

@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -36,12 +36,16 @@ type (
 		// Req is HTTP request instance
 		Req *ahttp.Request
 
+		// Res is HTTP response writer. Not recommended to use this directly.
+		// Instead use `Reply()` builder for composing response.
+		Res ahttp.ResponseWriter
+
 		controller string
 		action     *MethodInfo
 		pathParams *router.PathParams
 		target     interface{}
 		reply      *reply.Reply
-		res        ahttp.ResponseWriter
+		viewArgs   map[string]interface{}
 	}
 
 	// ControllerInfo holds all application controller
@@ -101,6 +105,12 @@ func (c *Controller) Reply() *reply.Reply {
 	return c.reply
 }
 
+// ViewArgs method returns aah framework and request related info that can be
+// used in template or view rendering, etc.
+func (c *Controller) ViewArgs() map[string]interface{} {
+	return c.viewArgs
+}
+
 // GetPathParam method returns the URL path param value.
 // 		Example:
 // 			Mapping: /users/:userId
@@ -113,15 +123,23 @@ func (c *Controller) GetPathParam(name string) string {
 	return c.pathParams.Get(name)
 }
 
+// AddViewArg method adds given key and value into `viewArgs`. These view args
+// values accessible on templates. Chained call is possible.
+func (c *Controller) AddViewArg(key string, value interface{}) *Controller {
+	c.viewArgs[key] = value
+	return c
+}
+
 // Reset method resets controller instance for reuse.
 func (c *Controller) Reset() {
 	c.Req = nil
-	c.res = nil
+	c.Res = nil
 	c.target = nil
 	c.controller = ""
 	c.action = nil
 	c.pathParams = nil
 	c.reply = nil
+	c.viewArgs = nil
 }
 
 // setTarget method sets contoller, action, embedded controller into
@@ -151,7 +169,7 @@ func (c *Controller) setTarget(route *router.Route) error {
 
 // close method tries to close if `io.Closer` interface satisfies.
 func (c *Controller) close() {
-	c.res.(*ahttp.Response).Close()
+	c.Res.(*ahttp.Response).Close()
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

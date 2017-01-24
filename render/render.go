@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -7,10 +7,13 @@ package render
 import (
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
+	"html/template"
 	"io"
 
 	"aahframework.org/config"
+	"aahframework.org/essentials"
 )
 
 var appConfig *config.Config
@@ -49,7 +52,12 @@ type (
 		Data io.ReadCloser
 	}
 
-	// TODO HTML template and rendering
+	// HTML renders the given HTML into response with given model data.
+	HTML struct {
+		Template     *template.Template
+		TemplateName string
+		ViewArgs     map[string]interface{}
+	}
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -65,7 +73,7 @@ func Init(cfg *config.Config) {
 // Plain Text Render methods
 //___________________________________
 
-// Render methods writes Text to HTTP response.
+// Render method writes Text to HTTP response.
 func (t *Text) Render(w io.Writer) error {
 	if len(t.Values) > 0 {
 		fmt.Fprintf(w, t.Format, t.Values...)
@@ -80,7 +88,7 @@ func (t *Text) Render(w io.Writer) error {
 // JSON Render methods
 //___________________________________
 
-// Render methods writes JSON to HTTP response.
+// Render method writes JSON to HTTP response.
 func (j *JSON) Render(w io.Writer) error {
 	var (
 		bytes []byte
@@ -120,7 +128,7 @@ func (j *JSON) Render(w io.Writer) error {
 // XML Render methods
 //___________________________________
 
-// Render methods writes XML to HTTP response.
+// Render method writes XML to HTTP response.
 func (x *XML) Render(w io.Writer) error {
 	var (
 		bytes []byte
@@ -148,7 +156,7 @@ func (x *XML) Render(w io.Writer) error {
 // Bytes Render methods
 //___________________________________
 
-// Render methods writes XML to HTTP response.
+// Render method writes XML to HTTP response.
 func (b *Bytes) Render(w io.Writer) error {
 	_, err := w.Write(b.Data)
 	return err
@@ -158,7 +166,7 @@ func (b *Bytes) Render(w io.Writer) error {
 // File Render methods
 //___________________________________
 
-// Render methods writes File to HTTP response.
+// Render method writes File to HTTP response.
 func (f *File) Render(w io.Writer) error {
 	defer func() {
 		_ = f.Data.Close()
@@ -166,4 +174,21 @@ func (f *File) Render(w io.Writer) error {
 
 	_, err := io.Copy(w, f.Data)
 	return err
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// HTML Render methods
+//___________________________________
+
+// Render method renders the HTML template into given writer.
+func (h *HTML) Render(w io.Writer) error {
+	if h.Template == nil {
+		return errors.New("template is nil")
+	}
+
+	if ess.IsStrEmpty(h.TemplateName) {
+		return h.Template.Execute(w, h.ViewArgs)
+	}
+
+	return h.Template.ExecuteTemplate(w, h.TemplateName, h.ViewArgs)
 }

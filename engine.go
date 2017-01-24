@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -15,7 +15,6 @@ import (
 	"aahframework.org/aah/aruntime"
 	"aahframework.org/aah/reply"
 	"aahframework.org/aah/router"
-	"aahframework.org/essentials"
 	"aahframework.org/log"
 	"aahframework.org/pool"
 )
@@ -46,7 +45,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}()
 
 	c.Req = ahttp.ParseRequest(req, r)
-	c.res = ahttp.WrapResponseWriter(w)
+	c.Res = ahttp.WrapResponseWriter(w)
 	c.reply = reply.NewReply()
 
 	// recovery handling
@@ -56,7 +55,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	log.Debugf("Request %s", c.Req.Path)
 
 	// Middlewares
-	mwChain[0].Next(c)
+	e.executeMiddlewares(c)
 
 	// Write response
 	e.writeResponse(c)
@@ -88,6 +87,11 @@ func (e *engine) handleRecovery(c *Controller) {
 	}
 }
 
+// executeMiddlewares method executes the configured middlewares.
+func (e *engine) executeMiddlewares(c *Controller) {
+	mwChain[0].Next(c)
+}
+
 // writeResponse method writes the response on the wire based on `Reply` values.
 func (e *engine) writeResponse(c *Controller) {
 	reply := c.Reply()
@@ -99,9 +103,9 @@ func (e *engine) writeResponse(c *Controller) {
 	// HTTP Body
 	if reply.Rdr != nil {
 		if err := reply.Rdr.Render(buf); err != nil {
-			log.Error("Render error:", err)
-			c.res.WriteHeader(http.StatusInternalServerError)
-			_, _ = c.res.Write([]byte("Render error: " + err.Error() + "\n"))
+			log.Error("Render error: ", err)
+			c.Res.WriteHeader(http.StatusInternalServerError)
+			_, _ = c.Res.Write([]byte("Render error: " + err.Error() + "\n"))
 			return
 		}
 	}
@@ -109,35 +113,27 @@ func (e *engine) writeResponse(c *Controller) {
 	// HTTP headers
 	for k, v := range reply.Hdr {
 		for _, vv := range v {
-			c.res.Header().Add(k, vv)
+			c.Res.Header().Add(k, vv)
 		}
 	}
 
-	// Content Type
-	if !ess.IsStrEmpty(reply.ContType) {
-		c.res.Header().Set(ahttp.HeaderContentType, reply.ContType)
-	} else if !ess.IsStrEmpty(c.Req.AcceptContentType.Mime) {
-		// based on 'Accept' Header
-		c.res.Header().Set(ahttp.HeaderContentType, c.Req.AcceptContentType.Raw())
-	} else {
-		// default Content-Type defined 'render.default' in aah.conf
-		c.res.Header().Set(ahttp.HeaderContentType, e.defaultContentType().Raw())
-	}
+	// ContentType
+	c.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
 
 	// HTTP status
 	if reply.IsStatusSet() {
-		c.res.WriteHeader(reply.Code)
+		c.Res.WriteHeader(reply.Code)
 	} else {
-		c.res.WriteHeader(http.StatusOK)
+		c.Res.WriteHeader(http.StatusOK)
 	}
 
 	// Write it on the wire
-	_, _ = buf.WriteTo(c.res)
+	_, _ = buf.WriteTo(c.Res)
 }
 
 // defaultContentType method returns the Content-Type based on 'render.default'
 // config from aah.conf
-func (e *engine) defaultContentType() *ahttp.ContentType {
+func defaultContentType() *ahttp.ContentType {
 	cfgValue := AppConfig().StringDefault("render.default", "")
 	switch cfgValue {
 	case "html":
@@ -235,7 +231,7 @@ func redirectTrailingSlash(c *Controller) {
 	}
 
 	log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", code, path, req.URL.String())
-	http.Redirect(c.res, req, req.URL.String(), code)
+	http.Redirect(c.Res, req, req.URL.String(), code)
 }
 
 func newEngine() *engine {

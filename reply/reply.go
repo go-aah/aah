@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -189,6 +189,40 @@ func (r *Reply) FileInline(filename string, file io.ReadCloser) *Reply {
 	return r.fileReply(filename, file)
 }
 
+// HTML method renders given data with auto mapped template name and layout
+// by framework. Also it sets HTTP 'Content-Type' as 'text/html; charset=utf-8'.
+// By default aah framework renders the template based on
+// 1) path 'Controller.Action',
+// 2) template extension 'template.ext' and
+// 3) case sensitive 'template.case_sensitive' from aah.conf
+// 4) default layout is 'master'
+//    E.g.:
+//      Controller: App
+//      Action: Login
+//      template.ext: html
+//
+//      template => /views/pages/app/login.html
+//               => /views/pages/App/Login.html
+//
+func (r *Reply) HTML(data map[string]interface{}) *Reply {
+	r.Rdr = &render.HTML{
+		ViewArgs: data,
+	}
+	r.ContentType(ahttp.ContentTypeHTML.Raw())
+	return r
+}
+
+// HTMLl method renders based on given layout and data. Refer `Reply.HTML(...)`
+// method.
+func (r *Reply) HTMLl(layout string, data map[string]interface{}) *Reply {
+	r.Rdr = &render.HTML{
+		TemplateName: layout,
+		ViewArgs:     data,
+	}
+	r.ContentType(ahttp.ContentTypeHTML.Raw())
+	return r
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Reply methods
 //___________________________________
@@ -198,8 +232,16 @@ func (r *Reply) FileInline(filename string, file io.ReadCloser) *Reply {
 // Note: It overwrites existing header value if it's present.
 func (r *Reply) Header(key, value string) *Reply {
 	if ess.IsStrEmpty(value) {
+		if key == ahttp.HeaderContentType {
+			return r.ContentType("")
+		}
+
 		r.Hdr.Del(key)
 	} else {
+		if key == ahttp.HeaderContentType {
+			return r.ContentType(value)
+		}
+
 		r.Hdr.Set(key, value)
 	}
 
@@ -209,6 +251,10 @@ func (r *Reply) Header(key, value string) *Reply {
 // HeaderAppend method appends the given header and value for the response.
 // Note: It does not overwrite existing header, it just appends to it.
 func (r *Reply) HeaderAppend(key, value string) *Reply {
+	if key == ahttp.HeaderContentType {
+		return r.ContentType(value)
+	}
+
 	r.Hdr.Add(key, value)
 	return r
 }
@@ -216,7 +262,7 @@ func (r *Reply) HeaderAppend(key, value string) *Reply {
 // IsContentTypeSet method returns true if Content-Type is set otherwise
 // false.
 func (r *Reply) IsContentTypeSet() bool {
-	return ess.IsStrEmpty(r.ContType)
+	return !ess.IsStrEmpty(r.ContType)
 }
 
 // IsStatusSet method returns true if HTTP Code is set for the 'Reply'

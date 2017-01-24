@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -6,11 +6,14 @@ package render
 
 import (
 	"bytes"
+	"html/template"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aahframework.org/config"
+	"aahframework.org/essentials"
 	"aahframework.org/test/assert"
 )
 
@@ -181,6 +184,49 @@ Each incoming request passes through a pre-defined list of steps
 `, buf.String())
 }
 
+func TestHTMLRender(t *testing.T) {
+	tmplStr := `
+	{{ define "title" }}<title>This is test title</title>{{ end }}
+	{{ define "body" }}<p>This is test body</p>{{ end }}
+	`
+
+	tmpl := template.Must(template.New("test").Parse(tmplStr))
+	assert.NotNil(t, tmpl)
+
+	testdataPath := getTestdataPath()
+	masterTmpl := filepath.Join(testdataPath, "views", "master.html")
+	_, err := tmpl.ParseFiles(masterTmpl)
+	assert.Nil(t, err)
+
+	htmlRdr := HTML{
+		TemplateName: "master",
+		Template:     tmpl,
+		ViewArgs:     nil,
+	}
+
+	var buf bytes.Buffer
+	err = htmlRdr.Render(&buf)
+	assert.Nil(t, err)
+	assert.True(t, strings.Contains(buf.String(), "<title>This is test title</title>"))
+	assert.True(t, strings.Contains(buf.String(), "<p>This is test body</p>"))
+
+	buf.Reset()
+	htmlRdr.TemplateName = ""
+	err = htmlRdr.Render(&buf)
+	assert.Nil(t, err)
+	assert.True(t, ess.IsStrEmpty(buf.String()))
+
+	// Template is Nil
+	htmlTmplNil := HTML{
+		TemplateName: "master",
+	}
+
+	buf.Reset()
+	err = htmlTmplNil.Render(&buf)
+	assert.NotNil(t, err)
+	assert.Equal(t, "template is nil", err.Error())
+}
+
 func getRenderCfg() *config.Config {
 	cfg, _ := config.ParseString(`
   render {
@@ -191,6 +237,10 @@ func getRenderCfg() *config.Config {
 }
 
 func getRenderFilepath(name string) string {
+	return filepath.Join(getTestdataPath(), name)
+}
+
+func getTestdataPath() string {
 	wd, _ := os.Getwd()
-	return filepath.Join(wd, "testdata", name)
+	return filepath.Join(wd, "testdata")
 }
