@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -103,6 +103,10 @@ type (
 
 // Load method loads a configuration from given file e.g. `routes.conf`
 func Load(configPath string) (err error) {
+	if !ess.IsFileExists(configPath) {
+		return fmt.Errorf("aah application routes configuration does not exists: %v", configPath)
+	}
+
 	router = &Router{configPath: configPath}
 
 	router.config, err = config.LoadFile(router.configPath)
