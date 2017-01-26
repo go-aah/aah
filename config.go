@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/config source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"strings"
 
+	"aahframework.org/essentials"
 	"aahframework.org/forge"
 )
 
@@ -330,6 +331,10 @@ func (c *Config) IsExists(key string) bool {
 
 // LoadFile loads the configuration given config file
 func LoadFile(file string) (*Config, error) {
+	if !ess.IsFileExists(file) {
+		return nil, fmt.Errorf("configuration does not exists: %v", file)
+	}
+
 	setting, err := forge.ParseFile(file)
 	if err != nil {
 		return nil, err
@@ -345,6 +350,10 @@ func LoadFile(file string) (*Config, error) {
 func LoadFiles(files ...string) (*Config, error) {
 	settings := forge.NewSection()
 	for _, file := range files {
+		if !ess.IsFileExists(file) {
+			return nil, fmt.Errorf("configuration does not exists: %v", file)
+		}
+
 		setting, err := forge.ParseFile(file)
 		if err != nil {
 			return nil, err
