@@ -13,7 +13,7 @@ go:
   - tip
 
 before_install:
-  - bash prepare-aah-env.sh "forge test" "config"
+  - bash prepare-aah-env.sh "forge essentials test" "config"
 
 install:
    - go get -v -t aahframework.org/config/...
