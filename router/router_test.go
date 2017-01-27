@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -244,39 +244,52 @@ func TestDomainReverseURL(t *testing.T) {
 	domain := FindDomain(req)
 
 	// route name not exists
-	emptyURL := domain.Reverse("not_exists_routename")
+	emptyURL := domain.ReverseURLm("not_exists_routename", map[string]interface{}{})
 	assert.Equal(t, "", emptyURL)
-
-	// non key-value pair value leads to error
-	emptyURL = domain.Reverse("book_hotels", 12345678)
+	emptyURL = domain.ReverseURL("not_exists_routename")
 	assert.Equal(t, "", emptyURL)
 
 	// not enough arguments
-	emptyURL = domain.Reverse("book_hotels")
+	emptyURL = domain.ReverseURLm("book_hotels", map[string]interface{}{})
+	assert.Equal(t, "", emptyURL)
+	emptyURL = domain.ReverseURL("book_hotels")
 	assert.Equal(t, "", emptyURL)
 
 	// incorrect key name scenario
-	emptyURL = domain.Reverse("book_hotels", map[string]string{
+	emptyURL = domain.ReverseURLm("book_hotels", map[string]interface{}{
 		"idvalue": "12345678",
 	})
 	assert.Equal(t, "", emptyURL)
 
+	// index route
+	indexURL := domain.ReverseURLm("app_index", map[string]interface{}{})
+	assert.Equal(t, "/", indexURL)
+	indexURL = domain.ReverseURL("app_index")
+	assert.Equal(t, "/", indexURL)
+
 	// static URL
-	loginURL := domain.Reverse("login")
+	loginURL := domain.ReverseURLm("login", map[string]interface{}{})
+	assert.Equal(t, "/login", loginURL)
+	loginURL = domain.ReverseURL("login")
 	assert.Equal(t, "/login", loginURL)
 
 	// success scenario
-	bookingURL := domain.Reverse("book_hotels", map[string]string{
+	bookingURL := domain.ReverseURLm("book_hotels", map[string]interface{}{
 		"id": "12345678",
 	})
 	assert.Equal(t, "/hotels/12345678/booking", bookingURL)
+	bookingURL = domain.ReverseURL("book_hotels", 12345678)
+	assert.Equal(t, "/hotels/12345678/booking", bookingURL)
 
-	bookingURL = domain.Reverse("book_hotels", map[string]string{
+	bookingURL = domain.ReverseURLm("book_hotels", map[string]interface{}{
 		"id":     "12345678",
 		"param1": "param1value",
 		"param2": "param2value",
 	})
 	assert.Equal(t, "/hotels/12345678/booking?param1=param1value&param2=param2value", bookingURL)
+
+	bookingURL = domain.ReverseURL("book_hotels", 12345678, "param1value", "param2value")
+	assert.Equal(t, "", bookingURL)
 }
 
 func TestDomainAddRoute(t *testing.T) {

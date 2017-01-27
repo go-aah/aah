@@ -13,11 +13,13 @@ package router
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"net/url"
 	"path"
 	"strings"
 
 	"aahframework.org/aah/ahttp"
+	"aahframework.org/aah/atemplate"
 	"aahframework.org/config"
 	"aahframework.org/essentials"
 	"aahframework.org/log"
@@ -369,90 +371,129 @@ func (d *Domain) Allowed(requestMethod, path string) (allowed string) {
 	return
 }
 
-// Reverse composes reverse URL by route name and key-value pair arguments or
-// zero argument for static URL. If anything goes wrong then method logs
-// error info and returns empty string
-func (d *Domain) Reverse(routeName string, args ...interface{}) string {
+// ReverseURLm composes reverse URL by route name and key-value pair arguments or
+// zero argument for static URL. Additional key-values composed as URL query
+// string. If error occurs then method logs an error and returns empty string.
+func (d *Domain) ReverseURLm(routeName string, args map[string]interface{}) string {
 	route, found := d.routes[routeName]
 	if !found {
 		log.Errorf("route name '%v' not found", routeName)
 		return ""
 	}
 
-	if len(args) > 1 {
-		log.Error("expected no. of arguments is 1 and key-value pair")
-		return ""
-	}
-
-	// routePath := route.Path
 	argsLen := len(args)
 	pathParamCnt := countParams(route.Path)
-	if pathParamCnt == 0 && argsLen == 0 { // static URLs
+	if pathParamCnt == 0 && argsLen == 0 { // static URLs or no path params
 		return route.Path
 	}
 
-	if int(pathParamCnt) != argsLen { // not enough arguments suppiled
+	if argsLen < int(pathParamCnt) { // not enough arguments suppiled
 		log.Errorf("not enough arguments, path: '%v' params count: %v, suppiled values count: %v",
 			route.Path, pathParamCnt, argsLen)
 		return ""
 	}
 
-	keyValues, ok := args[0].(map[string]string)
-	if !ok {
-		log.Error("key-value pair expected")
-		return ""
-	}
-
 	// compose URL with values
 	reverseURL := "/"
-	for _, segment := range strings.Split(route.Path, "/") {
+	for _, segment := range strings.Split(route.Path, "/")[1:] {
 		if ess.IsStrEmpty(segment) {
 			continue
 		}
 
 		if segment[0] == paramByte || segment[0] == wildByte {
 			argName := segment[1:]
-			if arg, found := keyValues[argName]; found {
-				reverseURL = path.Join(reverseURL, arg)
-				delete(keyValues, argName)
+			if arg, found := args[argName]; found {
+				reverseURL = path.Join(reverseURL, fmt.Sprintf("%v", arg))
+				delete(args, argName)
 				continue
 			}
 
 			log.Errorf("'%v' param not found in given map", segment[1:])
 			return ""
 		}
+
 		reverseURL = path.Join(reverseURL, segment)
 	}
 
 	// add remaining params into URL Query parameters, if any
-	if len(keyValues) > 0 {
+	if len(args) > 0 {
 		urlValues := url.Values{}
 
-		for k, v := range keyValues {
-			urlValues.Add(k, v)
+		for k, v := range args {
+			urlValues.Add(k, fmt.Sprintf("%v", v))
 		}
 
 		reverseURL = fmt.Sprintf("%s?%s", reverseURL, urlValues.Encode())
 	}
 
-	return reverseURL
+	rURL, err := url.Parse(reverseURL)
+	if err != nil {
+		log.Error(err)
+		return ""
+	}
+
+	return rURL.String()
 }
 
-func createGlobalRoute(cfg *config.Config, routeName string) (*Route, error) {
-	controller, found := cfg.String(routeName + ".controller")
+// ReverseURL method composes route reverse URL for given route and
+// arguments based on index order. If error occurs then method logs
+// an error and returns empty string.
+func (d *Domain) ReverseURL(routeName string, args ...interface{}) string {
+	route, found := d.routes[routeName]
 	if !found {
-		return nil, fmt.Errorf("'global.%v.controller' key is missing", routeName)
+		log.Errorf("route name '%v' not found", routeName)
+		return ""
 	}
 
-	action, found := cfg.String(routeName + ".action")
-	if !found {
-		return nil, fmt.Errorf("'global.%v.action' key is missing", routeName)
+	argsLen := len(args)
+	pathParamCnt := countParams(route.Path)
+	if pathParamCnt == 0 && argsLen == 0 { // static URLs or no path params
+		return route.Path
 	}
 
-	return &Route{
-		Controller: controller,
-		Action:     action,
-	}, nil
+	// too many arguments
+	if argsLen > int(pathParamCnt) {
+		log.Errorf("too many arguments, path: '%v' params count: %v, suppiled values count: %v",
+			route.Path, pathParamCnt, argsLen)
+		return ""
+	}
+
+	// not enough arguments
+	if argsLen < int(pathParamCnt) {
+		log.Errorf("not enough arguments, path: '%v' params count: %v, suppiled values count: %v",
+			route.Path, pathParamCnt, argsLen)
+		return ""
+	}
+
+	var values []string
+	for _, v := range args {
+		values = append(values, fmt.Sprintf("%v", v))
+	}
+
+	// compose URL with values
+	reverseURL := "/"
+	idx := 0
+	for _, segment := range strings.Split(route.Path, "/") {
+		if ess.IsStrEmpty(segment) {
+			continue
+		}
+
+		if segment[0] == paramByte || segment[0] == wildByte {
+			reverseURL = path.Join(reverseURL, values[idx])
+			idx++
+			continue
+		}
+
+		reverseURL = path.Join(reverseURL, segment)
+	}
+
+	rURL, err := url.Parse(reverseURL)
+	if err != nil {
+		log.Error(err)
+		return ""
+	}
+
+	return rURL.String()
 }
 
 func (d *Domain) key() string {
@@ -531,6 +572,23 @@ func addRegisteredAction(methods map[string]map[string]uint8, route *Route) {
 	}
 }
 
+func createGlobalRoute(cfg *config.Config, routeName string) (*Route, error) {
+	controller, found := cfg.String(routeName + ".controller")
+	if !found {
+		return nil, fmt.Errorf("'global.%v.controller' key is missing", routeName)
+	}
+
+	action, found := cfg.String(routeName + ".action")
+	if !found {
+		return nil, fmt.Errorf("'global.%v.action' key is missing", routeName)
+	}
+
+	return &Route{
+		Controller: controller,
+		Action:     action,
+	}, nil
+}
+
 func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (routes Routes, err error) {
 	for _, routeName := range cfg.Keys() {
 		// getting 'path'
@@ -596,7 +654,7 @@ func parseStaticRoutesSection(cfg *config.Config) (routes Routes, err error) {
 		}
 
 		// path must begin with '/'
-		if routePath[0] != '/' {
+		if routePath[0] != slashByte {
 			err = fmt.Errorf("'static.%v.path' [%v], path must begin with '/'", routeName, routePath)
 			return
 		}
@@ -632,4 +690,23 @@ func parseStaticRoutesSection(cfg *config.Config) (routes Routes, err error) {
 	}
 
 	return
+}
+
+// tmplURL method returns reverse URL by given route name and args.
+// Mapped to Go template func.
+func tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL {
+	if len(args) > 0 {
+		host := viewArgs["Host"].(string)
+		if domain, found := router.domains[host]; found {
+			return template.URL(domain.ReverseURL(args[0].(string), args[1:]...))
+		}
+	}
+	log.Errorf("route not found: %v", args)
+	return template.URL("")
+}
+
+func init() {
+	atemplate.AddTemplateFunc(template.FuncMap{
+		"url": tmplURL,
+	})
 }

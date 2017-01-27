@@ -136,10 +136,16 @@ func (c *Controller) AddViewArg(key string, value interface{}) *Controller {
 	return c
 }
 
-// ReverseURL method returns the URL for given route name and args. If any errors
-// then method logs an error and returns empty string.
+// ReverseURL method returns the URL for given route name and args.
+// See `Domain.ReverseURL` for more information.
 func (c *Controller) ReverseURL(routeName string, args ...interface{}) string {
-	return c.domain.Reverse(routeName, args...)
+	return c.domain.ReverseURL(routeName, args...)
+}
+
+// ReverseURLm method returns the URL for given route name and key-value paris.
+// See `Domain.ReverseURLm` for more information.
+func (c *Controller) ReverseURLm(routeName string, args map[string]interface{}) string {
+	return c.domain.ReverseURLm(routeName, args)
 }
 
 // Msg method returns the i18n value for given key otherwise empty string returned.

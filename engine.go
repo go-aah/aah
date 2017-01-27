@@ -37,6 +37,7 @@ type (
 
 // ServeHTTP method implementation of http.Handler interface.
 func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	// TODO access log
 	c, r := e.getController(), e.getRequest()
 	defer func() {
 		c.close()
