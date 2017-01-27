@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -234,6 +234,14 @@ func ToLocale(a *AcceptSpec) *Locale {
 		Raw:      a.Raw,
 		Language: values[0],
 	}
+}
+
+// NewLocale method returns locale instance for given locale string.
+func NewLocale(value string) *Locale {
+	return ToLocale(
+		&AcceptSpec{
+			Value: value,
+		})
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
