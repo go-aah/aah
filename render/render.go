@@ -54,9 +54,9 @@ type (
 
 	// HTML renders the given HTML into response with given model data.
 	HTML struct {
-		Template     *template.Template
-		TemplateName string
-		ViewArgs     map[string]interface{}
+		Template *template.Template
+		Layout   string
+		ViewArgs map[string]interface{}
 	}
 )
 
@@ -186,9 +186,9 @@ func (h *HTML) Render(w io.Writer) error {
 		return errors.New("template is nil")
 	}
 
-	if ess.IsStrEmpty(h.TemplateName) {
+	if ess.IsStrEmpty(h.Layout) {
 		return h.Template.Execute(w, h.ViewArgs)
 	}
 
-	return h.Template.ExecuteTemplate(w, h.TemplateName, h.ViewArgs)
+	return h.Template.ExecuteTemplate(w, h.Layout, h.ViewArgs)
 }

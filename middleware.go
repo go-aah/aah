@@ -85,6 +85,8 @@ func routerMiddleware(c *Controller, m *Middleware) {
 		}
 
 		c.pathParams = pathParams
+		c.domain = domain
+
 		m.Next(c)
 
 		return
@@ -170,8 +172,8 @@ func templateMiddleware(c *Controller, m *Middleware) {
 
 		htmlRdr := reply.Rdr.(*render.HTML)
 
-		if ess.IsStrEmpty(htmlRdr.TemplateName) {
-			htmlRdr.TemplateName = appDefaultTmplLayout
+		if ess.IsStrEmpty(htmlRdr.Layout) {
+			htmlRdr.Layout = appDefaultTmplLayout
 		}
 
 		if htmlRdr.ViewArgs == nil {
@@ -182,10 +184,19 @@ func templateMiddleware(c *Controller, m *Middleware) {
 			htmlRdr.ViewArgs[k] = v
 		}
 
+		// ViewArgs values from framework
+		htmlRdr.ViewArgs["Host"] = c.Req.Host
+		htmlRdr.ViewArgs["HTTPMethod"] = c.Req.Method
+		htmlRdr.ViewArgs["Locale"] = c.Req.Locale
+		htmlRdr.ViewArgs["ClientIP"] = c.Req.ClientIP
+		htmlRdr.ViewArgs["RequestPath"] = c.Req.Path
+		htmlRdr.ViewArgs["IsJSONP"] = c.Req.IsJSONP
+		htmlRdr.ViewArgs["HTTPReferer"] = c.Req.Referer
+
 		tmplPath := filepath.Join("pages", c.controller)
 		tmplName := c.action.Name + appTemplateExt
 
-		htmlRdr.Template = appTemplateEngine.Get(htmlRdr.TemplateName, tmplPath, tmplName)
+		htmlRdr.Template = appTemplateEngine.Get(htmlRdr.Layout, tmplPath, tmplName)
 		if htmlRdr.Template == nil {
 			tmplFile := filepath.Join("views", "pages", c.controller, tmplName)
 			if !AppConfig().BoolDefault("template.case_sensitive", false) {

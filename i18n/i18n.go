@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -27,12 +27,14 @@ package i18n
 
 import (
 	"fmt"
+	"html/template"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"aahframework.org/aah/ahttp"
+	"aahframework.org/aah/atemplate"
 	"aahframework.org/config"
 	"aahframework.org/essentials"
 	"aahframework.org/log"
@@ -149,4 +151,22 @@ func retriveMsg(store *config.Config, key string, args ...interface{}) string {
 		return msg
 	}
 	return ""
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Template methods
+//___________________________________
+
+// tmplI18n method is mapped to Go template func for resolving i18n values.
+func tmplI18n(viewArgs map[string]interface{}, key string, args ...interface{}) template.HTML {
+	if locale, ok := viewArgs["Locale"].(*ahttp.Locale); ok {
+		return template.HTML(template.HTMLEscapeString(Msg(locale, key, args...)))
+	}
+	return template.HTML("")
+}
+
+func init() {
+	atemplate.AddTemplateFunc(template.FuncMap{
+		"i18n": tmplI18n,
+	})
 }

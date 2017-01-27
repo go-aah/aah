@@ -54,6 +54,9 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// TODO Detailed server access log to separate file later on
 	log.Debugf("Request %s", c.Req.Path)
 
+	// set defaults when actual value not found
+	e.setDefaults(c)
+
 	// Middlewares
 	e.executeMiddlewares(c)
 
@@ -84,6 +87,14 @@ func (e *engine) handleRecovery(c *Controller) {
 		// For "prod", detailed information gets logged
 		c.Reply().Status(http.StatusInternalServerError).Text("Internal Server Error")
 		e.writeResponse(c)
+	}
+}
+
+// setDefaults method sets default value based on aah app configuration
+// when actual value is not found.
+func (e *engine) setDefaults(c *Controller) {
+	if c.Req.Locale == nil {
+		c.Req.Locale = ahttp.NewLocale(appConfig.StringDefault("i18n.default", "en"))
 	}
 }
 

@@ -283,7 +283,7 @@ func TestHTMLReply(t *testing.T) {
 
 	// Not template/layout name
 	buf.Reset()
-	htmlRdr.TemplateName = ""
+	htmlRdr.Layout = ""
 	err = re1.Rdr.Render(buf)
 	assert.Nil(t, err)
 	assert.True(t, ess.IsStrEmpty(buf.String()))

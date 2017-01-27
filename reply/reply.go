@@ -216,8 +216,8 @@ func (r *Reply) HTML(data map[string]interface{}) *Reply {
 // method.
 func (r *Reply) HTMLl(layout string, data map[string]interface{}) *Reply {
 	r.Rdr = &render.HTML{
-		TemplateName: layout,
-		ViewArgs:     data,
+		Layout:   layout,
+		ViewArgs: data,
 	}
 	r.ContentType(ahttp.ContentTypeHTML.Raw())
 	return r

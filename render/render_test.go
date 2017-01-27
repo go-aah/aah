@@ -199,9 +199,9 @@ func TestHTMLRender(t *testing.T) {
 	assert.Nil(t, err)
 
 	htmlRdr := HTML{
-		TemplateName: "master",
-		Template:     tmpl,
-		ViewArgs:     nil,
+		Layout:   "master",
+		Template: tmpl,
+		ViewArgs: nil,
 	}
 
 	var buf bytes.Buffer
@@ -211,14 +211,14 @@ func TestHTMLRender(t *testing.T) {
 	assert.True(t, strings.Contains(buf.String(), "<p>This is test body</p>"))
 
 	buf.Reset()
-	htmlRdr.TemplateName = ""
+	htmlRdr.Layout = ""
 	err = htmlRdr.Render(&buf)
 	assert.Nil(t, err)
 	assert.True(t, ess.IsStrEmpty(buf.String()))
 
 	// Template is Nil
 	htmlTmplNil := HTML{
-		TemplateName: "master",
+		Layout: "master",
 	}
 
 	buf.Reset()

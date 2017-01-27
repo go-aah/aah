@@ -1,4 +1,4 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 //
@@ -517,10 +517,10 @@ func TestTreeInvalidNodeType(t *testing.T) {
 
 	// normal lookup
 	_, _, _, err := tree.find("/test")
-	assert.Equal(t, "invalid node type", err.Error())
+	assert.Equal(t, panicMsg, err.Error())
 
 	_, _, err = tree.findCaseInsensitive("/test", true)
-	assert.Equal(t, "invalid node type", err.Error())
+	assert.Equal(t, panicMsg, err.Error())
 }
 
 func checkRequests(t *testing.T, tree *node, requests testRequests) {

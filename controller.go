@@ -6,12 +6,17 @@ package aah
 
 import (
 	"errors"
+	"fmt"
+	"html/template"
 	"reflect"
 	"strings"
 
 	"aahframework.org/aah/ahttp"
+	"aahframework.org/aah/atemplate"
+	"aahframework.org/aah/i18n"
 	"aahframework.org/aah/reply"
 	"aahframework.org/aah/router"
+	"aahframework.org/log"
 )
 
 const (
@@ -36,14 +41,15 @@ type (
 		// Req is HTTP request instance
 		Req *ahttp.Request
 
-		// Res is HTTP response writer. Not recommended to use this directly.
-		// Instead use `Reply()` builder for composing response.
+		// Res is HTTP response writer. It is recommended to use
+		// `Reply()` builder for composing response.
 		Res ahttp.ResponseWriter
 
 		controller string
 		action     *MethodInfo
 		pathParams *router.PathParams
 		target     interface{}
+		domain     *router.Domain
 		reply      *reply.Reply
 		viewArgs   map[string]interface{}
 	}
@@ -130,17 +136,39 @@ func (c *Controller) AddViewArg(key string, value interface{}) *Controller {
 	return c
 }
 
+// ReverseURL method returns the URL for given route name and args. If any errors
+// then method logs an error and returns empty string.
+func (c *Controller) ReverseURL(routeName string, args ...interface{}) string {
+	return c.domain.Reverse(routeName, args...)
+}
+
+// Msg method returns the i18n value for given key otherwise empty string returned.
+func (c *Controller) Msg(key string, args ...interface{}) string {
+	return i18n.Msg(c.Req.Locale, key, args...)
+}
+
+// Msgl method returns the i18n value for given local and key otherwise
+// empty string returned.
+func (c *Controller) Msgl(locale *ahttp.Locale, key string, args ...interface{}) string {
+	return i18n.Msg(locale, key, args...)
+}
+
 // Reset method resets controller instance for reuse.
 func (c *Controller) Reset() {
 	c.Req = nil
 	c.Res = nil
 	c.target = nil
+	c.domain = nil
 	c.controller = ""
 	c.action = nil
 	c.pathParams = nil
 	c.reply = nil
 	c.viewArgs = nil
 }
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Controller Unexported methods
+//___________________________________
 
 // setTarget method sets contoller, action, embedded controller into
 // controller
@@ -266,4 +294,23 @@ func findEmbeddedController(controllerType reflect.Type) [][]int {
 	}
 
 	return indexes
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Template methods
+//___________________________________
+
+// tmplConfig method provides access to application config on templates.
+func tmplConfig(key string) template.HTML {
+	if value, found := appConfig.Get(key); found {
+		return template.HTML(template.HTMLEscapeString(fmt.Sprintf("%v", value)))
+	}
+	log.Errorf("app config key not found: %v", key)
+	return template.HTML("")
+}
+
+func init() {
+	atemplate.AddTemplateFunc(template.FuncMap{
+		"config": tmplConfig,
+	})
 }
