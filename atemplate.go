@@ -17,7 +17,8 @@ import (
 )
 
 var (
-	templateFuncMap = make(template.FuncMap)
+	// TemplateFuncMap aah framework Go template function map.
+	TemplateFuncMap = make(template.FuncMap)
 
 	// TemplateEngine must comply TemplateEnginer
 	_ TemplateEnginer = &TemplateEngine{}
@@ -54,7 +55,7 @@ type (
 // AddTemplateFunc method adds given Go template funcs into function map.
 func AddTemplateFunc(funcMap template.FuncMap) {
 	for fname, funcImpl := range funcMap {
-		templateFuncMap[fname] = funcImpl
+		TemplateFuncMap[fname] = funcImpl
 	}
 }
 
@@ -177,7 +178,7 @@ func (te *TemplateEngine) processTemplates(layouts map[string]string, pageDirs [
 
 			// create key and init template with funcs
 			dirKey := te.DirKey(dir)
-			tmpl := template.New(dirKey).Funcs(templateFuncMap)
+			tmpl := template.New(dirKey).Funcs(TemplateFuncMap)
 
 			// Set custom delimiters from aah.conf
 			if te.appConfig.IsExists("template.delimiters") {
