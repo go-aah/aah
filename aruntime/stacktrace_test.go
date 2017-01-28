@@ -50,12 +50,26 @@ func TestNewStacktrace(t *testing.T) {
 	assert.NotNil(t, strace)
 }
 
+func TestFallbackBufSizeStacktrace(t *testing.T) {
+	cfg, _ := config.ParseString(`
+    runtime {
+			debug {
+				stack_buffer_size = "4"
+				all_goroutines = true
+			}
+    }
+  `)
+	strace := NewStacktrace("testing", cfg)
+
+	assert.NotNil(t, strace)
+}
+
 func TestNewFullStacktrace(t *testing.T) {
 	cfg, _ := config.ParseString(`
     runtime {
 			debug {
 				all_goroutines = true
-			}      
+			}
     }
   `)
 
