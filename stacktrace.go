@@ -16,6 +16,7 @@ import (
 
 	"aahframework.org/config"
 	"aahframework.org/essentials"
+	"aahframework.org/log"
 )
 
 const (
@@ -57,7 +58,15 @@ func NewStacktrace(r interface{}, appCfg *config.Config) *Stacktrace {
 	}
 
 	if appCfg.BoolDefault("runtime.debug.all_goroutines", false) {
-		buf := make([]byte, 2<<20) // TODO implement config size instead of hardcode 2mb
+		bufCfgSize := appCfg.StringDefault("runtime.debug.stack_buffer_size", "2mb")
+		bufSize, err := ess.StrToBytes(bufCfgSize)
+		if err != nil {
+			log.Errorf("unable to parse 'runtime.debug.stack_buffer_size' value: %s, "+
+				"fallback to default value", bufCfgSize)
+			bufSize = 2 << 20 // default fallback size is 2mb
+		}
+
+		buf := make([]byte, bufSize)
 		length := runtime.Stack(buf, true)
 		if length < len(buf) {
 			buf = buf[:length]
