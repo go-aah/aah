@@ -150,17 +150,12 @@ func Load(configPath string) (err error) {
 		if domainCfg.IsExists("global") {
 			globalCfg, _ := domainCfg.GetSubConfig("global")
 
-			domain.catchAll = globalCfg.BoolDefault("catch_all", true)
 			domain.MethodNotAllowed = globalCfg.BoolDefault("method_not_allowed", true)
 			domain.RedirectTrailingSlash = globalCfg.BoolDefault("redirect_trailing_slash", true)
 			domain.AutoOptions = globalCfg.BoolDefault("auto_options", true)
 			log.Tracef("Domain global config "+
-				"[catchAll: %v, methodNotAllowed: %v, redirectTrailingSlash: %v, autoOptions]",
-				domain.catchAll, domain.MethodNotAllowed, domain.RedirectTrailingSlash, domain.AutoOptions)
-
-			if domain.catchAll {
-				domain.addCatchAllRoutes()
-			}
+				"[methodNotAllowed: %v, redirectTrailingSlash: %v, autoOptions]",
+				domain.MethodNotAllowed, domain.RedirectTrailingSlash, domain.AutoOptions)
 
 			// not found route
 			if globalCfg.IsExists("not_found") {
@@ -518,10 +513,6 @@ func (d *Domain) addRoute(route *Route) error {
 	return nil
 }
 
-func (d *Domain) addCatchAllRoutes() {
-	// TODO implement CatchAllRoutes
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Route methods
 //___________________________________
@@ -540,7 +531,7 @@ func (r *Route) IsFile() bool {
 // Path Param methods
 //___________________________________
 
-// Get returns the value of the first Path Param which key matches the
+// Get method returns the value of the first Path Param which key matches the
 // given name. Otherwise an empty string is returned.
 func (pp PathParams) Get(name string) string {
 	for _, p := range pp {
@@ -549,6 +540,11 @@ func (pp PathParams) Get(name string) string {
 		}
 	}
 	return ""
+}
+
+// Len method returns number key values in the path params
+func (pp PathParams) Len() int {
+	return len(pp)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
