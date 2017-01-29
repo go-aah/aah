@@ -5,6 +5,8 @@
 package ahttp
 
 import (
+	"fmt"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,54 +17,74 @@ import (
 
 const jsonpReqParamKey = "callback"
 
-// Request is extends `http.Request` for aah framework
-type Request struct {
-	// Host value of the HTTP 'Host' header (e.g. 'example.com:8080').
-	Host string
+type (
+	// Request is extends `http.Request` for aah framework
+	Request struct {
+		// Host value of the HTTP 'Host' header (e.g. 'example.com:8080').
+		Host string
 
-	// Method request method e.g. GET, POST, etc.
-	Method string
+		// Method request method e.g. `GET`, `POST`, etc.
+		Method string
 
-	// Path the request URL Path e.g. /booking/hotel.html.
-	Path string
+		// Path the request URL Path e.g. `/booking/hotel.html`.
+		Path string
 
-	// Header request HTTP headers
-	Header http.Header
+		// Header request HTTP headers
+		Header http.Header
 
-	// ContentType the parsed HTTP header 'Content-Type'.
-	ContentType *ContentType
+		// Payload holds the value from HTTP request for `Content-Type`
+		// JSON and XML.
+		Payload string
 
-	// AcceptContentType negotiated value from HTTP Header `Accept`.
-	// The resolve order is-
-	// 1) URL extension
-	// 2) Accept header.
-	// Most quailfied one based on quality factor otherwise default is HTML.
-	AcceptContentType *ContentType
+		// ContentType the parsed HTTP header `Content-Type`.
+		ContentType *ContentType
 
-	// AcceptEncoding negotiated value from HTTP Header the `Accept-Encoding`
-	// Most quailfied one based on quality factor.
-	AcceptEncoding AcceptSpec
+		// AcceptContentType negotiated value from HTTP Header `Accept`.
+		// The resolve order is-
+		// 1) URL extension
+		// 2) Accept header.
+		// Most quailfied one based on quality factor otherwise default is HTML.
+		AcceptContentType *ContentType
 
-	// Params contains values from Query string and request body. POST, PUT
-	// and PATCH body parameters take precedence over URL query string values.
-	Params url.Values
+		// AcceptEncoding negotiated value from HTTP Header the `Accept-Encoding`
+		// Most quailfied one based on quality factor.
+		AcceptEncoding AcceptSpec
 
-	// Referer value of the HTTP 'Referrer' (or 'Referer') header.
-	Referer string
+		// Params contains values from Path, Query, Form and File.
+		Params *Params
 
-	// ClientIP remote client IP address.
-	ClientIP string
+		// Referer value of the HTTP 'Referrer' (or 'Referer') header.
+		Referer string
 
-	// Locale negotiated value from HTTP Header `Accept-Language`.
-	Locale *Locale
+		// UserAgent value of the HTTP 'User-Agent' header.
+		UserAgent string
 
-	// IsJSONP is true if request query string has "callback=function_name".
-	IsJSONP bool
+		// ClientIP remote client IP address.
+		ClientIP string
 
-	// Raw an object that Go HTTP server provied, Direct interaction with
-	// raw object is not encouraged.
-	Raw *http.Request
-}
+		// Locale negotiated value from HTTP Header `Accept-Language`.
+		Locale *Locale
+
+		// IsJSONP is true if request query string has "callback=function_name".
+		IsJSONP bool
+
+		// Raw an object that Go HTTP server provied, Direct interaction with
+		// raw object is not encouraged.
+		Raw *http.Request
+	}
+
+	// Params structure holds value of Path, Query, Form and File.
+	Params struct {
+		Path  map[string]string
+		Query url.Values
+		Form  url.Values
+		File  map[string][]*multipart.FileHeader
+	}
+)
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Global methods
+//___________________________________
 
 // ParseRequest method populates the given aah framework `ahttp.Request`
 // instance from Go HTTP request.
@@ -73,8 +95,9 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 	req.Header = r.Header
 	req.ContentType = ParseContentType(r)
 	req.AcceptContentType = NegotiateContentType(r)
-	req.Params = url.Values{}
+	req.Params = &Params{Query: r.URL.Query()}
 	req.Referer = getReferer(r.Header)
+	req.UserAgent = r.Header.Get(HeaderUserAgent)
 	req.ClientIP = ClientIP(r)
 	req.Locale = NegotiateLocale(r)
 	req.IsJSONP = isJSONPReqeust(r)
@@ -83,6 +106,10 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 	return req
 }
 
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Request methods
+//___________________________________
+
 // Reset method resets request instance for reuse.
 func (r *Request) Reset() {
 	r.Header = nil
@@ -90,10 +117,71 @@ func (r *Request) Reset() {
 	r.AcceptContentType = nil
 	r.Params = nil
 	r.Referer = ""
+	r.UserAgent = ""
 	r.ClientIP = ""
 	r.Locale = nil
 	r.IsJSONP = false
 	r.Raw = nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Params methods
+//___________________________________
+
+// PathValue method return value for given Path param key otherwise empty string.
+func (p *Params) PathValue(key string) string {
+	if p.Path != nil {
+		if value, found := p.Path[key]; found {
+			return value
+		}
+	}
+	return ""
+}
+
+// QueryValue method return value for given query (aka URL) param key
+// otherwise empty string.
+func (p *Params) QueryValue(key string) string {
+	return p.Query.Get(key)
+}
+
+// QueryArrayValue method return array value for given query (aka URL)
+// param key otherwise empty string.
+func (p *Params) QueryArrayValue(key string) []string {
+	if values, found := p.Query[key]; found {
+		return values
+	}
+	return []string{}
+}
+
+// FormValue methos returns value for given form key otherwise empty string.
+func (p *Params) FormValue(key string) string {
+	if p.Form != nil {
+		return p.Form.Get(key)
+	}
+	return ""
+}
+
+// FormArrayValue methos returns value for given form key otherwise empty string.
+func (p *Params) FormArrayValue(key string) []string {
+	if p.Form != nil {
+		if values, found := p.Form[key]; found {
+			return values
+		}
+	}
+	return []string{}
+}
+
+// FormFile method returns the first file for the provided form key otherwise
+// returns error. It is caller responsibility to close the file.
+func (p *Params) FormFile(key string) (multipart.File, *multipart.FileHeader, error) {
+	if p.File != nil {
+		if fh := p.File[key]; len(fh) > 0 {
+			f, err := fh[0].Open()
+			return f, fh[0], err
+		}
+		return nil, nil, fmt.Errorf("error file is missing: %s", key)
+	}
+	return nil, nil, nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

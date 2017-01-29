@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"reflect"
@@ -39,9 +40,14 @@ type (
 
 // Middlewares method adds given middleware into middleware stack
 func Middlewares(middlewares ...MiddlewareType) {
-	mwStack = mwStack[:len(mwStack)-2]
+	mwStack = mwStack[:len(mwStack)-3]
 	mwStack = append(mwStack, middlewares...)
-	mwStack = append(mwStack, templateMiddleware, actionMiddleware)
+	mwStack = append(
+		mwStack,
+		templateMiddleware,
+		interceptorMiddleware,
+		actionMiddleware,
+	)
 
 	invalidateMwChain()
 }
@@ -71,6 +77,8 @@ func routerMiddleware(c *Controller, m *Middleware) {
 	}
 
 	route, pathParams, rts := domain.Lookup(c.Req)
+	log.Tracef("Route: %#v, Path Params: %v, rts: %v ", route, pathParams, rts)
+
 	if route != nil { // route found
 		if route.IsStatic {
 			if err := serveStatic(c, route, pathParams); err == errFileNotFound {
@@ -84,7 +92,14 @@ func routerMiddleware(c *Controller, m *Middleware) {
 			return
 		}
 
-		c.pathParams = pathParams
+		// Path parameters
+		if pathParams.Len() > 0 {
+			c.Req.Params.Path = make(map[string]string, pathParams.Len())
+			for _, v := range *pathParams {
+				c.Req.Params.Path[v.Key] = v.Value
+			}
+		}
+
 		c.domain = domain
 
 		m.Next(c)
@@ -137,8 +152,49 @@ func routerMiddleware(c *Controller, m *Middleware) {
 // parameters (query string and payload) stores into controller. Query string
 // parameters made available in render context.
 func paramsMiddleware(c *Controller, m *Middleware) {
+	req := c.Req.Raw
 
-	// TODO implement params parsing
+	if c.Req.Method != ahttp.MethodGet {
+		contentType := c.Req.ContentType.Mime
+		log.Debugf("request content type: %s", contentType)
+
+		switch contentType {
+		case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeXML.Mime:
+			if payloadBytes, err := ioutil.ReadAll(req.Body); err == nil {
+				c.Req.Payload = string(payloadBytes)
+			} else {
+				log.Errorf("unable to read request body for '%s': %s", contentType, err)
+			}
+		case ahttp.ContentTypeForm.Mime:
+			if err := req.ParseForm(); err == nil {
+				c.Req.Params.Form = req.Form
+			} else {
+				log.Errorf("unable to parse form: %s", err)
+			}
+		case ahttp.ContentTypeMultipartForm.Mime:
+			if isMultipartEnabled {
+				if err := req.ParseMultipartForm(appMultipartMaxMemory); err == nil {
+					c.Req.Params.Form = req.MultipartForm.Value
+					c.Req.Params.File = req.MultipartForm.File
+				} else {
+					log.Errorf("unable to parse multipart form: %s", err)
+				}
+			} else {
+				log.Warn("multipart processing is disabled in aah.conf")
+			}
+		} // switch end
+
+		// clean up
+		defer func(r *http.Request) {
+			if r.MultipartForm != nil {
+				log.Debug("multipart form file clean up")
+				if err := r.MultipartForm.RemoveAll(); err != nil {
+					log.Error(err)
+				}
+			}
+		}(req)
+	}
+
 	m.Next(c)
 
 }
@@ -209,12 +265,12 @@ func templateMiddleware(c *Controller, m *Middleware) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Action middleware
+// Interceptor middleware
 //___________________________________
 
-// ActionMiddleware calls the requested action on controller and calls
-// pre-defined actions (Before, After, Panic, Finally) from controller.
-func actionMiddleware(c *Controller, m *Middleware) {
+// interceptorMiddleware calls pre-defined actions (Before, After, Panic,
+// Finally) from controller.
+func interceptorMiddleware(c *Controller, m *Middleware) {
 	target := reflect.ValueOf(c.target)
 
 	// Finally action
@@ -244,7 +300,24 @@ func actionMiddleware(c *Controller, m *Middleware) {
 		beforeAction.Call(emptyArg)
 	}
 
+	m.Next(c)
+
+	// After action
+	if afterAction := target.MethodByName(incpAfterActionName); afterAction.IsValid() {
+		log.Debugf("Calling after interceptor on controller: %s", c.controller)
+		afterAction.Call(emptyArg)
+	}
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Action middleware
+//___________________________________
+
+// ActionMiddleware calls the requested action on controller
+func actionMiddleware(c *Controller, m *Middleware) {
+	target := reflect.ValueOf(c.target)
 	action := target.MethodByName(c.action.Name)
+
 	if action.IsValid() {
 		actionArgs := make([]reflect.Value, len(c.action.Parameters))
 
@@ -258,11 +331,6 @@ func actionMiddleware(c *Controller, m *Middleware) {
 		}
 	}
 
-	// After action
-	if afterAction := target.MethodByName(incpAfterActionName); afterAction.IsValid() {
-		log.Debugf("Calling after interceptor on controller: %s", c.controller)
-		afterAction.Call(emptyArg)
-	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -290,6 +358,7 @@ func init() {
 		routerMiddleware,
 		paramsMiddleware,
 		templateMiddleware,
+		interceptorMiddleware,
 		actionMiddleware,
 	)
 

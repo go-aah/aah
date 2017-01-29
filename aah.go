@@ -33,21 +33,23 @@ const Version = "0.1"
 
 // aah application variables
 var (
-	appName             string
-	appImportPath       string
-	appProfile          string
-	appBaseDir          string
-	appIsPackaged       bool
-	appConfig           *config.Config
-	appHTTPReadTimeout  time.Duration
-	appHTTPWriteTimeout time.Duration
-	appSSLCert          string
-	appSSLKey           string
-	appTemplateEngine   atemplate.TemplateEnginer
-	appTemplateExt      string
+	appName               string
+	appImportPath         string
+	appProfile            string
+	appBaseDir            string
+	appIsPackaged         bool
+	appConfig             *config.Config
+	appHTTPReadTimeout    time.Duration
+	appHTTPWriteTimeout   time.Duration
+	appSSLCert            string
+	appSSLKey             string
+	appMultipartMaxMemory int64
+	appTemplateEngine     atemplate.TemplateEnginer
+	appTemplateExt        string
 
-	appInitialized    bool
-	isExternalTmplEng bool
+	appInitialized     bool
+	isExternalTmplEng  bool
+	isMultipartEnabled bool
 
 	goPath   string
 	goSrcDir string
@@ -384,6 +386,13 @@ func initAppVariables() error {
 	render.Init(AppConfig())
 
 	appTemplateExt = AppConfig().StringDefault("template.ext", ".html")
+
+	multipartMemoryStr := AppConfig().StringDefault("render.multipart.size", "32mb")
+	if appMultipartMaxMemory, err = ess.StrToBytes(multipartMemoryStr); err != nil {
+		return err
+	}
+
+	isMultipartEnabled = AppConfig().BoolDefault("render.multipart.enable", true)
 
 	return nil
 }

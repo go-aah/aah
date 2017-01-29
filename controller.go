@@ -47,7 +47,6 @@ type (
 
 		controller string
 		action     *MethodInfo
-		pathParams *router.PathParams
 		target     interface{}
 		domain     *router.Domain
 		reply      *reply.Reply
@@ -117,18 +116,6 @@ func (c *Controller) ViewArgs() map[string]interface{} {
 	return c.viewArgs
 }
 
-// GetPathParam method returns the URL path param value.
-// 		Example:
-// 			Mapping: /users/:userId
-// 			URL: /users/1000001
-//
-// 		userId := c.GetPathParam("userId")
-// 		userId == 1000001
-//
-func (c *Controller) GetPathParam(name string) string {
-	return c.pathParams.Get(name)
-}
-
 // AddViewArg method adds given key and value into `viewArgs`. These view args
 // values accessible on templates. Chained call is possible.
 func (c *Controller) AddViewArg(key string, value interface{}) *Controller {
@@ -167,7 +154,6 @@ func (c *Controller) Reset() {
 	c.domain = nil
 	c.controller = ""
 	c.action = nil
-	c.pathParams = nil
 	c.reply = nil
 	c.viewArgs = nil
 }
