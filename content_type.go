@@ -37,6 +37,16 @@ var (
 		},
 	}
 
+	// ContentTypeMultipartForm form data and File.
+	ContentTypeMultipartForm = &ContentType{
+		Mime: "multipart/form-data",
+	}
+
+	// ContentTypeForm form data type.
+	ContentTypeForm = &ContentType{
+		Mime: "application/x-www-form-urlencoded",
+	}
+
 	// ContentTypePlainText content type.
 	ContentTypePlainText = &ContentType{
 		Mime: "text/plain",
