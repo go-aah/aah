@@ -25,7 +25,7 @@ func TestNoDirDisplay(t *testing.T) {
 
 	f2, err2 := fs.Open("dir1")
 	assert.Nil(t, f2)
-	assert.Equal(t, "file does not exist", err2.Error())
+	assert.Equal(t, "directory listing not allowed", err2.Error())
 
 	f3, err3 := fs.Open("file11.txt")
 	assert.Nil(t, f3)
