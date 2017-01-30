@@ -7,14 +7,17 @@ package aah
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"net/http"
+	"path"
+	"path/filepath"
 	"reflect"
+	"os"
 
 	"aahframework.org/aah/ahttp"
 	"aahframework.org/aah/aruntime"
 	"aahframework.org/aah/reply"
 	"aahframework.org/aah/router"
+	"aahframework.org/essentials"
 	"aahframework.org/log"
 	"aahframework.org/pool"
 )
@@ -107,6 +110,10 @@ func (e *engine) executeMiddlewares(c *Controller) {
 // writeResponse method writes the response on the wire based on `Reply` values.
 func (e *engine) writeResponse(c *Controller) {
 	reply := c.Reply()
+	if reply.Done {
+		return
+	}
+
 	buf := e.getBuffer()
 	defer e.putBuffer(buf)
 
@@ -200,12 +207,65 @@ func (e *engine) putBuffer(b *bytes.Buffer) {
 
 // serveStatic method static file/directory delivery.
 func serveStatic(c *Controller, route *router.Route, pathParams *router.PathParams) error {
+	var fileabs string
+	if route.IsDir() {
+		fileabs = filepath.Join(AppBaseDir(), route.Dir, filepath.FromSlash(pathParams.Get("filepath")))
+	} else {
+		fileabs = filepath.Join(AppBaseDir(), "static", filepath.FromSlash(route.File))
+	}
 
-	fmt.Println("Static route:", route, pathParams)
+	dir, file := filepath.Split(fileabs)
+	log.Tracef("Dir: %s, File: %s", dir, file)
 
-	// TODO static serve implementation
+	fs := ahttp.Dir(dir, route.ListDir)
+	res := c.Res
+	req := c.Req
+	c.Reply().SetDone()
 
-	return errFileNotFound
+	f, err := fs.Open(file)
+	if err != nil {
+		if err == ahttp.ErrDirListNotAllowed {
+			log.Warnf("directory listing not allowed: %s", req.Path)
+			res.WriteHeader(http.StatusForbidden)
+			_, _ = res.Write([]byte("403 Directory listing not allowed"))
+			return nil
+		} else if os.IsNotExist(err) {
+			log.Errorf("file not found: %s", req.Path)
+			return errFileNotFound
+		} else if os.IsPermission(err) {
+			log.Warnf("permission issue: %s", req.Path)
+			res.WriteHeader(http.StatusForbidden)
+			_, _ = res.Write([]byte("403 Forbidden"))
+			return nil
+		}
+		res.WriteHeader(http.StatusInternalServerError)
+		_, _ = res.Write([]byte("Internal Server Error"))
+		return nil
+	}
+	defer ess.CloseQuietly(f)
+
+	fi, err := f.Stat()
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		_, _ = res.Write([]byte("Internal Server Error"))
+		return nil
+	}
+
+	if fi.IsDir() {
+		// redirect if the directory name doesn't end in a slash
+		if req.Path[len(req.Path)-1] != '/' {
+			log.Debugf("redirecting to dir: %s", req.Path+"/")
+			http.Redirect(res, req.Raw, path.Base(req.Path)+"/", http.StatusFound)
+			return nil
+		}
+
+		// TODO list files for dir
+
+		return nil
+	}
+
+	http.ServeContent(res, req.Raw, file, fi.ModTime(), f)
+	return nil
 }
 
 // handleNotFound method is used for 1. route action not found, 2. route is

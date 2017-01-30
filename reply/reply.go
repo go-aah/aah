@@ -19,6 +19,7 @@ type Reply struct {
 	ContType string
 	Hdr      http.Header
 	Rdr      render.Render
+	Done     bool
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -269,6 +270,13 @@ func (r *Reply) IsContentTypeSet() bool {
 // otherwise false.
 func (r *Reply) IsStatusSet() bool {
 	return r.Code != 0
+}
+
+// SetDone method sets Done field to true. It means you have written response
+// and instructing aah framework not to process response.
+func (r *Reply) SetDone() *Reply {
+	r.Done = true
+	return r
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

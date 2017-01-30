@@ -5,10 +5,14 @@
 package ahttp
 
 import (
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
 )
+
+// ErrDirListNotAllowed error is used for directory listing not allowed
+var ErrDirListNotAllowed = errors.New("directory listing not allowed")
 
 // FileOnlyFilesystem extends/wraps `http.FileSystem` to disable directory listing
 // functionality
@@ -45,7 +49,7 @@ func (fs FileOnlyFilesystem) Open(name string) (http.File, error) {
 	}
 
 	if stat.IsDir() {
-		return nil, os.ErrNotExist
+		return nil, ErrDirListNotAllowed
 	}
 
 	file, err := fs.Fs.Open(name)

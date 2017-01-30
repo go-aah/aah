@@ -225,9 +225,7 @@ func TestBytesReply(t *testing.T) {
 
 func TestAttachmentFileReply(t *testing.T) {
 	f1, _ := os.Open(getFilepath("file1.txt"))
-	defer func() {
-		_ = f1.Close()
-	}()
+	defer ess.CloseQuietly(f1)
 
 	buf, re1 := getBufferAndReply()
 	re1.File("sample.txt", f1)
@@ -242,9 +240,8 @@ Each incoming request passes through a pre-defined list of steps
 	buf.Reset()
 
 	f2, _ := os.Open(getFilepath("file1.txt"))
-	defer func() {
-		_ = f2.Close()
-	}()
+	defer ess.CloseQuietly(f2)
+
 	re2 := &Reply{Hdr: http.Header{}}
 	re2.FileInline("sample.txt", f2)
 

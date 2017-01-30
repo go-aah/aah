@@ -10,6 +10,8 @@ import (
 	"io"
 	"net"
 	"net/http"
+
+	"aahframework.org/essentials"
 )
 
 type (
@@ -106,9 +108,7 @@ func (r *Response) BytesWritten() int {
 
 // Close method closes the writer if possible.
 func (r *Response) Close() {
-	if c, ok := r.w.(io.Closer); ok {
-		_ = c.Close()
-	}
+	ess.CloseQuietly(r.w)
 }
 
 // Unwrap method returns the underlying `ResponseWriter`

@@ -168,10 +168,7 @@ func (b *Bytes) Render(w io.Writer) error {
 
 // Render method writes File to HTTP response.
 func (f *File) Render(w io.Writer) error {
-	defer func() {
-		_ = f.Data.Close()
-	}()
-
+	defer ess.CloseQuietly(f.Data)
 	_, err := io.Copy(w, f.Data)
 	return err
 }

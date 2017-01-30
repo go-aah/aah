@@ -170,9 +170,7 @@ func TestBytesRender(t *testing.T) {
 
 func TestFileRender(t *testing.T) {
 	f, _ := os.Open(getRenderFilepath("file1.txt"))
-	defer func() {
-		_ = f.Close()
-	}()
+	defer ess.CloseQuietly(f)
 
 	buf := &bytes.Buffer{}
 	file1 := File{Data: f}
