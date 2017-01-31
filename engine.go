@@ -7,14 +7,18 @@ package aah
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net/http"
+	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"reflect"
-	"os"
+	"sort"
 
 	"aahframework.org/aah/ahttp"
 	"aahframework.org/aah/aruntime"
+	"aahframework.org/aah/atemplate"
 	"aahframework.org/aah/reply"
 	"aahframework.org/aah/router"
 	"aahframework.org/essentials"
@@ -32,6 +36,8 @@ type (
 		rPool *pool.Pool
 		bPool *pool.Pool
 	}
+
+	byName []os.FileInfo
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -238,6 +244,7 @@ func serveStatic(c *Controller, route *router.Route, pathParams *router.PathPara
 			_, _ = res.Write([]byte("403 Forbidden"))
 			return nil
 		}
+
 		res.WriteHeader(http.StatusInternalServerError)
 		_, _ = res.Write([]byte("Internal Server Error"))
 		return nil
@@ -259,8 +266,7 @@ func serveStatic(c *Controller, route *router.Route, pathParams *router.PathPara
 			return nil
 		}
 
-		// TODO list files for dir
-
+		directoryList(res, req, f)
 		return nil
 	}
 
@@ -306,6 +312,42 @@ func redirectTrailingSlash(c *Controller) {
 	http.Redirect(c.Res, req, req.URL.String(), code)
 }
 
+func directoryList(res ahttp.ResponseWriter, req *ahttp.Request, f http.File) {
+	dirs, err := f.Readdir(-1)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		_, _ = res.Write([]byte("Error reading directory"))
+		return
+	}
+	sort.Sort(byName(dirs))
+
+	res.Header().Set(ahttp.HeaderContentType, ahttp.ContentTypeHTML.Raw())
+	fmt.Fprintf(res, "<html>\n")
+	fmt.Fprintf(res, "<head><title>Listing of %s</title></head>\n", req.Path)
+	fmt.Fprintf(res, "<body bgcolor=\"white\">\n")
+	fmt.Fprintf(res, "<h1>Listing of %s</h1><hr>\n", req.Path)
+	fmt.Fprintf(res, "<pre><table border=\"0\">\n")
+	fmt.Fprintf(res, "<tr><td collapse=\"2\"><a href=\"../\">../</a></td></tr>\n")
+	for _, d := range dirs {
+		name := d.Name()
+		if d.IsDir() {
+			name += "/"
+		}
+		// name may contain '?' or '#', which must be escaped to remain
+		// part of the URL path, and not indicate the start of a query
+		// string or fragment.
+		url := url.URL{Path: name}
+		fmt.Fprintf(res, "<tr><td><a href=\"%s\">%s</a></td><td width=\"200px\" align=\"right\">%s</td></tr>\n",
+			url.String(),
+			atemplate.HTMLEscape(name),
+			d.ModTime().Format(appDefaultDateTimeFormat),
+		)
+	}
+	fmt.Fprintf(res, "</table></pre>\n")
+	fmt.Fprintf(res, "<hr></body>\n")
+	fmt.Fprintf(res, "</html>\n")
+}
+
 func newEngine() *engine {
 	// TODO provide config for pool size
 	return &engine{
@@ -320,3 +362,9 @@ func newEngine() *engine {
 		}),
 	}
 }
+
+// Sort interface
+
+func (s byName) Len() int           { return len(s) }
+func (s byName) Less(i, j int) bool { return s[i].Name() < s[j].Name() }
+func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

@@ -22,6 +22,16 @@ var (
 
 	// TemplateEngine must comply TemplateEnginer
 	_ TemplateEnginer = &TemplateEngine{}
+
+	htmlReplacer = strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		// "&#34;" is shorter than "&quot;".
+		`"`, "&#34;",
+		// "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
+		"'", "&#39;",
+	)
 )
 
 type (
@@ -57,6 +67,12 @@ func AddTemplateFunc(funcMap template.FuncMap) {
 	for fname, funcImpl := range funcMap {
 		TemplateFuncMap[fname] = funcImpl
 	}
+}
+
+// HTMLEscape method escapes following characters to HTML codes & ==> &amp;,
+// < ==> &lt;, > ==> &gt;, " ==> &#34;, ' ==> &#39;
+func HTMLEscape(str string) string {
+	return htmlReplacer.Replace(str)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
