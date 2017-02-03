@@ -221,9 +221,9 @@ func templateMiddleware(c *Controller, m *Middleware) {
 	}
 
 	// HTML response
-	if AppMode() == appModeWeb {
+	if AppMode() == appModeWeb && ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
 		if reply.Rdr == nil {
-			reply.Rdr = &render.HTML{Layout: "master"}
+			reply.Rdr = &render.HTML{}
 		}
 
 		htmlRdr := reply.Rdr.(*render.HTML)
