@@ -33,19 +33,20 @@ const Version = "0.1"
 
 // aah application variables
 var (
-	appName               string
-	appImportPath         string
-	appProfile            string
-	appBaseDir            string
-	appIsPackaged         bool
-	appConfig             *config.Config
-	appHTTPReadTimeout    time.Duration
-	appHTTPWriteTimeout   time.Duration
-	appSSLCert            string
-	appSSLKey             string
-	appMultipartMaxMemory int64
-	appTemplateEngine     atemplate.TemplateEnginer
-	appTemplateExt        string
+	appName                  string
+	appImportPath            string
+	appProfile               string
+	appBaseDir               string
+	appIsPackaged            bool
+	appConfig                *config.Config
+	appHTTPReadTimeout       time.Duration
+	appHTTPWriteTimeout      time.Duration
+	appSSLCert               string
+	appSSLKey                string
+	appMultipartMaxMemory    int64
+	appTemplateEngine        atemplate.TemplateEnginer
+	appTemplateExt           string
+	appTemplateCaseSensitive bool
 
 	appInitialized     bool
 	isExternalTmplEng  bool
@@ -393,6 +394,8 @@ func initAppVariables() error {
 	}
 
 	isMultipartEnabled = AppConfig().BoolDefault("render.multipart.enable", true)
+
+	appTemplateCaseSensitive = AppConfig().BoolDefault("template.case_sensitive", false)
 
 	return nil
 }

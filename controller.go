@@ -20,6 +20,9 @@ import (
 )
 
 const (
+	controllerNameSuffix    = "Controller"
+	controllerNameSuffixLen = len(controllerNameSuffix)
+
 	// Interceptor Action Name
 	incpBeforeActionName  = "Before"
 	incpAfterActionName   = "After"

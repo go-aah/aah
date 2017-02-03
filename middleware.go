@@ -221,9 +221,9 @@ func templateMiddleware(c *Controller, m *Middleware) {
 	}
 
 	// HTML response
-	if AppMode() == appModeWeb && ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
+	if AppMode() == appModeWeb {
 		if reply.Rdr == nil {
-			reply.Rdr = &render.HTML{}
+			reply.Rdr = &render.HTML{Layout: "master"}
 		}
 
 		htmlRdr := reply.Rdr.(*render.HTML)
@@ -249,13 +249,18 @@ func templateMiddleware(c *Controller, m *Middleware) {
 		htmlRdr.ViewArgs["IsJSONP"] = c.Req.IsJSONP
 		htmlRdr.ViewArgs["HTTPReferer"] = c.Req.Referer
 
-		tmplPath := filepath.Join("pages", c.controller)
+		controllerName := c.controller
+		if strings.HasSuffix(controllerName, controllerNameSuffix) {
+			controllerName = controllerName[:len(controllerName)-controllerNameSuffixLen]
+		}
+
+		tmplPath := filepath.Join("pages", controllerName)
 		tmplName := c.action.Name + appTemplateExt
 
 		htmlRdr.Template = appTemplateEngine.Get(htmlRdr.Layout, tmplPath, tmplName)
 		if htmlRdr.Template == nil {
-			tmplFile := filepath.Join("views", "pages", c.controller, tmplName)
-			if !AppConfig().BoolDefault("template.case_sensitive", false) {
+			tmplFile := filepath.Join("views", "pages", controllerName, tmplName)
+			if !appTemplateCaseSensitive {
 				tmplFile = strings.ToLower(tmplFile)
 			}
 
