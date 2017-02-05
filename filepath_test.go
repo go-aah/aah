@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"aahframework.org/test/assert"
@@ -199,7 +200,7 @@ func TestCopyDir(t *testing.T) {
 	assert.NotNil(t, err)
 
 	err = CopyDir(tmpDir, testdataPath, Excludes{})
-	assert.NotNil(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), ""))
 
 	err = CopyDir(join(tmpDir, "target"), testdataPath, Excludes{"[]a]"})
 	assert.NotNil(t, err)
