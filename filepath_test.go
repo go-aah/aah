@@ -200,7 +200,7 @@ func TestCopyDir(t *testing.T) {
 	assert.NotNil(t, err)
 
 	err = CopyDir(tmpDir, testdataPath, Excludes{})
-	assert.True(t, strings.HasPrefix(err.Error(), ""))
+	assert.True(t, strings.HasPrefix(err.Error(), "destination dir already exists"))
 
 	err = CopyDir(join(tmpDir, "target"), testdataPath, Excludes{"[]a]"})
 	assert.NotNil(t, err)
