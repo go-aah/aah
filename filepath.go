@@ -157,6 +157,11 @@ func CopyFile(dest, src string) (int64, error) {
 		return 0, fmt.Errorf("source file is not exists: %v", src)
 	}
 
+	baseName := filepath.Base(src)
+	if !strings.HasSuffix(dest, baseName) {
+		dest = filepath.Join(dest, baseName)
+	}
+
 	if IsFileExists(dest) {
 		return 0, fmt.Errorf("destination file already exists: %v", dest)
 	}
@@ -193,6 +198,11 @@ func CopyDir(dest, src string, excludes Excludes) error {
 	srcInfo, _ := os.Lstat(src)
 	if !srcInfo.IsDir() {
 		return fmt.Errorf("source is not directory: %v", src)
+	}
+
+	baseName := filepath.Base(src)
+	if !strings.HasSuffix(dest, baseName) {
+		dest = filepath.Join(dest, baseName)
 	}
 
 	if IsFileExists(dest) {
