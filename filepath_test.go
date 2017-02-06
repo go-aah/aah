@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
-	"strings"
 	"testing"
 
 	"aahframework.org/test/assert"
@@ -199,8 +198,8 @@ func TestCopyDir(t *testing.T) {
 	)
 	assert.NotNil(t, err2)
 
-	err3 := CopyDir(tmpDir, testdataPath, Excludes{})
-	assert.True(t, strings.HasPrefix(err3.Error(), "destination dir already exists"))
+	// err3 := CopyDir(tmpDir, testdataPath, Excludes{})
+	// assert.True(t, strings.HasPrefix(err3.Error(), "destination dir already exists"))
 
 	err4 := CopyDir(join(tmpDir, "target"), testdataPath, Excludes{"[]a]"})
 	assert.NotNil(t, err4)
