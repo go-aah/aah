@@ -154,7 +154,7 @@ func doWalk(fname string, linkName string, walkFn filepath.WalkFunc) error {
 // CopyFile copies the given source file into destination
 func CopyFile(dest, src string) (int64, error) {
 	if !IsFileExists(src) {
-		return 0, fmt.Errorf("source file is not exists: %v", src)
+		return 0, fmt.Errorf("source file does not exists: %v", src)
 	}
 
 	baseName := filepath.Base(src)
@@ -191,7 +191,7 @@ func CopyFile(dest, src string) (int64, error) {
 // and it excludes give file matches
 func CopyDir(dest, src string, excludes Excludes) error {
 	if !IsFileExists(src) {
-		return fmt.Errorf("source dir is not exists: %v", src)
+		return fmt.Errorf("source dir does not exists: %v", src)
 	}
 
 	src = filepath.Clean(src)

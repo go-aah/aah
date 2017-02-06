@@ -185,29 +185,29 @@ func TestCopyDir(t *testing.T) {
 
 	defer DeleteFiles(join(tmpDir, "test1"))
 
-	err := CopyDir(
+	err1 := CopyDir(
 		join(tmpDir, "target"),
 		join(testdataPath, "not-exists-dir"),
 		Excludes{},
 	)
-	assert.NotNil(t, err)
+	assert.NotNil(t, err1)
 
-	err = CopyDir(
+	err2 := CopyDir(
 		join(tmpDir, "target"),
 		join(testdataPath, "sample.txt"),
 		Excludes{},
 	)
-	assert.NotNil(t, err)
+	assert.NotNil(t, err2)
 
-	err = CopyDir(tmpDir, testdataPath, Excludes{})
-	assert.True(t, strings.HasPrefix(err.Error(), "destination dir already exists"))
+	err3 := CopyDir(tmpDir, testdataPath, Excludes{})
+	assert.True(t, strings.HasPrefix(err3.Error(), "destination dir already exists"))
 
-	err = CopyDir(join(tmpDir, "target"), testdataPath, Excludes{"[]a]"})
-	assert.NotNil(t, err)
+	err4 := CopyDir(join(tmpDir, "target"), testdataPath, Excludes{"[]a]"})
+	assert.NotNil(t, err4)
 
 	pwd, _ := os.Getwd()
-	err = CopyDir(join(tmpDir, "test1"), pwd, Excludes{"test*", "*conf", ".*"})
-	assert.FailNowOnError(t, err, "copy directory failed")
+	err5 := CopyDir(join(tmpDir, "test1"), pwd, Excludes{"test*", "*conf", ".*"})
+	assert.FailNowOnError(t, err5, "copy directory failed")
 }
 
 func TestStripExt(t *testing.T) {
@@ -228,6 +228,7 @@ func TestDirPaths(t *testing.T) {
 	path12 := join(testdataPath, "dirpaths", "level1", "level1-2")
 	path21 := join(testdataPath, "dirpaths", "level1", "level2", "level2-1")
 	path22 := join(testdataPath, "dirpaths", "level1", "level2", "level2-2")
+	defer DeleteFiles(join(testdataPath, "dirpaths"))
 
 	_ = MkDirAll(path1, 0755)
 	_ = MkDirAll(path11, 0755)
