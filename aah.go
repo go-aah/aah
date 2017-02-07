@@ -84,8 +84,15 @@ func AppProfile() string {
 // AppBaseDir method returns the application base or binary current directory
 // 	For e.g.:
 // 		$GOPATH/src/github.com/user/myproject
-// 		<app/binary/path>
+// 		<app/binary/path/base/directory>
 func AppBaseDir() string {
+	if appIsPackaged {
+		wd, _ := os.Getwd()
+		if strings.HasSuffix(wd, "/bin") {
+			wd = wd[:len(wd)-4]
+		}
+		return wd
+	}
 	return appBaseDir
 }
 
@@ -332,12 +339,11 @@ func initPath(importPath string) error {
 	goSrcDir = filepath.Join(goPath, "src")
 	appBaseDir = filepath.Join(goSrcDir, filepath.FromSlash(appImportPath))
 
-	// TODO import path check
-	// if !ess.IsFileExists(appBaseDir) {
-	// 	return fmt.Errorf("aah application does not exists: %s", appImportPath)
-	// }
-
 	appIsPackaged = !ess.IsFileExists(appDir())
+
+	if !appIsPackaged && !ess.IsFileExists(appBaseDir) {
+		return fmt.Errorf("aah application does not exists: %s", appImportPath)
+	}
 
 	return nil
 }
