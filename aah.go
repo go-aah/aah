@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -47,6 +48,7 @@ var (
 	appTemplateEngine        atemplate.TemplateEnginer
 	appTemplateExt           string
 	appTemplateCaseSensitive bool
+	appPID                   int
 
 	appInitialized     bool
 	isExternalTmplEng  bool
@@ -62,7 +64,6 @@ var (
 	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
 	appDefaultTmplLayout     = "master"
 	appModeWeb               = "web"
-	appModeAPI               = "api"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -225,6 +226,8 @@ func Start() {
 		ReadTimeout:  appHTTPReadTimeout,
 		WriteTimeout: appHTTPWriteTimeout,
 	}
+
+	writePID(AppName(), AppBaseDir(), AppConfig())
 
 	// Unix Socket
 	if strings.HasPrefix(address, "unix") {
@@ -463,4 +466,16 @@ func initTests(testsDir string) error {
 	// TODO initTests
 
 	return nil
+}
+
+func writePID(appName, appBaseDir string, cfg *config.Config) {
+	appPID = os.Getpid()
+	pidfile := cfg.StringDefault("pidfile", appName+".pid")
+	if !filepath.IsAbs(pidfile) {
+		pidfile = filepath.Join(appBaseDir, pidfile)
+	}
+
+	if err := ioutil.WriteFile(pidfile, []byte(strconv.Itoa(appPID)), 0644); err != nil {
+		log.Error(err)
+	}
 }
