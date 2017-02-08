@@ -266,11 +266,22 @@ func DeleteFiles(files ...string) (errs []error) {
 	return
 }
 
-// DirsPath method returns all directories path from given base path recursively.
+// DirsPath method returns all directories absolute path from given base path recursively.
 func DirsPath(basePath string) (pdirs []string, err error) {
 	err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			pdirs = append(pdirs, srcPath)
+		}
+		return nil
+	})
+	return
+}
+
+// FilesPath method returns all files absolute path from given base path recursively.
+func FilesPath(basePath string) (files []string, err error) {
+	err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
+		if !info.IsDir() {
+			files = append(files, srcPath)
 		}
 		return nil
 	})
