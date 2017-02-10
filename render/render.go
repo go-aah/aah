@@ -19,6 +19,9 @@ import (
 var appConfig *config.Config
 
 type (
+	// Data type used for convenient data type of map[string]interface{}
+	Data map[string]interface{}
+
 	// Render interface
 	Render interface {
 		Render(io.Writer) error
@@ -56,7 +59,7 @@ type (
 	HTML struct {
 		Template *template.Template
 		Layout   string
-		ViewArgs map[string]interface{}
+		ViewArgs Data
 	}
 )
 

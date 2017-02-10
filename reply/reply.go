@@ -205,7 +205,7 @@ func (r *Reply) FileInline(filename string, file io.ReadCloser) *Reply {
 //      template => /views/pages/app/login.html
 //               => /views/pages/App/Login.html
 //
-func (r *Reply) HTML(data map[string]interface{}) *Reply {
+func (r *Reply) HTML(data render.Data) *Reply {
 	r.Rdr = &render.HTML{
 		ViewArgs: data,
 	}
@@ -215,7 +215,7 @@ func (r *Reply) HTML(data map[string]interface{}) *Reply {
 
 // HTMLl method renders based on given layout and data. Refer `Reply.HTML(...)`
 // method.
-func (r *Reply) HTMLl(layout string, data map[string]interface{}) *Reply {
+func (r *Reply) HTMLl(layout string, data render.Data) *Reply {
 	r.Rdr = &render.HTML{
 		Layout:   layout,
 		ViewArgs: data,
