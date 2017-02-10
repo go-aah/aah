@@ -312,7 +312,7 @@ func redirectTrailingSlash(c *Controller) {
 	http.Redirect(c.Res, req, req.URL.String(), code)
 }
 
-func directoryList(res ahttp.ResponseWriter, req *ahttp.Request, f http.File) {
+func directoryList(res http.ResponseWriter, req *ahttp.Request, f http.File) {
 	dirs, err := f.Readdir(-1)
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
@@ -357,7 +357,7 @@ func newEngine() *engine {
 		rPool: pool.NewPool(150, func() interface{} {
 			return &ahttp.Request{}
 		}),
-		bPool: pool.NewPool(50, func() interface{} {
+		bPool: pool.NewPool(60, func() interface{} {
 			return &bytes.Buffer{}
 		}),
 	}

@@ -300,7 +300,7 @@ func appI18nDir() string {
 }
 
 func appViewsDir() string {
-	return filepath.Join(appDir(), "views")
+	return filepath.Join(AppBaseDir(), "views")
 }
 
 func appTestsDir() string {
