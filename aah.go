@@ -30,7 +30,7 @@ import (
 )
 
 // Version no. of aah framework
-const Version = "0.1"
+const Version = "0.2"
 
 // aah application variables
 var (
