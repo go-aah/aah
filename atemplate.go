@@ -99,6 +99,11 @@ func (te *TemplateEngine) Load() error {
 		return fmt.Errorf("layouts base dir is not exists: %s", layoutsBaseDir)
 	}
 
+	commonBaseDir := filepath.Join(te.baseDir, "common")
+	if !ess.IsFileExists(commonBaseDir) {
+		return fmt.Errorf("common base dir is not exists: %s", commonBaseDir)
+	}
+
 	pagesBaseDir := filepath.Join(te.baseDir, "pages")
 	if !ess.IsFileExists(pagesBaseDir) {
 		return fmt.Errorf("pages base dir is not exists: %s", pagesBaseDir)
@@ -111,12 +116,17 @@ func (te *TemplateEngine) Load() error {
 		return err
 	}
 
+	commons, err := te.glob(filepath.Join(commonBaseDir, "*"+templateFileExt))
+	if err != nil {
+		return err
+	}
+
 	pageDirs, err := ess.DirsPath(pagesBaseDir)
 	if err != nil {
 		return err
 	}
 
-	return te.processTemplates(layouts, pageDirs, "*"+templateFileExt)
+	return te.processTemplates(layouts, commons, pageDirs, "*"+templateFileExt)
 }
 
 // Reload method reloads the view layouts and pages again cleanly.
@@ -170,8 +180,14 @@ func (te *TemplateEngine) glob(pattern string) (map[string]string, error) {
 }
 
 // processTemplates method process the layouts and pages dir wise.
-func (te *TemplateEngine) processTemplates(layouts map[string]string, pageDirs []string, filePattern string) error {
+func (te *TemplateEngine) processTemplates(layouts, commons map[string]string, pageDirs []string, filePattern string) error {
 	errorOccurred := false
+
+	var commonFiles []string
+	for _, v := range commons {
+		commonFiles = append(commonFiles, v)
+	}
+
 	for layout, lpath := range layouts {
 		lTemplate := &Templates{
 			Template:      make(map[string]*template.Template),
@@ -190,6 +206,7 @@ func (te *TemplateEngine) processTemplates(layouts map[string]string, pageDirs [
 				continue
 			}
 
+			files = append(files, commonFiles...)
 			files = append(files, lpath)
 
 			// create key and init template with funcs
