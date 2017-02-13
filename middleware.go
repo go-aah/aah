@@ -248,6 +248,7 @@ func templateMiddleware(c *Controller, m *Middleware) {
 		htmlRdr.ViewArgs["RequestPath"] = c.Req.Path
 		htmlRdr.ViewArgs["IsJSONP"] = c.Req.IsJSONP
 		htmlRdr.ViewArgs["HTTPReferer"] = c.Req.Referer
+		htmlRdr.ViewArgs["AahVersion"] = Version
 
 		controllerName := c.controller
 		if strings.HasSuffix(controllerName, controllerNameSuffix) {
