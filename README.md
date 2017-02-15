@@ -1,6 +1,7 @@
 # config - aah framework
 
-[![Build Status](https://travis-ci.org/go-aah/config.svg?branch=master)](https://travis-ci.org/go-aah/config)  [![codecov](https://codecov.io/gh/go-aah/config/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/config/branch/master)  [![Go Report Card](https://goreportcard.com/badge/aahframework.org/config)](https://goreportcard.com/report/aahframework.org/config) [![GoDoc](https://godoc.org/aahframework.org/config?status.svg)](https://godoc.org/aahframework.org/config)  [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Build Status](https://travis-ci.org/go-aah/config.svg?branch=master)](https://travis-ci.org/go-aah/config)  [![codecov](https://codecov.io/gh/go-aah/config/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/config/branch/master)  [![Go Report Card](https://goreportcard.com/badge/aahframework.org/config)](https://goreportcard.com/report/aahframework.org/config)
+[![Version](https://img.shields.io/badge/version-0.1-blue.svg)](https://github.com/go-aah/config/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/config?status.svg)](https://godoc.org/aahframework.org/config)  [![License](https://img.shields.io/github/license/go-aah/config.svg)](LICENSE)
 
 ***v0.1 [released](https://github.com/go-aah/config/releases/latest) and tagged on Jan 14, 2017***
 
