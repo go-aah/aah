@@ -174,7 +174,7 @@ func (te *TemplateEngine) glob(pattern string) (map[string]string, error) {
 	}
 
 	for _, f := range files {
-		templates[ess.StripExt(filepath.Base(f))] = f
+		templates[strings.ToLower(filepath.Base(f))] = f
 	}
 	return templates, nil
 }

@@ -47,6 +47,7 @@ var (
 	appMultipartMaxMemory    int64
 	appTemplateEngine        atemplate.TemplateEnginer
 	appTemplateExt           string
+	appDefaultTmplLayout     string
 	appTemplateCaseSensitive bool
 	appPID                   int
 
@@ -62,7 +63,6 @@ var (
 	appDefaultHTTPPort       = 8000
 	appDefaultDateFormat     = "2006-01-02"
 	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
-	appDefaultTmplLayout     = "master"
 	appModeWeb               = "web"
 )
 
@@ -396,6 +396,7 @@ func initAppVariables() error {
 	render.Init(AppConfig())
 
 	appTemplateExt = AppConfig().StringDefault("template.ext", ".html")
+	appDefaultTmplLayout = "master" + appTemplateExt
 
 	multipartMemoryStr := AppConfig().StringDefault("render.multipart.size", "32mb")
 	if appMultipartMaxMemory, err = ess.StrToBytes(multipartMemoryStr); err != nil {
