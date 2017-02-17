@@ -138,14 +138,14 @@ func (te *TemplateEngine) Reload() error {
 // Get method returns the template based given name if found, otherwise nil.
 func (te *TemplateEngine) Get(layout, path, tmplName string) *template.Template {
 	if l, ok := te.layouts[layout]; ok {
-		path = te.DirKey(path)
+		key := te.TemplateKey(filepath.Join(path, tmplName))
 		if te.appConfig.BoolDefault("template.case_sensitive", false) {
-			if t, ok := l.Template[path]; ok {
-				return t.Lookup(tmplName)
+			if t, ok := l.Template[key]; ok {
+				return t
 			}
 		} else {
-			if t, ok := l.TemplateLower[strings.ToLower(path)]; ok {
-				return t.Lookup(strings.ToLower(tmplName))
+			if t, ok := l.TemplateLower[strings.ToLower(key)]; ok {
+				return t
 			}
 		}
 	}
@@ -153,8 +153,8 @@ func (te *TemplateEngine) Get(layout, path, tmplName string) *template.Template 
 	return nil
 }
 
-// DirKey returns the unique key for given path.
-func (te *TemplateEngine) DirKey(path string) string {
+// TemplateKey returns the unique key for given path.
+func (te *TemplateEngine) TemplateKey(path string) string {
 	path = path[strings.Index(path, "pages"):]
 	path = strings.Replace(path, "/", "_", -1)
 	path = strings.Replace(path, "\\", "_", -1)
@@ -206,32 +206,38 @@ func (te *TemplateEngine) processTemplates(layouts, commons map[string]string, p
 				continue
 			}
 
-			files = append(files, commonFiles...)
-			files = append(files, lpath)
+			for _, tmplFile := range files {
+				// TODO Pick only used files from commonFiles for parsing
+				files := append([]string{}, commonFiles...)
+				files = append(files, tmplFile, lpath)
 
-			// create key and init template with funcs
-			dirKey := te.DirKey(dir)
-			tmpl := template.New(dirKey).Funcs(TemplateFuncMap)
+				// create key and init template with funcs
+				tmplKey := te.TemplateKey(tmplFile)
+				log.Tracef("Template Key: %s", tmplKey)
 
-			// Set custom delimiters from aah.conf
-			if te.appConfig.IsExists("template.delimiters") {
-				delimiters := strings.Split(te.appConfig.StringDefault("template.delimiter", "{{.}}"), ".")
-				if len(delimiters) == 2 {
-					tmpl.Delims(delimiters[0], delimiters[1])
-				} else {
-					log.Error("config 'template.delimiter' value is not valid")
+				tmpl := template.New(tmplKey).Funcs(TemplateFuncMap)
+
+				// Set custom delimiters from aah.conf
+				if te.appConfig.IsExists("template.delimiters") {
+					delimiters := strings.Split(te.appConfig.StringDefault("template.delimiter", "{{.}}"), ".")
+					if len(delimiters) == 2 {
+						tmpl.Delims(delimiters[0], delimiters[1])
+					} else {
+						log.Error("config 'template.delimiter' value is not valid")
+					}
 				}
-			}
 
-			_, err = tmpl.ParseFiles(files...)
-			if err != nil {
-				log.Error(err)
-				errorOccurred = true
-				continue
-			}
+				log.Tracef("Parsing Templates[%s]: %s", tmplKey, files)
+				_, err = tmpl.ParseFiles(files...)
+				if err != nil {
+					log.Error(err)
+					errorOccurred = true
+					continue
+				}
 
-			lTemplate.Template[dirKey] = tmpl
-			lTemplate.TemplateLower[strings.ToLower(dirKey)] = tmpl
+				lTemplate.Template[tmplKey] = tmpl
+				lTemplate.TemplateLower[strings.ToLower(tmplKey)] = tmpl
+			}
 		}
 		te.layouts[layout] = lTemplate
 	}
