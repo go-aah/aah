@@ -258,6 +258,7 @@ func templateMiddleware(c *Controller, m *Middleware) {
 		tmplPath := filepath.Join("pages", controllerName)
 		tmplName := c.action.Name + appTemplateExt
 
+		log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
 		htmlRdr.Template = appTemplateEngine.Get(htmlRdr.Layout, tmplPath, tmplName)
 		if htmlRdr.Template == nil {
 			tmplFile := filepath.Join("views", "pages", controllerName, tmplName)
