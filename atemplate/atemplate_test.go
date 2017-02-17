@@ -25,11 +25,11 @@ func TestAppPagesTemplates(t *testing.T) {
 		"PageName":  "home page",
 	}
 
-	tmpl := te.Get("master", "pages_app", "index.html")
+	tmpl := te.Get("master.html", "pages_app", "index.html")
 	assert.NotNil(t, tmpl)
 
 	var buf bytes.Buffer
-	err := tmpl.ExecuteTemplate(&buf, "master", data)
+	err := tmpl.ExecuteTemplate(&buf, "master.html", data)
 	assert.FailOnError(t, err, "")
 
 	htmlStr := buf.String()
@@ -51,11 +51,11 @@ func TestUserPagesTemplates(t *testing.T) {
 
 	cfg.SetBool("template.case_sensitive", true)
 
-	tmpl := te.Get("master", "pages_user", "index.html")
+	tmpl := te.Get("master.html", "pages_user", "index.html")
 	assert.NotNil(t, tmpl)
 
 	var buf bytes.Buffer
-	err := tmpl.ExecuteTemplate(&buf, "master", data)
+	err := tmpl.ExecuteTemplate(&buf, "master.html", data)
 	assert.FailOnError(t, err, "")
 
 	htmlStr := buf.String()
@@ -63,7 +63,7 @@ func TestUserPagesTemplates(t *testing.T) {
 	assert.True(t, strings.Contains(htmlStr, "aah framework user home page"))
 	assert.True(t, strings.Contains(htmlStr, `cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js`))
 
-	tmpl = te.Get("master", "pages_user", "not_exists.html")
+	tmpl = te.Get("master.html", "pages_user", "not_exists.html")
 	assert.Nil(t, tmpl)
 }
 
