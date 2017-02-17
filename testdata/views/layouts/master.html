@@ -1,15 +1,14 @@
-{{ define "master" -}}<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     {{ template "title" . }}
-    {{ template "head_tags" . }}
+    {{ template "head_tags.html" . }}
   </head>
   <body>
     {{ template "body" . -}}
-    {{ template "footer_scripts" . }}
+    {{ template "footer_scripts.html" . }}
   </body>
 </html>
-{{- end }}
