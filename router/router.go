@@ -65,7 +65,6 @@ type (
 		MethodNotAllowed      bool
 		RedirectTrailingSlash bool
 		AutoOptions           bool
-		catchAll              bool
 		trees                 map[string]*node
 		routes                map[string]*Route
 	}
@@ -370,6 +369,13 @@ func (d *Domain) Allowed(requestMethod, path string) (allowed string) {
 // zero argument for static URL. Additional key-values composed as URL query
 // string. If error occurs then method logs an error and returns empty string.
 func (d *Domain) ReverseURLm(routeName string, args map[string]interface{}) string {
+	var anchorLink string
+	hashIdx := strings.IndexByte(routeName, '#')
+	if hashIdx > 0 {
+		anchorLink = routeName[hashIdx+1:]
+		routeName = routeName[:hashIdx]
+	}
+
 	route, found := d.routes[routeName]
 	if !found {
 		log.Errorf("route name '%v' not found", routeName)
@@ -379,7 +385,7 @@ func (d *Domain) ReverseURLm(routeName string, args map[string]interface{}) stri
 	argsLen := len(args)
 	pathParamCnt := countParams(route.Path)
 	if pathParamCnt == 0 && argsLen == 0 { // static URLs or no path params
-		return route.Path
+		return appendAnchorLink(route.Path, anchorLink)
 	}
 
 	if argsLen < int(pathParamCnt) { // not enough arguments suppiled
@@ -427,13 +433,20 @@ func (d *Domain) ReverseURLm(routeName string, args map[string]interface{}) stri
 		return ""
 	}
 
-	return rURL.String()
+	return appendAnchorLink(rURL.String(), anchorLink)
 }
 
 // ReverseURL method composes route reverse URL for given route and
 // arguments based on index order. If error occurs then method logs
 // an error and returns empty string.
 func (d *Domain) ReverseURL(routeName string, args ...interface{}) string {
+	var anchorLink string
+	hashIdx := strings.IndexByte(routeName, '#')
+	if hashIdx > 0 {
+		anchorLink = routeName[hashIdx+1:]
+		routeName = routeName[:hashIdx]
+	}
+
 	route, found := d.routes[routeName]
 	if !found {
 		log.Errorf("route name '%v' not found", routeName)
@@ -443,7 +456,7 @@ func (d *Domain) ReverseURL(routeName string, args ...interface{}) string {
 	argsLen := len(args)
 	pathParamCnt := countParams(route.Path)
 	if pathParamCnt == 0 && argsLen == 0 { // static URLs or no path params
-		return route.Path
+		return appendAnchorLink(route.Path, anchorLink)
 	}
 
 	// too many arguments
@@ -488,7 +501,7 @@ func (d *Domain) ReverseURL(routeName string, args ...interface{}) string {
 		return ""
 	}
 
-	return rURL.String()
+	return appendAnchorLink(rURL.String(), anchorLink)
 }
 
 func (d *Domain) key() string {
@@ -550,6 +563,13 @@ func (pp PathParams) Len() int {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
+
+func appendAnchorLink(routePath, anchorLink string) string {
+	if ess.IsStrEmpty(anchorLink) {
+		return routePath
+	}
+	return routePath + "#" + anchorLink
+}
 
 func suffixCommaValue(s, v string) string {
 	if ess.IsStrEmpty(s) {

@@ -277,6 +277,8 @@ func serveStatic(c *Controller, route *router.Route, pathParams *router.PathPara
 // handleNotFound method is used for 1. route action not found, 2. route is
 // not found and 3. static file/directory.
 func handleNotFound(c *Controller, domain *router.Domain, isStatic bool) {
+	log.Warnf("Route not found: %s", c.Req.Path)
+
 	if domain.NotFoundRoute == nil {
 		c.Reply().NotFound().Text("404 Not Found")
 		return
