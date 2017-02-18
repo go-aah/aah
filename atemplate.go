@@ -257,3 +257,10 @@ func (te *TemplateEngine) processTemplates(layouts, commons []string, pageDirs [
 
 	return nil
 }
+
+func init() {
+	AddTemplateFunc(template.FuncMap{
+		"safeHTML": tmplSafeHTML,
+		"import":   tmplImport,
+	})
+}

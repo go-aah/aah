@@ -31,10 +31,3 @@ func tmplImport(name string, viewArgs map[string]interface{}) template.HTML {
 	}
 	return tmplSafeHTML("")
 }
-
-func init() {
-	AddTemplateFunc(template.FuncMap{
-		"safeHTML": tmplSafeHTML,
-		"import":   tmplImport,
-	})
-}
