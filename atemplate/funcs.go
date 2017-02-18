@@ -4,15 +4,37 @@
 
 package atemplate
 
-import "html/template"
+import (
+	"bytes"
+	"html/template"
+)
 
 // tmplSafeHTML method outputs given HTML as-is, use it with care.
 func tmplSafeHTML(str string) template.HTML {
 	return template.HTML(str)
 }
 
+// tmplImport method renders given template with View Args and imports into
+// current template.
+func tmplImport(name string, viewArgs map[string]interface{}) template.HTML {
+	tmpl := commonTemplates.Lookup(name)
+	if tmpl != nil {
+		buf := bufPool.Get().(*bytes.Buffer)
+		defer func() {
+			buf.Reset()
+			bufPool.Put(buf)
+		}()
+
+		if err := tmpl.Execute(buf, viewArgs); err == nil {
+			return tmplSafeHTML(buf.String())
+		}
+	}
+	return tmplSafeHTML("")
+}
+
 func init() {
 	AddTemplateFunc(template.FuncMap{
 		"safeHTML": tmplSafeHTML,
+		"import":   tmplImport,
 	})
 }

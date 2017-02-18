@@ -5,6 +5,7 @@
 package atemplate
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"html/template"
@@ -14,6 +15,7 @@ import (
 	"aahframework.org/config"
 	"aahframework.org/essentials"
 	"aahframework.org/log"
+	"aahframework.org/pool"
 )
 
 var (
@@ -32,6 +34,10 @@ var (
 		// "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
 		"'", "&#39;",
 	)
+
+	commonTemplates *template.Template
+
+	bufPool *pool.Pool
 )
 
 type (
@@ -85,6 +91,11 @@ func (te *TemplateEngine) Init(cfg *config.Config, viewsBaseDir string) {
 	te.appConfig = cfg
 	te.baseDir = viewsBaseDir
 	te.layouts = make(map[string]*Templates)
+
+	// TODO define config value for pool size
+	bufPool = pool.NewPool(50, func() interface{} {
+		return &bytes.Buffer{}
+	})
 }
 
 // Load method loads the view layouts and pages. It composes the Go template with
@@ -166,29 +177,29 @@ func (te *TemplateEngine) TemplateKey(path string) string {
 //___________________________________
 
 // glob method returns the template base name and path for given pattern
-func (te *TemplateEngine) glob(pattern string) (map[string]string, error) {
-	templates := make(map[string]string)
+func (te *TemplateEngine) glob(pattern string) ([]string, error) {
 	files, err := filepath.Glob(pattern)
 	if err != nil {
-		return templates, err
+		return []string{}, err
 	}
 
-	for _, f := range files {
-		templates[strings.ToLower(filepath.Base(f))] = f
-	}
-	return templates, nil
+	return files, nil
 }
 
 // processTemplates method process the layouts and pages dir wise.
-func (te *TemplateEngine) processTemplates(layouts, commons map[string]string, pageDirs []string, filePattern string) error {
+func (te *TemplateEngine) processTemplates(layouts, commons []string, pageDirs []string, filePattern string) error {
 	errorOccurred := false
 
-	var commonFiles []string
-	for _, v := range commons {
-		commonFiles = append(commonFiles, v)
+	var err error
+
+	// parsing common templates
+	commonTemplates, err = template.New("common").Funcs(TemplateFuncMap).ParseFiles(commons...)
+	if err != nil {
+		log.Error(err)
+		errorOccurred = true
 	}
 
-	for layout, lpath := range layouts {
+	for _, layout := range layouts {
 		lTemplate := &Templates{
 			Template:      make(map[string]*template.Template),
 			TemplateLower: make(map[string]*template.Template),
@@ -207,9 +218,7 @@ func (te *TemplateEngine) processTemplates(layouts, commons map[string]string, p
 			}
 
 			for _, tmplFile := range files {
-				// TODO Pick only used files from commonFiles for parsing
-				files := append([]string{}, commonFiles...)
-				files = append(files, tmplFile, lpath)
+				files := append([]string{}, tmplFile, layout)
 
 				// create key and init template with funcs
 				tmplKey := te.TemplateKey(tmplFile)
@@ -239,7 +248,7 @@ func (te *TemplateEngine) processTemplates(layouts, commons map[string]string, p
 				lTemplate.TemplateLower[strings.ToLower(tmplKey)] = tmpl
 			}
 		}
-		te.layouts[layout] = lTemplate
+		te.layouts[strings.ToLower(filepath.Base(layout))] = lTemplate
 	}
 
 	if errorOccurred {

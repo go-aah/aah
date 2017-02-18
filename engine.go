@@ -62,7 +62,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer e.handleRecovery(c)
 
 	// TODO Detailed server access log to separate file later on
-	log.Debugf("Request %s", c.Req.Path)
+	log.Tracef("Request %s", c.Req.Path)
 
 	// set defaults when actual value not found
 	e.setDefaults(c)
