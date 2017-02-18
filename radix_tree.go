@@ -61,10 +61,6 @@ func (n *node) incrementEdgePriority(pos int) int {
 	for newPos > 0 && n.edges[newPos-1].priority < prio {
 		// swap node positions
 		n.edges[newPos-1], n.edges[newPos] = n.edges[newPos], n.edges[newPos-1]
-
-		// tmpN := n.edges[newPos-1]
-		// n.edges[newPos-1] = n.edges[newPos]
-		// n.edges[newPos] = tmpN
 		newPos--
 	}
 
