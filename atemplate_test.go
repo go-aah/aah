@@ -20,7 +20,7 @@ func TestAppPagesTemplates(t *testing.T) {
 	cfg := getTemplateConfig()
 	te := loadTemplates(t, cfg)
 
-	data := map[string]string{
+	data := map[string]interface{}{
 		"GreetName": "aah framework",
 		"PageName":  "home page",
 	}
@@ -33,6 +33,7 @@ func TestAppPagesTemplates(t *testing.T) {
 	assert.FailOnError(t, err, "")
 
 	htmlStr := buf.String()
+	t.Logf("HTML String: %s", htmlStr)
 	assert.True(t, strings.Contains(htmlStr, "<title>aah framework - Home</title>"))
 	assert.True(t, strings.Contains(htmlStr, "aah framework home page"))
 
@@ -44,7 +45,7 @@ func TestUserPagesTemplates(t *testing.T) {
 	cfg := getTemplateConfig()
 	te := loadTemplates(t, cfg)
 
-	data := map[string]string{
+	data := map[string]interface{}{
 		"GreetName": "aah framework",
 		"PageName":  "user home page",
 	}
@@ -59,6 +60,7 @@ func TestUserPagesTemplates(t *testing.T) {
 	assert.FailOnError(t, err, "")
 
 	htmlStr := buf.String()
+	t.Logf("HTML String: %s", htmlStr)
 	assert.True(t, strings.Contains(htmlStr, "<title>aah framework - User Home</title>"))
 	assert.True(t, strings.Contains(htmlStr, "aah framework user home page"))
 	assert.True(t, strings.Contains(htmlStr, `cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js`))
