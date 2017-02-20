@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"aahframework.org/aah/ahttp"
+	"aahframework.org/config"
 	"aahframework.org/essentials"
 	"aahframework.org/test/assert"
 )
@@ -332,7 +333,8 @@ func TestDomainAddRoute(t *testing.T) {
 
 func createRouter(filename string) error {
 	wd, _ := os.Getwd()
-	return Load(filepath.Join(wd, "testdata", filename))
+	appCfg, _ := config.ParseString(``)
+	return Load(filepath.Join(wd, "testdata", filename), appCfg)
 }
 
 func createHTTPRequest(host, path string) *ahttp.Request {

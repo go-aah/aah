@@ -50,9 +50,11 @@ type (
 	// Router is used to register all application routes and finds the appropriate
 	// route information for incoming request path.
 	Router struct {
-		domains    map[string]*Domain
-		configPath string
-		config     *config.Config
+		domains      map[string]*Domain
+		configPath   string
+		config       *config.Config
+		appCfg       *config.Config
+		isConfigLoad bool
 	}
 
 	// Domain is used to hold domain related routes and it's route configuration
@@ -60,6 +62,7 @@ type (
 		Name                  string
 		Host                  string
 		Port                  string
+		IsSubDomain           bool
 		NotFoundRoute         *Route
 		PanicRoute            *Route
 		MethodNotAllowed      bool
@@ -102,19 +105,99 @@ type (
 // Global methods
 //___________________________________
 
-// Load method loads a configuration from given file e.g. `routes.conf`
-func Load(configPath string) (err error) {
+// Load method loads a configuration from given file e.g. `routes.conf` and
+// applies env profile override values if available.
+func Load(configPath string, appCfg *config.Config) (err error) {
 	if !ess.IsFileExists(configPath) {
 		return fmt.Errorf("aah application routes configuration does not exists: %v", configPath)
 	}
 
-	router = &Router{configPath: configPath}
-
+	router = &Router{configPath: configPath, appCfg: appCfg}
 	router.config, err = config.LoadFile(router.configPath)
 	if err != nil {
 		return err
 	}
 
+	// apply aah.conf env variables
+	if envRoutesValues, found := appCfg.GetSubConfig("routes"); found {
+		log.Debug("env route values, found applying it")
+		if err = router.config.Merge(envRoutesValues); err != nil {
+			return fmt.Errorf("routes.conf: %s", err)
+		}
+	}
+
+	err = processRoutesConfig()
+	return
+}
+
+// Reload method clears existing routes configuration and loads from
+// routes configuration.
+func Reload() error {
+	// clean it
+	router.domains = make(map[string]*Domain)
+	router.config = nil
+
+	// load fresh
+	configPath := router.configPath
+	appCfg := router.appCfg
+	return Load(configPath, appCfg)
+}
+
+// FindDomain returns domain routes configuration based on http request
+// otherwise nil.
+func FindDomain(req *ahttp.Request) *Domain {
+	if domain, found := router.domains[strings.ToLower(req.Host)]; found {
+		return domain
+	}
+	return nil
+}
+
+// DomainAddresses method returns domain addresses (host:port) from
+// routes configuration.
+func DomainAddresses() []string {
+	var addresses []string
+
+	for k := range router.domains {
+		addresses = append(addresses, k)
+	}
+
+	return addresses
+}
+
+// RegisteredActions method returns all the controller name and it's actions
+// configured in the "routes.conf".
+func RegisteredActions() map[string]map[string]uint8 {
+	methods := map[string]map[string]uint8{}
+	for _, d := range router.domains {
+		for _, route := range d.routes {
+			if route.IsStatic {
+				continue
+			}
+
+			addRegisteredAction(methods, route)
+		}
+
+		// adding not found controller if present
+		if d.NotFoundRoute != nil {
+			addRegisteredAction(methods, d.NotFoundRoute)
+		}
+	}
+
+	return methods
+}
+
+// IsDefaultAction method is to identify given action name is defined by
+// aah framework in absence of user configured route action name.
+func IsDefaultAction(action string) bool {
+	for _, a := range HTTPMethodActionMap {
+		if a == action {
+			return true
+		}
+	}
+	return false
+}
+
+func processRoutesConfig() (err error) {
 	domains := router.config.KeysByPath("domains")
 	if len(domains) == 0 {
 		return ErrNoRoutesConfigFound
@@ -137,11 +220,12 @@ func Load(configPath string) (err error) {
 		}
 
 		domain := &Domain{
-			Name:   domainCfg.StringDefault("name", key),
-			Host:   host,
-			Port:   domainCfg.StringDefault("port", ""),
-			trees:  make(map[string]*node),
-			routes: make(map[string]*Route),
+			Name:        domainCfg.StringDefault("name", key),
+			Host:        host,
+			Port:        domainCfg.StringDefault("port", ""),
+			IsSubDomain: domainCfg.BoolDefault("subdomain", false),
+			trees:       make(map[string]*node),
+			routes:      make(map[string]*Route),
 		}
 		log.Debugf("Domain: %v", domain.key())
 
@@ -153,7 +237,7 @@ func Load(configPath string) (err error) {
 			domain.RedirectTrailingSlash = globalCfg.BoolDefault("redirect_trailing_slash", true)
 			domain.AutoOptions = globalCfg.BoolDefault("auto_options", true)
 			log.Tracef("Domain global config "+
-				"[methodNotAllowed: %v, redirectTrailingSlash: %v, autoOptions]",
+				"[methodNotAllowed: %v, redirectTrailingSlash: %v, autoOptions: %v]",
 				domain.MethodNotAllowed, domain.RedirectTrailingSlash, domain.AutoOptions)
 
 			// not found route
@@ -232,72 +316,6 @@ func Load(configPath string) (err error) {
 	return
 }
 
-// Reload method clears existing routes configuration and loads from
-// routes configuration.
-func Reload() error {
-	// clean it
-	router.domains = make(map[string]*Domain)
-	router.config = nil
-
-	// load fresh
-	configPath := router.configPath
-	return Load(configPath)
-}
-
-// FindDomain returns domain routes configuration based on http request
-// otherwise nil.
-func FindDomain(req *ahttp.Request) *Domain {
-	if domain, found := router.domains[strings.ToLower(req.Host)]; found {
-		return domain
-	}
-	return nil
-}
-
-// DomainAddresses method returns domain addresses (host:port) from
-// routes configuration.
-func DomainAddresses() []string {
-	var addresses []string
-
-	for k := range router.domains {
-		addresses = append(addresses, k)
-	}
-
-	return addresses
-}
-
-// RegisteredActions method returns all the controller name and it's actions
-// configured in the "routes.conf".
-func RegisteredActions() map[string]map[string]uint8 {
-	methods := map[string]map[string]uint8{}
-	for _, d := range router.domains {
-		for _, route := range d.routes {
-			if route.IsStatic {
-				continue
-			}
-
-			addRegisteredAction(methods, route)
-		}
-
-		// adding not found controller if present
-		if d.NotFoundRoute != nil {
-			addRegisteredAction(methods, d.NotFoundRoute)
-		}
-	}
-
-	return methods
-}
-
-// IsDefaultAction method is to identify given action name is defined by
-// aah framework in absence of user configured route action name.
-func IsDefaultAction(action string) bool {
-	for _, a := range HTTPMethodActionMap {
-		if a == action {
-			return true
-		}
-	}
-	return false
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Domain methods
 //___________________________________
@@ -369,13 +387,6 @@ func (d *Domain) Allowed(requestMethod, path string) (allowed string) {
 // zero argument for static URL. Additional key-values composed as URL query
 // string. If error occurs then method logs an error and returns empty string.
 func (d *Domain) ReverseURLm(routeName string, args map[string]interface{}) string {
-	var anchorLink string
-	hashIdx := strings.IndexByte(routeName, '#')
-	if hashIdx > 0 {
-		anchorLink = routeName[hashIdx+1:]
-		routeName = routeName[:hashIdx]
-	}
-
 	route, found := d.routes[routeName]
 	if !found {
 		log.Errorf("route name '%v' not found", routeName)
@@ -385,7 +396,7 @@ func (d *Domain) ReverseURLm(routeName string, args map[string]interface{}) stri
 	argsLen := len(args)
 	pathParamCnt := countParams(route.Path)
 	if pathParamCnt == 0 && argsLen == 0 { // static URLs or no path params
-		return appendAnchorLink(route.Path, anchorLink)
+		return route.Path
 	}
 
 	if argsLen < int(pathParamCnt) { // not enough arguments suppiled
@@ -433,20 +444,13 @@ func (d *Domain) ReverseURLm(routeName string, args map[string]interface{}) stri
 		return ""
 	}
 
-	return appendAnchorLink(rURL.String(), anchorLink)
+	return rURL.String()
 }
 
 // ReverseURL method composes route reverse URL for given route and
 // arguments based on index order. If error occurs then method logs
 // an error and returns empty string.
 func (d *Domain) ReverseURL(routeName string, args ...interface{}) string {
-	var anchorLink string
-	hashIdx := strings.IndexByte(routeName, '#')
-	if hashIdx > 0 {
-		anchorLink = routeName[hashIdx+1:]
-		routeName = routeName[:hashIdx]
-	}
-
 	route, found := d.routes[routeName]
 	if !found {
 		log.Errorf("route name '%v' not found", routeName)
@@ -456,7 +460,7 @@ func (d *Domain) ReverseURL(routeName string, args ...interface{}) string {
 	argsLen := len(args)
 	pathParamCnt := countParams(route.Path)
 	if pathParamCnt == 0 && argsLen == 0 { // static URLs or no path params
-		return appendAnchorLink(route.Path, anchorLink)
+		return route.Path
 	}
 
 	// too many arguments
@@ -501,7 +505,7 @@ func (d *Domain) ReverseURL(routeName string, args ...interface{}) string {
 		return ""
 	}
 
-	return appendAnchorLink(rURL.String(), anchorLink)
+	return rURL.String()
 }
 
 func (d *Domain) key() string {
@@ -708,17 +712,71 @@ func parseStaticRoutesSection(cfg *config.Config) (routes Routes, err error) {
 	return
 }
 
+func findReverseURLDomain(host, routeName string) (*Domain, int) {
+	log.Tracef("ReverseURL routeName: %s", routeName)
+	idx := strings.IndexByte(routeName, '.')
+	if idx > 0 {
+		subDomain := routeName[:idx]
+		if strings.HasPrefix(host, subDomain) {
+			log.Tracef("Returning current subdomain: %s.", subDomain)
+			return router.domains[host], idx
+		}
+
+		for k, v := range router.domains {
+			if strings.HasPrefix(k, subDomain) && v.IsSubDomain {
+				log.Tracef("Returning requested subdomain: %s.", subDomain)
+				return v, idx
+			}
+		}
+	}
+
+	// return root domain
+	for _, v := range router.domains {
+		if !v.IsSubDomain {
+			log.Tracef("Returning root domain: %s", v.Host)
+			return v, -1
+		}
+	}
+
+	// final fallback, mostly it won't come here
+	return router.domains[host], -1
+}
+
 // tmplURL method returns reverse URL by given route name and args.
 // Mapped to Go template func.
 func tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL {
 	if len(args) > 0 {
 		host := viewArgs["Host"].(string)
-		if domain, found := router.domains[host]; found {
-			return template.URL(domain.ReverseURL(args[0].(string), args[1:]...))
+		routeName := args[0].(string)
+
+		domain, idx := findReverseURLDomain(host, routeName)
+		if idx > 0 {
+			routeName = routeName[idx+1:]
 		}
+
+		anchorLink := ""
+		hashIdx := strings.IndexByte(routeName, '#')
+		if hashIdx > 0 {
+			anchorLink = routeName[hashIdx+1:]
+			routeName = routeName[:hashIdx]
+		}
+
+		routePath := domain.ReverseURL(routeName, args[1:]...)
+		if ess.IsStrEmpty(routePath) {
+			return template.URL("#")
+		}
+
+		if ess.IsStrEmpty(domain.Port) {
+			routePath = fmt.Sprintf("//%s%s", domain.Host, routePath)
+		} else {
+			routePath = fmt.Sprintf("//%s:%s%s", domain.Host, domain.Port, routePath)
+		}
+
+		return template.URL(appendAnchorLink(routePath, anchorLink))
 	}
+
 	log.Errorf("route not found: %v", args)
-	return template.URL("")
+	return template.URL("#")
 }
 
 func init() {
