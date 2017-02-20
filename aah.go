@@ -320,7 +320,7 @@ func initInternal() {
 
 	logAsFatal(initI18n(appI18nDir()))
 
-	logAsFatal(initRoutes(appConfigDir()))
+	logAsFatal(initRoutes(appConfigDir(), AppConfig()))
 
 	if AppMode() == appModeWeb {
 		logAsFatal(initTemplateEngine(appViewsDir(), AppConfig()))
@@ -439,10 +439,9 @@ func initI18n(i18nDir string) error {
 	return i18n.Load(i18nDir)
 }
 
-func initRoutes(cfgDir string) error {
+func initRoutes(cfgDir string, cfg *config.Config) error {
 	routesPath := filepath.Join(cfgDir, "routes.conf")
-
-	if err := router.Load(routesPath); err != nil {
+	if err := router.Load(routesPath, cfg); err != nil {
 		return fmt.Errorf("routes.conf: %s", err)
 	}
 
@@ -450,9 +449,13 @@ func initRoutes(cfgDir string) error {
 }
 
 func initTemplateEngine(viewsDir string, cfg *config.Config) error {
-	// initialize only if external TemplateEngine is not registered.
+	// initialize if external TemplateEngine is not registered.
 	if appTemplateEngine == nil {
-		appTemplateEngine = &atemplate.TemplateEngine{}
+		tmplEngine := cfg.StringDefault("template.engine", "go")
+		switch tmplEngine {
+		case "go":
+			appTemplateEngine = &atemplate.TemplateEngine{}
+		}
 		isExternalTmplEng = false
 	} else {
 		isExternalTmplEng = true
