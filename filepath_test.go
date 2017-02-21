@@ -235,12 +235,18 @@ func TestDirPaths(t *testing.T) {
 	_ = MkDirAll(path21, 0755)
 	_ = MkDirAll(path22, 0755)
 
-	dirs, err := DirsPath(join(testdataPath, "dirpaths"))
+	dirs, err := DirsPath(join(testdataPath, "dirpaths"), true)
 	assert.FailOnError(t, err, "unable to get directory list")
 	assert.True(t, IsSliceContainsString(dirs, path1))
 	assert.True(t, IsSliceContainsString(dirs, path11))
 	assert.True(t, IsSliceContainsString(dirs, path12))
 	assert.True(t, IsSliceContainsString(dirs, path21))
 	assert.True(t, IsSliceContainsString(dirs, path22))
+	assert.False(t, IsSliceContainsString(dirs, join(path22, "not-exists")))
+
+	dirs, err = DirsPath(join(testdataPath, "dirpaths", "level1"), false)
+	assert.FailOnError(t, err, "unable to get directory list")
+	assert.True(t, IsSliceContainsString(dirs, path11))
+	assert.True(t, IsSliceContainsString(dirs, path12))
 	assert.False(t, IsSliceContainsString(dirs, join(path22, "not-exists")))
 }

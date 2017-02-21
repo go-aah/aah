@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -267,24 +268,56 @@ func DeleteFiles(files ...string) (errs []error) {
 }
 
 // DirsPath method returns all directories absolute path from given base path recursively.
-func DirsPath(basePath string) (pdirs []string, err error) {
-	err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
-		if info.IsDir() {
-			pdirs = append(pdirs, srcPath)
+func DirsPath(basePath string, recursive bool) (pdirs []string, err error) {
+	if recursive {
+		err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
+			if info.IsDir() {
+				pdirs = append(pdirs, srcPath)
+			}
+			return nil
+		})
+		return
+	}
+
+	var list []os.FileInfo
+	list, err = ioutil.ReadDir(basePath)
+	if err != nil {
+		return
+	}
+
+	for _, v := range list {
+		if v.IsDir() {
+			pdirs = append(pdirs, filepath.Join(basePath, v.Name()))
 		}
-		return nil
-	})
+	}
+
 	return
 }
 
 // FilesPath method returns all files absolute path from given base path recursively.
-func FilesPath(basePath string) (files []string, err error) {
-	err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			files = append(files, srcPath)
+func FilesPath(basePath string, recursive bool) (files []string, err error) {
+	if recursive {
+		err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
+			if !info.IsDir() {
+				files = append(files, srcPath)
+			}
+			return nil
+		})
+		return
+	}
+
+	var list []os.FileInfo
+	list, err = ioutil.ReadDir(basePath)
+	if err != nil {
+		return
+	}
+
+	for _, v := range list {
+		if !v.IsDir() {
+			files = append(files, filepath.Join(basePath, v.Name()))
 		}
-		return nil
-	})
+	}
+
 	return
 }
 
@@ -294,5 +327,11 @@ func StripExt(name string) string {
 	if IsStrEmpty(name) {
 		return name
 	}
-	return name[:strings.IndexByte(name, '.')]
+
+	idx := strings.IndexByte(name, '.')
+	if idx > 0 {
+		return name[:idx]
+	}
+
+	return name
 }
