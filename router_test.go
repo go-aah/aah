@@ -44,7 +44,7 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	assert.FailNowOnError(t, err, "")
 
 	// After loading just couple of assertion
-	reqCancelBooking1 := createHTTPRequest("localhost:8000", "/hotels/12345/cancel")
+	reqCancelBooking1 := createHTTPRequest("localhost:8080", "/hotels/12345/cancel")
 	reqCancelBooking1.Method = ahttp.MethodPost
 	domain := FindDomain(reqCancelBooking1)
 	route, pathParam, rts := domain.Lookup(reqCancelBooking1)
@@ -53,7 +53,7 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	assert.False(t, rts)
 
 	// possible redirect trailing slash
-	reqCancelBooking2 := createHTTPRequest("localhost:8000", "/hotels/12345/cancel/")
+	reqCancelBooking2 := createHTTPRequest("localhost:8080", "/hotels/12345/cancel/")
 	reqCancelBooking2.Method = ahttp.MethodPost
 	domain = FindDomain(reqCancelBooking2)
 	_, _, rts = domain.Lookup(reqCancelBooking2)
@@ -74,7 +74,7 @@ func TestRouterStaticLoadConfiguration(t *testing.T) {
 	// After loading just couple assertion for static
 
 	// /favicon.ico
-	req1 := createHTTPRequest("localhost:8000", "/favicon.ico")
+	req1 := createHTTPRequest("localhost:8080", "/favicon.ico")
 	req1.Method = ahttp.MethodGet
 	domain := FindDomain(req1)
 	route, pathParam, rts := domain.Lookup(req1)
@@ -85,7 +85,7 @@ func TestRouterStaticLoadConfiguration(t *testing.T) {
 	assert.Equal(t, "", route.Dir)
 
 	// /static/img/aahframework.png
-	req2 := createHTTPRequest("localhost:8000", "/static/img/aahframework.png")
+	req2 := createHTTPRequest("localhost:8080", "/static/img/aahframework.png")
 	req2.Method = ahttp.MethodGet
 	domain = FindDomain(req2)
 	route, pathParam, rts = domain.Lookup(req2)
@@ -150,7 +150,7 @@ func TestRouterReloadConfiguration(t *testing.T) {
 	assert.FailNowOnError(t, err, "")
 
 	// After loading just couple of assertion
-	reqCancelBooking1 := createHTTPRequest("localhost:8000", "/hotels/12345/cancel")
+	reqCancelBooking1 := createHTTPRequest("localhost:8080", "/hotels/12345/cancel")
 	reqCancelBooking1.Method = ahttp.MethodPost
 	domain := FindDomain(reqCancelBooking1)
 	route, pathParam, rts := domain.Lookup(reqCancelBooking1)
@@ -159,7 +159,7 @@ func TestRouterReloadConfiguration(t *testing.T) {
 	assert.False(t, rts)
 
 	// possible redirect trailing slash
-	reqCancelBooking2 := createHTTPRequest("localhost:8000", "/hotels/12345/cancel/")
+	reqCancelBooking2 := createHTTPRequest("localhost:8080", "/hotels/12345/cancel/")
 	reqCancelBooking2.Method = ahttp.MethodPost
 	domain = FindDomain(reqCancelBooking2)
 	_, _, rts = domain.Lookup(reqCancelBooking2)
@@ -177,7 +177,7 @@ func TestRouterDomainConfig(t *testing.T) {
 	err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
-	domain := FindDomain(createHTTPRequest("localhost:8000", ""))
+	domain := FindDomain(createHTTPRequest("localhost:8080", ""))
 	assert.NotNil(t, domain)
 
 	domain = FindDomain(createHTTPRequest("www.aahframework.org", ""))
@@ -189,7 +189,7 @@ func TestRouterDomainAddresses(t *testing.T) {
 	assert.FailNowOnError(t, err, "")
 
 	addresses := DomainAddresses()
-	assert.Equal(t, "localhost:8000", addresses[0])
+	assert.Equal(t, "localhost:8080", addresses[0])
 }
 
 func TestRegisteredActions(t *testing.T) {
@@ -219,7 +219,7 @@ func TestDomainAllowed(t *testing.T) {
 	err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
-	req := createHTTPRequest("localhost:8000", "/")
+	req := createHTTPRequest("localhost:8080", "/")
 	domain := FindDomain(req)
 	allow := domain.Allowed(ahttp.MethodGet, "/")
 	assert.NotNil(t, allow)
@@ -232,7 +232,7 @@ func TestDomainAllowed(t *testing.T) {
 	assert.True(t, strings.Contains(allow, ahttp.MethodGet))
 
 	// domain not exists
-	reqNotExists := createHTTPRequest("notexists:8000", "/")
+	reqNotExists := createHTTPRequest("notexists:8080", "/")
 	domain = FindDomain(reqNotExists)
 	assert.Nil(t, domain)
 }
@@ -241,7 +241,7 @@ func TestDomainReverseURL(t *testing.T) {
 	err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
-	req := createHTTPRequest("localhost:8000", "/")
+	req := createHTTPRequest("localhost:8080", "/")
 	domain := FindDomain(req)
 
 	// route name not exists
