@@ -57,6 +57,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	c.Req = ahttp.ParseRequest(req, r)
 	c.Res = ahttp.WrapResponseWriter(w)
 	c.reply = reply.NewReply()
+	c.viewArgs = make(map[string]interface{})
 
 	// recovery handling
 	defer e.handleRecovery(c)

@@ -35,13 +35,13 @@ func TestClientIP(t *testing.T) {
 }
 
 func TestGetReferer(t *testing.T) {
-	req1 := createRawHTTPRequest(HeaderReferer, "http://localhost:8000/welcome1.html")
+	req1 := createRawHTTPRequest(HeaderReferer, "http://localhost:8080/welcome1.html")
 	referer := getReferer(req1.Header)
-	assert.Equal(t, "http://localhost:8000/welcome1.html", referer)
+	assert.Equal(t, "http://localhost:8080/welcome1.html", referer)
 
-	req2 := createRawHTTPRequest("Referrer", "http://localhost:8000/welcome2.html")
+	req2 := createRawHTTPRequest("Referrer", "http://localhost:8080/welcome2.html")
 	referer = getReferer(req2.Header)
-	assert.Equal(t, "http://localhost:8000/welcome2.html", referer)
+	assert.Equal(t, "http://localhost:8080/welcome2.html", referer)
 }
 
 func TestParseRequest(t *testing.T) {
@@ -51,9 +51,9 @@ func TestParseRequest(t *testing.T) {
 	req.Header.Add(HeaderMethod, "GET")
 	req.Header.Add(HeaderContentType, "application/json;charset=utf-8")
 	req.Header.Add(HeaderAccept, "application/json;charset=utf-8")
-	req.Header.Add(HeaderReferer, "http://localhost:8000/home.html")
+	req.Header.Add(HeaderReferer, "http://localhost:8080/home.html")
 	req.Header.Add(HeaderAcceptLanguage, "en-gb;leve=1;q=0.8, da, en;level=2;q=0.7, en-us;q=gg")
-	req.URL, _ = url.Parse("http://localhost:8000/welcome1.html?_ref=true")
+	req.URL, _ = url.Parse("http://localhost:8080/welcome1.html?_ref=true")
 
 	aahReq := ParseRequest(req, &Request{})
 
@@ -63,7 +63,7 @@ func TestParseRequest(t *testing.T) {
 	assert.Equal(t, "en-gb;leve=1;q=0.8, da, en;level=2;q=0.7, en-us;q=gg", aahReq.Header.Get(HeaderAcceptLanguage))
 	assert.Equal(t, "application/json; charset=utf-8", aahReq.ContentType.String())
 	assert.Equal(t, "192.168.0.1", aahReq.ClientIP)
-	assert.Equal(t, "http://localhost:8000/home.html", aahReq.Referer)
+	assert.Equal(t, "http://localhost:8080/home.html", aahReq.Referer)
 }
 
 func createRequestWithHost(host, remote string) *http.Request {

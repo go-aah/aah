@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net/url"
 	"path"
 	"strings"
@@ -113,14 +114,19 @@ func Load(configPath string, appCfg *config.Config) (err error) {
 	}
 
 	router = &Router{configPath: configPath, appCfg: appCfg}
-	router.config, err = config.LoadFile(router.configPath)
+	cfgBytes, err := ioutil.ReadFile(router.configPath)
+	if err != nil {
+		return err
+	}
+
+	router.config, err = config.ParseString(string(cfgBytes))
 	if err != nil {
 		return err
 	}
 
 	// apply aah.conf env variables
 	if envRoutesValues, found := appCfg.GetSubConfig("routes"); found {
-		log.Debug("env route values, found applying it")
+		log.Debug("env routes {...} values found, applying it")
 		if err = router.config.Merge(envRoutesValues); err != nil {
 			return fmt.Errorf("routes.conf: %s", err)
 		}

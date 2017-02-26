@@ -60,7 +60,7 @@ var (
 
 	appDefaultProfile        = "dev"
 	appProfilePrefix         = "env."
-	appDefaultHTTPPort       = 8000
+	appDefaultHTTPPort       = 8080
 	appDefaultDateFormat     = "2006-01-02"
 	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
 	appModeWeb               = "web"
@@ -118,7 +118,7 @@ func AppHTTPAddress() string {
 }
 
 // AppHTTPPort method returns aah application HTTP port number if available
-// otherwise returns default port number 8000.
+// otherwise returns default port number 8080.
 func AppHTTPPort() int {
 	return AppConfig().IntDefault("http.port", appDefaultHTTPPort)
 }
