@@ -132,7 +132,7 @@ func (te *TemplateEngine) Load() error {
 		return err
 	}
 
-	pageDirs, err := ess.DirsPath(pagesBaseDir)
+	pageDirs, err := ess.DirsPath(pagesBaseDir, true)
 	if err != nil {
 		return err
 	}

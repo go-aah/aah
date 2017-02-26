@@ -29,5 +29,5 @@ func tmplImport(name string, viewArgs map[string]interface{}) template.HTML {
 			return tmplSafeHTML(buf.String())
 		}
 	}
-	return tmplSafeHTML("")
+	return template.HTML("")
 }
