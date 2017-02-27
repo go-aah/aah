@@ -50,8 +50,9 @@ var (
 	appDefaultTmplLayout     string
 	appTemplateCaseSensitive bool
 	appPID                   int
+	appInitialized           bool
+	appBuildInfo             *BuildInfo
 
-	appInitialized     bool
 	isExternalTmplEng  bool
 	isMultipartEnabled bool
 
@@ -139,6 +140,11 @@ func AppDefaultI18nLang() string {
 	return AppConfig().StringDefault("i18n.default", "en")
 }
 
+// AppBuildInfo method return user application version no.
+func AppBuildInfo() *BuildInfo {
+	return appBuildInfo
+}
+
 // AllAppProfiles method returns all the aah application environment profile names.
 func AllAppProfiles() []string {
 	var profiles []string
@@ -176,6 +182,11 @@ func SetAppProfile(profile string) error {
 
 	appProfile = profile
 	return nil
+}
+
+// SetAppBuildInfo method sets the user application build info into aah instance.
+func SetAppBuildInfo(bi *BuildInfo) {
+	appBuildInfo = bi
 }
 
 // AddTemplateFunc method adds given Go template funcs into function map.

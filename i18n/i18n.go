@@ -91,17 +91,24 @@ func Msg(locale *ahttp.Locale, key string, args ...interface{}) string {
 		}
 
 		log.Tracef("Message is retrieved from locale: %v", locale.Language)
-		return retriveMsg(store, key, args...)
+		if msg, found := retriveMsg(store, key, args...); found {
+			return msg
+		}
 	}
 
 	log.Tracef("Message is retrieved from locale: %v", locale.String())
-	msg := retriveMsg(store, key, args...)
-	if ess.IsStrEmpty(msg) {
-		// If return value is empty then lookup by language. for eg.: en
-		return retriveMsg(findMsgStoreByLocale(locale.Language), key, args...)
+	if msg, found := retriveMsg(store, key, args...); found {
+		return msg
 	}
 
-	return msg
+	log.Tracef("Message is retrieved from locale: %v", locale.Language)
+	if msg, found := retriveMsg(findMsgStoreByLocale(locale.Language), key, args...); found {
+		return msg
+	}
+
+	log.Warnf("i18n key not found: %s", key)
+
+	return ""
 }
 
 // Locales returns all the loaded locales from message store
@@ -143,14 +150,14 @@ func findMsgStoreByLocale(locale string) *config.Config {
 	return nil
 }
 
-func retriveMsg(store *config.Config, key string, args ...interface{}) string {
+func retriveMsg(store *config.Config, key string, args ...interface{}) (string, bool) {
 	if msg, found := store.String(key); found {
 		if len(args) > 0 {
-			return fmt.Sprintf(msg, args...)
+			return fmt.Sprintf(msg, args...), found
 		}
-		return msg
+		return msg, found
 	}
-	return ""
+	return "", false
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
