@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"aahframework.org/test/assert"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestCloseQuietly(t *testing.T) {

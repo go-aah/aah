@@ -17,10 +17,12 @@ before_install:
   - bash <(curl -s https://aahframework.org/env.txt) "essentials" "v0"
 
 install:
-  - go get -v -t aahframework.org/essentials.v0/...
+  - cd $GOPATH/src/aahframework.org/essentials.v0
+  - go get -v -t ./...
+  # - go get -v -t aahframework.org/essentials.v0/...
 
 script:
-  - cd $GOPATH/src/aahframework.org/essentials.v0
+  # - cd $GOPATH/src/aahframework.org/essentials.v0
   - bash go.test.sh
 
 after_success:

@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"testing"
 
-	"aahframework.org/test/assert"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestIsFileExists(t *testing.T) {

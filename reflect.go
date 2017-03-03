@@ -42,6 +42,7 @@ func GetFunctionInfo(f interface{}) (fi *FunctionInfo) {
 	}()
 
 	info := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
+	info = strings.Replace(info, "%2e", ".", -1)
 	idx := strings.LastIndexByte(info, '.')
 	fi = &FunctionInfo{
 		Name:          info[idx+1:],
@@ -62,6 +63,7 @@ func GetCallerInfo() *CallerInfo {
 	}
 
 	fn := runtime.FuncForPC(pc).Name()
+	fn = strings.Replace(fn, "%2e", ".", -1)
 
 	return &CallerInfo{
 		QualifiedName: fn,
