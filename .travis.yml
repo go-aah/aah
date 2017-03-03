@@ -4,22 +4,23 @@ sudo: false
 
 branches:
   only:
-    - master
-    - integration
+    # - master
+    # - integration
 
 go:
   - 1.6
   - 1.7
+  - 1.8
   - tip
 
 before_install:
-  - bash prepare-aah-env.sh "test" "essentials"
+  - bash <(curl -s https://aahframework.org/env.txt) "essentials" "v0"
 
 install:
-  - go get -v -t aahframework.org/essentials/...
+  - go get -v -t aahframework.org/essentials.v0/...
 
 script:
-  - cd $GOPATH/src/aahframework.org/essentials
+  - cd $GOPATH/src/aahframework.org/essentials.v0
   - bash go.test.sh
 
 after_success:
