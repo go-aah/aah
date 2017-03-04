@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/essentials"
-	"aahframework.org/test/assert"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestKeysAndKeysByPath(t *testing.T) {

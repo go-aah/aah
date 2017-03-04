@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"strings"
 
-	"aahframework.org/essentials"
-	"aahframework.org/forge"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/forge.v0"
 )
 
 // Version no. of aahframework.org/config library
