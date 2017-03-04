@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/test/assert"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestNewCustomUTCConsoleReceiver(t *testing.T) {
