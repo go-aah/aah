@@ -1,9 +1,9 @@
 # log - aah framework
-[![Build Status](https://travis-ci.org/go-aah/log.svg?branch=master)](https://travis-ci.org/go-aah/log) [![codecov](https://codecov.io/gh/go-aah/log/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/log/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/log)](https://goreportcard.com/report/aahframework.org/log)
-[![Version](https://img.shields.io/badge/version-0.1-blue.svg)](https://github.com/go-aah/log/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/log?status.svg)](https://godoc.org/aahframework.org/log)
+[![Build Status](https://travis-ci.org/go-aah/log.svg?branch=master)](https://travis-ci.org/go-aah/log) [![codecov](https://codecov.io/gh/go-aah/log/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/log/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/log.v0)](https://goreportcard.com/report/aahframework.org/log.v0)
+[![Version](https://img.shields.io/badge/version-0.2-blue.svg)](https://github.com/go-aah/log/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/log.v0?status.svg)](https://godoc.org/aahframework.org/log.v0)
 [![License](https://img.shields.io/github/license/go-aah/log.svg)](LICENSE)
 
-***v0.1 [released](https://github.com/go-aah/log/releases/latest) and tagged on Jan 14, 2017***
+***v0.2 [released](https://github.com/go-aah/log/releases/latest) and tagged on Mar 04, 2017***
 
 Simple, flexible & powerful `Go` logger inspired by standard logger & Google glog. aah framework utilizes `log` library across.
 
@@ -13,7 +13,7 @@ Simple, flexible & powerful `Go` logger inspired by standard logger & Google glo
 #### Stable - Version
 ```sh
 # install the library
-go get -u aahframework.org/log
+go get -u aahframework.org/log.v0
 ```
 
 See official page [TODO]
