@@ -328,7 +328,7 @@ func StripExt(name string) string {
 		return name
 	}
 
-	idx := strings.IndexByte(name, '.')
+	idx := strings.LastIndexByte(name, '.')
 	if idx > 0 {
 		return name[:idx]
 	}
