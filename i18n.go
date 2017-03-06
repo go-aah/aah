@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// go-aah/i18n source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 // Package i18n is internationalization and localization support for aah
@@ -33,12 +33,14 @@ import (
 	"regexp"
 	"strings"
 
-	"aahframework.org/aah/ahttp"
-	"aahframework.org/aah/atemplate"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframework.org/ahttp.v0-unstable"
+	"aahframework.org/config.v0-unstable"
+	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/log.v0-unstable"
 )
+
+// Version no. of aah framework i18n library
+const Version = "0.1"
 
 var (
 	msgFileExtRegex = `messages\.[a-z]{2}(\-[a-zA-Z]{2})?$`
@@ -164,16 +166,10 @@ func retriveMsg(store *config.Config, key string, args ...interface{}) (string, 
 // Template methods
 //___________________________________
 
-// tmplI18n method is mapped to Go template func for resolving i18n values.
-func tmplI18n(viewArgs map[string]interface{}, key string, args ...interface{}) template.HTML {
+// TmplI18n method is mapped to Go template func for resolving i18n values.
+func TmplI18n(viewArgs map[string]interface{}, key string, args ...interface{}) template.HTML {
 	if locale, ok := viewArgs["Locale"].(*ahttp.Locale); ok {
 		return template.HTML(template.HTMLEscapeString(Msg(locale, key, args...)))
 	}
 	return template.HTML("")
-}
-
-func init() {
-	atemplate.AddTemplateFunc(template.FuncMap{
-		"i18n": tmplI18n,
-	})
 }

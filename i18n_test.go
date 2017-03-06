@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// go-aah/i18n source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package i18n
@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/aah/ahttp"
-	"aahframework.org/test/assert"
+	"aahframework.org/ahttp.v0-unstable"
+	"aahframework.org/test.v0-unstable/assert"
 )
 
 func TestLoadMessage(t *testing.T) {
