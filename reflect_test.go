@@ -6,6 +6,7 @@ package ess
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"aahframework.org/test.v0/assert"
@@ -17,7 +18,8 @@ func TestGetFunctionInfo(t *testing.T) {
 	}
 
 	info := GetFunctionInfo(testFunc1)
-	assert.Equal(t, "aahframework.org/essentials.v0.testFunc1", info.QualifiedName)
+	assert.True(t, strings.Contains(info.QualifiedName, "aahframework.org/essentials"))
+	assert.True(t, strings.Contains(info.QualifiedName, "testFunc1"))
 
 	info = GetFunctionInfo(SampleStr{})
 	assert.Equal(t, "", info.Name)
@@ -30,7 +32,8 @@ func TestGetFunctionInfo(t *testing.T) {
 func TestGetCallerInfo(t *testing.T) {
 	caller := GetCallerInfo()
 	assert.Equal(t, "TestGetCallerInfo", caller.FunctionName)
-	assert.Equal(t, "aahframework.org/essentials.v0.TestGetCallerInfo", caller.QualifiedName)
+	assert.True(t, strings.Contains(caller.QualifiedName, "aahframework.org/essentials"))
+	assert.True(t, strings.Contains(caller.QualifiedName, "TestGetCallerInfo"))
 	assert.Equal(t, "reflect_test.go", caller.FileName)
 }
 

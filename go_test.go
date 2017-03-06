@@ -19,7 +19,7 @@ func TestLookExecutable(t *testing.T) {
 }
 
 func TestIsImportPathExists(t *testing.T) {
-	assert.Equal(t, true, IsImportPathExists("aahframework.org/essentials.v0"))
+	assert.Equal(t, true, IsImportPathExists("aahframework.org/test.v0"))
 
 	assert.Equal(t, false, IsImportPathExists("aahframework.org/unknown"))
 }
