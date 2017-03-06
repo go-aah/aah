@@ -13,12 +13,12 @@ import (
 	"fmt"
 	"strings"
 
-	"aahframework.org/essentials.v0"
+	"aahframework.org/essentials.v0-unstable"
 	"aahframework.org/forge.v0"
 )
 
 // Version no. of aahframework.org/config library
-var Version = "0.2"
+var Version = "0.3"
 
 // Config handles the configuration values and enables environment profile's,
 // merge, etc. Also it provide nice and handly methods for accessing config values.
