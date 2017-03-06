@@ -25,8 +25,8 @@ import (
 	"sync"
 	"time"
 
-	"aahframework.org/config"
-	ess "aahframework.org/essentials"
+	"aahframework.org/config.v0-unstable"
+	"aahframework.org/essentials.v0-unstable"
 )
 
 // Level type definition
