@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) 2016-2017 Jeevanandam M (https://github.com/jeevatkm)
 // Copyright (c) 2013 Julien Schmidt (https://github.com/julienschmidt)
 // All rights reserved.
 // Use of this radix_tree.go source code is governed by a BSD-style license that can be found

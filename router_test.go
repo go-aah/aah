@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/aah/ahttp"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/test/assert"
+	"aahframework.org/ahttp.v0-unstable"
+	"aahframework.org/config.v0-unstable"
+	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/test.v0-unstable/assert"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

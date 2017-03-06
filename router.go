@@ -19,12 +19,14 @@ import (
 	"path"
 	"strings"
 
-	"aahframework.org/aah/ahttp"
-	"aahframework.org/aah/atemplate"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframework.org/ahttp.v0-unstable"
+	"aahframework.org/config.v0-unstable"
+	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/log.v0-unstable"
 )
+
+// Version no. of aah framework router library
+const Version = "0.1"
 
 var (
 	// HTTPMethodActionMap is default Controller Action name for corresponding
@@ -748,9 +750,9 @@ func findReverseURLDomain(host, routeName string) (*Domain, int) {
 	return router.domains[host], -1
 }
 
-// tmplURL method returns reverse URL by given route name and args.
+// TmplURL method returns reverse URL by given route name and args.
 // Mapped to Go template func.
-func tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL {
+func TmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL {
 	if len(args) > 0 {
 		host := viewArgs["Host"].(string)
 		routeName := args[0].(string)
@@ -783,10 +785,4 @@ func tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL 
 
 	log.Errorf("route not found: %v", args)
 	return template.URL("#")
-}
-
-func init() {
-	atemplate.AddTemplateFunc(template.FuncMap{
-		"url": tmplURL,
-	})
 }

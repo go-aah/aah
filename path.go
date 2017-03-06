@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) 2016-2017 Jeevanandam M (https://github.com/jeevatkm)
 // Copyright (c) 2013 Julien Schmidt (https://github.com/julienschmidt)
 // All rights reserved.
 // Based on the path package, Copyright 2009 The Go Authors.
@@ -11,7 +11,7 @@
 
 package router
 
-import "aahframework.org/essentials"
+import "aahframework.org/essentials.v0-unstable"
 
 // CleanPath is the URL version of path.Clean, it returns a canonical URL path
 // for p, eliminating . and .. elements.
