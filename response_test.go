@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// go-aah/ahttp source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package ahttp
@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/test/assert"
+	"aahframework.org/test.v0-unstable/assert"
 )
 
 func TestResponseWriter(t *testing.T) {
