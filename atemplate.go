@@ -12,13 +12,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
-	"aahframework.org/pool"
+	"aahframework.org/config.v0-unstable"
+	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/log.v0-unstable"
+	"aahframework.org/pool.v0-unstable"
 )
 
 var (
+	// Version no. of aah framework atemplate library
+	Version = "0.1"
+
 	// TemplateFuncMap aah framework Go template function map.
 	TemplateFuncMap = make(template.FuncMap)
 
