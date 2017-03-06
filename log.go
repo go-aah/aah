@@ -25,8 +25,8 @@ import (
 	"sync"
 	"time"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
+	"aahframework.org/config"
+	ess "aahframework.org/essentials"
 )
 
 // Level type definition
@@ -62,7 +62,7 @@ const (
 
 var (
 	// Version no. of aahframework.org/log library
-	Version = "0.2"
+	Version = "0.3"
 
 	// FmtFlags is the list of log format flags supported by aah/log library
 	// Usage of flag order is up to format composition.

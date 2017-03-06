@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/test.v0-unstable/assert"
 )
 
 func TestDefaultStandardLogger(t *testing.T) {

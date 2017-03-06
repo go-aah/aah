@@ -13,12 +13,7 @@ go:
   - 1.8
   - tip
 
-before_install:
-  - bash <(curl -s https://aahframework.org/env.txt) "log" "v0"
-
-install:
-  - cd $GOPATH/src/aahframework.org/log.v0
-  - go get -v -t ./...
+go_import_path: aahframework.org/log.v0-unstable
 
 script:
   - bash go.test.sh

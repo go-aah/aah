@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
+	"aahframework.org/config.v0-unstable"
+	"aahframework.org/essentials.v0-unstable"
 )
 
 // Receiver represents aah logger object that statisfy console, file, logging

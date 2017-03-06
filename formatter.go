@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"aahframework.org/essentials.v0"
+	"aahframework.org/essentials.v0-unstable"
 )
 
 // FormatterFunc is the handler function to implement log entry
