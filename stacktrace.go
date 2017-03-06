@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// go-aah/aruntime source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aruntime
@@ -14,9 +14,9 @@ import (
 	"strconv"
 	"strings"
 
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframework.org/config.v0-unstable"
+	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/log.v0-unstable"
 )
 
 const (
