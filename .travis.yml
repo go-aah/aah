@@ -1,0 +1,26 @@
+language: go
+
+sudo: false
+
+branches:
+  only:
+    # - master
+    # - integration
+
+go:
+  - 1.6
+  - 1.7
+  - 1.8
+  - tip
+
+go_import_path: aahframework.org/ahttp.v0-unstable
+
+script:
+  - go test -race -coverprofile=coverage.txt -covermode=atomic
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
+matrix:
+  allow_failures:
+    - go: tip
