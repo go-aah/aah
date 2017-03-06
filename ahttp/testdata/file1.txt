@@ -1,1 +1,0 @@
-This is HTTP fs test file1.txt

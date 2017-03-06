@@ -2,7 +2,7 @@
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package render
+package aah
 
 import (
 	"bytes"
@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/test/assert"
+	"aahframework.org/config.v0-unstable"
+	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/test.v0-unstable/assert"
 )
 
 func TestTextRender(t *testing.T) {
@@ -38,8 +38,7 @@ func TestTextRender(t *testing.T) {
 
 func TestJSONRender(t *testing.T) {
 	buf := &bytes.Buffer{}
-	cfg := getRenderCfg()
-	Init(cfg)
+	appConfig = getRenderCfg()
 
 	data := struct {
 		Name    string
@@ -61,7 +60,7 @@ func TestJSONRender(t *testing.T) {
 }`, buf.String())
 
 	buf.Reset()
-	cfg.SetBool("render.pretty", false)
+	appConfig.SetBool("render.pretty", false)
 
 	err = json1.Render(buf)
 	assert.FailOnError(t, err, "")
@@ -71,8 +70,7 @@ func TestJSONRender(t *testing.T) {
 
 func TestJSONPRender(t *testing.T) {
 	buf := &bytes.Buffer{}
-	cfg := getRenderCfg()
-	Init(cfg)
+	appConfig = getRenderCfg()
 
 	data := struct {
 		Name    string
@@ -94,7 +92,7 @@ func TestJSONPRender(t *testing.T) {
 });`, buf.String())
 
 	buf.Reset()
-	cfg.SetBool("render.pretty", false)
+	appConfig.SetBool("render.pretty", false)
 
 	err = json1.Render(buf)
 	assert.FailOnError(t, err, "")
@@ -104,8 +102,7 @@ func TestJSONPRender(t *testing.T) {
 
 func TestXMLRender(t *testing.T) {
 	buf := &bytes.Buffer{}
-	cfg := getRenderCfg()
-	Init(cfg)
+	appConfig = getRenderCfg()
 
 	type Sample struct {
 		Name    string
@@ -130,7 +127,7 @@ func TestXMLRender(t *testing.T) {
 
 	buf.Reset()
 
-	cfg.SetBool("render.pretty", false)
+	appConfig.SetBool("render.pretty", false)
 
 	err = xml1.Render(buf)
 	assert.FailOnError(t, err, "")
@@ -140,8 +137,7 @@ func TestXMLRender(t *testing.T) {
 
 func TestFailureXMLRender(t *testing.T) {
 	buf := &bytes.Buffer{}
-	cfg := getRenderCfg()
-	Init(cfg)
+	appConfig = getRenderCfg()
 
 	data := struct {
 		Name    string
@@ -191,8 +187,7 @@ func TestHTMLRender(t *testing.T) {
 	tmpl := template.Must(template.New("test").Parse(tmplStr))
 	assert.NotNil(t, tmpl)
 
-	testdataPath := getTestdataPath()
-	masterTmpl := filepath.Join(testdataPath, "views", "master.html")
+	masterTmpl := getRenderFilepath(filepath.Join("views", "master.html"))
 	_, err := tmpl.ParseFiles(masterTmpl)
 	assert.Nil(t, err)
 
@@ -235,10 +230,6 @@ func getRenderCfg() *config.Config {
 }
 
 func getRenderFilepath(name string) string {
-	return filepath.Join(getTestdataPath(), name)
-}
-
-func getTestdataPath() string {
 	wd, _ := os.Getwd()
-	return filepath.Join(wd, "testdata")
+	return filepath.Join(wd, "testdata", "render", name)
 }

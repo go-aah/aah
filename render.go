@@ -2,7 +2,7 @@
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package render
+package aah
 
 import (
 	"encoding/json"
@@ -12,11 +12,8 @@ import (
 	"html/template"
 	"io"
 
-	"aahframework.org/config"
-	"aahframework.org/essentials"
+	"aahframework.org/essentials.v0-unstable"
 )
-
-var appConfig *config.Config
 
 type (
 	// Data type used for convenient data type of map[string]interface{}
@@ -62,15 +59,6 @@ type (
 		ViewArgs Data
 	}
 )
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
-//___________________________________
-
-// Init assigns the application config.
-func Init(cfg *config.Config) {
-	appConfig = cfg
-}
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Plain Text Render methods
