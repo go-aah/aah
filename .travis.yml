@@ -4,22 +4,18 @@ sudo: false
 
 branches:
   only:
-    - master
-    - integration
+    # - master
+    # - integration
 
 go:
   - 1.6
   - 1.7
+  - 1.8
   - tip
 
-before_install:
-  - bash prepare-aah-env.sh "forge essentials config log test pool" "aah"
-
-install:
-  - go get -v -t aahframework.org/aah/...
+go_import_path: aahframework.org/aah.v0-unstable
 
 script:
-  - cd $GOPATH/src/aahframework.org/aah
   - bash go.test.sh
 
 after_success:
