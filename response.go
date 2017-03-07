@@ -11,7 +11,7 @@ import (
 	"net"
 	"net/http"
 
-	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/essentials.v0"
 )
 
 type (

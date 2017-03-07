@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"strings"
 
-	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/essentials.v0"
 )
 
 const jsonpReqParamKey = "callback"

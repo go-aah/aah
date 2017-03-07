@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/test.v0-unstable/assert"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestNoDirDisplay(t *testing.T) {

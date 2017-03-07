@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"testing"
 
-	"aahframework.org/test.v0-unstable/assert"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestClientIP(t *testing.T) {
