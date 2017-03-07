@@ -16,14 +16,13 @@ import (
 	"reflect"
 	"sort"
 
-	"aahframework.org/aah/ahttp"
-	"aahframework.org/aah/aruntime"
-	"aahframework.org/aah/atemplate"
-	"aahframework.org/aah/reply"
-	"aahframework.org/aah/router"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
-	"aahframework.org/pool"
+	"aahframework.org/ahttp.v0-unstable"
+	"aahframework.org/aruntime.v0-unstable"
+	"aahframework.org/atemplate.v0-unstable"
+	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/log.v0-unstable"
+	"aahframework.org/pool.v0-unstable"
+	"aahframework.org/router.v0-unstable"
 )
 
 var errFileNotFound = errors.New("file not found")
@@ -56,7 +55,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	c.Req = ahttp.ParseRequest(req, r)
 	c.Res = ahttp.WrapResponseWriter(w)
-	c.reply = reply.NewReply()
+	c.reply = NewReply()
 	c.viewArgs = make(map[string]interface{})
 
 	// recovery handling
@@ -117,6 +116,8 @@ func (e *engine) executeMiddlewares(c *Controller) {
 // writeResponse method writes the response on the wire based on `Reply` values.
 func (e *engine) writeResponse(c *Controller) {
 	reply := c.Reply()
+
+	// Response already written, don't go forward
 	if reply.Done {
 		return
 	}

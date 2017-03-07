@@ -2,13 +2,14 @@
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
+// Package aah is A scalable, performant, rapid development Web framework for Go
+// https://aahframework.org
 package aah
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -19,14 +20,10 @@ import (
 	"strings"
 	"time"
 
-	"aahframework.org/aah/aruntime"
-	"aahframework.org/aah/atemplate"
-	"aahframework.org/aah/i18n"
-	"aahframework.org/aah/render"
-	"aahframework.org/aah/router"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframework.org/aruntime.v0-unstable"
+	"aahframework.org/config.v0-unstable"
+	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/log.v0-unstable"
 )
 
 // Version no. of aah framework
@@ -34,32 +31,27 @@ const Version = "0.2"
 
 // aah application variables
 var (
-	appName                  string
-	appImportPath            string
-	appProfile               string
-	appBaseDir               string
-	appIsPackaged            bool
-	appConfig                *config.Config
-	appHTTPReadTimeout       time.Duration
-	appHTTPWriteTimeout      time.Duration
-	appSSLCert               string
-	appSSLKey                string
-	appMultipartMaxMemory    int64
-	appTemplateEngine        atemplate.TemplateEnginer
-	appTemplateExt           string
-	appDefaultTmplLayout     string
-	appTemplateCaseSensitive bool
-	appPID                   int
-	appInitialized           bool
-	appBuildInfo             *BuildInfo
+	appName               string
+	appImportPath         string
+	appProfile            string
+	appBaseDir            string
+	appIsPackaged         bool
+	appHTTPReadTimeout    time.Duration
+	appHTTPWriteTimeout   time.Duration
+	appSSLCert            string
+	appSSLKey             string
+	appMultipartMaxMemory int64
+	appPID                int
+	appInitialized        bool
+	appBuildInfo          *BuildInfo
 
-	isExternalTmplEng  bool
 	isMultipartEnabled bool
 
 	goPath   string
 	goSrcDir string
 
 	appDefaultProfile        = "dev"
+	appProfileProd           = "prod"
 	appProfilePrefix         = "env."
 	appDefaultHTTPPort       = 8080
 	appDefaultDateFormat     = "2006-01-02"
@@ -103,11 +95,6 @@ func AppImportPath() string {
 	return appImportPath
 }
 
-// AppConfig method returns aah application configuration instance.
-func AppConfig() *config.Config {
-	return appConfig
-}
-
 // AppMode method returns aah application mode. Default is "web" For e.g.: web or api
 func AppMode() string {
 	return AppConfig().StringDefault("mode", appModeWeb)
@@ -132,12 +119,6 @@ func AppDateFormat() string {
 // AppDateTimeFormat method returns aah application date format
 func AppDateTimeFormat() string {
 	return AppConfig().StringDefault("format.datetime", appDefaultDateTimeFormat)
-}
-
-// AppDefaultI18nLang method returns aah application i18n default language if
-// configured other framework defaults to "en".
-func AppDefaultI18nLang() string {
-	return AppConfig().StringDefault("i18n.default", "en")
 }
 
 // AppBuildInfo method return user application version no.
@@ -189,23 +170,6 @@ func SetAppBuildInfo(bi *BuildInfo) {
 	appBuildInfo = bi
 }
 
-// AddTemplateFunc method adds given Go template funcs into function map.
-func AddTemplateFunc(funcMap template.FuncMap) {
-	atemplate.AddTemplateFunc(funcMap)
-}
-
-// MergeAppConfig method allows to you to merge external config into aah
-// application anytime.
-func MergeAppConfig(cfg *config.Config) {
-	defer aahRecover()
-
-	if err := AppConfig().Merge(cfg); err != nil {
-		log.Errorf("Unable to merge config into aah application[%s]: %s", AppName(), err)
-	}
-
-	initInternal()
-}
-
 // Init method initializes `aah` application, if anything goes wrong during
 // initialize process, it will log it as fatal msg and exit.
 func Init(importPath string) {
@@ -228,8 +192,8 @@ func Start() {
 	log.Infof("App Name: %v", AppName())
 	log.Infof("App Profile: %v", AppProfile())
 	log.Infof("App Mode: %v", AppMode())
-	log.Debugf("App i18n Locales: %v", strings.Join(i18n.Locales(), ", "))
-	log.Debugf("App Route Domains: %v", strings.Join(router.DomainAddresses(), ", "))
+	log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
+	log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
 
 	address := AppHTTPAddress()
 	server := &http.Server{
@@ -302,22 +266,6 @@ func appLogsDir() string {
 	return filepath.Join(AppBaseDir(), "logs")
 }
 
-func appConfigDir() string {
-	return filepath.Join(AppBaseDir(), "config")
-}
-
-func appI18nDir() string {
-	return filepath.Join(AppBaseDir(), "i18n")
-}
-
-func appViewsDir() string {
-	return filepath.Join(AppBaseDir(), "views")
-}
-
-func appTestsDir() string {
-	return filepath.Join(AppBaseDir(), "tests")
-}
-
 func logAsFatal(err error) {
 	if err != nil {
 		log.Fatal(err)
@@ -327,17 +275,19 @@ func logAsFatal(err error) {
 func initInternal() {
 	logAsFatal(initAppVariables())
 
-	logAsFatal(initLogs(appLogsDir(), AppConfig()))
+	logAsFatal(initLogs())
 
-	logAsFatal(initI18n(appI18nDir()))
+	logAsFatal(initI18n())
 
-	logAsFatal(initRoutes(appConfigDir(), AppConfig()))
+	logAsFatal(initRoutes())
 
 	if AppMode() == appModeWeb {
-		logAsFatal(initTemplateEngine(appViewsDir(), AppConfig()))
+		logAsFatal(initTemplateEngine())
 	}
 
-	logAsFatal(initTests(appTestsDir()))
+	if AppProfile() != appProfileProd {
+		logAsFatal(initTests())
+	}
 
 	appInitialized = true
 }
@@ -362,27 +312,17 @@ func initPath(importPath string) error {
 	return nil
 }
 
-func initConfig(cfgDir string) error {
-	confPath := filepath.Join(cfgDir, "aah.conf")
-
-	cfg, err := config.LoadFile(confPath)
-	if err != nil {
-		return fmt.Errorf("aah application %s", err)
-	}
-
-	appConfig = cfg
-
-	return nil
-}
-
 func initAppVariables() error {
 	var err error
+	cfg := AppConfig()
 
-	appName = AppConfig().StringDefault("name", filepath.Base(appBaseDir))
-	appProfile = AppConfig().StringDefault("env.active", appDefaultProfile)
+	appName = cfg.StringDefault("name", filepath.Base(appBaseDir))
 
-	readTimeout := AppConfig().StringDefault("http.timeout.read", "90s")
-	writeTimeout := AppConfig().StringDefault("http.timeout.write", "90s")
+	appProfile = cfg.StringDefault("env.active", appDefaultProfile)
+	logAsFatal(SetAppProfile(AppProfile()))
+
+	readTimeout := cfg.StringDefault("http.timeout.read", "90s")
+	writeTimeout := cfg.StringDefault("http.timeout.write", "90s")
 	if !(strings.HasSuffix(readTimeout, "s") || strings.HasSuffix(readTimeout, "m")) &&
 		!(strings.HasSuffix(writeTimeout, "s") || strings.HasSuffix(writeTimeout, "m")) {
 		return errors.New("'http.timeout.{read|write}' value is not a valid time unit")
@@ -396,42 +336,33 @@ func initAppVariables() error {
 		return fmt.Errorf("app config - 'http.timeout.write': %s", err)
 	}
 
-	appSSLCert = AppConfig().StringDefault("http.ssl.cert", "")
-	appSSLKey = AppConfig().StringDefault("http.ssl.key", "")
+	appSSLCert = cfg.StringDefault("http.ssl.cert", "")
+	appSSLKey = cfg.StringDefault("http.ssl.key", "")
 	if IsSSLEnabled() && (ess.IsStrEmpty(appSSLCert) || ess.IsStrEmpty(appSSLKey)) {
 		return errors.New("HTTP SSL is enabled, so 'http.ssl.cert' & 'http.ssl.key' value is required")
 	}
 
-	logAsFatal(SetAppProfile(AppProfile()))
-
-	render.Init(AppConfig())
-
-	appTemplateExt = AppConfig().StringDefault("template.ext", ".html")
-	appDefaultTmplLayout = "master" + appTemplateExt
-
-	multipartMemoryStr := AppConfig().StringDefault("render.multipart.size", "32mb")
+	multipartMemoryStr := cfg.StringDefault("render.multipart.size", "32mb")
 	if appMultipartMaxMemory, err = ess.StrToBytes(multipartMemoryStr); err != nil {
 		return err
 	}
 
-	isMultipartEnabled = AppConfig().BoolDefault("render.multipart.enable", true)
-
-	appTemplateCaseSensitive = AppConfig().BoolDefault("template.case_sensitive", false)
+	isMultipartEnabled = cfg.BoolDefault("render.multipart.enable", true)
 
 	return nil
 }
 
-func initLogs(logsDir string, cfg *config.Config) error {
-	if logCfg, found := cfg.GetSubConfig("log"); found {
+func initLogs() error {
+	if logCfg, found := AppConfig().GetSubConfig("log"); found {
 		receiver := logCfg.StringDefault("receiver", "")
 
 		if strings.EqualFold(receiver, "file") {
 			file := logCfg.StringDefault("file", "")
 			if ess.IsStrEmpty(file) {
 				logFileName := strings.Replace(AppName(), " ", "-", -1)
-				logCfg.SetString("file", filepath.Join(logsDir, logFileName+".log"))
+				logCfg.SetString("file", filepath.Join(appLogsDir(), logFileName+".log"))
 			} else if !filepath.IsAbs(file) {
-				logCfg.SetString("file", filepath.Join(logsDir, file))
+				logCfg.SetString("file", filepath.Join(appLogsDir(), file))
 			}
 		}
 
@@ -442,43 +373,6 @@ func initLogs(logsDir string, cfg *config.Config) error {
 
 		log.SetOutput(logger)
 	}
-
-	return nil
-}
-
-func initI18n(i18nDir string) error {
-	return i18n.Load(i18nDir)
-}
-
-func initRoutes(cfgDir string, cfg *config.Config) error {
-	routesPath := filepath.Join(cfgDir, "routes.conf")
-	if err := router.Load(routesPath, cfg); err != nil {
-		return fmt.Errorf("routes.conf: %s", err)
-	}
-
-	return nil
-}
-
-func initTemplateEngine(viewsDir string, cfg *config.Config) error {
-	// initialize if external TemplateEngine is not registered.
-	if appTemplateEngine == nil {
-		tmplEngine := cfg.StringDefault("template.engine", "go")
-		switch tmplEngine {
-		case "go":
-			appTemplateEngine = &atemplate.TemplateEngine{}
-		}
-		isExternalTmplEng = false
-	} else {
-		isExternalTmplEng = true
-	}
-
-	appTemplateEngine.Init(AppConfig(), viewsDir)
-	return appTemplateEngine.Load()
-}
-
-func initTests(testsDir string) error {
-
-	// TODO initTests
 
 	return nil
 }
