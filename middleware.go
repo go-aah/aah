@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"reflect"
 
-	"aahframework.org/ahttp.v0-unstable"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/log.v0"
 )
 
 var (

@@ -20,10 +20,10 @@ import (
 	"strings"
 	"time"
 
-	"aahframework.org/aruntime.v0-unstable"
-	"aahframework.org/config.v0-unstable"
-	"aahframework.org/essentials.v0-unstable"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/aruntime.v0"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 )
 
 // Version no. of aah framework
@@ -58,6 +58,14 @@ var (
 	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
 	appModeWeb               = "web"
 )
+
+// BuildInfo holds the aah application build information; such as BinaryName,
+// Version and Date.
+type BuildInfo struct {
+	BinaryName string
+	Version    string
+	Date       string
+}
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Global methods

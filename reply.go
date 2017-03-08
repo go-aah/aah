@@ -8,8 +8,8 @@ import (
 	"io"
 	"net/http"
 
-	"aahframework.org/ahttp.v0-unstable"
-	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/essentials.v0"
 )
 
 // Reply gives you control and convenient way to write a response effectively.

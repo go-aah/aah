@@ -8,8 +8,8 @@ import (
 	"html/template"
 	"path/filepath"
 
-	"aahframework.org/ahttp.v0-unstable"
-	"aahframework.org/i18n.v0-unstable"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/i18n.v0"
 )
 
 var appI18n *i18n.I18n

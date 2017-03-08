@@ -13,10 +13,10 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp.v0-unstable"
-	"aahframework.org/config.v0-unstable"
-	"aahframework.org/essentials.v0-unstable"
-	"aahframework.org/test.v0-unstable/assert"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestStatusCodes(t *testing.T) {

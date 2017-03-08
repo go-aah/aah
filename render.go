@@ -12,7 +12,7 @@ import (
 	"html/template"
 	"io"
 
-	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/essentials.v0"
 )
 
 type (

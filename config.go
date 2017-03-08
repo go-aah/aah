@@ -9,8 +9,8 @@ import (
 	"html/template"
 	"path/filepath"
 
-	"aahframework.org/config.v0-unstable"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/config.v0"
+	"aahframework.org/log.v0"
 )
 
 var appConfig *config.Config

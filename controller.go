@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"strings"
 
-	"aahframework.org/ahttp.v0-unstable"
-	"aahframework.org/router.v0-unstable"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/router.v0"
 )
 
 const (

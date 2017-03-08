@@ -3,9 +3,11 @@ language: go
 sudo: false
 
 branches:
-  only:
-    # - master
-    # - integration
+  except:
+    # skip tags build, we are building branch and master that is enough for
+    # consistenty check and release. Let's use Travis CI resources optimally
+    # for aah framework.
+    - /^v[0-9]\.[0-9]/
 
 go:
   - 1.6
@@ -13,10 +15,10 @@ go:
   - 1.8
   - tip
 
-go_import_path: aahframework.org/aah.v0-unstable
+go_import_path: aahframework.org/aah.v0
 
 script:
-  - bash go.test.sh
+  - bash <(curl -s https://aahframework.org/go-test)
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

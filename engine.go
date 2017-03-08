@@ -16,13 +16,13 @@ import (
 	"reflect"
 	"sort"
 
-	"aahframework.org/ahttp.v0-unstable"
-	"aahframework.org/aruntime.v0-unstable"
-	"aahframework.org/atemplate.v0-unstable"
-	"aahframework.org/essentials.v0-unstable"
-	"aahframework.org/log.v0-unstable"
-	"aahframework.org/pool.v0-unstable"
-	"aahframework.org/router.v0-unstable"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/aruntime.v0"
+	"aahframework.org/atemplate.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
+	"aahframework.org/pool.v0"
+	"aahframework.org/router.v0"
 )
 
 var errFileNotFound = errors.New("file not found")

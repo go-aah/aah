@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/config.v0-unstable"
-	"aahframework.org/essentials.v0-unstable"
-	"aahframework.org/test.v0-unstable/assert"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestTextRender(t *testing.T) {
