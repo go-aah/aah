@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframework.org/ahttp.v0-unstable"
-	"aahframework.org/essentials.v0-unstable"
-	"aahframework.org/test.v0-unstable/assert"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestLoadMessage(t *testing.T) {

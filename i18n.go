@@ -32,10 +32,10 @@ import (
 	"regexp"
 	"strings"
 
-	"aahframework.org/ahttp.v0-unstable"
-	"aahframework.org/config.v0-unstable"
-	"aahframework.org/essentials.v0-unstable"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 )
 
 // Version no. of aah framework i18n library
