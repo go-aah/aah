@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// go-aah/atemplate source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package atemplate
@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/config"
-	"aahframework.org/test/assert"
+	"aahframework.org/config.v0"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestAppPagesTemplates(t *testing.T) {

@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// go-aah/atemplate source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package atemplate
@@ -12,13 +12,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
-	"aahframework.org/pool"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
+	"aahframework.org/pool.v0"
 )
 
 var (
+	// Version no. of aah framework atemplate library
+	Version = "0.1"
+
 	// TemplateFuncMap aah framework Go template function map.
 	TemplateFuncMap = make(template.FuncMap)
 
