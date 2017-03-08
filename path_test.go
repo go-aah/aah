@@ -15,7 +15,7 @@ import (
 	"runtime"
 	"testing"
 
-	"aahframework.org/test.v0-unstable/assert"
+	"aahframework.org/test.v0/assert"
 )
 
 var cleanTests = []struct {

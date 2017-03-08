@@ -11,7 +11,7 @@
 
 package router
 
-import "aahframework.org/essentials.v0-unstable"
+import "aahframework.org/essentials.v0"
 
 // CleanPath is the URL version of path.Clean, it returns a canonical URL path
 // for p, eliminating . and .. elements.
