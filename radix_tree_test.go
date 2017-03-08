@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// go-aah/router source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 //
 // Updated for aah framework purpose.
@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/test/assert"
+	"aahframework.org/test.v0/assert"
 )
 
 type (
