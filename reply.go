@@ -2,15 +2,14 @@
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package reply
+package aah
 
 import (
 	"io"
 	"net/http"
 
-	"aahframework.org/aah/ahttp"
-	"aahframework.org/aah/render"
-	"aahframework.org/essentials"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/essentials.v0"
 )
 
 // Reply gives you control and convenient way to write a response effectively.
@@ -18,7 +17,7 @@ type Reply struct {
 	Code     int
 	ContType string
 	Hdr      http.Header
-	Rdr      render.Render
+	Rdr      Render
 	Done     bool
 }
 
@@ -134,7 +133,7 @@ func (r *Reply) ContentType(contentType string) *Reply {
 // Also it sets HTTP 'Content-Type' as 'application/json; charset=utf-8'.
 // Response rendered pretty if 'render.pretty' is true.
 func (r *Reply) JSON(data interface{}) *Reply {
-	r.Rdr = &render.JSON{Data: data}
+	r.Rdr = &JSON{Data: data}
 	r.ContentType(ahttp.ContentTypeJSON.Raw())
 	return r
 }
@@ -143,7 +142,7 @@ func (r *Reply) JSON(data interface{}) *Reply {
 // Also it sets HTTP 'Content-Type' as 'application/json; charset=utf-8'.
 // Response rendered pretty if 'render.pretty' is true.
 func (r *Reply) JSONP(data interface{}, callback string) *Reply {
-	r.Rdr = &render.JSON{Data: data, IsJSONP: true, Callback: callback}
+	r.Rdr = &JSON{Data: data, IsJSONP: true, Callback: callback}
 	r.ContentType(ahttp.ContentTypeJSON.Raw())
 	return r
 }
@@ -152,7 +151,7 @@ func (r *Reply) JSONP(data interface{}, callback string) *Reply {
 // HTTP Content-Type as 'application/xml; charset=utf-8'.
 // Response rendered pretty if 'render.pretty' is true.
 func (r *Reply) XML(data interface{}) *Reply {
-	r.Rdr = &render.XML{Data: data}
+	r.Rdr = &XML{Data: data}
 	r.ContentType(ahttp.ContentTypeXML.Raw())
 	return r
 }
@@ -160,14 +159,14 @@ func (r *Reply) XML(data interface{}) *Reply {
 // Text method renders given data as Plain Text response with given values.
 // Also it sets HTTP Content-Type as 'text/plain; charset=utf-8'.
 func (r *Reply) Text(format string, values ...interface{}) *Reply {
-	r.Rdr = &render.Text{Format: format, Values: values}
+	r.Rdr = &Text{Format: format, Values: values}
 	r.ContentType(ahttp.ContentTypePlainText.Raw())
 	return r
 }
 
 // Bytes method writes the given bytes into response with given 'Content-Type'.
 func (r *Reply) Bytes(contentType string, data []byte) *Reply {
-	r.Rdr = &render.Bytes{Data: data}
+	r.Rdr = &Bytes{Data: data}
 	r.ContentType(contentType)
 	return r
 }
@@ -205,8 +204,8 @@ func (r *Reply) FileInline(filename string, file io.ReadCloser) *Reply {
 //      template => /views/pages/app/login.html
 //               => /views/pages/App/Login.html
 //
-func (r *Reply) HTML(data render.Data) *Reply {
-	r.Rdr = &render.HTML{
+func (r *Reply) HTML(data Data) *Reply {
+	r.Rdr = &HTML{
 		ViewArgs: data,
 	}
 	r.ContentType(ahttp.ContentTypeHTML.Raw())
@@ -215,8 +214,8 @@ func (r *Reply) HTML(data render.Data) *Reply {
 
 // HTMLl method renders based on given layout and data. Refer `Reply.HTML(...)`
 // method.
-func (r *Reply) HTMLl(layout string, data render.Data) *Reply {
-	r.Rdr = &render.HTML{
+func (r *Reply) HTMLl(layout string, data Data) *Reply {
+	r.Rdr = &HTML{
 		Layout:   layout,
 		ViewArgs: data,
 	}
@@ -284,7 +283,7 @@ func (r *Reply) SetDone() *Reply {
 //___________________________________
 
 func (r *Reply) fileReply(filename string, file io.ReadCloser) *Reply {
-	r.Rdr = &render.File{Data: file}
+	r.Rdr = &File{Data: file}
 	r.ContentType(ahttp.ContentTypeOctetStream.Raw())
 	return r
 }

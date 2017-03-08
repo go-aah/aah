@@ -1,7 +1,0 @@
-# sample testdata for i18n - en-us
-
-label {
-  home = "Home USA"
-  add = "Add %s"
-  show = "Show %s"
-}

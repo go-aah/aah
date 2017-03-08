@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"aahframework.org/test/assert"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestActualType(t *testing.T) {

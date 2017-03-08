@@ -6,17 +6,11 @@ package aah
 
 import (
 	"errors"
-	"fmt"
-	"html/template"
 	"reflect"
 	"strings"
 
-	"aahframework.org/aah/ahttp"
-	"aahframework.org/aah/atemplate"
-	"aahframework.org/aah/i18n"
-	"aahframework.org/aah/reply"
-	"aahframework.org/aah/router"
-	"aahframework.org/log"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/router.v0"
 )
 
 const (
@@ -48,11 +42,13 @@ type (
 		// `Reply()` builder for composing response.
 		Res ahttp.ResponseWriter
 
+		Abort bool
+
 		controller string
 		action     *MethodInfo
 		target     interface{}
 		domain     *router.Domain
-		reply      *reply.Reply
+		reply      *Reply
 		viewArgs   map[string]interface{}
 	}
 
@@ -109,7 +105,7 @@ func AddController(c interface{}, methods []*MethodInfo) {
 
 // Reply method gives you control and convenient way to write
 // a response effectively.
-func (c *Controller) Reply() *reply.Reply {
+func (c *Controller) Reply() *Reply {
 	return c.reply
 }
 
@@ -140,19 +136,20 @@ func (c *Controller) ReverseURLm(routeName string, args map[string]interface{}) 
 
 // Msg method returns the i18n value for given key otherwise empty string returned.
 func (c *Controller) Msg(key string, args ...interface{}) string {
-	return i18n.Msg(c.Req.Locale, key, args...)
+	return AppI18n().Lookup(c.Req.Locale, key, args...)
 }
 
 // Msgl method returns the i18n value for given local and key otherwise
 // empty string returned.
 func (c *Controller) Msgl(locale *ahttp.Locale, key string, args ...interface{}) string {
-	return i18n.Msg(locale, key, args...)
+	return AppI18n().Lookup(locale, key, args...)
 }
 
 // Reset method resets controller instance for reuse.
 func (c *Controller) Reset() {
 	c.Req = nil
 	c.Res = nil
+	c.Abort = false
 	c.target = nil
 	c.domain = nil
 	c.controller = ""
@@ -289,23 +286,4 @@ func findEmbeddedController(controllerType reflect.Type) [][]int {
 	}
 
 	return indexes
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Template methods
-//___________________________________
-
-// tmplConfig method provides access to application config on templates.
-func tmplConfig(key string) template.HTML {
-	if value, found := appConfig.Get(key); found {
-		return template.HTML(template.HTMLEscapeString(fmt.Sprintf("%v", value)))
-	}
-	log.Errorf("app config key not found: %v", key)
-	return template.HTML("")
-}
-
-func init() {
-	atemplate.AddTemplateFunc(template.FuncMap{
-		"config": tmplConfig,
-	})
 }

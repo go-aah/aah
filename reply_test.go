@@ -2,7 +2,7 @@
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package reply
+package aah
 
 import (
 	"bytes"
@@ -13,11 +13,10 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/aah/ahttp"
-	"aahframework.org/aah/render"
-	"aahframework.org/config"
-	ess "aahframework.org/essentials"
-	"aahframework.org/test/assert"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestStatusCodes(t *testing.T) {
@@ -90,8 +89,7 @@ func TestTextReply(t *testing.T) {
 
 func TestJSONReply(t *testing.T) {
 	buf, re1 := getBufferAndReply()
-	cfg := getReplyRenderCfg()
-	render.Init(cfg)
+	appConfig = getReplyRenderCfg()
 
 	data := struct {
 		Name    string
@@ -122,7 +120,7 @@ func TestJSONReply(t *testing.T) {
 
 	buf.Reset()
 
-	cfg.SetBool("render.pretty", false)
+	appConfig.SetBool("render.pretty", false)
 
 	err = re1.Rdr.Render(buf)
 	assert.FailOnError(t, err, "")
@@ -132,8 +130,7 @@ func TestJSONReply(t *testing.T) {
 
 func TestJSONPReply(t *testing.T) {
 	buf, re1 := getBufferAndReply()
-	cfg := getReplyRenderCfg()
-	render.Init(cfg)
+	appConfig = getReplyRenderCfg()
 
 	data := struct {
 		Name    string
@@ -161,7 +158,7 @@ func TestJSONPReply(t *testing.T) {
 
 	buf.Reset()
 
-	cfg.SetBool("render.pretty", false)
+	appConfig.SetBool("render.pretty", false)
 
 	err = re1.Rdr.Render(buf)
 	assert.FailOnError(t, err, "")
@@ -171,8 +168,7 @@ func TestJSONPReply(t *testing.T) {
 
 func TestXMLReply(t *testing.T) {
 	buf, re1 := getBufferAndReply()
-	cfg := getReplyRenderCfg()
-	render.Init(cfg)
+	appConfig = getReplyRenderCfg()
 
 	type Sample struct {
 		Name    string
@@ -199,7 +195,7 @@ func TestXMLReply(t *testing.T) {
 
 	buf.Reset()
 
-	cfg.SetBool("render.pretty", false)
+	appConfig.SetBool("render.pretty", false)
 
 	err = re1.Rdr.Render(buf)
 	assert.FailOnError(t, err, "")
@@ -224,7 +220,7 @@ func TestBytesReply(t *testing.T) {
 }
 
 func TestAttachmentFileReply(t *testing.T) {
-	f1, _ := os.Open(getFilepath("file1.txt"))
+	f1, _ := os.Open(getReplyFilepath("file1.txt"))
 	defer ess.CloseQuietly(f1)
 
 	buf, re1 := getBufferAndReply()
@@ -239,7 +235,7 @@ Each incoming request passes through a pre-defined list of steps
 
 	buf.Reset()
 
-	f2, _ := os.Open(getFilepath("file1.txt"))
+	f2, _ := os.Open(getReplyFilepath("file1.txt"))
 	defer ess.CloseQuietly(f2)
 
 	re2 := &Reply{Hdr: http.Header{}}
@@ -264,13 +260,12 @@ func TestHTMLReply(t *testing.T) {
 	tmpl := template.Must(template.New("test").Parse(tmplStr))
 	assert.NotNil(t, tmpl)
 
-	testdataPath := getTestdataPath()
-	masterTmpl := filepath.Join(testdataPath, "views", "master.html")
+	masterTmpl := getReplyFilepath(filepath.Join("views", "master.html"))
 	_, err := tmpl.ParseFiles(masterTmpl)
 	assert.Nil(t, err)
 
 	re1.HTMLl("master", nil)
-	htmlRdr := re1.Rdr.(*render.HTML)
+	htmlRdr := re1.Rdr.(*HTML)
 	htmlRdr.Template = tmpl
 
 	err = re1.Rdr.Render(buf)
@@ -307,11 +302,7 @@ func getBufferAndReply() (*bytes.Buffer, *Reply) {
 	return &bytes.Buffer{}, NewReply()
 }
 
-func getFilepath(name string) string {
-	return filepath.Join(getTestdataPath(), name)
-}
-
-func getTestdataPath() string {
+func getReplyFilepath(name string) string {
 	wd, _ := os.Getwd()
-	return filepath.Join(wd, "testdata")
+	return filepath.Join(wd, "testdata", "reply", name)
 }

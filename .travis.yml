@@ -3,24 +3,22 @@ language: go
 sudo: false
 
 branches:
-  only:
-    - master
-    - integration
+  except:
+    # skip tags build, we are building branch and master that is enough for
+    # consistenty check and release. Let's use Travis CI resources optimally
+    # for aah framework.
+    - /^v[0-9]\.[0-9]/
 
 go:
   - 1.6
   - 1.7
+  - 1.8
   - tip
 
-before_install:
-  - bash prepare-aah-env.sh "forge essentials config log test pool" "aah"
-
-install:
-  - go get -v -t aahframework.org/aah/...
+go_import_path: aahframework.org/aah.v0
 
 script:
-  - cd $GOPATH/src/aahframework.org/aah
-  - bash go.test.sh
+  - bash <(curl -s https://aahframework.org/go-test)
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

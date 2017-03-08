@@ -7,15 +7,10 @@ package aah
 import (
 	"io/ioutil"
 	"net/http"
-	"path/filepath"
 	"reflect"
-	"strings"
 
-	"aahframework.org/aah/ahttp"
-	"aahframework.org/aah/render"
-	"aahframework.org/aah/router"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/log.v0"
 )
 
 var (
@@ -58,90 +53,14 @@ func Middlewares(middlewares ...MiddlewareType) {
 
 // Next method calls next middleware in the chain if available.
 func (mw *Middleware) Next(c *Controller) {
+	if c.Abort {
+		// abort, not to proceed further
+		return
+	}
+
 	if mw.next != nil {
 		mw.next(c, mw.further)
 	}
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Router middleware
-//___________________________________
-
-// RouterMiddleware finds the route of incoming request and moves forward.
-// If routes not found it does appropriate response for the request.
-func routerMiddleware(c *Controller, m *Middleware) {
-	domain := router.FindDomain(c.Req)
-	if domain == nil {
-		c.Reply().NotFound().Text("404 Route Not Exists")
-		return
-	}
-
-	route, pathParams, rts := domain.Lookup(c.Req)
-	log.Tracef("Route: %#v, Path Params: %v, rts: %v ", route, pathParams, rts)
-
-	if route != nil { // route found
-		if route.IsStatic {
-			if err := serveStatic(c, route, pathParams); err == errFileNotFound {
-				handleNotFound(c, domain, route.IsStatic)
-			}
-			return
-		}
-
-		if err := c.setTarget(route); err == errTargetNotFound {
-			handleNotFound(c, domain, false)
-			return
-		}
-
-		// Path parameters
-		if pathParams.Len() > 0 {
-			c.Req.Params.Path = make(map[string]string, pathParams.Len())
-			for _, v := range *pathParams {
-				c.Req.Params.Path[v.Key] = v.Value
-			}
-		}
-
-		c.domain = domain
-
-		m.Next(c)
-
-		return
-	}
-
-	// Redirect Trailing Slash
-	if c.Req.Method != ahttp.MethodConnect && c.Req.Path != router.SlashString {
-		if rts && domain.RedirectTrailingSlash {
-			redirectTrailingSlash(c)
-			return
-		}
-	}
-
-	// HTTP: OPTIONS
-	if c.Req.Method == ahttp.MethodOptions {
-		if domain.AutoOptions {
-			if allowed := domain.Allowed(c.Req.Method, c.Req.Path); !ess.IsStrEmpty(allowed) {
-				allowed += ", " + ahttp.MethodOptions
-				log.Debugf("Auto 'OPTIONS' allowed HTTP Methods: %s", allowed)
-				c.Reply().Header(ahttp.HeaderAllow, allowed)
-				return
-			}
-		}
-	}
-
-	// 405 Method Not Allowed
-	if domain.MethodNotAllowed {
-		if allowed := domain.Allowed(c.Req.Method, c.Req.Path); !ess.IsStrEmpty(allowed) {
-			allowed += ", " + ahttp.MethodOptions
-			log.Debugf("Allowed HTTP Methods for 405 response: %s", allowed)
-			c.Reply().
-				Status(http.StatusMethodNotAllowed).
-				Header(ahttp.HeaderAllow, allowed).
-				Text("405 Method Not Allowed")
-			return
-		}
-	}
-
-	// 404 not found
-	handleNotFound(c, domain, false)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -200,99 +119,39 @@ func paramsMiddleware(c *Controller, m *Middleware) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Template middleware
-//___________________________________
-
-// TemplateMiddleware finds appropriate template based request and route
-// information.
-func templateMiddleware(c *Controller, m *Middleware) {
-	m.Next(c)
-
-	reply := c.Reply()
-
-	// ContentType
-	if ess.IsStrEmpty(reply.ContType) {
-		if !ess.IsStrEmpty(c.Req.AcceptContentType.Mime) &&
-			c.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
-			reply.ContentType(c.Req.AcceptContentType.Raw())
-		} else { // default Content-Type defined 'render.default' in aah.conf
-			reply.ContentType(defaultContentType().Raw())
-		}
-	}
-
-	// HTML response
-	if AppMode() == appModeWeb && ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
-		if reply.Rdr == nil {
-			reply.Rdr = &render.HTML{}
-		}
-
-		htmlRdr := reply.Rdr.(*render.HTML)
-
-		if ess.IsStrEmpty(htmlRdr.Layout) {
-			htmlRdr.Layout = appDefaultTmplLayout
-		}
-
-		if htmlRdr.ViewArgs == nil {
-			htmlRdr.ViewArgs = make(map[string]interface{})
-		}
-
-		for k, v := range c.ViewArgs() {
-			htmlRdr.ViewArgs[k] = v
-		}
-
-		// ViewArgs values from framework
-		htmlRdr.ViewArgs["Host"] = c.Req.Host
-		htmlRdr.ViewArgs["HTTPMethod"] = c.Req.Method
-		htmlRdr.ViewArgs["Locale"] = c.Req.Locale
-		htmlRdr.ViewArgs["ClientIP"] = c.Req.ClientIP
-		htmlRdr.ViewArgs["RequestPath"] = c.Req.Path
-		htmlRdr.ViewArgs["IsJSONP"] = c.Req.IsJSONP
-		htmlRdr.ViewArgs["HTTPReferer"] = c.Req.Referer
-		htmlRdr.ViewArgs["AahVersion"] = Version
-
-		controllerName := c.controller
-		if strings.HasSuffix(controllerName, controllerNameSuffix) {
-			controllerName = controllerName[:len(controllerName)-controllerNameSuffixLen]
-		}
-
-		tmplPath := filepath.Join("pages", controllerName)
-		tmplName := c.action.Name + appTemplateExt
-
-		log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
-		htmlRdr.Template = appTemplateEngine.Get(htmlRdr.Layout, tmplPath, tmplName)
-		if htmlRdr.Template == nil {
-			tmplFile := filepath.Join("views", "pages", controllerName, tmplName)
-			if !appTemplateCaseSensitive {
-				tmplFile = strings.ToLower(tmplFile)
-			}
-
-			log.Errorf("template not found: %s", tmplFile)
-		}
-	}
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Interceptor middleware
 //___________________________________
 
-// interceptorMiddleware calls pre-defined actions (Before, After, Panic,
-// Finally) from controller.
+// interceptorMiddleware calls pre-defined actions (Before, Before<ActionName>,
+// After, After<ActionName>, Panic, Panic<ActionName>, Finally,
+// Finally<ActionName>) from controller.
 func interceptorMiddleware(c *Controller, m *Middleware) {
 	target := reflect.ValueOf(c.target)
 
-	// Finally action
+	// Finally action and method
 	defer func() {
+		if finallyActionMethod := target.MethodByName(incpFinallyActionName + c.action.Name); finallyActionMethod.IsValid() {
+			log.Debugf("Calling finally interceptor on controller: %s.%s", c.controller, incpFinallyActionName+c.action.Name)
+			finallyActionMethod.Call(emptyArg)
+		}
+
 		if finallyAction := target.MethodByName(incpFinallyActionName); finallyAction.IsValid() {
-			log.Debugf("Calling finally interceptor on controller: %s", c.controller)
+			log.Debugf("Calling finally interceptor on controller: %s.%s", c.controller, incpFinallyActionName)
 			finallyAction.Call(emptyArg)
 		}
 	}()
 
-	// Panic action
+	// Panic action and method
 	defer func() {
 		if r := recover(); r != nil {
+			if panicActionMethod := target.MethodByName(incpPanicActionName + c.action.Name); panicActionMethod.IsValid() {
+				log.Debugf("Calling panic method interceptor on controller: %s.%s", c.controller, incpPanicActionName+c.action.Name)
+				rv := append([]reflect.Value{}, reflect.ValueOf(r))
+				panicActionMethod.Call(rv)
+			}
+
 			if panicAction := target.MethodByName(incpPanicActionName); panicAction.IsValid() {
-				log.Debugf("Calling panic interceptor on controller: %s", c.controller)
+				log.Debugf("Calling panic interceptor on controller: %s.%s", c.controller, incpPanicActionName)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicAction.Call(rv)
 			} else { // propagate it
@@ -303,16 +162,34 @@ func interceptorMiddleware(c *Controller, m *Middleware) {
 
 	// Before action
 	if beforeAction := target.MethodByName(incpBeforeActionName); beforeAction.IsValid() {
-		log.Debugf("Calling before interceptor on controller: %s", c.controller)
+		log.Debugf("Calling before interceptor on controller: %s.%s", c.controller, incpBeforeActionName)
 		beforeAction.Call(emptyArg)
+	}
+
+	// Before action method
+	if !c.Abort {
+		if beforeActionMethod := target.MethodByName(incpBeforeActionName + c.action.Name); beforeActionMethod.IsValid() {
+			log.Debugf("Calling before action interceptor on controller: %s.%s", c.controller, incpBeforeActionName+c.action.Name)
+			beforeActionMethod.Call(emptyArg)
+		}
 	}
 
 	m.Next(c)
 
+	// After action method
+	if !c.Abort {
+		if afterActionMethod := target.MethodByName(incpAfterActionName + c.action.Name); afterActionMethod.IsValid() {
+			log.Debugf("Calling after action interceptor on controller: %s.%s", c.controller, incpAfterActionName+c.action.Name)
+			afterActionMethod.Call(emptyArg)
+		}
+	}
+
 	// After action
-	if afterAction := target.MethodByName(incpAfterActionName); afterAction.IsValid() {
-		log.Debugf("Calling after interceptor on controller: %s", c.controller)
-		afterAction.Call(emptyArg)
+	if !c.Abort {
+		if afterAction := target.MethodByName(incpAfterActionName); afterAction.IsValid() {
+			log.Debugf("Calling after interceptor on controller: %s.%s", c.controller, incpAfterActionName)
+			afterAction.Call(emptyArg)
+		}
 	}
 }
 
@@ -325,17 +202,19 @@ func actionMiddleware(c *Controller, m *Middleware) {
 	target := reflect.ValueOf(c.target)
 	action := target.MethodByName(c.action.Name)
 
-	if action.IsValid() {
-		actionArgs := make([]reflect.Value, len(c.action.Parameters))
+	if !action.IsValid() {
+		return
+	}
 
-		// TODO Auto Binder for arguments
+	actionArgs := make([]reflect.Value, len(c.action.Parameters))
 
-		log.Debugf("Calling controller: %s, action: %s", c.controller, c.action.Name)
-		if action.Type().IsVariadic() {
-			action.CallSlice(actionArgs)
-		} else {
-			action.Call(actionArgs)
-		}
+	// TODO Auto Binder for arguments
+
+	log.Debugf("Calling controller: %s.%s", c.controller, c.action.Name)
+	if action.Type().IsVariadic() {
+		action.CallSlice(actionArgs)
+	} else {
+		action.Call(actionArgs)
 	}
 
 }
