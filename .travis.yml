@@ -3,10 +3,11 @@ language: go
 sudo: false
 
 branches:
-  # skip tags build, we are building branch and master that is enough for 
-  # consistenty check and release. Let's use Travis CI resources optimally
-  # for aah framework.
-  - /^v[0-9]/
+  except:
+    # skip tags build, we are building branch and master that is enough for
+    # consistenty check and release. Let's use Travis CI resources optimally
+    # for aah framework.
+    - /^v[0-9]/
 
 go:
   - 1.6
