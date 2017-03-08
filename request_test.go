@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// go-aah/ahttp source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package ahttp
@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"testing"
 
-	"aahframework.org/test/assert"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestClientIP(t *testing.T) {

@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// go-aah/ahttp source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package ahttp
@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"strings"
 
-	"aahframework.org/essentials"
+	"aahframework.org/essentials.v0"
 )
 
 const jsonpReqParamKey = "callback"
