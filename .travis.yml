@@ -15,7 +15,7 @@ go:
   - 1.8
   - tip
 
-go_import_path: aahframework.org/aah.v0
+go_import_path: aahframework.org/aah.v0-unstable
 
 script:
   - bash <(curl -s https://aahframework.org/go-test)
