@@ -5,4 +5,4 @@
 package aruntime
 
 // Version no. of aah framework aruntime library
-const Version = "0.1"
+const Version = "0.2"

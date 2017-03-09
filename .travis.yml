@@ -7,7 +7,7 @@ branches:
     # skip tags build, we are building branch and master that is enough for
     # consistenty check and release. Let's use Travis CI resources optimally
     # for aah framework.
-    - /^v[0-9]/
+    - /^v[0-9]\.[0-9]/
 
 go:
   - 1.6
@@ -15,10 +15,10 @@ go:
   - 1.8
   - tip
 
-go_import_path: aahframework.org/aruntime.v0
+go_import_path: aahframework.org/aruntime.v0-unstable
 
 script:
-  - go test -race -coverprofile=coverage.txt -covermode=atomic
+  - bash <(curl -s https://aahframework.org/go-test)
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
