@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"aahframework.org/aruntime.v0"
+	"aahframework.org/aruntime.v0-unstable"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"

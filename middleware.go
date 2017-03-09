@@ -131,12 +131,12 @@ func interceptorMiddleware(c *Controller, m *Middleware) {
 	// Finally action and method
 	defer func() {
 		if finallyActionMethod := target.MethodByName(incpFinallyActionName + c.action.Name); finallyActionMethod.IsValid() {
-			log.Debugf("Calling finally interceptor on controller: %s.%s", c.controller, incpFinallyActionName+c.action.Name)
+			log.Debugf("Calling interceptor: %s.%s", c.controller, incpFinallyActionName+c.action.Name)
 			finallyActionMethod.Call(emptyArg)
 		}
 
 		if finallyAction := target.MethodByName(incpFinallyActionName); finallyAction.IsValid() {
-			log.Debugf("Calling finally interceptor on controller: %s.%s", c.controller, incpFinallyActionName)
+			log.Debugf("Calling interceptor: %s.%s", c.controller, incpFinallyActionName)
 			finallyAction.Call(emptyArg)
 		}
 	}()
@@ -145,13 +145,13 @@ func interceptorMiddleware(c *Controller, m *Middleware) {
 	defer func() {
 		if r := recover(); r != nil {
 			if panicActionMethod := target.MethodByName(incpPanicActionName + c.action.Name); panicActionMethod.IsValid() {
-				log.Debugf("Calling panic method interceptor on controller: %s.%s", c.controller, incpPanicActionName+c.action.Name)
+				log.Debugf("Calling interceptor: %s.%s", c.controller, incpPanicActionName+c.action.Name)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicActionMethod.Call(rv)
 			}
 
 			if panicAction := target.MethodByName(incpPanicActionName); panicAction.IsValid() {
-				log.Debugf("Calling panic interceptor on controller: %s.%s", c.controller, incpPanicActionName)
+				log.Debugf("Calling interceptor: %s.%s", c.controller, incpPanicActionName)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicAction.Call(rv)
 			} else { // propagate it
@@ -162,14 +162,14 @@ func interceptorMiddleware(c *Controller, m *Middleware) {
 
 	// Before action
 	if beforeAction := target.MethodByName(incpBeforeActionName); beforeAction.IsValid() {
-		log.Debugf("Calling before interceptor on controller: %s.%s", c.controller, incpBeforeActionName)
+		log.Debugf("Calling interceptor: %s.%s", c.controller, incpBeforeActionName)
 		beforeAction.Call(emptyArg)
 	}
 
 	// Before action method
 	if !c.Abort {
 		if beforeActionMethod := target.MethodByName(incpBeforeActionName + c.action.Name); beforeActionMethod.IsValid() {
-			log.Debugf("Calling before action interceptor on controller: %s.%s", c.controller, incpBeforeActionName+c.action.Name)
+			log.Debugf("Calling interceptor: %s.%s", c.controller, incpBeforeActionName+c.action.Name)
 			beforeActionMethod.Call(emptyArg)
 		}
 	}
@@ -179,7 +179,7 @@ func interceptorMiddleware(c *Controller, m *Middleware) {
 	// After action method
 	if !c.Abort {
 		if afterActionMethod := target.MethodByName(incpAfterActionName + c.action.Name); afterActionMethod.IsValid() {
-			log.Debugf("Calling after action interceptor on controller: %s.%s", c.controller, incpAfterActionName+c.action.Name)
+			log.Debugf("Calling interceptor: %s.%s", c.controller, incpAfterActionName+c.action.Name)
 			afterActionMethod.Call(emptyArg)
 		}
 	}
@@ -187,7 +187,7 @@ func interceptorMiddleware(c *Controller, m *Middleware) {
 	// After action
 	if !c.Abort {
 		if afterAction := target.MethodByName(incpAfterActionName); afterAction.IsValid() {
-			log.Debugf("Calling after interceptor on controller: %s.%s", c.controller, incpAfterActionName)
+			log.Debugf("Calling interceptor: %s.%s", c.controller, incpAfterActionName)
 			afterAction.Call(emptyArg)
 		}
 	}

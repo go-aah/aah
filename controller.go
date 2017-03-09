@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/router.v0"
 )
 
@@ -58,6 +59,7 @@ type (
 	// ControllerInfo holds information of single controller information.
 	controllerInfo struct {
 		Type            reflect.Type
+		Namespace       string
 		Methods         map[string]*MethodInfo
 		EmbeddedIndexes [][]int
 	}
@@ -92,11 +94,25 @@ func AddController(c interface{}, methods []*MethodInfo) {
 		methodMapping[strings.ToLower(method.Name)] = method
 	}
 
-	cRegistry[strings.ToLower(cType.Name())] = &controllerInfo{
+	key := createRegistryKey(cType)
+	cRegistry[key] = &controllerInfo{
 		Type:            cType,
+		Namespace:       ess.StripExt(key),
 		Methods:         methodMapping,
 		EmbeddedIndexes: findEmbeddedController(cType),
 	}
+}
+
+func createRegistryKey(cType reflect.Type) string {
+	namespace := cType.PkgPath()
+	idx := strings.Index(namespace, "controllers")
+	namespace = namespace[idx+11:]
+
+	if ess.IsStrEmpty(namespace) {
+		return strings.ToLower(cType.Name())
+	}
+
+	return strings.ToLower(namespace[1:] + "." + cType.Name())
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
