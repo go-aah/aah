@@ -141,7 +141,7 @@ func (st *Stacktrace) Parse() {
 				}
 			}
 
-			st.GoRoutines[ri].Functions = append(st.GoRoutines[ri].Functions, sline)
+			st.GoRoutines[ri].Functions = append(st.GoRoutines[ri].Functions, strings.Replace(sline, "%2e", ".", -1))
 		}
 
 	}
