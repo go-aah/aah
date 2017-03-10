@@ -11,7 +11,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"aahframework.org/essentials.v0-unstable"
 	"aahframework.org/forge.v0"
@@ -238,24 +237,6 @@ func (c *Config) StringList(key string) ([]string, bool) {
 	return values, true
 }
 
-func (c *Config) getListValue(key string) (*forge.List, bool) {
-	value, found := c.getraw(c.prepareKey(key))
-	if !found {
-		return nil, found
-	}
-
-	if value.GetType() != forge.LIST {
-		return nil, false
-	}
-
-	lst, ok := value.(*forge.List)
-	if !ok {
-		return nil, false
-	}
-
-	return lst, true
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Setter methods
 //___________________________________
@@ -386,10 +367,10 @@ func ParseString(cfg string) (*Config, error) {
 //___________________________________
 
 func (c *Config) prepareKey(key string) string {
-	if len(strings.TrimSpace(c.profile)) == 0 {
-		return key
+	if c.IsProfileEnabled() {
+		return fmt.Sprintf("%s.%s", c.profile, key)
 	}
-	return fmt.Sprintf("%s.%s", c.profile, key)
+	return key
 }
 
 func (c *Config) getByProfile(key string) (interface{}, bool) {
@@ -402,6 +383,27 @@ func (c *Config) get(key string) (interface{}, bool) {
 	}
 
 	return nil, false // not found
+}
+
+func (c *Config) getListValue(key string) (*forge.List, bool) {
+	value, found := c.getraw(c.prepareKey(key))
+	if !found {
+		value, found = c.getraw(key)
+		if !found {
+			return nil, found
+		}
+	}
+
+	if value.GetType() != forge.LIST {
+		return nil, false
+	}
+
+	lst, ok := value.(*forge.List)
+	if !ok {
+		return nil, false
+	}
+
+	return lst, true
 }
 
 func (c *Config) getraw(key string) (forge.Value, bool) {

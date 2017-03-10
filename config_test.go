@@ -335,6 +335,26 @@ func TestLoadFiles(t *testing.T) {
 	assert.Equal(t, true, strings.Contains(err.Error(), "source (STRING) and target (SECTION)"))
 }
 
+func TestNestedKeyWithProfile(t *testing.T) {
+	testdataPath := getTestdataPath()
+
+	cfg, err := LoadFiles(join(testdataPath, "test-4.cfg"))
+	assert.FailNowOnError(t, err, "loading failed")
+
+	releases, found := cfg.StringList("docs.releases")
+	assert.True(t, found)
+	assert.True(t, len(releases) > 0)
+
+	err = cfg.SetProfile("env.dev")
+	assert.Nil(t, err)
+
+	assert.Equal(t, "Not in env section", cfg.StringDefault("not_in_env", "defaultValue"))
+
+	releases, found = cfg.StringList("docs.releases")
+	assert.True(t, found)
+	assert.True(t, len(releases) > 0)
+}
+
 func initString(t *testing.T, configStr string) *Config {
 	cfg, err := ParseString(configStr)
 	assert.FailNowOnError(t, err, "")
