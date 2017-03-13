@@ -228,8 +228,73 @@ func (c *Config) StringList(key string) ([]string, bool) {
 	}
 
 	for idx := 0; idx < lst.Length(); idx++ {
-		v, err := lst.GetString(idx)
-		if err == nil {
+		if v, err := lst.GetString(idx); err == nil {
+			values = append(values, v)
+		}
+	}
+
+	return values, true
+}
+
+// IntList method returns the int slice value for the given key.
+// 		Eaxmple:-
+//
+// 		Config:
+// 			...
+// 			int_list = [10, 20, 30, 40, 50]
+// 			...
+//
+// 		Accessing Values:
+// 			values, found := cfg.IntList("int_list")
+// 			fmt.Println("Found:", found)
+// 			fmt.Println("Values:", values)
+//
+// 		Output:
+// 			Found: true
+// 			Values: [10, 20, 30, 40, 50]
+//
+func (c *Config) IntList(key string) ([]int, bool) {
+	values := []int{}
+	lst, found := c.getListValue(key)
+	if lst == nil || !found {
+		return values, found
+	}
+
+	for idx := 0; idx < lst.Length(); idx++ {
+		if v, err := lst.GetInteger(idx); err == nil {
+			values = append(values, int(v))
+		}
+	}
+
+	return values, true
+}
+
+// Int64List method returns the int64 slice value for the given key.
+// 		Eaxmple:-
+//
+// 		Config:
+// 			...
+// 			int64_list = [100000001, 100000002, 100000003, 100000004, 100000005]
+// 			...
+//
+// 		Accessing Values:
+// 			values, found := cfg.Int64List("excludes")
+// 			fmt.Println("Found:", found)
+// 			fmt.Println("Values:", values)
+//
+// 		Output:
+// 			Found: true
+// 			Values: [100000001, 100000002, 100000003, 100000004, 100000005]
+//
+func (c *Config) Int64List(key string) ([]int64, bool) {
+	values := []int64{}
+	lst, found := c.getListValue(key)
+	if lst == nil || !found {
+		return values, found
+	}
+
+	for idx := 0; idx < lst.Length(); idx++ {
+		if v, err := lst.GetInteger(idx); err == nil {
 			values = append(values, v)
 		}
 	}

@@ -220,10 +220,36 @@ build {
 	lst1, found1 := cfg.StringList("build.excludes")
 	assert.True(t, found1)
 	assert.True(t, len(lst1) > 0)
+	assert.Equal(t, "*.bak", lst1[2])
 
 	lst2, found2 := cfg.StringList("name")
 	assert.False(t, found2)
 	assert.True(t, len(lst2) == 0)
+}
+
+func TestIntAndInt64List(t *testing.T) {
+	cfg, _ := ParseString(`
+		int_list = [10, 20, 30, 40, 50]
+		int64_list = [100000001, 100000002, 100000003, 100000004, 100000005]
+	`)
+
+	lst1, found1 := cfg.IntList("int_list")
+	assert.True(t, found1)
+	assert.True(t, len(lst1) > 0)
+	assert.Equal(t, int(20), lst1[1])
+
+	lst2, found2 := cfg.Int64List("int64_list")
+	assert.True(t, found2)
+	assert.True(t, len(lst2) > 0)
+	assert.Equal(t, int64(100000005), lst2[4])
+
+	lst3, found3 := cfg.IntList("name_not_found")
+	assert.False(t, found3)
+	assert.True(t, len(lst3) == 0)
+
+	lst4, found4 := cfg.Int64List("int64_list")
+	assert.True(t, found4)
+	assert.True(t, len(lst4) > 0)
 }
 
 func TestProfile(t *testing.T) {
