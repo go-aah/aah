@@ -12,7 +12,7 @@ import (
 	"errors"
 	"fmt"
 
-	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/forge.v0"
 )
 
