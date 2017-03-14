@@ -15,7 +15,7 @@ go:
   - 1.8
   - tip
 
-go_import_path: aahframework.org/aruntime.v0-unstable
+go_import_path: aahframework.org/aruntime.v0
 
 script:
   - bash <(curl -s https://aahframework.org/go-test)
