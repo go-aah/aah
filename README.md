@@ -1,9 +1,9 @@
 # aruntime - aah framework
-[![Build Status](https://travis-ci.org/go-aah/aruntime.svg?branch=master)](https://travis-ci.org/go-aah/aruntime) [![codecov](https://codecov.io/gh/go-aah/aruntime/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/aruntime/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/aruntime.v0)](https://goreportcard.com/report/aahframework.org/aruntime.v0) [![Version](https://img.shields.io/badge/version-0.1-blue.svg)](https://github.com/go-aah/aruntime/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/aruntime.v0?status.svg)](https://godoc.org/aahframework.org/aruntime.v0)  [![License](https://img.shields.io/github/license/go-aah/aruntime.svg)](LICENSE)
+[![Build Status](https://travis-ci.org/go-aah/aruntime.svg?branch=master)](https://travis-ci.org/go-aah/aruntime) [![codecov](https://codecov.io/gh/go-aah/aruntime/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/aruntime/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/aruntime.v0)](https://goreportcard.com/report/aahframework.org/aruntime.v0) [![Version](https://img.shields.io/badge/version-0.2-blue.svg)](https://github.com/go-aah/aruntime/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/aruntime.v0?status.svg)](https://godoc.org/aahframework.org/aruntime.v0)  [![License](https://img.shields.io/github/license/go-aah/aruntime.svg)](LICENSE)
 
-***v0.1 [released](https://github.com/go-aah/aruntime/releases/latest) and tagged on Mar 07, 2017***
+***v0.2 [released](https://github.com/go-aah/aruntime/releases/latest) and tagged on Mar 14, 2017***
 
-Runtime library is built to get, manipulate GoRoutines stack trace during panic, etc.
+Runtime library is built to get, manipulate GoRoutines stack trace, etc.
 
 *`aruntime` developed for aah framework. However, it's an independent library, can be used separately with any `Go` language project. Feel free to use it.*
 
