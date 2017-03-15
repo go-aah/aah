@@ -108,9 +108,9 @@ func templateMiddleware(c *Controller, m *Middleware) {
 		// ViewArgs values from framework
 		htmlRdr.ViewArgs["Host"] = c.Req.Host
 		htmlRdr.ViewArgs["HTTPMethod"] = c.Req.Method
+		htmlRdr.ViewArgs["RequestPath"] = c.Req.Path
 		htmlRdr.ViewArgs["Locale"] = c.Req.Locale
 		htmlRdr.ViewArgs["ClientIP"] = c.Req.ClientIP
-		htmlRdr.ViewArgs["RequestPath"] = c.Req.Path
 		htmlRdr.ViewArgs["IsJSONP"] = c.Req.IsJSONP
 		htmlRdr.ViewArgs["HTTPReferer"] = c.Req.Referer
 		htmlRdr.ViewArgs["AahVersion"] = Version
@@ -122,6 +122,9 @@ func templateMiddleware(c *Controller, m *Middleware) {
 
 		tmplPath := filepath.Join("pages", controllerName)
 		tmplName := c.action.Name + appTemplateExt
+		if !ess.IsStrEmpty(htmlRdr.Filename) {
+			tmplName = htmlRdr.Filename
+		}
 
 		log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
 		htmlRdr.Template = appTemplateEngine.Get(htmlRdr.Layout, tmplPath, tmplName)
@@ -139,8 +142,11 @@ func templateMiddleware(c *Controller, m *Middleware) {
 func init() {
 	atemplate.AddTemplateFunc(template.FuncMap{
 		"config": tmplConfig,
-		"url":    tmplURL,
-		"urlm":   tmplURLm,
+		"rurl":   tmplURL,
+		"rurlm":  tmplURLm,
 		"i18n":   tmplI18n,
+		"pparam": tmplPathParam,
+		"fparam": tmplFormParam,
+		"qparam": tmplQueryParam,
 	})
 }
