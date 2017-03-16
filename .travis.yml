@@ -3,9 +3,11 @@ language: go
 sudo: false
 
 branches:
-  only:
-    # - master
-    # - integration
+  except:
+    # skip tags build, we are building branch and master that is enough for
+    # consistenty check and release. Let's use Travis CI resources optimally
+    # for aah framework.
+    - /^v[0-9]\.[0-9]/
 
 go:
   - 1.6
@@ -13,17 +15,10 @@ go:
   - 1.8
   - tip
 
-before_install:
-  - bash <(curl -s https://aahframework.org/env.txt) "essentials" "v0"
-
-install:
-  - cd $GOPATH/src/aahframework.org/essentials.v0
-  - go get -v -t ./...
-  # - go get -v -t aahframework.org/essentials.v0/...
+go_import_path: aahframework.org/essentials.v0
 
 script:
-  # - cd $GOPATH/src/aahframework.org/essentials.v0
-  - bash go.test.sh
+  - bash <(curl -s https://aahframework.org/go-test)
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
