@@ -5,11 +5,8 @@
 package aah
 
 import (
-	"io/ioutil"
-	"net/http"
 	"reflect"
 
-	"aahframework.org/ahttp.v0"
 	"aahframework.org/log.v0"
 )
 
@@ -53,7 +50,7 @@ func Middlewares(middlewares ...MiddlewareType) {
 
 // Next method calls next middleware in the chain if available.
 func (mw *Middleware) Next(c *Controller) {
-	if c.Abort {
+	if c.abort {
 		// abort, not to proceed further
 		return
 	}
@@ -61,61 +58,6 @@ func (mw *Middleware) Next(c *Controller) {
 	if mw.next != nil {
 		mw.next(c, mw.further)
 	}
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Params middleware
-//___________________________________
-
-// ParamsMiddleware parses the incoming HTTP request to collects request
-// parameters (query string and payload) stores into controller. Query string
-// parameters made available in render context.
-func paramsMiddleware(c *Controller, m *Middleware) {
-	req := c.Req.Raw
-
-	if c.Req.Method != ahttp.MethodGet {
-		contentType := c.Req.ContentType.Mime
-		log.Debugf("request content type: %s", contentType)
-
-		switch contentType {
-		case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeXML.Mime:
-			if payloadBytes, err := ioutil.ReadAll(req.Body); err == nil {
-				c.Req.Payload = string(payloadBytes)
-			} else {
-				log.Errorf("unable to read request body for '%s': %s", contentType, err)
-			}
-		case ahttp.ContentTypeForm.Mime:
-			if err := req.ParseForm(); err == nil {
-				c.Req.Params.Form = req.Form
-			} else {
-				log.Errorf("unable to parse form: %s", err)
-			}
-		case ahttp.ContentTypeMultipartForm.Mime:
-			if isMultipartEnabled {
-				if err := req.ParseMultipartForm(appMultipartMaxMemory); err == nil {
-					c.Req.Params.Form = req.MultipartForm.Value
-					c.Req.Params.File = req.MultipartForm.File
-				} else {
-					log.Errorf("unable to parse multipart form: %s", err)
-				}
-			} else {
-				log.Warn("multipart processing is disabled in aah.conf")
-			}
-		} // switch end
-
-		// clean up
-		defer func(r *http.Request) {
-			if r.MultipartForm != nil {
-				log.Debug("multipart form file clean up")
-				if err := r.MultipartForm.RemoveAll(); err != nil {
-					log.Error(err)
-				}
-			}
-		}(req)
-	}
-
-	m.Next(c)
-
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -167,7 +109,7 @@ func interceptorMiddleware(c *Controller, m *Middleware) {
 	}
 
 	// Before action method
-	if !c.Abort {
+	if !c.abort {
 		if beforeActionMethod := target.MethodByName(incpBeforeActionName + c.action.Name); beforeActionMethod.IsValid() {
 			log.Debugf("Calling interceptor: %s.%s", c.controller, incpBeforeActionName+c.action.Name)
 			beforeActionMethod.Call(emptyArg)
@@ -177,7 +119,7 @@ func interceptorMiddleware(c *Controller, m *Middleware) {
 	m.Next(c)
 
 	// After action method
-	if !c.Abort {
+	if !c.abort {
 		if afterActionMethod := target.MethodByName(incpAfterActionName + c.action.Name); afterActionMethod.IsValid() {
 			log.Debugf("Calling interceptor: %s.%s", c.controller, incpAfterActionName+c.action.Name)
 			afterActionMethod.Call(emptyArg)
@@ -185,7 +127,7 @@ func interceptorMiddleware(c *Controller, m *Middleware) {
 	}
 
 	// After action
-	if !c.Abort {
+	if !c.abort {
 		if afterAction := target.MethodByName(incpAfterActionName); afterAction.IsValid() {
 			log.Debugf("Calling interceptor: %s.%s", c.controller, incpAfterActionName)
 			afterAction.Call(emptyArg)
