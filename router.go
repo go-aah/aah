@@ -61,10 +61,6 @@ func getRouteNameAndAnchorLink(routeName string) (string, string) {
 }
 
 func composeRouteURL(domain *router.Domain, routePath, anchorLink string) string {
-	if ess.IsStrEmpty(routePath) {
-		return "#"
-	}
-
 	if ess.IsStrEmpty(domain.Port) {
 		routePath = fmt.Sprintf("//%s%s", domain.Host, routePath)
 	} else {
@@ -93,15 +89,39 @@ func findReverseURLDomain(host, routeName string) (*router.Domain, int) {
 	}
 
 	// return root domain
+	log.Trace("Returning root domain")
+	return findRootDomain(), idx
+}
+
+func findRootDomain() *router.Domain {
 	for _, v := range AppRouter().Domains {
-		if !v.IsSubDomain {
-			log.Tracef("Returning root domain: %s", v.Host)
-			return v, -1
+		if v.IsSubDomain {
+			continue
 		}
+		return v
+	}
+	return nil
+}
+
+func createReverseURL(host, routeName string, margs map[string]interface{}, args ...interface{}) string {
+	domain, idx := findReverseURLDomain(host, routeName)
+	if idx > 0 {
+		routeName = routeName[idx+1:]
 	}
 
-	// final fallback, mostly it won't come here
-	return AppRouter().Domains[host], -1
+	if routeName == "host" {
+		return composeRouteURL(domain, "", "")
+	}
+
+	routeName, anchorLink := getRouteNameAndAnchorLink(routeName)
+	var routePath string
+	if margs == nil {
+		routePath = domain.ReverseURL(routeName, args...)
+	} else {
+		routePath = domain.ReverseURLm(routeName, margs)
+	}
+
+	return composeRouteURL(domain, routePath, anchorLink)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -199,34 +219,12 @@ func tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL 
 
 	host := viewArgs["Host"].(string)
 	routeName := args[0].(string)
-
-	domain, idx := findReverseURLDomain(host, routeName)
-	if idx > 0 {
-		routeName = routeName[idx+1:]
-	}
-
-	routeName, anchorLink := getRouteNameAndAnchorLink(routeName)
-	routePath := domain.ReverseURL(routeName, args[1:]...)
-
-	return template.URL(composeRouteURL(domain, routePath, anchorLink))
+	return template.URL(createReverseURL(host, routeName, nil, args[1:]...))
 }
 
 // tmplURLm method returns reverse URL by given route name and
 // map[string]interface{}. Mapped to Go template func.
 func tmplURLm(viewArgs map[string]interface{}, routeName string, args map[string]interface{}) template.URL {
-	if len(args) == 0 {
-		log.Errorf("route not found: %v", args)
-		return template.URL("#")
-	}
-
 	host := viewArgs["Host"].(string)
-	domain, idx := findReverseURLDomain(host, routeName)
-	if idx > 0 {
-		routeName = routeName[idx+1:]
-	}
-
-	routeName, anchorLink := getRouteNameAndAnchorLink(routeName)
-	routePath := domain.ReverseURLm(routeName, args)
-
-	return template.URL(composeRouteURL(domain, routePath, anchorLink))
+	return template.URL(createReverseURL(host, routeName, args))
 }

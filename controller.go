@@ -43,14 +43,13 @@ type (
 		// `Reply()` builder for composing response.
 		Res ahttp.ResponseWriter
 
-		Abort bool
-
 		controller string
 		action     *MethodInfo
 		target     interface{}
 		domain     *router.Domain
 		reply      *Reply
 		viewArgs   map[string]interface{}
+		abort      bool
 	}
 
 	// ControllerInfo holds all application controller
@@ -141,13 +140,13 @@ func (c *Controller) AddViewArg(key string, value interface{}) *Controller {
 // ReverseURL method returns the URL for given route name and args.
 // See `Domain.ReverseURL` for more information.
 func (c *Controller) ReverseURL(routeName string, args ...interface{}) string {
-	return c.domain.ReverseURL(routeName, args...)
+	return createReverseURL(c.Req.Host, routeName, nil, args...)
 }
 
 // ReverseURLm method returns the URL for given route name and key-value paris.
 // See `Domain.ReverseURLm` for more information.
 func (c *Controller) ReverseURLm(routeName string, args map[string]interface{}) string {
-	return c.domain.ReverseURLm(routeName, args)
+	return createReverseURL(c.Req.Host, routeName, args)
 }
 
 // Msg method returns the i18n value for given key otherwise empty string returned.
@@ -161,17 +160,29 @@ func (c *Controller) Msgl(locale *ahttp.Locale, key string, args ...interface{})
 	return AppI18n().Lookup(locale, key, args...)
 }
 
+// Abort method sets the abort to true. It means framework will not proceed with
+// next middleware, next interceptor or action based on context it being used.
+// Contexts: 1) If it's called in the middleware, then middleware chain stops;
+// framework starts processing response. 2) If it's called in Before interceptor
+// then Before<Action> interceptor, mapped <Action>, After<Action> interceptor and
+// After interceptor will not execute; framework starts processing response.
+// 3) If it's called in Mapped <Action> then After<Action> interceptor and
+// After interceptor will not execute; framework starts processing response.
+func (c *Controller) Abort() {
+	c.abort = true
+}
+
 // Reset method resets controller instance for reuse.
 func (c *Controller) Reset() {
 	c.Req = nil
 	c.Res = nil
-	c.Abort = false
 	c.target = nil
 	c.domain = nil
 	c.controller = ""
 	c.action = nil
 	c.reply = nil
 	c.viewArgs = nil
+	c.abort = false
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
