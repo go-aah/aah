@@ -17,7 +17,7 @@ import (
 	"sort"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/aruntime.v0-unstable"
+	"aahframework.org/aruntime.v0"
 	"aahframework.org/atemplate.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -117,8 +117,15 @@ func (e *engine) executeMiddlewares(c *Controller) {
 func (e *engine) writeResponse(c *Controller) {
 	reply := c.Reply()
 
-	// Response already written, don't go forward
-	if reply.Done {
+	// handle redirects
+	if reply.redirect {
+		log.Debugf("Redirecting to '%s' with status '%d'", reply.redirectURL, reply.Code)
+		http.Redirect(c.Res, c.Req.Raw, reply.redirectURL, reply.Code)
+		return
+	}
+
+	// Response already written on the wire, don't go forward.
+	if reply.done {
 		return
 	}
 
@@ -228,7 +235,9 @@ func serveStatic(c *Controller, route *router.Route, pathParams *router.PathPara
 	fs := ahttp.Dir(dir, route.ListDir)
 	res := c.Res
 	req := c.Req
-	c.Reply().SetDone()
+
+	// serveStatic write response on the wire, so instruct framework not to intervene.
+	c.Reply().Done()
 
 	f, err := fs.Open(file)
 	if err != nil {

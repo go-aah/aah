@@ -75,6 +75,11 @@ func templateMiddleware(c *Controller, m *Middleware) {
 
 	reply := c.Reply()
 
+	// for redirects, do not go forward
+	if reply.redirect {
+		return
+	}
+
 	// ContentType
 	if ess.IsStrEmpty(reply.ContType) {
 		if !ess.IsStrEmpty(c.Req.AcceptContentType.Mime) &&
