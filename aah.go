@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"aahframework.org/aruntime.v0-unstable"
+	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -283,18 +283,23 @@ func logAsFatal(err error) {
 func initInternal() {
 	logAsFatal(initAppVariables())
 
-	logAsFatal(initLogs())
+	if appBuildInfo == nil {
+		// aah CLI is accessing app codebase
+		log.SetLevel(log.LevelWarn)
+		logAsFatal(initRoutes())
+		log.SetLevel(log.LevelDebug)
+	} else {
+		logAsFatal(initLogs())
+		logAsFatal(initI18n())
+		logAsFatal(initRoutes())
 
-	logAsFatal(initI18n())
+		if AppMode() == appModeWeb {
+			logAsFatal(initTemplateEngine())
+		}
 
-	logAsFatal(initRoutes())
-
-	if AppMode() == appModeWeb {
-		logAsFatal(initTemplateEngine())
-	}
-
-	if AppProfile() != appProfileProd {
-		logAsFatal(initTests())
+		if AppProfile() != appProfileProd {
+			logAsFatal(initTests())
+		}
 	}
 
 	appInitialized = true
