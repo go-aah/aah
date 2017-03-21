@@ -74,34 +74,34 @@ func (e *engine) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// preparing targeted controller
-	c := e.prepareController(w, req, route)
-	if c == nil { // no controller or action found for the route
+	// preparing targeted context
+	ctx := e.prepareContext(w, req, route)
+	if ctx == nil { // no controller or action found for the route
 		handleRouteNotFound(w, req, domain, route)
 		return
 	}
 
-	defer e.putController(c)
+	defer e.putContext(ctx)
 
 	// Path parameters
 	if pathParams.Len() > 0 {
-		c.Req.Params.Path = make(map[string]string, pathParams.Len())
+		ctx.Req.Params.Path = make(map[string]string, pathParams.Len())
 		for _, v := range *pathParams {
-			c.Req.Params.Path[v.Key] = v.Value
+			ctx.Req.Params.Path[v.Key] = v.Value
 		}
 	}
 
-	c.domain = domain
-	c.viewArgs = make(map[string]interface{})
+	ctx.domain = domain
+	ctx.viewArgs = make(map[string]interface{})
 
 	// set defaults when actual value not found
-	e.setDefaults(c)
+	e.setDefaults(ctx)
 
 	// Middlewares
-	e.executeMiddlewares(c)
+	e.executeMiddlewares(ctx)
 
 	// Write Reply on the wire
-	e.writeReply(w, req, c.reply)
+	e.writeReply(w, req, ctx.reply)
 }
 
 // handleRecovery method handles application panics and recovers from it.
@@ -127,34 +127,34 @@ func (e *engine) handleRecovery(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// prepareController method gets controller, request from pool, set the targeted
+// prepareContext method gets controller, request from pool, set the targeted
 // controller, parses the request and returns the controller.
-func (e *engine) prepareController(w ahttp.ResponseWriter, req *http.Request, route *router.Route) *Controller {
-	c := e.getController()
-	if err := c.setTarget(route); err == errTargetNotFound {
-		e.putController(c)
+func (e *engine) prepareContext(w ahttp.ResponseWriter, req *http.Request, route *router.Route) *Context {
+	ctx := e.getContext()
+	if err := ctx.setTarget(route); err == errTargetNotFound {
+		e.putContext(ctx)
 		return nil
 	}
 
 	r := e.getRequest()
-	c.Req = ahttp.ParseRequest(req, r)
-	c.Res = w
-	c.reply = NewReply()
+	ctx.Req = ahttp.ParseRequest(req, r)
+	ctx.Res = w
+	ctx.reply = NewReply()
 
-	return c
+	return ctx
 }
 
 // setDefaults method sets default value based on aah app configuration
 // when actual value is not found.
-func (e *engine) setDefaults(c *Controller) {
-	if c.Req.Locale == nil {
-		c.Req.Locale = ahttp.NewLocale(appConfig.StringDefault("i18n.default", "en"))
+func (e *engine) setDefaults(ctx *Context) {
+	if ctx.Req.Locale == nil {
+		ctx.Req.Locale = ahttp.NewLocale(appConfig.StringDefault("i18n.default", "en"))
 	}
 }
 
 // executeMiddlewares method executes the configured middlewares.
-func (e *engine) executeMiddlewares(c *Controller) {
-	mwChain[0].Next(c)
+func (e *engine) executeMiddlewares(ctx *Context) {
+	mwChain[0].Next(ctx)
 }
 
 // writeReply method writes the response on the wire based on `Reply` instance.
@@ -225,9 +225,9 @@ func defaultContentType() *ahttp.ContentType {
 	}
 }
 
-// getController method gets controller from pool
-func (e *engine) getController() *Controller {
-	return e.cPool.Get().(*Controller)
+// getContext method gets context from pool
+func (e *engine) getContext() *Context {
+	return e.cPool.Get().(*Context)
 }
 
 // getRequest method gets request from pool
@@ -235,23 +235,23 @@ func (e *engine) getRequest() *ahttp.Request {
 	return e.rPool.Get().(*ahttp.Request)
 }
 
-// putController method puts controller back to pool
-func (e *engine) putController(c *Controller) {
+// putContext method puts context back to pool
+func (e *engine) putContext(ctx *Context) {
 	// Try to close if `io.Closer` interface satisfies.
-	if c.Res != nil {
-		c.Res.(*ahttp.Response).Close()
+	if ctx.Res != nil {
+		ctx.Res.(*ahttp.Response).Close()
 	}
 
 	// clear and put `ahttp.Request` into pool
-	if c.Req != nil {
-		c.Req.Reset()
-		e.rPool.Put(c.Req)
+	if ctx.Req != nil {
+		ctx.Req.Reset()
+		e.rPool.Put(ctx.Req)
 	}
 
-	// clear and put `aah.Controller` into pool
-	if c != nil {
-		c.Reset()
-		e.cPool.Put(c)
+	// clear and put `aah.Context` into pool
+	if ctx != nil {
+		ctx.Reset()
+		e.cPool.Put(ctx)
 	}
 }
 
@@ -370,7 +370,7 @@ func newEngine() *engine {
 	// TODO provide config for pool size
 	return &engine{
 		cPool: pool.NewPool(150, func() interface{} {
-			return &Controller{}
+			return &Context{}
 		}),
 		rPool: pool.NewPool(150, func() interface{} {
 			return &ahttp.Request{}

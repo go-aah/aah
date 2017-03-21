@@ -20,33 +20,33 @@ const keyRequestParams = "RequestParams"
 //___________________________________
 
 // ParamsMiddleware parses the incoming HTTP request to collects request
-// parameters (query string and payload) stores into controller. Query string
-// parameters made available in render context.
-func paramsMiddleware(c *Controller, m *Middleware) {
-	req := c.Req.Raw
+// parameters (query string and payload) stores into context. Query string
+// parameters made available in ViewArgs.
+func paramsMiddleware(ctx *Context, m *Middleware) {
+	req := ctx.Req.Raw
 
-	if c.Req.Method != ahttp.MethodGet {
-		contentType := c.Req.ContentType.Mime
+	if ctx.Req.Method != ahttp.MethodGet {
+		contentType := ctx.Req.ContentType.Mime
 		log.Debugf("request content type: %s", contentType)
 
 		switch contentType {
 		case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeXML.Mime:
 			if payloadBytes, err := ioutil.ReadAll(req.Body); err == nil {
-				c.Req.Payload = string(payloadBytes)
+				ctx.Req.Payload = string(payloadBytes)
 			} else {
 				log.Errorf("unable to read request body for '%s': %s", contentType, err)
 			}
 		case ahttp.ContentTypeForm.Mime:
 			if err := req.ParseForm(); err == nil {
-				c.Req.Params.Form = req.Form
+				ctx.Req.Params.Form = req.Form
 			} else {
 				log.Errorf("unable to parse form: %s", err)
 			}
 		case ahttp.ContentTypeMultipartForm.Mime:
 			if isMultipartEnabled {
 				if err := req.ParseMultipartForm(appMultipartMaxMemory); err == nil {
-					c.Req.Params.Form = req.MultipartForm.Value
-					c.Req.Params.File = req.MultipartForm.File
+					ctx.Req.Params.Form = req.MultipartForm.Value
+					ctx.Req.Params.File = req.MultipartForm.File
 				} else {
 					log.Errorf("unable to parse multipart form: %s", err)
 				}
@@ -67,10 +67,9 @@ func paramsMiddleware(c *Controller, m *Middleware) {
 	}
 
 	// All the request parameters made available to templates via funcs.
-	c.AddViewArg(keyRequestParams, c.Req.Params)
+	ctx.AddViewArg(keyRequestParams, ctx.Req.Params)
 
-	m.Next(c)
-
+	m.Next(ctx)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

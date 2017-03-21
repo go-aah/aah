@@ -70,10 +70,10 @@ func initTemplateEngine() error {
 
 // TemplateMiddleware finds appropriate template based request and route
 // information.
-func templateMiddleware(c *Controller, m *Middleware) {
-	m.Next(c)
+func templateMiddleware(ctx *Context, m *Middleware) {
+	m.Next(ctx)
 
-	reply := c.Reply()
+	reply := ctx.Reply()
 
 	// for redirects, do not go forward
 	if reply.redirect {
@@ -82,9 +82,9 @@ func templateMiddleware(c *Controller, m *Middleware) {
 
 	// ContentType
 	if ess.IsStrEmpty(reply.ContType) {
-		if !ess.IsStrEmpty(c.Req.AcceptContentType.Mime) &&
-			c.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
-			reply.ContentType(c.Req.AcceptContentType.Raw())
+		if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
+			ctx.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
+			reply.ContentType(ctx.Req.AcceptContentType.Raw())
 		} else { // default Content-Type defined 'render.default' in aah.conf
 			reply.ContentType(defaultContentType().Raw())
 		}
@@ -106,27 +106,27 @@ func templateMiddleware(c *Controller, m *Middleware) {
 			htmlRdr.ViewArgs = make(map[string]interface{})
 		}
 
-		for k, v := range c.ViewArgs() {
+		for k, v := range ctx.ViewArgs() {
 			htmlRdr.ViewArgs[k] = v
 		}
 
 		// ViewArgs values from framework
-		htmlRdr.ViewArgs["Host"] = c.Req.Host
-		htmlRdr.ViewArgs["HTTPMethod"] = c.Req.Method
-		htmlRdr.ViewArgs["RequestPath"] = c.Req.Path
-		htmlRdr.ViewArgs["Locale"] = c.Req.Locale
-		htmlRdr.ViewArgs["ClientIP"] = c.Req.ClientIP
-		htmlRdr.ViewArgs["IsJSONP"] = c.Req.IsJSONP
-		htmlRdr.ViewArgs["HTTPReferer"] = c.Req.Referer
+		htmlRdr.ViewArgs["Host"] = ctx.Req.Host
+		htmlRdr.ViewArgs["HTTPMethod"] = ctx.Req.Method
+		htmlRdr.ViewArgs["RequestPath"] = ctx.Req.Path
+		htmlRdr.ViewArgs["Locale"] = ctx.Req.Locale
+		htmlRdr.ViewArgs["ClientIP"] = ctx.Req.ClientIP
+		htmlRdr.ViewArgs["IsJSONP"] = ctx.Req.IsJSONP
+		htmlRdr.ViewArgs["HTTPReferer"] = ctx.Req.Referer
 		htmlRdr.ViewArgs["AahVersion"] = Version
 
-		controllerName := c.controller
+		controllerName := ctx.controller
 		if strings.HasSuffix(controllerName, controllerNameSuffix) {
 			controllerName = controllerName[:len(controllerName)-controllerNameSuffixLen]
 		}
 
 		tmplPath := filepath.Join("pages", controllerName)
-		tmplName := c.action.Name + appTemplateExt
+		tmplName := ctx.action.Name + appTemplateExt
 		if !ess.IsStrEmpty(htmlRdr.Filename) {
 			tmplName = htmlRdr.Filename
 		}

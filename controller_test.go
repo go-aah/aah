@@ -24,7 +24,7 @@ func TestActualType(t *testing.T) {
 
 func TestAddController(t *testing.T) {
 	type (
-		Level1 struct{ *Controller }
+		Level1 struct{ *Context }
 
 		Level2 struct{ Level1 }
 
@@ -32,7 +32,7 @@ func TestAddController(t *testing.T) {
 
 		Level4 struct{ Level3 }
 
-		Path1 struct{ *Controller }
+		Path1 struct{ *Context }
 
 		Path2 struct {
 			Level1
@@ -59,7 +59,7 @@ func TestAddController(t *testing.T) {
 }
 
 func assertIndexes(t *testing.T, c interface{}, expected [][]int) {
-	actual := findEmbeddedController(reflect.TypeOf(c))
+	actual := findEmbeddedContext(reflect.TypeOf(c))
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("Indexes do not match. expected %v actual %v", expected, actual)
 	}

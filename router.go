@@ -189,20 +189,20 @@ func handleRouteNotFound(w ahttp.ResponseWriter, req *http.Request, domain *rout
 	}
 
 	log.Warnf("Route not found: %s, isStaticFile: %v", req.URL.Path, route.IsStatic)
-	c := appEngine.prepareController(w, req, domain.NotFoundRoute)
-	if c == nil {
+	ctx := appEngine.prepareContext(w, req, domain.NotFoundRoute)
+	if ctx == nil {
 		appEngine.writeReply(w, req, NewReply().NotFound().Text("404 Not Found"))
 		return
 	}
 
-	defer appEngine.putController(c)
+	defer appEngine.putContext(ctx)
 
-	target := reflect.ValueOf(c.target)
-	notFoundAction := target.MethodByName(c.action.Name)
+	target := reflect.ValueOf(ctx.target)
+	notFoundAction := target.MethodByName(ctx.action.Name)
 
-	log.Debugf("Calling user defined not-found action: %s.%s", c.controller, c.action.Name)
+	log.Debugf("Calling user defined not-found action: %s.%s", ctx.controller, ctx.action.Name)
 	notFoundAction.Call([]reflect.Value{reflect.ValueOf(route.IsStatic)})
-	appEngine.writeReply(w, req, c.reply)
+	appEngine.writeReply(w, req, ctx.reply)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
