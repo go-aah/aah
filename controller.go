@@ -214,11 +214,6 @@ func (c *Controller) setTarget(route *router.Route) error {
 	return nil
 }
 
-// close method tries to close if `io.Closer` interface satisfies.
-func (c *Controller) close() {
-	c.Res.(*ahttp.Response).Close()
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // ControllerRegistry methods
 //___________________________________

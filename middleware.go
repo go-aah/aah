@@ -183,7 +183,6 @@ func invalidateMwChain() {
 
 func init() {
 	mwStack = append(mwStack,
-		routerMiddleware,
 		paramsMiddleware,
 		templateMiddleware,
 		interceptorMiddleware,

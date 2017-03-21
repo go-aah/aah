@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"net/http"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
@@ -124,85 +125,84 @@ func createReverseURL(host, routeName string, margs map[string]interface{}, args
 	return composeRouteURL(domain, routePath, anchorLink)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Router middleware
-//___________________________________
-
-// RouterMiddleware finds the route of incoming request and moves forward.
-// If routes not found it does appropriate response for the request.
-func routerMiddleware(c *Controller, m *Middleware) {
-	domain := AppRouter().FindDomain(c.Req)
-	if domain == nil {
-		c.Reply().NotFound().Text("404 Route Not Exists")
-		return
-	}
-
-	route, pathParams, rts := domain.Lookup(c.Req)
-	log.Tracef("Route: %#v, Path Params: %v, rts: %v ", route, pathParams, rts)
-
-	if route != nil { // route found
-		if route.IsStatic {
-			if err := serveStatic(c, route, pathParams); err == errFileNotFound {
-				handleNotFound(c, domain, route.IsStatic)
-			}
-			return
-		}
-
-		if err := c.setTarget(route); err == errTargetNotFound {
-			handleNotFound(c, domain, false)
-			return
-		}
-
-		// Path parameters
-		if pathParams.Len() > 0 {
-			c.Req.Params.Path = make(map[string]string, pathParams.Len())
-			for _, v := range *pathParams {
-				c.Req.Params.Path[v.Key] = v.Value
-			}
-		}
-
-		c.domain = domain
-
-		m.Next(c)
-
-		return
-	}
+// handleRtsOptionsMna method handles 1) Redirect Trailing Slash 2) Options
+// 3) Method not allowed
+func handleRtsOptionsMna(domain *router.Domain, req *http.Request, rts bool) *Reply {
+	reqMethod := req.Method
+	reqPath := req.URL.Path
 
 	// Redirect Trailing Slash
-	if c.Req.Method != ahttp.MethodConnect && c.Req.Path != router.SlashString {
+	if reqMethod != ahttp.MethodConnect && reqPath != router.SlashString {
 		if rts && domain.RedirectTrailingSlash {
-			redirectTrailingSlash(c)
-			return
+			reply := NewReply().MovedPermanently()
+			if reqMethod != ahttp.MethodGet {
+				reply.TemporaryRedirect()
+			}
+
+			if len(reqPath) > 1 && reqPath[len(reqPath)-1] == '/' {
+				req.URL.Path = reqPath[:len(reqPath)-1]
+			} else {
+				req.URL.Path = reqPath + "/"
+			}
+
+			reply.Redirect(req.URL.String())
+
+			log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.redirectURL)
+			return reply
 		}
 	}
 
 	// HTTP: OPTIONS
-	if c.Req.Method == ahttp.MethodOptions {
+	if reqMethod == ahttp.MethodOptions {
 		if domain.AutoOptions {
-			if allowed := domain.Allowed(c.Req.Method, c.Req.Path); !ess.IsStrEmpty(allowed) {
+			if allowed := domain.Allowed(reqMethod, reqPath); !ess.IsStrEmpty(allowed) {
 				allowed += ", " + ahttp.MethodOptions
 				log.Debugf("Auto 'OPTIONS' allowed HTTP Methods: %s", allowed)
-				c.Reply().Header(ahttp.HeaderAllow, allowed)
-				return
+				return NewReply().Header(ahttp.HeaderAllow, allowed)
 			}
 		}
 	}
 
 	// 405 Method Not Allowed
 	if domain.MethodNotAllowed {
-		if allowed := domain.Allowed(c.Req.Method, c.Req.Path); !ess.IsStrEmpty(allowed) {
+		if allowed := domain.Allowed(reqMethod, reqPath); !ess.IsStrEmpty(allowed) {
 			allowed += ", " + ahttp.MethodOptions
 			log.Debugf("Allowed HTTP Methods for 405 response: %s", allowed)
-			c.Reply().
-				Status(http.StatusMethodNotAllowed).
+			return NewReply().
+				MethodNotAllowed().
 				Header(ahttp.HeaderAllow, allowed).
 				Text("405 Method Not Allowed")
-			return
 		}
 	}
 
-	// 404 not found
-	handleNotFound(c, domain, false)
+	return nil
+}
+
+// handleRouteNotFound method is used for 1. route action not found, 2. route is
+// not found and 3. static file/directory.
+func handleRouteNotFound(w ahttp.ResponseWriter, req *http.Request, domain *router.Domain, route *router.Route) {
+	// handle effectively to reduce heap allocation
+	if domain.NotFoundRoute == nil {
+		log.Warnf("Route not found: %s, isStaticFile: false", req.URL.Path)
+		appEngine.writeReply(w, req, NewReply().NotFound().Text("404 Not Found"))
+		return
+	}
+
+	log.Warnf("Route not found: %s, isStaticFile: %v", req.URL.Path, route.IsStatic)
+	c := appEngine.prepareController(w, req, domain.NotFoundRoute)
+	if c == nil {
+		appEngine.writeReply(w, req, NewReply().NotFound().Text("404 Not Found"))
+		return
+	}
+
+	defer appEngine.putController(c)
+
+	target := reflect.ValueOf(c.target)
+	notFoundAction := target.MethodByName(c.action.Name)
+
+	log.Debugf("Calling user defined not-found action: %s.%s", c.controller, c.action.Name)
+	notFoundAction.Call([]reflect.Value{reflect.ValueOf(route.IsStatic)})
+	appEngine.writeReply(w, req, c.reply)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

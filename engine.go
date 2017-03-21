@@ -13,7 +13,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"reflect"
 	"sort"
 
 	"aahframework.org/ahttp.v0"
@@ -44,25 +43,56 @@ type (
 //___________________________________
 
 // ServeHTTP method implementation of http.Handler interface.
-func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	// TODO access log
-	c, r := e.getController(), e.getRequest()
-	defer func() {
-		c.close()
-		e.putRequest(r)
-		e.putController(c)
-	}()
+func (e *engine) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	w := ahttp.WrapResponseWriter(rw)
 
-	c.Req = ahttp.ParseRequest(req, r)
-	c.Res = ahttp.WrapResponseWriter(w)
-	c.reply = NewReply()
+	// Recovery handling, capture every possible panic(s) from application.
+	defer e.handleRecovery(w, req)
+
+	domain := AppRouter().FindDomain(req)
+	if domain == nil {
+		e.writeReply(w, req, NewReply().NotFound().Text("404 Route Not Exists"))
+		return
+	}
+
+	route, pathParams, rts := domain.Lookup(req)
+	if route == nil { // route not found
+		if reply := handleRtsOptionsMna(domain, req, rts); reply != nil {
+			e.writeReply(w, req, reply)
+			return
+		}
+
+		handleRouteNotFound(w, req, domain, domain.NotFoundRoute)
+		return
+	}
+
+	// Serving static file
+	if route.IsStatic {
+		if err := serveStatic(w, req, route, pathParams); err == errFileNotFound {
+			handleRouteNotFound(w, req, domain, route)
+		}
+		return
+	}
+
+	// preparing targeted controller
+	c := e.prepareController(w, req, route)
+	if c == nil { // no controller or action found for the route
+		handleRouteNotFound(w, req, domain, route)
+		return
+	}
+
+	defer e.putController(c)
+
+	// Path parameters
+	if pathParams.Len() > 0 {
+		c.Req.Params.Path = make(map[string]string, pathParams.Len())
+		for _, v := range *pathParams {
+			c.Req.Params.Path[v.Key] = v.Value
+		}
+	}
+
+	c.domain = domain
 	c.viewArgs = make(map[string]interface{})
-
-	// recovery handling
-	defer e.handleRecovery(c)
-
-	// TODO Detailed server access log to separate file later on
-	log.Tracef("Request %s", c.Req.Path)
 
 	// set defaults when actual value not found
 	e.setDefaults(c)
@@ -70,15 +100,15 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Middlewares
 	e.executeMiddlewares(c)
 
-	// Write response
-	e.writeResponse(c)
+	// Write Reply on the wire
+	e.writeReply(w, req, c.reply)
 }
 
-// handleRecovery handles application panics and recovers from it. Panic gets
-// translated into HTTP Internal Server Error (Status 500).
-func (e *engine) handleRecovery(c *Controller) {
+// handleRecovery method handles application panics and recovers from it.
+// Panic gets translated into HTTP Internal Server Error (Status 500).
+func (e *engine) handleRecovery(w http.ResponseWriter, req *http.Request) {
 	if r := recover(); r != nil {
-		log.Errorf("Internal Server Error on %s", c.Req.Path)
+		log.Errorf("Internal Server Error on %s", req.URL.Path)
 
 		st := aruntime.NewStacktrace(r, AppConfig())
 		buf := e.getBuffer()
@@ -89,15 +119,29 @@ func (e *engine) handleRecovery(c *Controller) {
 
 		if AppProfile() != "prod" { // detailed error info
 			// TODO design server error page with stack trace info
-			c.Reply().Status(http.StatusInternalServerError).Text("Internal Server Error: %s", buf.String())
-			e.writeResponse(c)
+			e.writeReply(w, req, NewReply().InternalServerError().Text("Internal Server Error: %s", buf.String()))
 			return
 		}
 
-		// For "prod", detailed information gets logged
-		c.Reply().Status(http.StatusInternalServerError).Text("Internal Server Error")
-		e.writeResponse(c)
+		e.writeReply(w, req, NewReply().InternalServerError().Text("Internal Server Error"))
 	}
+}
+
+// prepareController method gets controller, request from pool, set the targeted
+// controller, parses the request and returns the controller.
+func (e *engine) prepareController(w ahttp.ResponseWriter, req *http.Request, route *router.Route) *Controller {
+	c := e.getController()
+	if err := c.setTarget(route); err == errTargetNotFound {
+		e.putController(c)
+		return nil
+	}
+
+	r := e.getRequest()
+	c.Req = ahttp.ParseRequest(req, r)
+	c.Res = w
+	c.reply = NewReply()
+
+	return c
 }
 
 // setDefaults method sets default value based on aah app configuration
@@ -113,14 +157,12 @@ func (e *engine) executeMiddlewares(c *Controller) {
 	mwChain[0].Next(c)
 }
 
-// writeResponse method writes the response on the wire based on `Reply` values.
-func (e *engine) writeResponse(c *Controller) {
-	reply := c.Reply()
-
+// writeReply method writes the response on the wire based on `Reply` instance.
+func (e *engine) writeReply(w http.ResponseWriter, req *http.Request, reply *Reply) {
 	// handle redirects
 	if reply.redirect {
 		log.Debugf("Redirecting to '%s' with status '%d'", reply.redirectURL, reply.Code)
-		http.Redirect(c.Res, c.Req.Raw, reply.redirectURL, reply.Code)
+		http.Redirect(w, req, reply.redirectURL, reply.Code)
 		return
 	}
 
@@ -138,8 +180,8 @@ func (e *engine) writeResponse(c *Controller) {
 	if reply.Rdr != nil {
 		if err := reply.Rdr.Render(buf); err != nil {
 			log.Error("Render error: ", err)
-			c.Res.WriteHeader(http.StatusInternalServerError)
-			_, _ = c.Res.Write([]byte("Render error: " + err.Error() + "\n"))
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte("Render error: " + err.Error() + "\n"))
 			return
 		}
 	}
@@ -147,22 +189,22 @@ func (e *engine) writeResponse(c *Controller) {
 	// HTTP headers
 	for k, v := range reply.Hdr {
 		for _, vv := range v {
-			c.Res.Header().Add(k, vv)
+			w.Header().Add(k, vv)
 		}
 	}
 
 	// ContentType
-	c.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
+	w.Header().Set(ahttp.HeaderContentType, reply.ContType)
 
 	// HTTP status
 	if reply.IsStatusSet() {
-		c.Res.WriteHeader(reply.Code)
+		w.WriteHeader(reply.Code)
 	} else {
-		c.Res.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusOK)
 	}
 
 	// Write it on the wire
-	_, _ = buf.WriteTo(c.Res)
+	_, _ = buf.WriteTo(w)
 }
 
 // defaultContentType method returns the Content-Type based on 'render.default'
@@ -195,14 +237,22 @@ func (e *engine) getRequest() *ahttp.Request {
 
 // putController method puts controller back to pool
 func (e *engine) putController(c *Controller) {
-	c.Reset()
-	e.cPool.Put(c)
-}
+	// Try to close if `io.Closer` interface satisfies.
+	if c.Res != nil {
+		c.Res.(*ahttp.Response).Close()
+	}
 
-// putRequest method puts request back to pool
-func (e *engine) putRequest(r *ahttp.Request) {
-	r.Reset()
-	e.rPool.Put(r)
+	// clear and put `ahttp.Request` into pool
+	if c.Req != nil {
+		c.Req.Reset()
+		e.rPool.Put(c.Req)
+	}
+
+	// clear and put `aah.Controller` into pool
+	if c != nil {
+		c.Reset()
+		e.cPool.Put(c)
+	}
 }
 
 // getBuffer method gets buffer from pool
@@ -221,7 +271,7 @@ func (e *engine) putBuffer(b *bytes.Buffer) {
 //___________________________________
 
 // serveStatic method static file/directory delivery.
-func serveStatic(c *Controller, route *router.Route, pathParams *router.PathParams) error {
+func serveStatic(w http.ResponseWriter, req *http.Request, route *router.Route, pathParams *router.PathParams) error {
 	var fileabs string
 	if route.IsDir() {
 		fileabs = filepath.Join(AppBaseDir(), route.Dir, filepath.FromSlash(pathParams.Get("filepath")))
@@ -233,114 +283,69 @@ func serveStatic(c *Controller, route *router.Route, pathParams *router.PathPara
 	log.Tracef("Dir: %s, File: %s", dir, file)
 
 	fs := ahttp.Dir(dir, route.ListDir)
-	res := c.Res
-	req := c.Req
-
-	// serveStatic write response on the wire, so instruct framework not to intervene.
-	c.Reply().Done()
-
 	f, err := fs.Open(file)
 	if err != nil {
 		if err == ahttp.ErrDirListNotAllowed {
-			log.Warnf("directory listing not allowed: %s", req.Path)
-			res.WriteHeader(http.StatusForbidden)
-			_, _ = res.Write([]byte("403 Directory listing not allowed"))
+			log.Warnf("directory listing not allowed: %s", req.URL.Path)
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte("403 Directory listing not allowed"))
 			return nil
 		} else if os.IsNotExist(err) {
-			log.Errorf("file not found: %s", req.Path)
+			log.Errorf("file not found: %s", req.URL.Path)
 			return errFileNotFound
 		} else if os.IsPermission(err) {
-			log.Warnf("permission issue: %s", req.Path)
-			res.WriteHeader(http.StatusForbidden)
-			_, _ = res.Write([]byte("403 Forbidden"))
+			log.Warnf("permission issue: %s", req.URL.Path)
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte("403 Forbidden"))
 			return nil
 		}
 
-		res.WriteHeader(http.StatusInternalServerError)
-		_, _ = res.Write([]byte("Internal Server Error"))
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("500 Internal Server Error"))
 		return nil
 	}
 	defer ess.CloseQuietly(f)
 
 	fi, err := f.Stat()
 	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		_, _ = res.Write([]byte("Internal Server Error"))
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("500 Internal Server Error"))
 		return nil
 	}
 
 	if fi.IsDir() {
 		// redirect if the directory name doesn't end in a slash
-		if req.Path[len(req.Path)-1] != '/' {
-			log.Debugf("redirecting to dir: %s", req.Path+"/")
-			http.Redirect(res, req.Raw, path.Base(req.Path)+"/", http.StatusFound)
+		if req.URL.Path[len(req.URL.Path)-1] != '/' {
+			log.Debugf("redirecting to dir: %s", req.URL.Path+"/")
+			http.Redirect(w, req, path.Base(req.URL.Path)+"/", http.StatusFound)
 			return nil
 		}
 
-		directoryList(res, req, f)
+		directoryList(w, req, f)
 		return nil
 	}
 
-	http.ServeContent(res, req.Raw, file, fi.ModTime(), f)
+	http.ServeContent(w, req, file, fi.ModTime(), f)
 	return nil
 }
 
-// handleNotFound method is used for 1. route action not found, 2. route is
-// not found and 3. static file/directory.
-func handleNotFound(c *Controller, domain *router.Domain, isStatic bool) {
-	log.Warnf("Route not found: %s", c.Req.Path)
-
-	if domain.NotFoundRoute == nil {
-		c.Reply().NotFound().Text("404 Not Found")
-		return
-	}
-
-	if err := c.setTarget(domain.NotFoundRoute); err != errTargetNotFound {
-		target := reflect.ValueOf(c.target)
-		if notFoundAction := target.MethodByName(c.action.Name); notFoundAction.IsValid() {
-			log.Debugf("Calling custom defined not-found action: %s.%s", c.controller, c.action.Name)
-			notFoundAction.Call([]reflect.Value{reflect.ValueOf(isStatic)})
-		} else {
-			c.Reply().NotFound().Text("404 Not Found")
-		}
-	}
-}
-
-// Redirect method redirects request to given URL.
-func redirectTrailingSlash(c *Controller) {
-	code := http.StatusMovedPermanently
-	if c.Req.Method != ahttp.MethodGet {
-		code = http.StatusTemporaryRedirect
-	}
-
-	path := c.Req.Path
-	req := c.Req.Raw
-	if len(path) > 1 && path[len(path)-1] == '/' {
-		req.URL.Path = path[:len(path)-1]
-	} else {
-		req.URL.Path = path + "/"
-	}
-
-	log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", code, path, req.URL.String())
-	http.Redirect(c.Res, req, req.URL.String(), code)
-}
-
-func directoryList(res http.ResponseWriter, req *ahttp.Request, f http.File) {
+func directoryList(w http.ResponseWriter, req *http.Request, f http.File) {
 	dirs, err := f.Readdir(-1)
 	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		_, _ = res.Write([]byte("Error reading directory"))
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte("Error reading directory"))
 		return
 	}
 	sort.Sort(byName(dirs))
 
-	res.Header().Set(ahttp.HeaderContentType, ahttp.ContentTypeHTML.Raw())
-	fmt.Fprintf(res, "<html>\n")
-	fmt.Fprintf(res, "<head><title>Listing of %s</title></head>\n", req.Path)
-	fmt.Fprintf(res, "<body bgcolor=\"white\">\n")
-	fmt.Fprintf(res, "<h1>Listing of %s</h1><hr>\n", req.Path)
-	fmt.Fprintf(res, "<pre><table border=\"0\">\n")
-	fmt.Fprintf(res, "<tr><td collapse=\"2\"><a href=\"../\">../</a></td></tr>\n")
+	w.Header().Set(ahttp.HeaderContentType, ahttp.ContentTypeHTML.Raw())
+	reqPath := req.URL.Path
+	fmt.Fprintf(w, "<html>\n")
+	fmt.Fprintf(w, "<head><title>Listing of %s</title></head>\n", reqPath)
+	fmt.Fprintf(w, "<body bgcolor=\"white\">\n")
+	fmt.Fprintf(w, "<h1>Listing of %s</h1><hr>\n", reqPath)
+	fmt.Fprintf(w, "<pre><table border=\"0\">\n")
+	fmt.Fprintf(w, "<tr><td collapse=\"2\"><a href=\"../\">../</a></td></tr>\n")
 	for _, d := range dirs {
 		name := d.Name()
 		if d.IsDir() {
@@ -350,15 +355,15 @@ func directoryList(res http.ResponseWriter, req *ahttp.Request, f http.File) {
 		// part of the URL path, and not indicate the start of a query
 		// string or fragment.
 		url := url.URL{Path: name}
-		fmt.Fprintf(res, "<tr><td><a href=\"%s\">%s</a></td><td width=\"200px\" align=\"right\">%s</td></tr>\n",
+		fmt.Fprintf(w, "<tr><td><a href=\"%s\">%s</a></td><td width=\"200px\" align=\"right\">%s</td></tr>\n",
 			url.String(),
 			atemplate.HTMLEscape(name),
 			d.ModTime().Format(appDefaultDateTimeFormat),
 		)
 	}
-	fmt.Fprintf(res, "</table></pre>\n")
-	fmt.Fprintf(res, "<hr></body>\n")
-	fmt.Fprintf(res, "</html>\n")
+	fmt.Fprintf(w, "</table></pre>\n")
+	fmt.Fprintf(w, "<hr></body>\n")
+	fmt.Fprintf(w, "</html>\n")
 }
 
 func newEngine() *engine {

@@ -44,6 +44,7 @@ var (
 	appPID                int
 	appInitialized        bool
 	appBuildInfo          *BuildInfo
+	appEngine             *engine
 
 	isMultipartEnabled bool
 
@@ -204,8 +205,9 @@ func Start() {
 	log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
 
 	address := AppHTTPAddress()
+	appEngine = newEngine()
 	server := &http.Server{
-		Handler:      newEngine(),
+		Handler:      appEngine,
 		ReadTimeout:  appHTTPReadTimeout,
 		WriteTimeout: appHTTPWriteTimeout,
 	}
