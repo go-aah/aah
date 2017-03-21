@@ -102,18 +102,6 @@ func AddController(c interface{}, methods []*MethodInfo) {
 	}
 }
 
-func createRegistryKey(cType reflect.Type) string {
-	namespace := cType.PkgPath()
-	idx := strings.Index(namespace, "controllers")
-	namespace = namespace[idx+11:]
-
-	if ess.IsStrEmpty(namespace) {
-		return strings.ToLower(cType.Name())
-	}
-
-	return strings.ToLower(namespace[1:] + "." + cType.Name())
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Controller methods
 //___________________________________
@@ -189,8 +177,21 @@ func (c *Controller) Reset() {
 // Controller Unexported methods
 //___________________________________
 
+// createRegistryKey method creates the controller registry key.
+func createRegistryKey(cType reflect.Type) string {
+	namespace := cType.PkgPath()
+	idx := strings.Index(namespace, "controllers")
+	namespace = namespace[idx+11:]
+
+	if ess.IsStrEmpty(namespace) {
+		return strings.ToLower(cType.Name())
+	}
+
+	return strings.ToLower(namespace[1:] + "." + cType.Name())
+}
+
 // setTarget method sets contoller, action, embedded controller into
-// controller
+// controller.
 func (c *Controller) setTarget(route *router.Route) error {
 	controller := cRegistry.Lookup(route)
 	if controller == nil {
@@ -223,6 +224,13 @@ func (c *Controller) setTarget(route *router.Route) error {
 func (cr controllerRegistry) Lookup(route *router.Route) *controllerInfo {
 	if ci, found := cr[strings.ToLower(route.Controller)]; found {
 		return ci
+	}
+
+	for _, ci := range cr {
+		// match exact character case
+		if strings.HasSuffix(route.Controller, ci.Name()) {
+			return ci
+		}
 	}
 
 	return nil
