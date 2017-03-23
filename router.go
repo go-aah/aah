@@ -5,14 +5,15 @@
 package aah
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
-	"net/http"
 	"path/filepath"
 	"reflect"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
@@ -33,9 +34,9 @@ func AppRouter() *router.Router {
 // Unexported methods
 //___________________________________
 
-func initRoutes() error {
-	routesPath := filepath.Join(appConfigDir(), "routes.conf")
-	appRouter = router.New(routesPath, AppConfig())
+func initRoutes(cfgDir string, appCfg *config.Config) error {
+	routesPath := filepath.Join(cfgDir, "routes.conf")
+	appRouter = router.New(routesPath, appCfg)
 
 	if err := appRouter.Load(); err != nil {
 		return fmt.Errorf("routes.conf: %s", err)
@@ -127,28 +128,28 @@ func createReverseURL(host, routeName string, margs map[string]interface{}, args
 
 // handleRtsOptionsMna method handles 1) Redirect Trailing Slash 2) Options
 // 3) Method not allowed
-func handleRtsOptionsMna(domain *router.Domain, req *http.Request, rts bool) *Reply {
-	reqMethod := req.Method
-	reqPath := req.URL.Path
+func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
+	reqMethod := ctx.Req.Method
+	reqPath := ctx.Req.Path
+	reply := ctx.Reply()
 
 	// Redirect Trailing Slash
 	if reqMethod != ahttp.MethodConnect && reqPath != router.SlashString {
 		if rts && domain.RedirectTrailingSlash {
-			reply := NewReply().MovedPermanently()
+			reply.MovedPermanently()
 			if reqMethod != ahttp.MethodGet {
 				reply.TemporaryRedirect()
 			}
 
 			if len(reqPath) > 1 && reqPath[len(reqPath)-1] == '/' {
-				req.URL.Path = reqPath[:len(reqPath)-1]
+				ctx.Req.Raw.URL.Path = reqPath[:len(reqPath)-1]
 			} else {
-				req.URL.Path = reqPath + "/"
+				ctx.Req.Raw.URL.Path = reqPath + "/"
 			}
 
-			reply.Redirect(req.URL.String())
-
+			reply.Redirect(ctx.Req.Raw.URL.String())
 			log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.redirectURL)
-			return reply
+			return nil
 		}
 	}
 
@@ -158,7 +159,8 @@ func handleRtsOptionsMna(domain *router.Domain, req *http.Request, rts bool) *Re
 			if allowed := domain.Allowed(reqMethod, reqPath); !ess.IsStrEmpty(allowed) {
 				allowed += ", " + ahttp.MethodOptions
 				log.Debugf("Auto 'OPTIONS' allowed HTTP Methods: %s", allowed)
-				return NewReply().Header(ahttp.HeaderAllow, allowed)
+				reply.Header(ahttp.HeaderAllow, allowed)
+				return nil
 			}
 		}
 	}
@@ -168,41 +170,37 @@ func handleRtsOptionsMna(domain *router.Domain, req *http.Request, rts bool) *Re
 		if allowed := domain.Allowed(reqMethod, reqPath); !ess.IsStrEmpty(allowed) {
 			allowed += ", " + ahttp.MethodOptions
 			log.Debugf("Allowed HTTP Methods for 405 response: %s", allowed)
-			return NewReply().
-				MethodNotAllowed().
+			reply.MethodNotAllowed().
 				Header(ahttp.HeaderAllow, allowed).
 				Text("405 Method Not Allowed")
+			return nil
 		}
 	}
 
-	return nil
+	return errors.New("route not found")
 }
 
 // handleRouteNotFound method is used for 1. route action not found, 2. route is
 // not found and 3. static file/directory.
-func handleRouteNotFound(w ahttp.ResponseWriter, req *http.Request, domain *router.Domain, route *router.Route) {
+func handleRouteNotFound(ctx *Context, domain *router.Domain, route *router.Route) {
 	// handle effectively to reduce heap allocation
 	if domain.NotFoundRoute == nil {
-		log.Warnf("Route not found: %s, isStaticFile: false", req.URL.Path)
-		appEngine.writeReply(w, req, NewReply().NotFound().Text("404 Not Found"))
+		log.Warnf("Route not found: %s, isStaticFile: false", ctx.Req.Path)
+		ctx.Reply().NotFound().Text("404 Not Found")
 		return
 	}
 
-	log.Warnf("Route not found: %s, isStaticFile: %v", req.URL.Path, route.IsStatic)
-	ctx := appEngine.prepareContext(w, req, domain.NotFoundRoute)
-	if ctx == nil {
-		appEngine.writeReply(w, req, NewReply().NotFound().Text("404 Not Found"))
+	log.Warnf("Route not found: %s, isStaticFile: %v", ctx.Req.Path, route.IsStatic)
+	if err := ctx.setTarget(route); err == errTargetNotFound {
+		ctx.Reply().NotFound().Text("404 Not Found")
 		return
 	}
-
-	defer appEngine.putContext(ctx)
 
 	target := reflect.ValueOf(ctx.target)
 	notFoundAction := target.MethodByName(ctx.action.Name)
 
 	log.Debugf("Calling user defined not-found action: %s.%s", ctx.controller, ctx.action.Name)
 	notFoundAction.Call([]reflect.Value{reflect.ValueOf(route.IsStatic)})
-	appEngine.writeReply(w, req, ctx.reply)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

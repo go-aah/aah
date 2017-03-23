@@ -11,17 +11,17 @@ import (
 )
 
 var (
-	mwStack []MiddlewareType
+	mwStack []MiddlewareFunc
 	mwChain []*Middleware
 )
 
 type (
-	// MiddlewareType func type is aah framework middleware signature.
-	MiddlewareType func(ctx *Context, m *Middleware)
+	// MiddlewareFunc func type is aah framework middleware signature.
+	MiddlewareFunc func(ctx *Context, m *Middleware)
 
 	// Middleware struct is to implement aah framework middleware chain.
 	Middleware struct {
-		next    MiddlewareType
+		next    MiddlewareFunc
 		further *Middleware
 	}
 )
@@ -31,12 +31,11 @@ type (
 //___________________________________
 
 // Middlewares method adds given middleware into middleware stack
-func Middlewares(middlewares ...MiddlewareType) {
-	mwStack = mwStack[:len(mwStack)-3]
+func Middlewares(middlewares ...MiddlewareFunc) {
+	mwStack = mwStack[:len(mwStack)-2]
 	mwStack = append(mwStack, middlewares...)
 	mwStack = append(
 		mwStack,
-		templateMiddleware,
 		interceptorMiddleware,
 		actionMiddleware,
 	)
@@ -184,7 +183,6 @@ func invalidateMwChain() {
 func init() {
 	mwStack = append(mwStack,
 		paramsMiddleware,
-		templateMiddleware,
 		interceptorMiddleware,
 		actionMiddleware,
 	)

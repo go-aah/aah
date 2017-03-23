@@ -64,21 +64,11 @@ func initTemplateEngine() error {
 	return appTemplateEngine.Load()
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Template middleware
-//___________________________________
-
-// TemplateMiddleware finds appropriate template based request and route
-// information.
-func templateMiddleware(ctx *Context, m *Middleware) {
-	m.Next(ctx)
-
+// handlePreReplyStage method does 1) sets response header, 2) if HTML content type
+// finds appropriate template based request and route information,
+// 3) Adds request info into view args.
+func handlePreReplyStage(ctx *Context) {
 	reply := ctx.Reply()
-
-	// for redirects, do not go forward
-	if reply.redirect {
-		return
-	}
 
 	// ContentType
 	if ess.IsStrEmpty(reply.ContType) {
@@ -120,27 +110,51 @@ func templateMiddleware(ctx *Context, m *Middleware) {
 		htmlRdr.ViewArgs["HTTPReferer"] = ctx.Req.Referer
 		htmlRdr.ViewArgs["AahVersion"] = Version
 
-		controllerName := ctx.controller
-		if strings.HasSuffix(controllerName, controllerNameSuffix) {
-			controllerName = controllerName[:len(controllerName)-controllerNameSuffixLen]
+		// find view template by convention if not provided
+		findViewTemplate(ctx)
+	}
+}
+
+// defaultContentType method returns the Content-Type based on 'render.default'
+// config from aah.conf
+func defaultContentType() *ahttp.ContentType {
+	cfgValue := AppConfig().StringDefault("render.default", "")
+	switch cfgValue {
+	case "html":
+		return ahttp.ContentTypeHTML
+	case "json":
+		return ahttp.ContentTypeJSON
+	case "xml":
+		return ahttp.ContentTypeXML
+	case "text":
+		return ahttp.ContentTypePlainText
+	default:
+		return ahttp.ContentTypeOctetStream
+	}
+}
+
+func findViewTemplate(ctx *Context) {
+	controllerName := ctx.controller
+	if strings.HasSuffix(controllerName, controllerNameSuffix) {
+		controllerName = controllerName[:len(controllerName)-controllerNameSuffixLen]
+	}
+
+	tmplPath := filepath.Join("pages", controllerName)
+	tmplName := ctx.action.Name + appTemplateExt
+	htmlRdr := ctx.Reply().Rdr.(*HTML)
+	if !ess.IsStrEmpty(htmlRdr.Filename) {
+		tmplName = htmlRdr.Filename
+	}
+
+	log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
+	htmlRdr.Template = appTemplateEngine.Get(htmlRdr.Layout, tmplPath, tmplName)
+	if htmlRdr.Template == nil {
+		tmplFile := filepath.Join("views", "pages", controllerName, tmplName)
+		if !appTemplateCaseSensitive {
+			tmplFile = strings.ToLower(tmplFile)
 		}
 
-		tmplPath := filepath.Join("pages", controllerName)
-		tmplName := ctx.action.Name + appTemplateExt
-		if !ess.IsStrEmpty(htmlRdr.Filename) {
-			tmplName = htmlRdr.Filename
-		}
-
-		log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
-		htmlRdr.Template = appTemplateEngine.Get(htmlRdr.Layout, tmplPath, tmplName)
-		if htmlRdr.Template == nil {
-			tmplFile := filepath.Join("views", "pages", controllerName, tmplName)
-			if !appTemplateCaseSensitive {
-				tmplFile = strings.ToLower(tmplFile)
-			}
-
-			log.Errorf("template not found: %s", tmplFile)
-		}
+		log.Errorf("template not found: %s", tmplFile)
 	}
 }
 
