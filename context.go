@@ -32,6 +32,7 @@ type (
 		action     *MethodInfo
 		target     interface{}
 		domain     *router.Domain
+		route      *router.Route
 		reply      *Reply
 		viewArgs   map[string]interface{}
 		abort      bool
