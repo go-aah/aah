@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 	"time"
 
 	"aahframework.org/aruntime.v0"
+	"aahframework.org/atemplate.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -161,6 +163,11 @@ func IsCookieEnabled() bool {
 	return AppConfig().BoolDefault("cookie.enable", false)
 }
 
+// AddTemplateFunc method adds template func map into view engine.
+func AddTemplateFunc(funcs template.FuncMap) {
+	atemplate.AddTemplateFunc(funcs)
+}
+
 // SetAppProfile method sets given profile as current aah application profile.
 //		For Example:
 //
@@ -203,6 +210,9 @@ func Start() {
 	log.Infof("App Mode: %v", AppMode())
 	log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
 	log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
+
+	// Publish `OnStart` event
+	AppEventStore().sortAndPublishSync(&Event{Name: EventOnStart})
 
 	address := AppHTTPAddress()
 	appEngine = newEngine()
@@ -288,12 +298,15 @@ func initInternal() {
 	if appBuildInfo == nil {
 		// aah CLI is accessing app codebase
 		log.SetLevel(log.LevelWarn)
-		logAsFatal(initRoutes())
+		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
 		log.SetLevel(log.LevelDebug)
 	} else {
+		// publish `OnInit` event
+		AppEventStore().sortAndPublishSync(&Event{Name: EventOnInit})
+
 		logAsFatal(initLogs())
-		logAsFatal(initI18n())
-		logAsFatal(initRoutes())
+		logAsFatal(initI18n(appI18nDir()))
+		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
 
 		if AppMode() == appModeWeb {
 			logAsFatal(initTemplateEngine())

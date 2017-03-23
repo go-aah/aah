@@ -294,8 +294,9 @@ func (r *Reply) HeaderAppend(key, value string) *Reply {
 	return r
 }
 
-// Done method sets `done` field to true. It means you have written response
-// and instructing aah framework not to process response.
+// Done method concludes middleware flow, action flow by returning control over
+// to framework and informing that reply has already been sent via `aahContext.Res`
+// and that no further action is needed.
 func (r *Reply) Done() *Reply {
 	r.done = true
 	return r
