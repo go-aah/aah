@@ -5,13 +5,15 @@
 package aah
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
-	"net/http"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
@@ -32,9 +34,9 @@ func AppRouter() *router.Router {
 // Unexported methods
 //___________________________________
 
-func initRoutes() error {
-	routesPath := filepath.Join(appConfigDir(), "routes.conf")
-	appRouter = router.New(routesPath, AppConfig())
+func initRoutes(cfgDir string, appCfg *config.Config) error {
+	routesPath := filepath.Join(cfgDir, "routes.conf")
+	appRouter = router.New(routesPath, appCfg)
 
 	if err := appRouter.Load(); err != nil {
 		return fmt.Errorf("routes.conf: %s", err)
@@ -61,10 +63,6 @@ func getRouteNameAndAnchorLink(routeName string) (string, string) {
 }
 
 func composeRouteURL(domain *router.Domain, routePath, anchorLink string) string {
-	if ess.IsStrEmpty(routePath) {
-		return "#"
-	}
-
 	if ess.IsStrEmpty(domain.Port) {
 		routePath = fmt.Sprintf("//%s%s", domain.Host, routePath)
 	} else {
@@ -93,96 +91,116 @@ func findReverseURLDomain(host, routeName string) (*router.Domain, int) {
 	}
 
 	// return root domain
-	for _, v := range AppRouter().Domains {
-		if !v.IsSubDomain {
-			log.Tracef("Returning root domain: %s", v.Host)
-			return v, -1
-		}
-	}
-
-	// final fallback, mostly it won't come here
-	return AppRouter().Domains[host], -1
+	log.Trace("Returning root domain")
+	return findRootDomain(), idx
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Router middleware
-//___________________________________
+func findRootDomain() *router.Domain {
+	for _, v := range AppRouter().Domains {
+		if v.IsSubDomain {
+			continue
+		}
+		return v
+	}
+	return nil
+}
 
-// RouterMiddleware finds the route of incoming request and moves forward.
-// If routes not found it does appropriate response for the request.
-func routerMiddleware(c *Controller, m *Middleware) {
-	domain := AppRouter().FindDomain(c.Req)
-	if domain == nil {
-		c.Reply().NotFound().Text("404 Route Not Exists")
-		return
+func createReverseURL(host, routeName string, margs map[string]interface{}, args ...interface{}) string {
+	domain, idx := findReverseURLDomain(host, routeName)
+	if idx > 0 {
+		routeName = routeName[idx+1:]
 	}
 
-	route, pathParams, rts := domain.Lookup(c.Req)
-	log.Tracef("Route: %#v, Path Params: %v, rts: %v ", route, pathParams, rts)
-
-	if route != nil { // route found
-		if route.IsStatic {
-			if err := serveStatic(c, route, pathParams); err == errFileNotFound {
-				handleNotFound(c, domain, route.IsStatic)
-			}
-			return
-		}
-
-		if err := c.setTarget(route); err == errTargetNotFound {
-			handleNotFound(c, domain, false)
-			return
-		}
-
-		// Path parameters
-		if pathParams.Len() > 0 {
-			c.Req.Params.Path = make(map[string]string, pathParams.Len())
-			for _, v := range *pathParams {
-				c.Req.Params.Path[v.Key] = v.Value
-			}
-		}
-
-		c.domain = domain
-
-		m.Next(c)
-
-		return
+	if routeName == "host" {
+		return composeRouteURL(domain, "", "")
 	}
+
+	routeName, anchorLink := getRouteNameAndAnchorLink(routeName)
+	var routePath string
+	if margs == nil {
+		routePath = domain.ReverseURL(routeName, args...)
+	} else {
+		routePath = domain.ReverseURLm(routeName, margs)
+	}
+
+	return composeRouteURL(domain, routePath, anchorLink)
+}
+
+// handleRtsOptionsMna method handles 1) Redirect Trailing Slash 2) Options
+// 3) Method not allowed
+func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
+	reqMethod := ctx.Req.Method
+	reqPath := ctx.Req.Path
+	reply := ctx.Reply()
 
 	// Redirect Trailing Slash
-	if c.Req.Method != ahttp.MethodConnect && c.Req.Path != router.SlashString {
+	if reqMethod != ahttp.MethodConnect && reqPath != router.SlashString {
 		if rts && domain.RedirectTrailingSlash {
-			redirectTrailingSlash(c)
-			return
+			reply.MovedPermanently()
+			if reqMethod != ahttp.MethodGet {
+				reply.TemporaryRedirect()
+			}
+
+			if len(reqPath) > 1 && reqPath[len(reqPath)-1] == '/' {
+				ctx.Req.Raw.URL.Path = reqPath[:len(reqPath)-1]
+			} else {
+				ctx.Req.Raw.URL.Path = reqPath + "/"
+			}
+
+			reply.Redirect(ctx.Req.Raw.URL.String())
+			log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.redirectURL)
+			return nil
 		}
 	}
 
 	// HTTP: OPTIONS
-	if c.Req.Method == ahttp.MethodOptions {
+	if reqMethod == ahttp.MethodOptions {
 		if domain.AutoOptions {
-			if allowed := domain.Allowed(c.Req.Method, c.Req.Path); !ess.IsStrEmpty(allowed) {
+			if allowed := domain.Allowed(reqMethod, reqPath); !ess.IsStrEmpty(allowed) {
 				allowed += ", " + ahttp.MethodOptions
 				log.Debugf("Auto 'OPTIONS' allowed HTTP Methods: %s", allowed)
-				c.Reply().Header(ahttp.HeaderAllow, allowed)
-				return
+				reply.Header(ahttp.HeaderAllow, allowed)
+				return nil
 			}
 		}
 	}
 
 	// 405 Method Not Allowed
 	if domain.MethodNotAllowed {
-		if allowed := domain.Allowed(c.Req.Method, c.Req.Path); !ess.IsStrEmpty(allowed) {
+		if allowed := domain.Allowed(reqMethod, reqPath); !ess.IsStrEmpty(allowed) {
 			allowed += ", " + ahttp.MethodOptions
 			log.Debugf("Allowed HTTP Methods for 405 response: %s", allowed)
-			c.Reply().
-				Status(http.StatusMethodNotAllowed).
+			reply.MethodNotAllowed().
 				Header(ahttp.HeaderAllow, allowed).
 				Text("405 Method Not Allowed")
-			return
+			return nil
 		}
 	}
 
-	// 404 not found
-	handleNotFound(c, domain, false)
+	return errors.New("route not found")
+}
+
+// handleRouteNotFound method is used for 1. route action not found, 2. route is
+// not found and 3. static file/directory.
+func handleRouteNotFound(ctx *Context, domain *router.Domain, route *router.Route) {
+	// handle effectively to reduce heap allocation
+	if domain.NotFoundRoute == nil {
+		log.Warnf("Route not found: %s, isStaticFile: false", ctx.Req.Path)
+		ctx.Reply().NotFound().Text("404 Not Found")
+		return
+	}
+
+	log.Warnf("Route not found: %s, isStaticFile: %v", ctx.Req.Path, route.IsStatic)
+	if err := ctx.setTarget(route); err == errTargetNotFound {
+		ctx.Reply().NotFound().Text("404 Not Found")
+		return
+	}
+
+	target := reflect.ValueOf(ctx.target)
+	notFoundAction := target.MethodByName(ctx.action.Name)
+
+	log.Debugf("Calling user defined not-found action: %s.%s", ctx.controller, ctx.action.Name)
+	notFoundAction.Call([]reflect.Value{reflect.ValueOf(route.IsStatic)})
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -199,34 +217,12 @@ func tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL 
 
 	host := viewArgs["Host"].(string)
 	routeName := args[0].(string)
-
-	domain, idx := findReverseURLDomain(host, routeName)
-	if idx > 0 {
-		routeName = routeName[idx+1:]
-	}
-
-	routeName, anchorLink := getRouteNameAndAnchorLink(routeName)
-	routePath := domain.ReverseURL(routeName, args[1:]...)
-
-	return template.URL(composeRouteURL(domain, routePath, anchorLink))
+	return template.URL(createReverseURL(host, routeName, nil, args[1:]...))
 }
 
 // tmplURLm method returns reverse URL by given route name and
 // map[string]interface{}. Mapped to Go template func.
 func tmplURLm(viewArgs map[string]interface{}, routeName string, args map[string]interface{}) template.URL {
-	if len(args) == 0 {
-		log.Errorf("route not found: %v", args)
-		return template.URL("#")
-	}
-
 	host := viewArgs["Host"].(string)
-	domain, idx := findReverseURLDomain(host, routeName)
-	if idx > 0 {
-		routeName = routeName[idx+1:]
-	}
-
-	routeName, anchorLink := getRouteNameAndAnchorLink(routeName)
-	routePath := domain.ReverseURLm(routeName, args)
-
-	return template.URL(composeRouteURL(domain, routePath, anchorLink))
+	return template.URL(createReverseURL(host, routeName, args))
 }

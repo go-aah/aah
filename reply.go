@@ -14,11 +14,13 @@ import (
 
 // Reply gives you control and convenient way to write a response effectively.
 type Reply struct {
-	Code     int
-	ContType string
-	Hdr      http.Header
-	Rdr      Render
-	Done     bool
+	Code        int
+	ContType    string
+	Hdr         http.Header
+	Rdr         Render
+	redirect    bool
+	redirectURL string
+	done        bool
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -67,6 +69,11 @@ func (r *Reply) NoContent() *Reply {
 // MovedPermanently method sets the HTTP Code as 301 RFC 7231, 6.4.2.
 func (r *Reply) MovedPermanently() *Reply {
 	return r.Status(http.StatusMovedPermanently)
+}
+
+// Found method sets the HTTP Code as 302 RFC 7231, 6.4.3.
+func (r *Reply) Found() *Reply {
+	return r.Status(http.StatusFound)
 }
 
 // TemporaryRedirect method sets the HTTP Code as 307 RFC 7231, 6.4.7.
@@ -223,6 +230,34 @@ func (r *Reply) HTMLl(layout string, data Data) *Reply {
 	return r
 }
 
+// HTMLlf method renders based on given layout, filename and data. Refer `Reply.HTML(...)`
+// method.
+func (r *Reply) HTMLlf(layout, filename string, data Data) *Reply {
+	r.Rdr = &HTML{
+		Layout:   layout,
+		Filename: filename,
+		ViewArgs: data,
+	}
+	r.ContentType(ahttp.ContentTypeHTML.Raw())
+	return r
+}
+
+// Redirect method redirect the to given redirect URL with status 302 and it does
+// not provide option for chain call.
+func (r *Reply) Redirect(redirectURL string) {
+	r.redirect = true
+	r.Found()
+	r.redirectURL = redirectURL
+}
+
+// Redirects method redirect the to given redirect URL and status code. It does
+// not provide option for chain call.
+func (r *Reply) Redirects(redirectURL string, code int) {
+	r.redirect = true
+	r.Status(code)
+	r.redirectURL = redirectURL
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Reply methods
 //___________________________________
@@ -259,6 +294,14 @@ func (r *Reply) HeaderAppend(key, value string) *Reply {
 	return r
 }
 
+// Done method concludes middleware flow, action flow by returning control over
+// to framework and informing that reply has already been sent via `aahContext.Res`
+// and that no further action is needed.
+func (r *Reply) Done() *Reply {
+	r.done = true
+	return r
+}
+
 // IsContentTypeSet method returns true if Content-Type is set otherwise
 // false.
 func (r *Reply) IsContentTypeSet() bool {
@@ -269,13 +312,6 @@ func (r *Reply) IsContentTypeSet() bool {
 // otherwise false.
 func (r *Reply) IsStatusSet() bool {
 	return r.Code != 0
-}
-
-// SetDone method sets Done field to true. It means you have written response
-// and instructing aah framework not to process response.
-func (r *Reply) SetDone() *Reply {
-	r.Done = true
-	return r
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

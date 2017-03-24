@@ -1,0 +1,15 @@
+# test data for msg
+
+label {
+  pages {
+    site {
+      index {
+        title = "Welcome to aah framework, A scalable, performant, rapid development Web framework for Go"
+      }
+
+      get_involved {
+        title = "Get Involved - aah web framework for Go"
+      }
+    }
+  }
+}

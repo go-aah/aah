@@ -42,9 +42,9 @@ func appI18nDir() string {
 	return filepath.Join(AppBaseDir(), "i18n")
 }
 
-func initI18n() error {
+func initI18n(cfgDir string) error {
 	appI18n = i18n.New()
-	return appI18n.Load(appI18nDir())
+	return appI18n.Load(cfgDir)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

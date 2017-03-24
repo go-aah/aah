@@ -5,9 +5,9 @@
 package aah
 
 import (
-	"reflect"
 	"testing"
 
+	router "aahframework.org/router.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -22,45 +22,28 @@ func TestActualType(t *testing.T) {
 	assert.Equal(t, "aah.engine", ct.String())
 }
 
-func TestAddController(t *testing.T) {
-	type (
-		Level1 struct{ *Controller }
+func TestCRegistryLookup(t *testing.T) {
+	addToCRegistry()
 
-		Level2 struct{ Level1 }
+	ci := cRegistry.Lookup(&router.Route{Controller: "Path1"})
+	assert.NotNil(t, ci)
+	assert.Equal(t, "Path1", ci.Name())
 
-		Level3 struct{ Level2 }
-
-		Level4 struct{ Level3 }
-
-		Path1 struct{ *Controller }
-
-		Path2 struct {
-			Level1
-			Path1
-			Level4
-		}
-	)
-
-	cRegistry = controllerRegistry{}
-
-	AddController((*Level1)(nil), nil)
-	AddController((*Level2)(nil), nil)
-	AddController((*Level3)(nil), nil)
-	AddController((*Level4)(nil), nil)
-	AddController((*Path1)(nil), nil)
-	AddController((*Path2)(nil), nil)
-
-	assertIndexes(t, Level1{}, [][]int{{0}})
-	assertIndexes(t, Level2{}, [][]int{{0, 0}})
-	assertIndexes(t, Level3{}, [][]int{{0, 0, 0}})
-	assertIndexes(t, Level4{}, [][]int{{0, 0, 0, 0}})
-	assertIndexes(t, Path1{}, [][]int{{0}})
-	assertIndexes(t, Path2{}, [][]int{{0, 0}, {1, 0}, {2, 0, 0, 0, 0}})
+	ci = cRegistry.Lookup(&router.Route{Controller: "ControllerNotExists"})
+	assert.Nil(t, ci)
 }
 
-func assertIndexes(t *testing.T, c interface{}, expected [][]int) {
-	actual := findEmbeddedController(reflect.TypeOf(c))
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("Indexes do not match. expected %v actual %v", expected, actual)
-	}
+func TestFindMethodController(t *testing.T) {
+	addToCRegistry()
+
+	ci := cRegistry.Lookup(&router.Route{Controller: "Level3"})
+	assert.NotNil(t, ci)
+	mi := ci.FindMethod("Testing")
+	assert.NotNil(t, mi)
+	assert.Equal(t, "Testing", mi.Name)
+
+	ci = cRegistry.Lookup(&router.Route{Controller: "Path1"})
+	assert.NotNil(t, ci)
+	mi = ci.FindMethod("NoMethodExists")
+	assert.Nil(t, mi)
 }

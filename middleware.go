@@ -5,26 +5,23 @@
 package aah
 
 import (
-	"io/ioutil"
-	"net/http"
 	"reflect"
 
-	"aahframework.org/ahttp.v0"
 	"aahframework.org/log.v0"
 )
 
 var (
-	mwStack []MiddlewareType
+	mwStack []MiddlewareFunc
 	mwChain []*Middleware
 )
 
 type (
-	// MiddlewareType func type is aah framework middleware signature.
-	MiddlewareType func(c *Controller, m *Middleware)
+	// MiddlewareFunc func type is aah framework middleware signature.
+	MiddlewareFunc func(ctx *Context, m *Middleware)
 
 	// Middleware struct is to implement aah framework middleware chain.
 	Middleware struct {
-		next    MiddlewareType
+		next    MiddlewareFunc
 		further *Middleware
 	}
 )
@@ -34,12 +31,11 @@ type (
 //___________________________________
 
 // Middlewares method adds given middleware into middleware stack
-func Middlewares(middlewares ...MiddlewareType) {
-	mwStack = mwStack[:len(mwStack)-3]
+func Middlewares(middlewares ...MiddlewareFunc) {
+	mwStack = mwStack[:len(mwStack)-2]
 	mwStack = append(mwStack, middlewares...)
 	mwStack = append(
 		mwStack,
-		templateMiddleware,
 		interceptorMiddleware,
 		actionMiddleware,
 	)
@@ -52,70 +48,15 @@ func Middlewares(middlewares ...MiddlewareType) {
 //___________________________________
 
 // Next method calls next middleware in the chain if available.
-func (mw *Middleware) Next(c *Controller) {
-	if c.Abort {
+func (mw *Middleware) Next(ctx *Context) {
+	if ctx.abort {
 		// abort, not to proceed further
 		return
 	}
 
 	if mw.next != nil {
-		mw.next(c, mw.further)
+		mw.next(ctx, mw.further)
 	}
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Params middleware
-//___________________________________
-
-// ParamsMiddleware parses the incoming HTTP request to collects request
-// parameters (query string and payload) stores into controller. Query string
-// parameters made available in render context.
-func paramsMiddleware(c *Controller, m *Middleware) {
-	req := c.Req.Raw
-
-	if c.Req.Method != ahttp.MethodGet {
-		contentType := c.Req.ContentType.Mime
-		log.Debugf("request content type: %s", contentType)
-
-		switch contentType {
-		case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeXML.Mime:
-			if payloadBytes, err := ioutil.ReadAll(req.Body); err == nil {
-				c.Req.Payload = string(payloadBytes)
-			} else {
-				log.Errorf("unable to read request body for '%s': %s", contentType, err)
-			}
-		case ahttp.ContentTypeForm.Mime:
-			if err := req.ParseForm(); err == nil {
-				c.Req.Params.Form = req.Form
-			} else {
-				log.Errorf("unable to parse form: %s", err)
-			}
-		case ahttp.ContentTypeMultipartForm.Mime:
-			if isMultipartEnabled {
-				if err := req.ParseMultipartForm(appMultipartMaxMemory); err == nil {
-					c.Req.Params.Form = req.MultipartForm.Value
-					c.Req.Params.File = req.MultipartForm.File
-				} else {
-					log.Errorf("unable to parse multipart form: %s", err)
-				}
-			} else {
-				log.Warn("multipart processing is disabled in aah.conf")
-			}
-		} // switch end
-
-		// clean up
-		defer func(r *http.Request) {
-			if r.MultipartForm != nil {
-				log.Debug("multipart form file clean up")
-				if err := r.MultipartForm.RemoveAll(); err != nil {
-					log.Error(err)
-				}
-			}
-		}(req)
-	}
-
-	m.Next(c)
-
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -125,18 +66,18 @@ func paramsMiddleware(c *Controller, m *Middleware) {
 // interceptorMiddleware calls pre-defined actions (Before, Before<ActionName>,
 // After, After<ActionName>, Panic, Panic<ActionName>, Finally,
 // Finally<ActionName>) from controller.
-func interceptorMiddleware(c *Controller, m *Middleware) {
-	target := reflect.ValueOf(c.target)
+func interceptorMiddleware(ctx *Context, m *Middleware) {
+	target := reflect.ValueOf(ctx.target)
 
 	// Finally action and method
 	defer func() {
-		if finallyActionMethod := target.MethodByName(incpFinallyActionName + c.action.Name); finallyActionMethod.IsValid() {
-			log.Debugf("Calling finally interceptor on controller: %s.%s", c.controller, incpFinallyActionName+c.action.Name)
+		if finallyActionMethod := target.MethodByName(incpFinallyActionName + ctx.action.Name); finallyActionMethod.IsValid() {
+			log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpFinallyActionName+ctx.action.Name)
 			finallyActionMethod.Call(emptyArg)
 		}
 
 		if finallyAction := target.MethodByName(incpFinallyActionName); finallyAction.IsValid() {
-			log.Debugf("Calling finally interceptor on controller: %s.%s", c.controller, incpFinallyActionName)
+			log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpFinallyActionName)
 			finallyAction.Call(emptyArg)
 		}
 	}()
@@ -144,14 +85,14 @@ func interceptorMiddleware(c *Controller, m *Middleware) {
 	// Panic action and method
 	defer func() {
 		if r := recover(); r != nil {
-			if panicActionMethod := target.MethodByName(incpPanicActionName + c.action.Name); panicActionMethod.IsValid() {
-				log.Debugf("Calling panic method interceptor on controller: %s.%s", c.controller, incpPanicActionName+c.action.Name)
+			if panicActionMethod := target.MethodByName(incpPanicActionName + ctx.action.Name); panicActionMethod.IsValid() {
+				log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpPanicActionName+ctx.action.Name)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicActionMethod.Call(rv)
 			}
 
 			if panicAction := target.MethodByName(incpPanicActionName); panicAction.IsValid() {
-				log.Debugf("Calling panic interceptor on controller: %s.%s", c.controller, incpPanicActionName)
+				log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpPanicActionName)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicAction.Call(rv)
 			} else { // propagate it
@@ -162,32 +103,32 @@ func interceptorMiddleware(c *Controller, m *Middleware) {
 
 	// Before action
 	if beforeAction := target.MethodByName(incpBeforeActionName); beforeAction.IsValid() {
-		log.Debugf("Calling before interceptor on controller: %s.%s", c.controller, incpBeforeActionName)
+		log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpBeforeActionName)
 		beforeAction.Call(emptyArg)
 	}
 
 	// Before action method
-	if !c.Abort {
-		if beforeActionMethod := target.MethodByName(incpBeforeActionName + c.action.Name); beforeActionMethod.IsValid() {
-			log.Debugf("Calling before action interceptor on controller: %s.%s", c.controller, incpBeforeActionName+c.action.Name)
+	if !ctx.abort {
+		if beforeActionMethod := target.MethodByName(incpBeforeActionName + ctx.action.Name); beforeActionMethod.IsValid() {
+			log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpBeforeActionName+ctx.action.Name)
 			beforeActionMethod.Call(emptyArg)
 		}
 	}
 
-	m.Next(c)
+	m.Next(ctx)
 
 	// After action method
-	if !c.Abort {
-		if afterActionMethod := target.MethodByName(incpAfterActionName + c.action.Name); afterActionMethod.IsValid() {
-			log.Debugf("Calling after action interceptor on controller: %s.%s", c.controller, incpAfterActionName+c.action.Name)
+	if !ctx.abort {
+		if afterActionMethod := target.MethodByName(incpAfterActionName + ctx.action.Name); afterActionMethod.IsValid() {
+			log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpAfterActionName+ctx.action.Name)
 			afterActionMethod.Call(emptyArg)
 		}
 	}
 
 	// After action
-	if !c.Abort {
+	if !ctx.abort {
 		if afterAction := target.MethodByName(incpAfterActionName); afterAction.IsValid() {
-			log.Debugf("Calling after interceptor on controller: %s.%s", c.controller, incpAfterActionName)
+			log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpAfterActionName)
 			afterAction.Call(emptyArg)
 		}
 	}
@@ -198,19 +139,19 @@ func interceptorMiddleware(c *Controller, m *Middleware) {
 //___________________________________
 
 // ActionMiddleware calls the requested action on controller
-func actionMiddleware(c *Controller, m *Middleware) {
-	target := reflect.ValueOf(c.target)
-	action := target.MethodByName(c.action.Name)
+func actionMiddleware(ctx *Context, m *Middleware) {
+	target := reflect.ValueOf(ctx.target)
+	action := target.MethodByName(ctx.action.Name)
 
 	if !action.IsValid() {
 		return
 	}
 
-	actionArgs := make([]reflect.Value, len(c.action.Parameters))
+	actionArgs := make([]reflect.Value, len(ctx.action.Parameters))
 
 	// TODO Auto Binder for arguments
 
-	log.Debugf("Calling controller: %s.%s", c.controller, c.action.Name)
+	log.Debugf("Calling controller: %s.%s", ctx.controller, ctx.action.Name)
 	if action.Type().IsVariadic() {
 		action.CallSlice(actionArgs)
 	} else {
@@ -241,9 +182,7 @@ func invalidateMwChain() {
 
 func init() {
 	mwStack = append(mwStack,
-		routerMiddleware,
 		paramsMiddleware,
-		templateMiddleware,
 		interceptorMiddleware,
 		actionMiddleware,
 	)

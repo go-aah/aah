@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -21,13 +22,14 @@ import (
 	"time"
 
 	"aahframework.org/aruntime.v0"
+	"aahframework.org/atemplate.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
 
 // Version no. of aah framework
-const Version = "0.2"
+const Version = "0.3"
 
 // aah application variables
 var (
@@ -44,6 +46,7 @@ var (
 	appPID                int
 	appInitialized        bool
 	appBuildInfo          *BuildInfo
+	appEngine             *engine
 
 	isMultipartEnabled bool
 
@@ -160,6 +163,11 @@ func IsCookieEnabled() bool {
 	return AppConfig().BoolDefault("cookie.enable", false)
 }
 
+// AddTemplateFunc method adds template func map into view engine.
+func AddTemplateFunc(funcs template.FuncMap) {
+	atemplate.AddTemplateFunc(funcs)
+}
+
 // SetAppProfile method sets given profile as current aah application profile.
 //		For Example:
 //
@@ -203,9 +211,13 @@ func Start() {
 	log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
 	log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
 
+	// Publish `OnStart` event
+	AppEventStore().sortAndPublishSync(&Event{Name: EventOnStart})
+
 	address := AppHTTPAddress()
+	appEngine = newEngine()
 	server := &http.Server{
-		Handler:      newEngine(),
+		Handler:      appEngine,
 		ReadTimeout:  appHTTPReadTimeout,
 		WriteTimeout: appHTTPWriteTimeout,
 	}
@@ -283,18 +295,26 @@ func logAsFatal(err error) {
 func initInternal() {
 	logAsFatal(initAppVariables())
 
-	logAsFatal(initLogs())
+	if appBuildInfo == nil {
+		// aah CLI is accessing app codebase
+		log.SetLevel(log.LevelWarn)
+		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
+		log.SetLevel(log.LevelDebug)
+	} else {
+		// publish `OnInit` event
+		AppEventStore().sortAndPublishSync(&Event{Name: EventOnInit})
 
-	logAsFatal(initI18n())
+		logAsFatal(initLogs())
+		logAsFatal(initI18n(appI18nDir()))
+		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
 
-	logAsFatal(initRoutes())
+		if AppMode() == appModeWeb {
+			logAsFatal(initTemplateEngine())
+		}
 
-	if AppMode() == appModeWeb {
-		logAsFatal(initTemplateEngine())
-	}
-
-	if AppProfile() != appProfileProd {
-		logAsFatal(initTests())
+		if AppProfile() != appProfileProd {
+			logAsFatal(initTests())
+		}
 	}
 
 	appInitialized = true
