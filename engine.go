@@ -47,14 +47,14 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		onRequestFunc(&Event{Name: EventOnRequest, Data: ctx})
 	}
 
-	domain := AppRouter().FindDomain(req)
+	domain := AppRouter().FindDomain(ctx.Req)
 	if domain == nil {
 		ctx.Reply().NotFound().Text("404 Not Found")
 		e.writeReply(ctx)
 		return
 	}
 
-	route, pathParams, rts := domain.Lookup(req)
+	route, pathParams, rts := domain.Lookup(ctx.Req)
 	if route == nil { // route not found
 		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
 			e.writeReply(ctx)
