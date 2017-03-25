@@ -29,7 +29,7 @@ import (
 )
 
 // Version no. of aah framework
-const Version = "0.3"
+const Version = "0.4"
 
 // aah application variables
 var (
@@ -40,6 +40,8 @@ var (
 	appIsPackaged         bool
 	appHTTPReadTimeout    time.Duration
 	appHTTPWriteTimeout   time.Duration
+	appHTTPMaxHdrBytes    int
+	appHTTPKeepAlive      bool
 	appSSLCert            string
 	appSSLKey             string
 	appMultipartMaxMemory int64
@@ -217,10 +219,13 @@ func Start() {
 	address := AppHTTPAddress()
 	appEngine = newEngine()
 	server := &http.Server{
-		Handler:      appEngine,
-		ReadTimeout:  appHTTPReadTimeout,
-		WriteTimeout: appHTTPWriteTimeout,
+		Handler:        appEngine,
+		ReadTimeout:    appHTTPReadTimeout,
+		WriteTimeout:   appHTTPWriteTimeout,
+		MaxHeaderBytes: appHTTPMaxHdrBytes,
 	}
+
+	server.SetKeepAlivesEnabled(appHTTPKeepAlive)
 
 	writePID(AppName(), AppBaseDir(), AppConfig())
 
@@ -357,12 +362,21 @@ func initAppVariables() error {
 	}
 
 	if appHTTPReadTimeout, err = time.ParseDuration(readTimeout); err != nil {
-		return fmt.Errorf("app config - 'http.timeout.read': %s", err)
+		return fmt.Errorf("'http.timeout.read': %s", err)
 	}
 
 	if appHTTPWriteTimeout, err = time.ParseDuration(writeTimeout); err != nil {
-		return fmt.Errorf("app config - 'http.timeout.write': %s", err)
+		return fmt.Errorf("'http.timeout.write': %s", err)
 	}
+
+	maxHdrBytesStr := cfg.StringDefault("http.max_header_bytes", "1mb")
+	if maxHdrBytes, er := ess.StrToBytes(maxHdrBytesStr); er == nil {
+		appHTTPMaxHdrBytes = int(maxHdrBytes)
+	} else {
+		return errors.New("'http.max_header_bytes' value is not a valid size unit")
+	}
+
+	appHTTPKeepAlive = cfg.BoolDefault("http.keep_alive", true)
 
 	appSSLCert = cfg.StringDefault("http.ssl.cert", "")
 	appSSLKey = cfg.StringDefault("http.ssl.key", "")
@@ -370,12 +384,12 @@ func initAppVariables() error {
 		return errors.New("HTTP SSL is enabled, so 'http.ssl.cert' & 'http.ssl.key' value is required")
 	}
 
-	multipartMemoryStr := cfg.StringDefault("render.multipart.size", "32mb")
+	multipartMemoryStr := cfg.StringDefault("http.multipart.size", "32mb")
 	if appMultipartMaxMemory, err = ess.StrToBytes(multipartMemoryStr); err != nil {
 		return err
 	}
 
-	isMultipartEnabled = cfg.BoolDefault("render.multipart.enable", true)
+	isMultipartEnabled = cfg.BoolDefault("http.multipart.enable", true)
 
 	return nil
 }
