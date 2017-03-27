@@ -203,14 +203,15 @@ func (e *engine) writeReply(ctx *Context) {
 	ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
 
 	// HTTP status
-	if reply.IsStatusSet() {
-		ctx.Res.WriteHeader(reply.Code)
-	} else {
-		ctx.Res.WriteHeader(http.StatusOK)
-	}
+	ctx.Res.WriteHeader(reply.Code)
 
 	// Write it on the wire
 	_, _ = buf.WriteTo(ctx.Res)
+
+	// 'OnAfterReply' server extension point
+	if onAfterReplyFunc != nil {
+		onAfterReplyFunc(&Event{Name: EventOnAfterReply, Data: ctx})
+	}
 }
 
 // getContext method gets context from pool

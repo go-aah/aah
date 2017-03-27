@@ -30,12 +30,18 @@ const (
 	// Except when 1) Static file request, 2) `Reply().Done()`
 	// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
 	EventOnPreReply = "OnPreReply"
+
+	// EventOnAfterReply event is fired when before server writes the reply on the wire.
+	// Except when 1) Static file request, 2) `Reply().Done()`
+	// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
+	EventOnAfterReply = "OnAfterReply"
 )
 
 var (
-	appEventStore  = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
-	onRequestFunc  EventCallbackFunc
-	onPreReplyFunc EventCallbackFunc
+	appEventStore    = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
+	onRequestFunc    EventCallbackFunc
+	onPreReplyFunc   EventCallbackFunc
+	onAfterReplyFunc EventCallbackFunc
 )
 
 type (
@@ -150,6 +156,19 @@ func OnPreReply(sef EventCallbackFunc) {
 		return
 	}
 	log.Warn("'OnPreReply' aah server extension function is already subscribed.")
+}
+
+// OnAfterReply method is to subscribe to aah server `OnAfterReply` extension point.
+// `OnAfterReply` called for every reply from aah server.
+//
+// Except when 1) Static file request, 2) `Reply().Done()`
+// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
+func OnAfterReply(sef EventCallbackFunc) {
+	if onAfterReplyFunc == nil {
+		onAfterReplyFunc = sef
+		return
+	}
+	log.Warn("'OnAfterReply' aah server extension function is already subscribed.")
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
