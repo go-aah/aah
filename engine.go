@@ -199,6 +199,13 @@ func (e *engine) writeReply(ctx *Context) {
 		}
 	}
 
+	// Set Cookies
+	if reply.cookies != nil {
+		for _, c := range reply.cookies {
+			http.SetCookie(ctx.Res, c)
+		}
+	}
+
 	// ContentType
 	ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
 

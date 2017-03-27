@@ -18,6 +18,7 @@ type Reply struct {
 	ContType    string
 	Hdr         http.Header
 	Rdr         Render
+	cookies     []*http.Cookie
 	redirect    bool
 	redirectURL string
 	done        bool
@@ -30,7 +31,8 @@ type Reply struct {
 // NewReply method returns the new instance on reply builder.
 func NewReply() *Reply {
 	return &Reply{
-		Hdr: http.Header{},
+		Hdr:  http.Header{},
+		Code: http.StatusOK,
 	}
 }
 
@@ -302,16 +304,20 @@ func (r *Reply) Done() *Reply {
 	return r
 }
 
+// Cookie method adds the give HTTP cookie into response.
+func (r *Reply) Cookie(cookie *http.Cookie) *Reply {
+	if r.cookies == nil {
+		r.cookies = make([]*http.Cookie, 0)
+	}
+
+	r.cookies = append(r.cookies, cookie)
+	return r
+}
+
 // IsContentTypeSet method returns true if Content-Type is set otherwise
 // false.
 func (r *Reply) IsContentTypeSet() bool {
 	return !ess.IsStrEmpty(r.ContType)
-}
-
-// IsStatusSet method returns true if HTTP Code is set for the 'Reply'
-// otherwise false.
-func (r *Reply) IsStatusSet() bool {
-	return r.Code != 0
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
