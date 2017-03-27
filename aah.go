@@ -41,7 +41,6 @@ var (
 	appHTTPReadTimeout    time.Duration
 	appHTTPWriteTimeout   time.Duration
 	appHTTPMaxHdrBytes    int
-	appHTTPKeepAlive      bool
 	appSSLCert            string
 	appSSLKey             string
 	appMultipartMaxMemory int64
@@ -50,11 +49,6 @@ var (
 	appBuildInfo          *BuildInfo
 	appEngine             *engine
 
-	isMultipartEnabled bool
-
-	goPath   string
-	goSrcDir string
-
 	appDefaultProfile        = "dev"
 	appProfileProd           = "prod"
 	appProfilePrefix         = "env."
@@ -62,6 +56,9 @@ var (
 	appDefaultDateFormat     = "2006-01-02"
 	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
 	appModeWeb               = "web"
+
+	goPath   string
+	goSrcDir string
 )
 
 // BuildInfo holds the aah application build information; such as BinaryName,
@@ -98,7 +95,7 @@ func AppBaseDir() string {
 		if strings.HasSuffix(wd, "/bin") {
 			wd = wd[:len(wd)-4]
 		}
-		return wd
+		appBaseDir = wd
 	}
 	return appBaseDir
 }
@@ -115,13 +112,13 @@ func AppMode() string {
 
 // AppHTTPAddress method returns aah application HTTP address otherwise empty string
 func AppHTTPAddress() string {
-	return AppConfig().StringDefault("http.address", "")
+	return AppConfig().StringDefault("server.address", "")
 }
 
 // AppHTTPPort method returns aah application HTTP port number if available
 // otherwise returns default port number 8080.
 func AppHTTPPort() int {
-	return AppConfig().IntDefault("http.port", appDefaultHTTPPort)
+	return AppConfig().IntDefault("server.port", appDefaultHTTPPort)
 }
 
 // AppDateFormat method returns aah application date format
@@ -156,13 +153,7 @@ func AllAppProfiles() []string {
 // IsSSLEnabled method returns true if aah application is enabled with SSL
 // otherwise false.
 func IsSSLEnabled() bool {
-	return AppConfig().BoolDefault("http.ssl.enable", false)
-}
-
-// IsCookieEnabled method returns true if aah application is enabled with Cookie
-// otherwise false.
-func IsCookieEnabled() bool {
-	return AppConfig().BoolDefault("cookie.enable", false)
+	return AppConfig().BoolDefault("server.ssl.enable", false)
 }
 
 // AddTemplateFunc method adds template func map into view engine.
@@ -199,7 +190,7 @@ func Init(importPath string) {
 	initInternal()
 }
 
-// Start method starts the HTTP server based on aah config "http.*".
+// Start method starts the HTTP server based on aah config "server.*".
 func Start() {
 	defer aahRecover()
 
@@ -225,7 +216,7 @@ func Start() {
 		MaxHeaderBytes: appHTTPMaxHdrBytes,
 	}
 
-	server.SetKeepAlivesEnabled(appHTTPKeepAlive)
+	server.SetKeepAlivesEnabled(AppConfig().BoolDefault("server.keep_alive", true))
 
 	writePID(AppName(), AppBaseDir(), AppConfig())
 
@@ -309,12 +300,12 @@ func initInternal() {
 		// publish `OnInit` event
 		AppEventStore().sortAndPublishSync(&Event{Name: EventOnInit})
 
-		logAsFatal(initLogs())
+		logAsFatal(initLogs(AppConfig()))
 		logAsFatal(initI18n(appI18nDir()))
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
 
 		if AppMode() == appModeWeb {
-			logAsFatal(initTemplateEngine())
+			logAsFatal(initTemplateEngine(appViewsDir(), AppConfig()))
 		}
 
 		if AppProfile() != appProfileProd {
@@ -354,48 +345,44 @@ func initAppVariables() error {
 	appProfile = cfg.StringDefault("env.active", appDefaultProfile)
 	logAsFatal(SetAppProfile(AppProfile()))
 
-	readTimeout := cfg.StringDefault("http.timeout.read", "90s")
-	writeTimeout := cfg.StringDefault("http.timeout.write", "90s")
+	readTimeout := cfg.StringDefault("server.timeout.read", "90s")
+	writeTimeout := cfg.StringDefault("server.timeout.write", "90s")
 	if !(strings.HasSuffix(readTimeout, "s") || strings.HasSuffix(readTimeout, "m")) &&
 		!(strings.HasSuffix(writeTimeout, "s") || strings.HasSuffix(writeTimeout, "m")) {
-		return errors.New("'http.timeout.{read|write}' value is not a valid time unit")
+		return errors.New("'server.timeout.{read|write}' value is not a valid time unit")
 	}
 
 	if appHTTPReadTimeout, err = time.ParseDuration(readTimeout); err != nil {
-		return fmt.Errorf("'http.timeout.read': %s", err)
+		return fmt.Errorf("'server.timeout.read': %s", err)
 	}
 
 	if appHTTPWriteTimeout, err = time.ParseDuration(writeTimeout); err != nil {
-		return fmt.Errorf("'http.timeout.write': %s", err)
+		return fmt.Errorf("'server.timeout.write': %s", err)
 	}
 
-	maxHdrBytesStr := cfg.StringDefault("http.max_header_bytes", "1mb")
+	maxHdrBytesStr := cfg.StringDefault("server.max_header_bytes", "1mb")
 	if maxHdrBytes, er := ess.StrToBytes(maxHdrBytesStr); er == nil {
 		appHTTPMaxHdrBytes = int(maxHdrBytes)
 	} else {
-		return errors.New("'http.max_header_bytes' value is not a valid size unit")
+		return errors.New("'server.max_header_bytes' value is not a valid size unit")
 	}
 
-	appHTTPKeepAlive = cfg.BoolDefault("http.keep_alive", true)
-
-	appSSLCert = cfg.StringDefault("http.ssl.cert", "")
-	appSSLKey = cfg.StringDefault("http.ssl.key", "")
+	appSSLCert = cfg.StringDefault("server.ssl.cert", "")
+	appSSLKey = cfg.StringDefault("server.ssl.key", "")
 	if IsSSLEnabled() && (ess.IsStrEmpty(appSSLCert) || ess.IsStrEmpty(appSSLKey)) {
-		return errors.New("HTTP SSL is enabled, so 'http.ssl.cert' & 'http.ssl.key' value is required")
+		return errors.New("HTTP SSL is enabled, so 'server.ssl.cert' & 'server.ssl.key' value is required")
 	}
 
-	multipartMemoryStr := cfg.StringDefault("http.multipart.size", "32mb")
+	multipartMemoryStr := cfg.StringDefault("request.multipart_size", "32mb")
 	if appMultipartMaxMemory, err = ess.StrToBytes(multipartMemoryStr); err != nil {
-		return err
+		return errors.New("'request.multipart_size' value is not a valid size unit")
 	}
-
-	isMultipartEnabled = cfg.BoolDefault("http.multipart.enable", true)
 
 	return nil
 }
 
-func initLogs() error {
-	if logCfg, found := AppConfig().GetSubConfig("log"); found {
+func initLogs(appCfg *config.Config) error {
+	if logCfg, found := appCfg.GetSubConfig("log"); found {
 		receiver := logCfg.StringDefault("receiver", "")
 
 		if strings.EqualFold(receiver, "file") {

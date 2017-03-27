@@ -29,6 +29,9 @@ func paramsMiddleware(ctx *Context, m *Middleware) {
 		contentType := ctx.Req.ContentType.Mime
 		log.Debugf("request content type: %s", contentType)
 
+		// TODO add support for content-type restriction and return 415 status for that
+		// TODO HTML sanitizer for Form and Multipart Form
+
 		switch contentType {
 		case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeXML.Mime:
 			if payloadBytes, err := ioutil.ReadAll(req.Body); err == nil {
@@ -43,15 +46,11 @@ func paramsMiddleware(ctx *Context, m *Middleware) {
 				log.Errorf("unable to parse form: %s", err)
 			}
 		case ahttp.ContentTypeMultipartForm.Mime:
-			if isMultipartEnabled {
-				if err := req.ParseMultipartForm(appMultipartMaxMemory); err == nil {
-					ctx.Req.Params.Form = req.MultipartForm.Value
-					ctx.Req.Params.File = req.MultipartForm.File
-				} else {
-					log.Errorf("unable to parse multipart form: %s", err)
-				}
+			if err := req.ParseMultipartForm(appMultipartMaxMemory); err == nil {
+				ctx.Req.Params.Form = req.MultipartForm.Value
+				ctx.Req.Params.File = req.MultipartForm.File
 			} else {
-				log.Warn("multipart processing is disabled in aah.conf")
+				log.Errorf("unable to parse multipart form: %s", err)
 			}
 		} // switch end
 

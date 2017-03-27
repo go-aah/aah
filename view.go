@@ -11,6 +11,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/atemplate.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
@@ -40,15 +41,15 @@ func appViewsDir() string {
 	return filepath.Join(AppBaseDir(), "views")
 }
 
-func initTemplateEngine() error {
+func initTemplateEngine(viewDir string, appCfg *config.Config) error {
 	// application config values
-	appTemplateExt = AppConfig().StringDefault("template.ext", ".html")
+	appTemplateExt = appCfg.StringDefault("view.ext", ".html")
 	appDefaultTmplLayout = "master" + appTemplateExt
-	appTemplateCaseSensitive = AppConfig().BoolDefault("template.case_sensitive", false)
+	appTemplateCaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
 
 	// initialize if external TemplateEngine is not registered.
 	if appTemplateEngine == nil {
-		tmplEngineName := AppConfig().StringDefault("template.engine", "go")
+		tmplEngineName := appCfg.StringDefault("view.engine", "go")
 		switch tmplEngineName {
 		case "go":
 			appTemplateEngine = &atemplate.TemplateEngine{}
@@ -59,7 +60,7 @@ func initTemplateEngine() error {
 		isExternalTmplEngine = true
 	}
 
-	appTemplateEngine.Init(AppConfig(), appViewsDir())
+	appTemplateEngine.Init(appCfg, viewDir)
 
 	return appTemplateEngine.Load()
 }
