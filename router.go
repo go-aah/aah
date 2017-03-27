@@ -13,7 +13,6 @@ package router
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"path"
 	"strings"
@@ -25,7 +24,7 @@ import (
 )
 
 // Version no. of aah framework router library
-const Version = "0.1"
+const Version = "0.2"
 
 var (
 	// HTTPMethodActionMap is default Controller Action name for corresponding
@@ -64,7 +63,6 @@ type (
 		Port                  string
 		IsSubDomain           bool
 		NotFoundRoute         *Route
-		PanicRoute            *Route
 		MethodNotAllowed      bool
 		RedirectTrailingSlash bool
 		AutoOptions           bool
@@ -135,12 +133,7 @@ func (r *Router) Load() (err error) {
 		return fmt.Errorf("aah application routes configuration does not exists: %v", r.configPath)
 	}
 
-	cfgBytes, err := ioutil.ReadFile(r.configPath)
-	if err != nil {
-		return err
-	}
-
-	r.config, err = config.ParseString(string(cfgBytes))
+	r.config, err = config.LoadFile(r.configPath)
 	if err != nil {
 		return err
 	}
@@ -253,17 +246,6 @@ func (r *Router) processRoutesConfig() (err error) {
 				log.Tracef("Not found route: %v.%v", domain.NotFoundRoute.Controller,
 					domain.NotFoundRoute.Action)
 			}
-
-			// not found route
-			if globalCfg.IsExists("panic") {
-				domain.PanicRoute, err = createGlobalRoute(globalCfg, "panic")
-				if err != nil {
-					return
-				}
-
-				log.Tracef("Panic route: %v.%v", domain.PanicRoute.Controller,
-					domain.PanicRoute.Action)
-			}
 		}
 
 		// loading static routes
@@ -280,7 +262,7 @@ func (r *Router) processRoutesConfig() (err error) {
 
 			for idx := range routes {
 				route := routes[idx]
-				if err = domain.addRoute(&route); err != nil {
+				if err = domain.AddRoute(&route); err != nil {
 					return
 				}
 
@@ -302,7 +284,7 @@ func (r *Router) processRoutesConfig() (err error) {
 
 			for idx := range routes {
 				route := routes[idx]
-				if err = domain.addRoute(&route); err != nil {
+				if err = domain.AddRoute(&route); err != nil {
 					return
 				}
 
@@ -349,11 +331,27 @@ func (d *Domain) Lookup(req *ahttp.Request) (*Route, *PathParams, bool) {
 	return nil, nil, false
 }
 
-// LookupByName method to find route information by route name
+// LookupByName method to find route information by route name.
 func (d *Domain) LookupByName(name string) *Route {
 	if route, found := d.routes[name]; found {
 		return route
 	}
+	return nil
+}
+
+// AddRoute method to add the given route into domain routing tree.
+func (d *Domain) AddRoute(route *Route) error {
+	tree := d.trees[route.Method]
+	if tree == nil {
+		tree = new(node)
+		d.trees[route.Method] = tree
+	}
+
+	if err := tree.add(route.Path, route.Name); err != nil {
+		return err
+	}
+
+	d.routes[route.Name] = route
 	return nil
 }
 
@@ -518,21 +516,6 @@ func (d *Domain) key() string {
 	return strings.ToLower(d.Host + ":" + d.Port)
 }
 
-func (d *Domain) addRoute(route *Route) error {
-	tree := d.trees[route.Method]
-	if tree == nil {
-		tree = new(node)
-		d.trees[route.Method] = tree
-	}
-
-	if err := tree.add(route.Path, route.Name); err != nil {
-		return err
-	}
-
-	d.routes[route.Name] = route
-	return nil
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Route methods
 //___________________________________
@@ -615,7 +598,7 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 		}
 
 		// path must begin with '/'
-		if routePath[0] != '/' {
+		if routePath[0] != slashByte {
 			err = fmt.Errorf("'%v.path' [%v], path must begin with '/'", routeName, routePath)
 			return
 		}
@@ -634,14 +617,16 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 		// based on `routeMethod`
 		routeAction := cfg.StringDefault(routeName+".action", HTTPMethodActionMap[routeMethod])
 
-		routes = append(routes, Route{
-			Name:       routeName,
-			Path:       path.Join(prefixPath, routePath),
-			Method:     routeMethod,
-			Controller: routeController,
-			Action:     routeAction,
-			ParentName: parentName,
-		})
+		for _, m := range strings.Split(routeMethod, ",") {
+			routes = append(routes, Route{
+				Name:       routeName,
+				Path:       path.Join(prefixPath, routePath),
+				Method:     strings.TrimSpace(m),
+				Controller: routeController,
+				Action:     routeAction,
+				ParentName: parentName,
+			})
+		}
 
 		// loading child routes
 		if childRoutes, found := cfg.GetSubConfig(routeName + ".routes"); found {
