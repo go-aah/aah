@@ -5,8 +5,6 @@
 package ahttp
 
 import (
-	"bytes"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -14,34 +12,31 @@ import (
 	"testing"
 	"time"
 
+	"aahframework.org/essentials.v0"
 	"aahframework.org/test.v0/assert"
 )
 
-func TestResponseWriter(t *testing.T) {
+func TestHTTPResponseWriter(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		writer := WrapResponseWriter(w)
-		defer writer.(*Response).Close()
+		defer ess.CloseQuietly(writer)
 
 		writer.WriteHeader(http.StatusOK)
 		assert.Equal(t, http.StatusOK, writer.Status())
 
 		_, _ = writer.Write([]byte("aah framework response writer"))
 		assert.Equal(t, 29, writer.BytesWritten())
-
-		buf := bytes.NewBufferString(" test")
-		_, _ = writer.(io.ReaderFrom).ReadFrom(buf)
-
-		assert.Equal(t, 34, writer.BytesWritten())
 		_ = writer.Header()
 		_ = writer.Unwrap()
 	}
 
-	callAndValidate(t, handler, "aah framework response writer test")
+	callAndValidate(t, handler, "aah framework response writer")
 }
 
-func TestNoStatusWritten(t *testing.T) {
+func TestHTTPNoStatusWritten(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		writer := WrapResponseWriter(w)
+		defer ess.CloseQuietly(writer)
 
 		_, _ = writer.Write([]byte("aah framework no status written"))
 		assert.Equal(t, 31, writer.BytesWritten())
@@ -50,9 +45,10 @@ func TestNoStatusWritten(t *testing.T) {
 	callAndValidate(t, handler, "aah framework no status written")
 }
 
-func TestMultipleStatusWritten(t *testing.T) {
+func TestHTTPMultipleStatusWritten(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		writer := WrapResponseWriter(w)
+		defer ess.CloseQuietly(writer)
 
 		writer.WriteHeader(http.StatusOK)
 		writer.WriteHeader(http.StatusAccepted)
@@ -64,15 +60,13 @@ func TestMultipleStatusWritten(t *testing.T) {
 	callAndValidate(t, handler, "aah framework mutiple status written")
 }
 
-func TestHijackCall(t *testing.T) {
+func TestHTTPHijackCall(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		writer := WrapResponseWriter(w)
 
 		con, rw, err := writer.(http.Hijacker).Hijack()
 		assert.FailOnError(t, err, "")
-		defer func() {
-			_ = con.Close()
-		}()
+		defer ess.CloseQuietly(con)
 
 		bytes := []byte("aah framework calling hijack")
 		_, _ = rw.WriteString("HTTP/1.1 200 OK\r\n")
@@ -89,7 +83,7 @@ func TestHijackCall(t *testing.T) {
 	_, _ = http.Get(server.URL)
 }
 
-func TestCallCloseNotifyAndFlush(t *testing.T) {
+func TestHTTPCallCloseNotifyAndFlush(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		writer := WrapResponseWriter(w)
 
@@ -112,9 +106,7 @@ func callAndValidate(t *testing.T, handler http.HandlerFunc, response string) {
 	if err != nil {
 		t.Fatalf("Error Get: %v", err)
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
+	defer ess.CloseQuietly(resp.Body)
 
 	bytes, _ := ioutil.ReadAll(resp.Body)
 	assert.Equal(t, response, string(bytes))

@@ -12,7 +12,7 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
-func TestClientIP(t *testing.T) {
+func TestHTTPClientIP(t *testing.T) {
 	req1 := createRawHTTPRequest(HeaderXForwardedFor, "10.0.0.1, 10.0.0.2")
 	ipAddress := ClientIP(req1)
 	assert.Equal(t, "10.0.0.1", ipAddress)
@@ -34,7 +34,7 @@ func TestClientIP(t *testing.T) {
 	assert.Equal(t, "", ipAddress)
 }
 
-func TestGetReferer(t *testing.T) {
+func TestHTTPGetReferer(t *testing.T) {
 	req1 := createRawHTTPRequest(HeaderReferer, "http://localhost:8080/welcome1.html")
 	referer := getReferer(req1.Header)
 	assert.Equal(t, "http://localhost:8080/welcome1.html", referer)
@@ -44,7 +44,7 @@ func TestGetReferer(t *testing.T) {
 	assert.Equal(t, "http://localhost:8080/welcome2.html", referer)
 }
 
-func TestParseRequest(t *testing.T) {
+func TestHTTPParseRequest(t *testing.T) {
 	req := createRequestWithHost("127.0.0.1:8080", "192.168.0.1:1234")
 	req.Header = http.Header{}
 	req.Method = "GET"
@@ -64,6 +64,34 @@ func TestParseRequest(t *testing.T) {
 	assert.Equal(t, "application/json; charset=utf-8", aahReq.ContentType.String())
 	assert.Equal(t, "192.168.0.1", aahReq.ClientIP)
 	assert.Equal(t, "http://localhost:8080/home.html", aahReq.Referer)
+
+	params := aahReq.Params
+	// Query Value
+	assert.Equal(t, "true", params.QueryValue("_ref"))
+
+	// Path value
+	assert.Equal(t, "", params.PathValue("not_exists"))
+
+	// Form value
+	assert.Equal(t, "", params.FormValue("no_field"))
+
+	// Form File
+	f, hdr, err := params.FormFile("no_file")
+	assert.Nil(t, f)
+	assert.Nil(t, hdr)
+	assert.Nil(t, err)
+
+	// Reset it
+	aahReq.Reset()
+	assert.Nil(t, aahReq.Header)
+	assert.Nil(t, aahReq.ContentType)
+	assert.Nil(t, aahReq.AcceptContentType)
+	assert.Nil(t, aahReq.Params)
+	assert.Nil(t, aahReq.Locale)
+	assert.Nil(t, aahReq.Raw)
+	assert.False(t, aahReq.IsJSONP)
+	assert.True(t, len(aahReq.UserAgent) == 0)
+	assert.True(t, len(aahReq.ClientIP) == 0)
 }
 
 func createRequestWithHost(host, remote string) *http.Request {

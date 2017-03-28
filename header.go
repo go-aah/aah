@@ -27,6 +27,7 @@ const (
 	HeaderContentDisposition  = "Content-Disposition"
 	HeaderContentLength       = "Content-Length"
 	HeaderContentType         = "Content-Type"
+	HeaderContentEncoding     = "Content-Encoding"
 	HeaderCookie              = "Cookie"
 	HeaderHost                = "Host"
 	HeaderIfModifiedSince     = "If-Modified-Since"
@@ -116,7 +117,7 @@ func NegotiateLocale(req *http.Request) *Locale {
 // NegotiateEncoding negotiates the `Accept-Encoding` from the given HTTP
 // request. Most quailfied one based on quality factor.
 func NegotiateEncoding(req *http.Request) *AcceptSpec {
-	return ParseAccept(req, HeaderAcceptEncoding).MostQualified()
+	return ParseAcceptEncoding(req).MostQualified()
 }
 
 // ParseContentType resolves the request `Content-Type` from the given HTTP
@@ -149,6 +150,13 @@ func ParseContentType(req *http.Request) *ContentType {
 		Exts:   exts,
 		Params: params,
 	}
+}
+
+// ParseAcceptEncoding parses the HTTP `Accept-Encoding` header from `http.Request`
+// as per RFC7231 https://tools.ietf.org/html/rfc7231#section-5.3.4. It returns
+// `AcceptSpecs`.
+func ParseAcceptEncoding(req *http.Request) AcceptSpecs {
+	return ParseAccept(req, HeaderAcceptEncoding)
 }
 
 // ParseAccept parses the HTTP Accept* headers from `http.Request`
@@ -240,6 +248,7 @@ func ToLocale(a *AcceptSpec) *Locale {
 func NewLocale(value string) *Locale {
 	return ToLocale(
 		&AcceptSpec{
+			Raw:   value,
 			Value: value,
 		})
 }
@@ -280,15 +289,6 @@ func (specs AcceptSpecs) MostQualified() *AcceptSpec {
 }
 
 // sort.Interface methods for accept spec
-
-func (specs AcceptSpecs) Len() int {
-	return len(specs)
-}
-
-func (specs AcceptSpecs) Swap(i, j int) {
-	specs[i], specs[j] = specs[j], specs[i]
-}
-
-func (specs AcceptSpecs) Less(i, j int) bool {
-	return specs[i].Q > specs[j].Q
-}
+func (specs AcceptSpecs) Len() int           { return len(specs) }
+func (specs AcceptSpecs) Swap(i, j int)      { specs[i], specs[j] = specs[j], specs[i] }
+func (specs AcceptSpecs) Less(i, j int) bool { return specs[i].Q > specs[j].Q }

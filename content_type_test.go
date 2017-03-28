@@ -11,36 +11,36 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
-func TestNegotiateContentType(t *testing.T) {
+func TestHTTPNegotiateContentType(t *testing.T) {
 	req1 := createRawHTTPRequest(HeaderAccept, "audio/*; q=0.2, audio/basic")
 	contentType := NegotiateContentType(req1)
 	assert.Equal(t, "audio/basic", contentType.String())
-	assert.Equal(t, "audio/basic", contentType.Mime)
+	assert.True(t, contentType.IsEqual("audio/basic"))
 	assert.Equal(t, "", contentType.Version())
 
 	req2 := createRawHTTPRequest(HeaderAccept, "application/json;version=2")
 	contentType = NegotiateContentType(req2)
 	assert.Equal(t, "application/json; version=2", contentType.String())
-	assert.Equal(t, "application/json", contentType.Mime)
+	assert.True(t, contentType.IsEqual("application/json"))
 	assert.Equal(t, "2", contentType.Version())
 
 	req3 := createRawHTTPRequest(HeaderAccept, "text/plain; q=0.5, text/html, text/x-dvi; q=0.8, text/x-c")
 	contentType = NegotiateContentType(req3)
 	assert.Equal(t, "text/html", contentType.String())
-	assert.Equal(t, "text/html", contentType.Mime)
+	assert.True(t, contentType.IsEqual("text/html"))
 	assert.Equal(t, "", contentType.Version())
 
 	req4 := createRawHTTPRequest(HeaderAccept, "")
 	contentType = NegotiateContentType(req4)
 	assert.Equal(t, "text/html; charset=utf-8", contentType.String())
-	assert.Equal(t, "text/html", contentType.Mime)
+	assert.True(t, contentType.IsEqual("text/html"))
 	assert.Equal(t, ".html", contentType.Exts[0])
 	assert.Equal(t, "", contentType.Version())
 
 	req := createRawHTTPRequest(HeaderAccept, "application/json")
 	req.URL, _ = url.Parse("http://localhost:8080/testpath.json")
 	contentType = NegotiateContentType(req)
-	assert.Equal(t, "application/json", contentType.Mime)
+	assert.True(t, contentType.IsEqual("application/json"))
 	assert.Equal(t, ".json", contentType.Exts[0])
 
 	req = createRawHTTPRequest(HeaderAccept, "application/json")
@@ -52,7 +52,7 @@ func TestNegotiateContentType(t *testing.T) {
 	req = createRawHTTPRequest(HeaderAccept, "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
 	contentType = NegotiateContentType(req)
 	assert.Equal(t, "text/html", contentType.String())
-	assert.Equal(t, "text/html", contentType.Mime)
+	assert.True(t, contentType.IsEqual("text/html"))
 	assert.Equal(t, "", contentType.Version())
 
 	// ParseAccept
@@ -70,7 +70,7 @@ func TestNegotiateContentType(t *testing.T) {
 
 }
 
-func TestParseContentType(t *testing.T) {
+func TestHTTPParseContentType(t *testing.T) {
 	req1 := createRawHTTPRequest(HeaderContentType, "text/html; charset=utf-8")
 	contentType := ParseContentType(req1)
 	assert.Equal(t, "text/html", contentType.Mime)
