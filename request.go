@@ -68,6 +68,10 @@ type (
 		// IsJSONP is true if request query string has "callback=function_name".
 		IsJSONP bool
 
+		// IsGzipAccepted is true if the HTTP client accepts Gzip response.
+		// otherwise false.
+		IsGzipAccepted bool
+
 		// Raw an object that Go HTTP server provied, Direct interaction with
 		// raw object is not encouraged.
 		Raw *http.Request
@@ -101,6 +105,7 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 	req.ClientIP = ClientIP(r)
 	req.Locale = NegotiateLocale(r)
 	req.IsJSONP = isJSONPReqeust(r)
+	req.IsGzipAccepted = isGzipAccepted(r)
 	req.Raw = r
 
 	return req
@@ -121,6 +126,7 @@ func (r *Request) Reset() {
 	r.ClientIP = ""
 	r.Locale = nil
 	r.IsJSONP = false
+	r.IsGzipAccepted = false
 	r.Raw = nil
 }
 
@@ -228,4 +234,16 @@ func isJSONPReqeust(r *http.Request) bool {
 	query := r.URL.Query()
 	callback := query.Get(jsonpReqParamKey)
 	return !ess.IsStrEmpty(callback)
+}
+
+func isGzipAccepted(req *http.Request) bool {
+	specs := ParseAcceptEncoding(req)
+	if specs != nil {
+		for _, v := range specs {
+			if v.Value == "gzip" {
+				return true
+			}
+		}
+	}
+	return false
 }

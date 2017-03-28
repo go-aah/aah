@@ -41,11 +41,13 @@ type (
 )
 
 // interface compliance
-var _ http.CloseNotifier = &Response{}
-var _ http.Flusher = &Response{}
-var _ http.Hijacker = &Response{}
-var _ io.ReaderFrom = &Response{}
-var _ ResponseWriter = &Response{}
+var (
+	_ http.CloseNotifier = &Response{}
+	_ http.Flusher       = &Response{}
+	_ http.Hijacker      = &Response{}
+	_ io.Closer          = &Response{}
+	_ ResponseWriter     = &Response{}
+)
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Global methods
@@ -82,23 +84,13 @@ func (r *Response) Header() http.Header {
 }
 
 // Write method writes bytes into Response.
-func (r *Response) Write(buf []byte) (int, error) {
+func (r *Response) Write(b []byte) (int, error) {
+	r.setContentTypeIfNotSet(b)
 	r.WriteHeader(http.StatusOK)
-	size, err := r.w.Write(buf)
+
+	size, err := r.w.Write(b)
 	r.bytesWritten += size
 	return size, err
-}
-
-// ReadFrom method calls underlying ReadFrom method with given reader if it's
-// compatible and writes HTTP status OK (200) if it's not written yet.
-func (r *Response) ReadFrom(rdr io.Reader) (int64, error) {
-	if rf, ok := r.w.(io.ReaderFrom); ok {
-		r.WriteHeader(http.StatusOK)
-		size, err := rf.ReadFrom(rdr)
-		r.bytesWritten += int(size) // might lose size info
-		return size, err
-	}
-	return 0, errors.New("io.ReaderFrom interface is not implemented")
 }
 
 // BytesWritten method returns no. of bytes already written into HTTP response.
@@ -107,11 +99,12 @@ func (r *Response) BytesWritten() int {
 }
 
 // Close method closes the writer if possible.
-func (r *Response) Close() {
+func (r *Response) Close() error {
 	ess.CloseQuietly(r.w)
+	return nil
 }
 
-// Unwrap method returns the underlying `ResponseWriter`
+// Unwrap method returns the underlying `http.ResponseWriter`
 func (r *Response) Unwrap() http.ResponseWriter {
 	return r.w
 }
@@ -138,4 +131,14 @@ func (r *Response) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	}
 
 	return nil, nil, errors.New("http.Hijacker interface is not compatible")
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Response Unexported methods
+//___________________________________
+
+func (r *Response) setContentTypeIfNotSet(b []byte) {
+	if _, found := r.Header()[HeaderContentType]; !found {
+		r.Header().Set(HeaderContentType, http.DetectContentType(b))
+	}
 }
