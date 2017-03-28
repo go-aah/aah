@@ -24,8 +24,12 @@ type (
 		// Req is HTTP request instance
 		Req *ahttp.Request
 
-		// Res is HTTP response writer. It is recommended to use
+		// Res is HTTP response writer compliant. It is highly recommended to use
 		// `Reply()` builder for composing response.
+		//
+		// Note: If you're using `cxt.Res` directly, don't forget to call
+		// `Reply().Done()` so that framework will not interfere with your
+		// response composition.
 		Res ahttp.ResponseWriter
 
 		controller string
