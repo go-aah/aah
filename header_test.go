@@ -12,7 +12,7 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
-func TestParseAcceptHeaderLanguage(t *testing.T) {
+func TestHTTPParseAcceptHeaderLanguage(t *testing.T) {
 	req1 := createRawHTTPRequest(HeaderAcceptLanguage, "en-us;q=0.0,en;q=0.7, da, en-gb;q=0.8")
 	specs := ParseAccept(req1, HeaderAcceptLanguage)
 	assert.Equal(t, "da", specs.MostQualified().Value)
@@ -66,7 +66,7 @@ func TestParseAcceptHeaderLanguage(t *testing.T) {
 	assert.Equal(t, specs[2].Q, float32(1.0))
 }
 
-func TestNegotiateLocale(t *testing.T) {
+func TestHTTPNegotiateLocale(t *testing.T) {
 	req1 := createRawHTTPRequest(HeaderAcceptLanguage, "es-mx, es, en")
 	locale := NegotiateLocale(req1)
 	assert.Equal(t, "es-mx", locale.Raw)
@@ -84,30 +84,37 @@ func TestNegotiateLocale(t *testing.T) {
 	req3 := createRawHTTPRequest(HeaderAcceptLanguage, "")
 	locale = NegotiateLocale(req3)
 	assert.Equal(t, true, locale == nil)
+
+	locale = NewLocale("en-CA")
+	assert.Equal(t, "en-CA", locale.Raw)
+	assert.Equal(t, "en", locale.Language)
+	assert.Equal(t, "CA", locale.Region)
+	assert.Equal(t, "en-CA", locale.String())
 }
 
-func TestNegotiateEncoding(t *testing.T) {
+func TestHTTPNegotiateEncoding(t *testing.T) {
 	req1 := createRawHTTPRequest(HeaderAcceptEncoding, "compress;q=0.5, gzip;q=1.0")
 	encoding := NegotiateEncoding(req1)
 	assert.Equal(t, "gzip", encoding.Value)
 	assert.Equal(t, "gzip;q=1.0", encoding.Raw)
+	assert.True(t, isGzipAccepted(req1))
 
 	req2 := createRawHTTPRequest(HeaderAcceptEncoding, "gzip;q=1.0, identity; q=0.5, *;q=0")
 	encoding = NegotiateEncoding(req2)
 	assert.Equal(t, "gzip", encoding.Value)
 	assert.Equal(t, "gzip;q=1.0", encoding.Raw)
+	assert.True(t, isGzipAccepted(req1))
 
 	req3 := createRawHTTPRequest(HeaderAcceptEncoding, "")
 	encoding = NegotiateEncoding(req3)
 	assert.Equal(t, true, encoding == nil)
-}
 
-// func createRequest(hdrKey, value string) *Request {
-// 	req := &Request{Raw: createRawHTTPRequest(hdrKey, value)}
-// 	req.Path = req.Raw.URL.Path
-// 	req.Header = req.Raw.Header
-// 	return req
-// }
+	req4 := createRawHTTPRequest(HeaderAcceptEncoding, "compress;q=0.5")
+	encoding = NegotiateEncoding(req4)
+	assert.Equal(t, "compress", encoding.Value)
+	assert.Equal(t, "compress;q=0.5", encoding.Raw)
+	assert.False(t, isGzipAccepted(req4))
+}
 
 func createRawHTTPRequest(hdrKey, value string) *http.Request {
 	hdr := http.Header{}
