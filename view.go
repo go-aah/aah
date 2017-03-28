@@ -76,8 +76,8 @@ func handlePreReplyStage(ctx *Context) {
 		if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
 			ctx.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
 			reply.ContentType(ctx.Req.AcceptContentType.Raw())
-		} else { // default Content-Type defined 'render.default' in aah.conf
-			reply.ContentType(defaultContentType().Raw())
+		} else if ct := defaultContentType(); ct != nil { // as per 'render.default' in aah.conf
+			reply.ContentType(ct.Raw())
 		}
 	}
 
@@ -119,8 +119,7 @@ func handlePreReplyStage(ctx *Context) {
 // defaultContentType method returns the Content-Type based on 'render.default'
 // config from aah.conf
 func defaultContentType() *ahttp.ContentType {
-	cfgValue := AppConfig().StringDefault("render.default", "")
-	switch cfgValue {
+	switch AppConfig().StringDefault("render.default", "") {
 	case "html":
 		return ahttp.ContentTypeHTML
 	case "json":
@@ -130,7 +129,7 @@ func defaultContentType() *ahttp.ContentType {
 	case "text":
 		return ahttp.ContentTypePlainText
 	default:
-		return ahttp.ContentTypeOctetStream
+		return nil
 	}
 }
 

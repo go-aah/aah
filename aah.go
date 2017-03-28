@@ -208,7 +208,7 @@ func Start() {
 	AppEventStore().sortAndPublishSync(&Event{Name: EventOnStart})
 
 	address := AppHTTPAddress()
-	appEngine = newEngine()
+	appEngine = newEngine(AppConfig())
 	server := &http.Server{
 		Handler:        appEngine,
 		ReadTimeout:    appHTTPReadTimeout,

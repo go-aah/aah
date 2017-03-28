@@ -7,11 +7,14 @@ package aah
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/pool.v0"
 )
@@ -22,9 +25,11 @@ type (
 	// Engine is the aah framework application server handler for request and response.
 	// Implements `http.Handler` interface.
 	engine struct {
-		cPool *pool.Pool
-		rPool *pool.Pool
-		bPool *pool.Pool
+		gzipEnabled bool
+		gzipLevel   int
+		cPool       *pool.Pool
+		rPool       *pool.Pool
+		bPool       *pool.Pool
 	}
 
 	byName []os.FileInfo
@@ -134,9 +139,16 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 	ctx, r := e.getContext(), e.getRequest()
 
 	ctx.Req = ahttp.ParseRequest(req, r)
-	ctx.Res = ahttp.WrapResponseWriter(w)
 	ctx.reply = NewReply()
 	ctx.viewArgs = make(map[string]interface{}, 0)
+
+	if ctx.Req.IsGzipAccepted && e.gzipEnabled {
+		ctx.Res = ahttp.WrapGzipResponseWriter(w, e.gzipLevel)
+		ctx.Reply().Header(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
+		ctx.Reply().Header(ahttp.HeaderContentEncoding, "gzip")
+	} else {
+		ctx.Res = ahttp.WrapResponseWriter(w)
+	}
 
 	return ctx
 }
@@ -145,7 +157,7 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 // when actual value is not found.
 func (e *engine) setDefaults(ctx *Context) {
 	if ctx.Req.Locale == nil {
-		ctx.Req.Locale = ahttp.NewLocale(appConfig.StringDefault("i18n.default", "en"))
+		ctx.Req.Locale = ahttp.NewLocale(AppConfig().StringDefault("i18n.default", "en"))
 	}
 }
 
@@ -207,7 +219,18 @@ func (e *engine) writeReply(ctx *Context) {
 	}
 
 	// ContentType
-	ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
+	if reply.IsContentTypeSet() { // will auto detect later in the writer
+		ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
+	}
+
+	// Gzip
+	if ctx.Req.IsGzipAccepted && e.gzipEnabled {
+		if reply.Code == http.StatusNoContent || buf.Len() == 0 {
+			ctx.Res.Header().Del(ahttp.HeaderContentEncoding)
+		}
+
+		ctx.Res.Header().Del(ahttp.HeaderContentLength)
+	}
 
 	// HTTP status
 	ctx.Res.WriteHeader(reply.Code)
@@ -234,9 +257,7 @@ func (e *engine) getRequest() *ahttp.Request {
 // putContext method puts context back to pool
 func (e *engine) putContext(ctx *Context) {
 	// Try to close if `io.Closer` interface satisfies.
-	if ctx.Res != nil {
-		ctx.Res.(*ahttp.Response).Close()
-	}
+	ess.CloseQuietly(ctx.Res)
 
 	// clear and put `ahttp.Request` into pool
 	if ctx.Req != nil {
@@ -266,9 +287,16 @@ func (e *engine) putBuffer(b *bytes.Buffer) {
 // Unexported methods
 //___________________________________
 
-func newEngine() *engine {
+func newEngine(cfg *config.Config) *engine {
+	gzipLevel := cfg.IntDefault("render.gzip.level", 1)
+	if !(gzipLevel >= 1 && gzipLevel <= 9) {
+		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", gzipLevel))
+	}
+
 	// TODO provide config for pool size
 	return &engine{
+		gzipEnabled: cfg.BoolDefault("render.gzip.enable", true),
+		gzipLevel:   gzipLevel,
 		cPool: pool.NewPool(150, func() interface{} {
 			return &Context{}
 		}),
