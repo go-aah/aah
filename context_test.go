@@ -5,8 +5,7 @@
 package aah
 
 import (
-	"net/http"
-	"net/url"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -53,7 +52,7 @@ func TestContextReverseURL(t *testing.T) {
 	assert.NotNil(t, AppRouter())
 
 	ctx := &Context{
-		Req: getAahRequest("localhost:8080", "GET", "/doc/v0.3/mydoc.html", ""),
+		Req: getAahRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", ""),
 	}
 
 	reverseURL := ctx.ReverseURL("version_home", "v0.1")
@@ -82,7 +81,7 @@ func TestContextMsg(t *testing.T) {
 	assert.NotNil(t, AppI18n())
 
 	ctx := &Context{
-		Req: getAahRequest("localhost:8080", "GET", "/doc/v0.3/mydoc.html", "en-us;q=0.0,en;q=0.7, da, en-gb;q=0.8"),
+		Req: getAahRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", "en-us;q=0.0,en;q=0.7, da, en-gb;q=0.8"),
 	}
 
 	msg := ctx.Msg("label.pages.site.get_involved.title")
@@ -91,7 +90,7 @@ func TestContextMsg(t *testing.T) {
 	msg = ctx.Msgl(ahttp.ToLocale(&ahttp.AcceptSpec{Value: "en-US", Raw: "en-US"}), "label.pages.site.get_involved.title")
 	assert.Equal(t, "Get Involved - aah web framework for Go", msg)
 
-	ctx.Req = getAahRequest("localhost:8080", "GET", "/doc/v0.3/mydoc.html", "en-us;q=0.0,en;q=0.7,en-gb;q=0.8")
+	ctx.Req = getAahRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", "en-us;q=0.0,en;q=0.7,en-gb;q=0.8")
 	msg = ctx.Msg("label.pages.site.get_involved.title")
 	assert.Equal(t, "Get Involved - aah web framework for Go", msg)
 
@@ -144,6 +143,63 @@ func TestContextEmbeddedAndController(t *testing.T) {
 	assertEmbeddedIndexes(t, Path2{}, [][]int{{0, 0}, {1, 1}, {2, 0, 0, 0, 0}})
 }
 
+func TestContextSetURL(t *testing.T) {
+	ctx := &Context{
+		Req: getAahRequest("POST", "http://localhost:8080/users/edit", ""),
+	}
+
+	assert.Equal(t, "localhost:8080", ctx.Req.Host)
+	assert.Equal(t, "POST", ctx.Req.Method)
+	assert.Equal(t, "/users/edit", ctx.Req.Path)
+	assert.False(t, ctx.decorated)
+
+	// No effects, since decorated is false
+	ctx.SetURL("http://status.localhost:8080/maintenance")
+	assert.Equal(t, "/users/edit", ctx.Req.Path)
+	assert.Equal(t, "localhost:8080", ctx.Req.Host)
+
+	// now it affects
+	ctx.decorated = true
+	ctx.SetURL("http://status.localhost:8080/maintenance")
+	assert.True(t, ctx.decorated)
+	assert.Equal(t, "status.localhost:8080", ctx.Req.Host)
+	assert.Equal(t, "POST", ctx.Req.Method) // no change expected
+	assert.Equal(t, "/maintenance", ctx.Req.Path)
+
+	// incorrect URL
+	ctx.SetURL("http://status. localhost :8080//maintenance")
+	assert.Equal(t, "status.localhost:8080", ctx.Req.Host)
+	assert.Equal(t, "POST", ctx.Req.Method) // no change expected
+	assert.Equal(t, "/maintenance", ctx.Req.Path)
+}
+
+func TestContextSetMethod(t *testing.T) {
+	ctx := &Context{
+		Req: getAahRequest("POST", "http://localhost:8080/users/edit", ""),
+	}
+
+	assert.Equal(t, "localhost:8080", ctx.Req.Host)
+	assert.Equal(t, "POST", ctx.Req.Method)
+	assert.Equal(t, "/users/edit", ctx.Req.Path)
+	assert.False(t, ctx.decorated)
+
+	// No effects, since decorated is false
+	ctx.SetMethod("GET")
+	assert.Equal(t, "POST", ctx.Req.Method)
+
+	// now it affects
+	ctx.decorated = true
+	ctx.SetMethod("get")
+	assert.Equal(t, "GET", ctx.Req.Method)
+	assert.Equal(t, "localhost:8080", ctx.Req.Host) // no change expected
+	assert.Equal(t, "/users/edit", ctx.Req.Path)    // no change expected
+	assert.True(t, ctx.decorated)
+
+	// invalid method
+	ctx.SetMethod("nomethod")
+	assert.Equal(t, "GET", ctx.Req.Method)
+}
+
 func assertEmbeddedIndexes(t *testing.T, c interface{}, expected [][]int) {
 	actual := findEmbeddedContext(reflect.TypeOf(c))
 	if !reflect.DeepEqual(expected, actual) {
@@ -182,17 +238,9 @@ func addToCRegistry() {
 	AddController((*Path2)(nil), nil)
 }
 
-func getAahRequest(host, method, urlStr, al string) *ahttp.Request {
-	reqURL, _ := url.Parse(urlStr)
-
-	rawReq := &http.Request{
-		Host:   host,
-		URL:    reqURL,
-		Method: method,
-		Header: http.Header{},
-	}
+func getAahRequest(method, target, al string) *ahttp.Request {
+	rawReq := httptest.NewRequest(method, target, nil)
 	rawReq.Header.Add(ahttp.HeaderAcceptLanguage, al)
-
 	return ahttp.ParseRequest(rawReq, &ahttp.Request{})
 }
 

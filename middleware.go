@@ -40,7 +40,7 @@ func Middlewares(middlewares ...MiddlewareFunc) {
 			mwStack = append(mwStack, m)
 		}
 	}
-	// mwStack = append(mwStack, middlewares...)
+
 	mwStack = append(
 		mwStack,
 		interceptorMiddleware,

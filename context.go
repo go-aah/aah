@@ -6,9 +6,13 @@ package aah
 
 import (
 	"errors"
+	"net/url"
 	"reflect"
+	"strings"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
 )
 
@@ -40,6 +44,7 @@ type (
 		reply      *Reply
 		viewArgs   map[string]interface{}
 		abort      bool
+		decorated  bool
 	}
 )
 
@@ -99,6 +104,56 @@ func (ctx *Context) Msgl(locale *ahttp.Locale, key string, args ...interface{}) 
 // After interceptor will not execute; framework starts processing response.
 func (ctx *Context) Abort() {
 	ctx.abort = true
+}
+
+// SetURL method is to set the request URL to change the behaviour of request
+// routing. Ideal for URL rewrting. URL can be relative or absolute URL.
+//
+// Note: This method only takes effect on `OnRequest` server event.
+func (ctx *Context) SetURL(pathURL string) {
+	if !ctx.decorated {
+		return
+	}
+
+	u, err := url.Parse(pathURL)
+	if err != nil {
+		log.Errorf("invalid URL provided: %s", err)
+		return
+	}
+
+	rawReq := ctx.Req.Raw
+	if !ess.IsStrEmpty(u.Host) {
+		log.Debugf("Host have been updated from '%s' to '%s'", ctx.Req.Host, u.Host)
+		rawReq.Host = u.Host
+		rawReq.URL.Host = u.Host
+	}
+
+	log.Debugf("URL path have been updated from '%s' to '%s'", ctx.Req.Path, u.Path)
+	rawReq.URL.Path = u.Path
+
+	// Update the context
+	ctx.Req.Host = rawReq.Host
+	ctx.Req.Path = rawReq.URL.Path
+}
+
+// SetMethod method is to set the request `Method` to change the behaviour
+// of request routing. Ideal for URL rewrting.
+//
+// Note: This method only takes effect on `OnRequest` server event.
+func (ctx *Context) SetMethod(method string) {
+	if !ctx.decorated {
+		return
+	}
+
+	method = strings.ToUpper(method)
+	if _, found := router.HTTPMethodActionMap[method]; !found {
+		log.Errorf("given method '%s' is not valid", method)
+		return
+	}
+
+	log.Debugf("Request method have been updated from '%s' to '%s'", ctx.Req.Method, method)
+	ctx.Req.Raw.Method = method
+	ctx.Req.Method = method
 }
 
 // Reset method resets context instance for reuse.

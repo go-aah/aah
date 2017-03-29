@@ -49,7 +49,9 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	// 'OnRequest' server extension point
 	if onRequestFunc != nil {
+		ctx.decorated = true
 		onRequestFunc(&Event{Name: EventOnRequest, Data: ctx})
+		ctx.decorated = false
 	}
 
 	domain := AppRouter().FindDomain(ctx.Req)
