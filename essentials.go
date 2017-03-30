@@ -6,5 +6,5 @@
 // essentials library across. It's pretty handy you can use it too :)
 package ess
 
-// Version no. of go-aah/essentials library
-var Version = "0.3"
+// Version no. of essentials library
+var Version = "0.4"
