@@ -25,11 +25,13 @@ type (
 	// Engine is the aah framework application server handler for request and response.
 	// Implements `http.Handler` interface.
 	engine struct {
-		gzipEnabled bool
-		gzipLevel   int
-		cPool       *pool.Pool
-		rPool       *pool.Pool
-		bPool       *pool.Pool
+		gzipEnabled      bool
+		gzipLevel        int
+		requestIDEnabled bool
+		requestIDHeader  string
+		cPool            *pool.Pool
+		rPool            *pool.Pool
+		bPool            *pool.Pool
 	}
 
 	byName []os.FileInfo
@@ -41,6 +43,10 @@ type (
 
 // ServeHTTP method implementation of http.Handler interface.
 func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if e.requestIDEnabled {
+		e.setRequestID(req)
+	}
+
 	ctx := e.prepareContext(w, req)
 	defer e.putContext(ctx)
 
@@ -132,6 +138,18 @@ func (e *engine) handleRecovery(ctx *Context) {
 		}
 
 		e.writeReply(ctx)
+	}
+}
+
+// setRequestID method sets the unique request id in the request header.
+// It won't set new request id header already present.
+func (e *engine) setRequestID(r *http.Request) {
+	if ess.IsStrEmpty(r.Header.Get(e.requestIDHeader)) {
+		guid := ess.NewGUID()
+		log.Debugf("Generated Request ID: %v", guid)
+		r.Header.Set(e.requestIDHeader, guid)
+	} else {
+		log.Debugf("Request already has ID: %v", r.Header.Get(e.requestIDHeader))
 	}
 }
 
@@ -297,8 +315,10 @@ func newEngine(cfg *config.Config) *engine {
 
 	// TODO provide config for pool size
 	return &engine{
-		gzipEnabled: cfg.BoolDefault("render.gzip.enable", true),
-		gzipLevel:   gzipLevel,
+		gzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
+		gzipLevel:        gzipLevel,
+		requestIDEnabled: cfg.BoolDefault("request.id.enable", false),
+		requestIDHeader:  cfg.StringDefault("request.id.header", "X-Request-Id"), // TODO move this header name to ahttp library
 		cPool: pool.NewPool(150, func() interface{} {
 			return &Context{}
 		}),
