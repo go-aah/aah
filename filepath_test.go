@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"aahframework.org/test.v0/assert"
@@ -249,4 +250,38 @@ func TestDirPaths(t *testing.T) {
 	assert.True(t, IsSliceContainsString(dirs, path11))
 	assert.True(t, IsSliceContainsString(dirs, path12))
 	assert.False(t, IsSliceContainsString(dirs, join(path22, "not-exists")))
+}
+
+func TestFilesPath(t *testing.T) {
+	testdataPath := getTestdataPath()
+	path1 := join(testdataPath, "dirpaths", "level1", "level2", "level3")
+	path11 := join(testdataPath, "dirpaths", "level1", "level1-1")
+	path12 := join(testdataPath, "dirpaths", "level1", "level1-2")
+	path21 := join(testdataPath, "dirpaths", "level1", "level2", "level2-1")
+	path22 := join(testdataPath, "dirpaths", "level1", "level2", "level2-2")
+	defer DeleteFiles(join(testdataPath, "dirpaths"))
+
+	_ = MkDirAll(path1, 0755)
+	_ = MkDirAll(path11, 0755)
+	_ = MkDirAll(path12, 0755)
+	_ = MkDirAll(path21, 0755)
+	_ = MkDirAll(path22, 0755)
+
+	_ = ioutil.WriteFile(join(path1, "file1.txt"), []byte("file1.txt"), 0600)
+	_ = ioutil.WriteFile(join(path11, "file11.txt"), []byte("file11.txt"), 0600)
+	_ = ioutil.WriteFile(join(path12, "file12.txt"), []byte("file12.txt"), 0600)
+	_ = ioutil.WriteFile(join(path21, "file21.txt"), []byte("file21.txt"), 0600)
+	_ = ioutil.WriteFile(join(path22, "file22.txt"), []byte("file22.txt"), 0600)
+
+	files, err := FilesPath(join(testdataPath, "dirpaths"), true)
+	assert.Nil(t, err)
+	assert.True(t, strings.HasSuffix(files[0], "file11.txt"))
+	assert.True(t, strings.HasSuffix(files[1], "file12.txt"))
+	assert.True(t, strings.HasSuffix(files[2], "file21.txt"))
+	assert.True(t, strings.HasSuffix(files[3], "file22.txt"))
+	assert.True(t, strings.HasSuffix(files[4], "file1.txt"))
+
+	files, err = FilesPath(path11, false)
+	assert.Nil(t, err)
+	assert.True(t, strings.HasSuffix(files[0], "file11.txt"))
 }
