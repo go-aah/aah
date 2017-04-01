@@ -29,9 +29,9 @@ type (
 		gzipLevel        int
 		requestIDEnabled bool
 		requestIDHeader  string
-		cPool            *pool.Pool
-		rPool            *pool.Pool
-		bPool            *pool.Pool
+		ctxPool          *pool.Pool
+		reqPool          *pool.Pool
+		bufPool          *pool.Pool
 	}
 
 	byName []os.FileInfo
@@ -266,12 +266,12 @@ func (e *engine) writeReply(ctx *Context) {
 
 // getContext method gets context from pool
 func (e *engine) getContext() *Context {
-	return e.cPool.Get().(*Context)
+	return e.ctxPool.Get().(*Context)
 }
 
 // getRequest method gets request from pool
 func (e *engine) getRequest() *ahttp.Request {
-	return e.rPool.Get().(*ahttp.Request)
+	return e.reqPool.Get().(*ahttp.Request)
 }
 
 // putContext method puts context back to pool
@@ -282,25 +282,23 @@ func (e *engine) putContext(ctx *Context) {
 	// clear and put `ahttp.Request` into pool
 	if ctx.Req != nil {
 		ctx.Req.Reset()
-		e.rPool.Put(ctx.Req)
+		e.reqPool.Put(ctx.Req)
 	}
 
 	// clear and put `aah.Context` into pool
-	if ctx != nil {
-		ctx.Reset()
-		e.cPool.Put(ctx)
-	}
+	ctx.Reset()
+	e.ctxPool.Put(ctx)
 }
 
 // getBuffer method gets buffer from pool
 func (e *engine) getBuffer() *bytes.Buffer {
-	return e.bPool.Get().(*bytes.Buffer)
+	return e.bufPool.Get().(*bytes.Buffer)
 }
 
 // putBPool puts buffer into pool
 func (e *engine) putBuffer(b *bytes.Buffer) {
 	b.Reset()
-	e.bPool.Put(b)
+	e.bufPool.Put(b)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -313,20 +311,28 @@ func newEngine(cfg *config.Config) *engine {
 		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", gzipLevel))
 	}
 
-	// TODO provide config for pool size
 	return &engine{
 		gzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
 		gzipLevel:        gzipLevel,
 		requestIDEnabled: cfg.BoolDefault("request.id.enable", false),
 		requestIDHeader:  cfg.StringDefault("request.id.header", "X-Request-Id"), // TODO move this header name to ahttp library
-		cPool: pool.NewPool(150, func() interface{} {
-			return &Context{}
-		}),
-		rPool: pool.NewPool(150, func() interface{} {
-			return &ahttp.Request{}
-		}),
-		bPool: pool.NewPool(60, func() interface{} {
-			return &bytes.Buffer{}
-		}),
+		ctxPool: pool.NewPool(
+			cfg.IntDefault("runtime.pooling.context", 0),
+			func() interface{} {
+				return &Context{}
+			},
+		),
+		reqPool: pool.NewPool(
+			cfg.IntDefault("runtime.pooling.context", 0),
+			func() interface{} {
+				return &ahttp.Request{}
+			},
+		),
+		bufPool: pool.NewPool(
+			cfg.IntDefault("runtime.pooling.buffer", 0),
+			func() interface{} {
+				return &bytes.Buffer{}
+			},
+		),
 	}
 }
