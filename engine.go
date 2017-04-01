@@ -19,9 +19,17 @@ import (
 	"aahframework.org/pool.v0"
 )
 
+const (
+	continuePipeline routeStatus = iota
+	notContinuePipeline
+)
+
 var errFileNotFound = errors.New("file not found")
 
 type (
+	// routeStatus is feadback of handleRoute method
+	routeStatus uint8
+
 	// Engine is the aah framework application server handler for request and response.
 	// Implements `http.Handler` interface.
 	engine struct {
@@ -42,69 +50,23 @@ type (
 //___________________________________
 
 // ServeHTTP method implementation of http.Handler interface.
-func (e *engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if e.requestIDEnabled {
-		e.setRequestID(req)
+		e.setRequestID(r)
 	}
 
-	ctx := e.prepareContext(w, req)
+	ctx := e.prepareContext(w, r)
 	defer e.putContext(ctx)
 
 	// Recovery handling, capture every possible panic(s)
 	defer e.handleRecovery(ctx)
 
 	// 'OnRequest' server extension point
-	if onRequestFunc != nil {
-		ctx.decorated = true
-		onRequestFunc(&Event{Name: EventOnRequest, Data: ctx})
-		ctx.decorated = false
-	}
+	publishOnRequestEvent(ctx)
 
-	domain := AppRouter().FindDomain(ctx.Req)
-	if domain == nil {
-		ctx.Reply().NotFound().Text("404 Not Found")
-		e.writeReply(ctx)
+	// handling route
+	if e.handleRoute(ctx) == notContinuePipeline {
 		return
-	}
-
-	route, pathParams, rts := domain.Lookup(ctx.Req)
-	if route == nil { // route not found
-		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
-			e.writeReply(ctx)
-			return
-		}
-
-		ctx.route = domain.NotFoundRoute
-		handleRouteNotFound(ctx, domain, domain.NotFoundRoute)
-		e.writeReply(ctx)
-		return
-	}
-
-	ctx.route = route
-	ctx.domain = domain
-
-	// Serving static file
-	if route.IsStatic {
-		if err := serveStatic(ctx.Res, req, route, pathParams); err == errFileNotFound {
-			handleRouteNotFound(ctx, domain, route)
-			e.writeReply(ctx)
-		}
-		return
-	}
-
-	// No controller or action found for the route
-	if err := ctx.setTarget(route); err == errTargetNotFound {
-		handleRouteNotFound(ctx, domain, route)
-		e.writeReply(ctx)
-		return
-	}
-
-	// Path parameters
-	if pathParams.Len() > 0 {
-		ctx.Req.Params.Path = make(map[string]string, pathParams.Len())
-		for _, v := range *pathParams {
-			ctx.Req.Params.Path[v.Key] = v.Value
-		}
 	}
 
 	// set defaults when actual value not found
@@ -146,7 +108,7 @@ func (e *engine) handleRecovery(ctx *Context) {
 func (e *engine) setRequestID(r *http.Request) {
 	if ess.IsStrEmpty(r.Header.Get(e.requestIDHeader)) {
 		guid := ess.NewGUID()
-		log.Debugf("Generated Request ID: %v", guid)
+		log.Debugf("Request ID: %v", guid)
 		r.Header.Set(e.requestIDHeader, guid)
 	} else {
 		log.Debugf("Request already has ID: %v", r.Header.Get(e.requestIDHeader))
@@ -173,6 +135,71 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 	return ctx
 }
 
+// handleRoute method handle route processing for the incoming request.
+// It does-
+//  - finding domain
+//  - finding route
+//  - handling static route
+//  - handling redirect trailing slash
+//  - auto options
+//  - route not found
+//  - if route found then it sets targeted controller into context
+//  - adds the pathParams into context if present
+//
+// Returns status as-
+//  - continuePipeline
+//  - notContinuePipeline
+func (e *engine) handleRoute(ctx *Context) routeStatus {
+	domain := AppRouter().FindDomain(ctx.Req)
+	if domain == nil {
+		ctx.Reply().NotFound().Text("404 Not Found")
+		e.writeReply(ctx)
+		return notContinuePipeline
+	}
+
+	route, pathParams, rts := domain.Lookup(ctx.Req)
+	if route == nil { // route not found
+		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
+			e.writeReply(ctx)
+			return notContinuePipeline
+		}
+
+		ctx.route = domain.NotFoundRoute
+		handleRouteNotFound(ctx, domain, domain.NotFoundRoute)
+		e.writeReply(ctx)
+		return notContinuePipeline
+	}
+
+	ctx.route = route
+	ctx.domain = domain
+
+	// Serving static file
+	if route.IsStatic {
+		if err := serveStatic(ctx.Res, ctx.Req.Raw, route, pathParams); err == errFileNotFound {
+			handleRouteNotFound(ctx, domain, route)
+			e.writeReply(ctx)
+		}
+		return notContinuePipeline
+	}
+
+	// No controller or action found for the route
+	if err := ctx.setTarget(route); err == errTargetNotFound {
+		handleRouteNotFound(ctx, domain, route)
+		e.writeReply(ctx)
+		return notContinuePipeline
+	}
+
+	// Path parameters
+	if pathParams.Len() > 0 {
+		ctx.Req.Params.Path = make(map[string]string, pathParams.Len())
+		for _, v := range *pathParams {
+			ctx.Req.Params.Path[v.Key] = v.Value
+		}
+	}
+
+	return continuePipeline
+}
+
 // setDefaults method sets default value based on aah app configuration
 // when actual value is not found.
 func (e *engine) setDefaults(ctx *Context) {
@@ -190,13 +217,9 @@ func (e *engine) executeMiddlewares(ctx *Context) {
 func (e *engine) writeReply(ctx *Context) {
 	reply := ctx.Reply()
 
-	// Response already written on the wire, don't go forward.
-	if reply.done {
+	if reply.done { // Response already written on the wire, don't go forward.
 		return
-	}
-
-	// handle redirects
-	if reply.redirect {
+	} else if reply.redirect { // handle redirects
 		log.Debugf("Redirecting to '%s' with status '%d'", reply.redirectURL, reply.Code)
 		http.Redirect(ctx.Res, ctx.Req.Raw, reply.redirectURL, reply.Code)
 		return
@@ -205,9 +228,7 @@ func (e *engine) writeReply(ctx *Context) {
 	handlePreReplyStage(ctx)
 
 	// 'OnPreReply' server extension point
-	if onPreReplyFunc != nil {
-		onPreReplyFunc(&Event{Name: EventOnPreReply, Data: ctx})
-	}
+	publishOnPreReplyEvent(ctx)
 
 	buf := e.getBuffer()
 	defer e.putBuffer(buf)
@@ -232,14 +253,13 @@ func (e *engine) writeReply(ctx *Context) {
 	}
 
 	// Set Cookies
-	if reply.cookies != nil {
-		for _, c := range reply.cookies {
-			http.SetCookie(ctx.Res, c)
-		}
+	for _, c := range reply.cookies {
+		http.SetCookie(ctx.Res, c)
 	}
 
 	// ContentType
-	if reply.IsContentTypeSet() { // will auto detect later in the writer
+	// if it's not set then it will auto detect later in the writer
+	if reply.IsContentTypeSet() {
 		ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
 	}
 
@@ -259,9 +279,7 @@ func (e *engine) writeReply(ctx *Context) {
 	_, _ = buf.WriteTo(ctx.Res)
 
 	// 'OnAfterReply' server extension point
-	if onAfterReplyFunc != nil {
-		onAfterReplyFunc(&Event{Name: EventOnAfterReply, Data: ctx})
-	}
+	publishOnAfterReplyEvent(ctx)
 }
 
 // getContext method gets context from pool

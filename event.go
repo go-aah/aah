@@ -292,6 +292,26 @@ func (ec EventCallbacks) Swap(i, j int)      { ec[i], ec[j] = ec[j], ec[i] }
 // Unexported methods
 //___________________________________
 
+func publishOnRequestEvent(ctx *Context) {
+	if onRequestFunc != nil {
+		ctx.decorated = true
+		onRequestFunc(&Event{Name: EventOnRequest, Data: ctx})
+		ctx.decorated = false
+	}
+}
+
+func publishOnPreReplyEvent(ctx *Context) {
+	if onPreReplyFunc != nil {
+		onPreReplyFunc(&Event{Name: EventOnPreReply, Data: ctx})
+	}
+}
+
+func publishOnAfterReplyEvent(ctx *Context) {
+	if onAfterReplyFunc != nil {
+		onAfterReplyFunc(&Event{Name: EventOnAfterReply, Data: ctx})
+	}
+}
+
 // funcEqual method to compare to function callback interface data. In effect
 // comparing the pointers of the indirect layer. Read more about the
 // representation of functions here: http://golang.org/s/go11func

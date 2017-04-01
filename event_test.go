@@ -119,36 +119,42 @@ func TestOnStartEvent(t *testing.T) {
 func TestServerExtensionEvent(t *testing.T) {
 	// OnRequest
 	assert.Nil(t, onRequestFunc)
+	publishOnRequestEvent(&Context{})
 	OnRequest(func(e *Event) {
 		t.Log("OnRequest event func called")
 	})
 	assert.NotNil(t, onRequestFunc)
 
 	onRequestFunc(&Event{Name: EventOnRequest, Data: "request Data OnRequest"})
+	publishOnRequestEvent(&Context{})
 	OnRequest(func(e *Event) {
 		t.Log("OnRequest event func called 2")
 	})
 
 	// OnPreReply
 	assert.Nil(t, onPreReplyFunc)
+	publishOnPreReplyEvent(&Context{})
 	OnPreReply(func(e *Event) {
 		t.Log("OnPreReply event func called")
 	})
 	assert.NotNil(t, onPreReplyFunc)
 
 	onPreReplyFunc(&Event{Name: EventOnPreReply, Data: "Context Data OnPreReply"})
+	publishOnPreReplyEvent(&Context{})
 	OnPreReply(func(e *Event) {
 		t.Log("OnPreReply event func called 2")
 	})
 
 	// OnAfterReply
 	assert.Nil(t, onAfterReplyFunc)
+	publishOnAfterReplyEvent(&Context{})
 	OnAfterReply(func(e *Event) {
 		t.Log("OnAfterReply event func called")
 	})
 	assert.NotNil(t, onAfterReplyFunc)
 
 	onAfterReplyFunc(&Event{Name: EventOnAfterReply, Data: "Context Data OnAfterReply"})
+	publishOnAfterReplyEvent(&Context{})
 	OnAfterReply(func(e *Event) {
 		t.Log("OnAfterReply event func called 2")
 	})
