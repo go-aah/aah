@@ -24,6 +24,8 @@ const (
 	notContinuePipeline
 )
 
+const gzipContentEncoding = "gzip"
+
 var errFileNotFound = errors.New("file not found")
 
 type (
@@ -126,8 +128,6 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 
 	if ctx.Req.IsGzipAccepted && e.gzipEnabled {
 		ctx.Res = ahttp.WrapGzipResponseWriter(w, e.gzipLevel)
-		ctx.Reply().Header(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
-		ctx.Reply().Header(ahttp.HeaderContentEncoding, "gzip")
 	} else {
 		ctx.Res = ahttp.WrapResponseWriter(w)
 	}
@@ -173,9 +173,17 @@ func (e *engine) handleRoute(ctx *Context) routeStatus {
 	ctx.route = route
 	ctx.domain = domain
 
+	// Path parameters
+	if pathParams.Len() > 0 {
+		ctx.Req.Params.Path = make(map[string]string, pathParams.Len())
+		for _, v := range *pathParams {
+			ctx.Req.Params.Path[v.Key] = v.Value
+		}
+	}
+
 	// Serving static file
 	if route.IsStatic {
-		if err := serveStatic(ctx.Res, ctx.Req.Raw, route, pathParams); err == errFileNotFound {
+		if err := e.serveStatic(ctx); err == errFileNotFound {
 			handleRouteNotFound(ctx, domain, route)
 			e.writeReply(ctx)
 		}
@@ -187,14 +195,6 @@ func (e *engine) handleRoute(ctx *Context) routeStatus {
 		handleRouteNotFound(ctx, domain, route)
 		e.writeReply(ctx)
 		return notContinuePipeline
-	}
-
-	// Path parameters
-	if pathParams.Len() > 0 {
-		ctx.Req.Params.Path = make(map[string]string, pathParams.Len())
-		for _, v := range *pathParams {
-			ctx.Req.Params.Path[v.Key] = v.Value
-		}
 	}
 
 	return continuePipeline
@@ -264,13 +264,7 @@ func (e *engine) writeReply(ctx *Context) {
 	}
 
 	// Gzip
-	if ctx.Req.IsGzipAccepted && e.gzipEnabled {
-		if reply.Code == http.StatusNoContent || buf.Len() == 0 {
-			ctx.Res.Header().Del(ahttp.HeaderContentEncoding)
-		}
-
-		ctx.Res.Header().Del(ahttp.HeaderContentLength)
-	}
+	e.prepareGzipHeaders(ctx, buf.Len() == 0)
 
 	// HTTP status
 	ctx.Res.WriteHeader(reply.Code)
@@ -280,6 +274,19 @@ func (e *engine) writeReply(ctx *Context) {
 
 	// 'OnAfterReply' server extension point
 	publishOnAfterReplyEvent(ctx)
+}
+
+// prepareGzipHeaders method prepares appropriate headers for gzip response
+func (e *engine) prepareGzipHeaders(ctx *Context, delCntEnc bool) {
+	if ctx.Req.IsGzipAccepted && e.gzipEnabled {
+		ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
+		ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
+		ctx.Res.Header().Del(ahttp.HeaderContentLength)
+
+		if ctx.Reply().Code == http.StatusNoContent || delCntEnc {
+			ctx.Res.Header().Del(ahttp.HeaderContentEncoding)
+		}
+	}
 }
 
 // getContext method gets context from pool

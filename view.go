@@ -17,10 +17,10 @@ import (
 )
 
 var (
-	appTemplateEngine        atemplate.TemplateEnginer
+	appViewEngine            atemplate.TemplateEnginer
 	appTemplateExt           string
 	appDefaultTmplLayout     string
-	appTemplateCaseSensitive bool
+	appViewFileCaseSensitive bool
 	isExternalTmplEngine     bool
 )
 
@@ -28,9 +28,9 @@ var (
 // Global methods
 //___________________________________
 
-// AppTemplateEngine method returns aah application Template Engine instance.
-func AppTemplateEngine() atemplate.TemplateEnginer {
-	return appTemplateEngine
+// AppViewEngine method returns aah application view Engine instance.
+func AppViewEngine() atemplate.TemplateEnginer {
+	return appViewEngine
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -41,18 +41,23 @@ func appViewsDir() string {
 	return filepath.Join(AppBaseDir(), "views")
 }
 
-func initTemplateEngine(viewDir string, appCfg *config.Config) error {
+func initViewEngine(viewDir string, appCfg *config.Config) error {
+	if !ess.IsFileExists(viewDir) {
+		// view directory not exists
+		return nil
+	}
+
 	// application config values
 	appTemplateExt = appCfg.StringDefault("view.ext", ".html")
 	appDefaultTmplLayout = "master" + appTemplateExt
-	appTemplateCaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
+	appViewFileCaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
 
 	// initialize if external TemplateEngine is not registered.
-	if appTemplateEngine == nil {
+	if appViewEngine == nil {
 		tmplEngineName := appCfg.StringDefault("view.engine", "go")
 		switch tmplEngineName {
 		case "go":
-			appTemplateEngine = &atemplate.TemplateEngine{}
+			appViewEngine = &atemplate.TemplateEngine{}
 		}
 
 		isExternalTmplEngine = false
@@ -60,9 +65,9 @@ func initTemplateEngine(viewDir string, appCfg *config.Config) error {
 		isExternalTmplEngine = true
 	}
 
-	appTemplateEngine.Init(appCfg, viewDir)
+	appViewEngine.Init(appCfg, viewDir)
 
-	return appTemplateEngine.Load()
+	return appViewEngine.Load()
 }
 
 // handlePreReplyStage method does 1) sets response header, 2) if HTML content type
@@ -82,7 +87,7 @@ func handlePreReplyStage(ctx *Context) {
 	}
 
 	// HTML response
-	if AppMode() == appModeWeb && ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
+	if ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
 		if reply.Rdr == nil {
 			reply.Rdr = &HTML{}
 		}
@@ -147,10 +152,10 @@ func findViewTemplate(ctx *Context) {
 	}
 
 	log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
-	htmlRdr.Template = appTemplateEngine.Get(htmlRdr.Layout, tmplPath, tmplName)
+	htmlRdr.Template = appViewEngine.Get(htmlRdr.Layout, tmplPath, tmplName)
 	if htmlRdr.Template == nil {
 		tmplFile := filepath.Join("views", "pages", controllerName, tmplName)
-		if !appTemplateCaseSensitive {
+		if !appViewFileCaseSensitive {
 			tmplFile = strings.ToLower(tmplFile)
 		}
 

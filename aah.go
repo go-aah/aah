@@ -55,7 +55,6 @@ var (
 	appDefaultHTTPPort       = 8080
 	appDefaultDateFormat     = "2006-01-02"
 	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
-	appModeWeb               = "web"
 
 	goPath   string
 	goSrcDir string
@@ -103,11 +102,6 @@ func AppBaseDir() string {
 // AppImportPath method returns the application Go import path.
 func AppImportPath() string {
 	return appImportPath
-}
-
-// AppMode method returns aah application mode. Default is "web" For e.g.: web or api
-func AppMode() string {
-	return AppConfig().StringDefault("mode", appModeWeb)
 }
 
 // AppHTTPAddress method returns aah application HTTP address otherwise empty string
@@ -200,7 +194,6 @@ func Start() {
 
 	log.Infof("App Name: %v", AppName())
 	log.Infof("App Profile: %v", AppProfile())
-	log.Infof("App Mode: %v", AppMode())
 	log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
 	log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
 
@@ -303,10 +296,7 @@ func initInternal() {
 		logAsFatal(initLogs(AppConfig()))
 		logAsFatal(initI18n(appI18nDir()))
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
-
-		if AppMode() == appModeWeb {
-			logAsFatal(initTemplateEngine(appViewsDir(), AppConfig()))
-		}
+		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
 
 		if AppProfile() != appProfileProd {
 			logAsFatal(initTests())
