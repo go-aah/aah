@@ -24,7 +24,10 @@ const (
 	notContinuePipeline
 )
 
-const gzipContentEncoding = "gzip"
+const (
+	aahGoServer         = "aah-go-server"
+	gzipContentEncoding = "gzip"
+)
 
 var errFileNotFound = errors.New("file not found")
 
@@ -219,12 +222,15 @@ func (e *engine) writeReply(ctx *Context) {
 
 	if reply.done { // Response already written on the wire, don't go forward.
 		return
-	} else if reply.redirect { // handle redirects
+	}
+
+	if reply.redirect { // handle redirects
 		log.Debugf("Redirecting to '%s' with status '%d'", reply.redirectURL, reply.Code)
 		http.Redirect(ctx.Res, ctx.Req.Raw, reply.redirectURL, reply.Code)
 		return
 	}
 
+	// Pre reply stage is for HTML and content type header
 	handlePreReplyStage(ctx)
 
 	// 'OnPreReply' server extension point
@@ -265,6 +271,8 @@ func (e *engine) writeReply(ctx *Context) {
 
 	// Gzip
 	e.prepareGzipHeaders(ctx, buf.Len() == 0)
+
+	ctx.Res.Header().Set(ahttp.HeaderServer, aahGoServer)
 
 	// HTTP status
 	ctx.Res.WriteHeader(reply.Code)

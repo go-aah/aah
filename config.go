@@ -26,6 +26,9 @@ func AppConfig() *config.Config {
 
 // MergeAppConfig method allows to you to merge external config into aah
 // application anytime.
+//
+// Note: This method trigger application refresh on logs, i18n, routes
+// and view engine after configuration merge. Use it with care.
 func MergeAppConfig(cfg *config.Config) {
 	defer aahRecover()
 

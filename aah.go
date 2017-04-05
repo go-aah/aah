@@ -50,7 +50,6 @@ var (
 	appEngine             *engine
 
 	appDefaultProfile        = "dev"
-	appProfileProd           = "prod"
 	appProfilePrefix         = "env."
 	appDefaultHTTPPort       = 8080
 	appDefaultDateFormat     = "2006-01-02"
@@ -231,7 +230,6 @@ func Start() {
 
 		server.Addr = address
 		logAsFatal(server.Serve(listener))
-
 		return
 	}
 
@@ -290,17 +288,10 @@ func initInternal() {
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
 		log.SetLevel(log.LevelDebug)
 	} else {
-		// publish `OnInit` event
-		AppEventStore().sortAndPublishSync(&Event{Name: EventOnInit})
-
 		logAsFatal(initLogs(AppConfig()))
 		logAsFatal(initI18n(appI18nDir()))
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
 		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
-
-		if AppProfile() != appProfileProd {
-			logAsFatal(initTests())
-		}
 	}
 
 	appInitialized = true

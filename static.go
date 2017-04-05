@@ -22,6 +22,8 @@ import (
 // serveStatic method static file/directory delivery.
 func (e *engine) serveStatic(ctx *Context) error {
 	res, req := ctx.Res, ctx.Req
+	res.Header().Set(ahttp.HeaderServer, aahGoServer)
+
 	var fileabs string
 	if ctx.route.IsDir() {
 		fileabs = filepath.Join(AppBaseDir(), ctx.route.Dir, filepath.FromSlash(ctx.Req.Params.PathValue("filepath")))
@@ -70,14 +72,12 @@ func (e *engine) serveStatic(ctx *Context) error {
 			return nil
 		}
 
-		// Gzip
 		e.prepareGzipHeaders(ctx, false)
 
 		directoryList(res, req.Raw, f)
 		return nil
 	}
 
-	// Gzip
 	e.prepareGzipHeaders(ctx, false)
 
 	http.ServeContent(res, req.Raw, file, fi.ModTime(), f)
