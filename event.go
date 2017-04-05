@@ -14,9 +14,6 @@ import (
 )
 
 const (
-	// EventOnInit event is fired right after aah application config is initialized.
-	EventOnInit = "OnInit"
-
 	// EventOnStart event is fired before HTTP/Unix listener starts
 	EventOnStart = "OnStart"
 
@@ -109,20 +106,21 @@ func UnsubscribeEventf(eventName string, ec EventCallbackFunc) {
 	AppEventStore().Unsubscribe(eventName, ec)
 }
 
-// OnInit method is to subscribe to aah application `OnInit` event. `OnInit` event
-// published right after the aah application configuration `aah.conf` initialized.
-func OnInit(ecb EventCallbackFunc, priority ...int) {
-	AppEventStore().Subscribe(EventOnInit, EventCallback{
+// OnStart method is to subscribe to aah application `OnStart` event. `OnStart`
+// event pubished right before the aah server listen and serving request.
+func OnStart(ecb EventCallbackFunc, priority ...int) {
+	AppEventStore().Subscribe(EventOnStart, EventCallback{
 		Callback:    ecb,
 		PublishOnce: true,
 		priority:    parsePriority(priority...),
 	})
 }
 
-// OnStart method is to subscribe to aah application `OnStart` event. `OnStart`
-// event pubished right before the aah server listen and serving request.
-func OnStart(ecb EventCallbackFunc, priority ...int) {
-	AppEventStore().Subscribe(EventOnStart, EventCallback{
+// OnShutdown method is to subscribe to aah application `OnShutdown` event.
+// `OnShutdown` event pubished right before the aah server is stopped Listening
+// and serving request.
+func OnShutdown(ecb EventCallbackFunc, priority ...int) {
+	AppEventStore().Subscribe(EventOnShutdown, EventCallback{
 		Callback:    ecb,
 		PublishOnce: true,
 		priority:    parsePriority(priority...),
