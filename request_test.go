@@ -7,6 +7,7 @@ package ahttp
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"aahframework.org/test.v0/assert"
@@ -14,23 +15,23 @@ import (
 
 func TestHTTPClientIP(t *testing.T) {
 	req1 := createRawHTTPRequest(HeaderXForwardedFor, "10.0.0.1, 10.0.0.2")
-	ipAddress := ClientIP(req1)
+	ipAddress := clientIP(req1)
 	assert.Equal(t, "10.0.0.1", ipAddress)
 
 	req2 := createRawHTTPRequest(HeaderXForwardedFor, "10.0.0.2")
-	ipAddress = ClientIP(req2)
+	ipAddress = clientIP(req2)
 	assert.Equal(t, "10.0.0.2", ipAddress)
 
 	req3 := createRawHTTPRequest(HeaderXRealIP, "10.0.0.3")
-	ipAddress = ClientIP(req3)
+	ipAddress = clientIP(req3)
 	assert.Equal(t, "10.0.0.3", ipAddress)
 
 	req4 := createRequestWithHost("127.0.0.1:8080", "192.168.0.1:1234")
-	ipAddress = ClientIP(req4)
+	ipAddress = clientIP(req4)
 	assert.Equal(t, "192.168.0.1", ipAddress)
 
 	req5 := createRequestWithHost("127.0.0.1:8080", "")
-	ipAddress = ClientIP(req5)
+	ipAddress = clientIP(req5)
 	assert.Equal(t, "", ipAddress)
 }
 
@@ -46,9 +47,8 @@ func TestHTTPGetReferer(t *testing.T) {
 
 func TestHTTPParseRequest(t *testing.T) {
 	req := createRequestWithHost("127.0.0.1:8080", "192.168.0.1:1234")
-	req.Header = http.Header{}
-	req.Method = "GET"
-	req.Header.Add(HeaderMethod, "GET")
+	req.Method = MethodGet
+	req.Header.Add(HeaderMethod, MethodGet)
 	req.Header.Add(HeaderContentType, "application/json;charset=utf-8")
 	req.Header.Add(HeaderAccept, "application/json;charset=utf-8")
 	req.Header.Add(HeaderReferer, "http://localhost:8080/home.html")
@@ -58,7 +58,7 @@ func TestHTTPParseRequest(t *testing.T) {
 	aahReq := ParseRequest(req, &Request{})
 
 	assert.Equal(t, "127.0.0.1:8080", aahReq.Host)
-	assert.Equal(t, "GET", aahReq.Method)
+	assert.Equal(t, MethodGet, aahReq.Method)
 	assert.Equal(t, "/welcome1.html", aahReq.Path)
 	assert.Equal(t, "en-gb;leve=1;q=0.8, da, en;level=2;q=0.7, en-us;q=gg", aahReq.Header.Get(HeaderAcceptLanguage))
 	assert.Equal(t, "application/json; charset=utf-8", aahReq.ContentType.String())
@@ -94,6 +94,64 @@ func TestHTTPParseRequest(t *testing.T) {
 	assert.True(t, len(aahReq.ClientIP) == 0)
 }
 
+func TestHTTPRequestParams(t *testing.T) {
+	// Query & Path Value
+	req1 := createRequestWithHost("127.0.0.1:8080", "192.168.0.1:1234")
+	req1.Method = MethodPost
+	req1.URL, _ = url.Parse("http://localhost:8080/welcome1.html?_ref=true&names=Test1&names=Test%202")
+
+	params1 := ParseRequest(req1, &Request{}).Params
+	params1.Path = make(map[string]string)
+	params1.Path["userId"] = "100001"
+	assert.Equal(t, "true", params1.QueryValue("_ref"))
+	assert.Equal(t, "Test1", params1.QueryArrayValue("names")[0])
+	assert.Equal(t, "Test 2", params1.QueryArrayValue("names")[1])
+	assert.True(t, len(params1.QueryArrayValue("not-exists")) == 0)
+	assert.Equal(t, "100001", params1.PathValue("userId"))
+	assert.Equal(t, "", params1.PathValue("accountId"))
+
+	// Form value
+	form := url.Values{}
+	form.Add("names", "Test1")
+	form.Add("names", "Test 2 value")
+	form.Add("username", "welcome")
+	form.Add("email", "welcome@welcome.com")
+	req2, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", strings.NewReader(form.Encode()))
+	req2.Header.Add(HeaderContentType, ContentTypeForm.Raw())
+	_ = req2.ParseForm()
+
+	aahReq2 := ParseRequest(req2, &Request{})
+	aahReq2.Params.Form = req2.Form
+
+	params2 := aahReq2.Params
+	assert.Equal(t, "welcome", params2.FormValue("username"))
+	assert.Equal(t, "welcome@welcome.com", params2.FormValue("email"))
+	assert.Equal(t, "Test1", params2.FormArrayValue("names")[0])
+	assert.Equal(t, "Test 2 value", params2.FormArrayValue("names")[1])
+	assert.True(t, len(params2.FormArrayValue("not-exists")) == 0)
+}
+
+func TestHTTPRequestCookies(t *testing.T) {
+	req := createRequestWithHost("127.0.0.1:8080", "192.168.0.1:1234")
+	req.Method = MethodGet
+	req.URL, _ = url.Parse("http://localhost:8080/welcome1.html?_ref=true")
+	req.AddCookie(&http.Cookie{
+		Name:  "test-1",
+		Value: "test-1 value",
+	})
+	req.AddCookie(&http.Cookie{
+		Name:  "test-2",
+		Value: "test-2 value",
+	})
+
+	aahReq := ParseRequest(req, &Request{})
+	assert.NotNil(t, aahReq)
+	assert.True(t, len(aahReq.Cookies()) == 2)
+
+	cookie, _ := aahReq.Cookie("test-2")
+	assert.Equal(t, "test-2 value", cookie.Value)
+}
+
 func createRequestWithHost(host, remote string) *http.Request {
-	return &http.Request{Host: host, RemoteAddr: remote}
+	return &http.Request{Host: host, RemoteAddr: remote, Header: http.Header{}}
 }

@@ -43,7 +43,7 @@ func TestDirDisplay(t *testing.T) {
 	assert.Equal(t, "dir1", st.Name())
 	assert.Nil(t, err1)
 
-	f2, err2 := fs.Open("file1\x00.txt")
+	f2, err2 := fs.Open("file1\x00ﬂ°‹›.txt")
 	assert.Nil(t, f2)
 	assert.Equal(t, "http: invalid character in file path", err2.Error())
 }
