@@ -34,7 +34,7 @@ type (
 
 		// Payload holds the value from HTTP request for `Content-Type`
 		// JSON and XML.
-		Payload string
+		Payload []byte
 
 		// ContentType the parsed HTTP header `Content-Type`.
 		ContentType *ContentType
@@ -48,7 +48,7 @@ type (
 
 		// AcceptEncoding negotiated value from HTTP Header the `Accept-Encoding`
 		// Most quailfied one based on quality factor.
-		AcceptEncoding AcceptSpec
+		AcceptEncoding *AcceptSpec
 
 		// Params contains values from Path, Query, Form and File.
 		Params *Params
@@ -102,10 +102,10 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 	req.Params = &Params{Query: r.URL.Query()}
 	req.Referer = getReferer(r.Header)
 	req.UserAgent = r.Header.Get(HeaderUserAgent)
-	req.ClientIP = ClientIP(r)
+	req.ClientIP = clientIP(r)
 	req.Locale = NegotiateLocale(r)
 	req.IsJSONP = isJSONPReqeust(r)
-	req.IsGzipAccepted = isGzipAccepted(r)
+	req.IsGzipAccepted = isGzipAccepted(req, r)
 	req.Raw = r
 
 	return req
@@ -115,11 +115,26 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 // Request methods
 //___________________________________
 
+// Cookie method returns a named cookie from HTTP request otherwise error.
+func (r *Request) Cookie(name string) (*http.Cookie, error) {
+	return r.Raw.Cookie(name)
+}
+
+// Cookies method returns all the cookies from HTTP request.
+func (r *Request) Cookies() []*http.Cookie {
+	return r.Raw.Cookies()
+}
+
 // Reset method resets request instance for reuse.
 func (r *Request) Reset() {
+	r.Host = ""
+	r.Method = ""
+	r.Path = ""
 	r.Header = nil
+	r.Payload = nil
 	r.ContentType = nil
 	r.AcceptContentType = nil
+	r.AcceptEncoding = nil
 	r.Params = nil
 	r.Referer = ""
 	r.UserAgent = ""
@@ -194,10 +209,10 @@ func (p *Params) FormFile(key string) (multipart.File, *multipart.FileHeader, er
 // Unexported methods
 //___________________________________
 
-// ClientIP returns IP address from HTTP request, typically known as Client IP or
+// clientIP returns IP address from HTTP request, typically known as Client IP or
 // Remote IP. It parses the IP in the order of X-Forwarded-For, X-Real-IP
 // and finally `http.Request.RemoteAddr`.
-func ClientIP(req *http.Request) string {
+func clientIP(req *http.Request) string {
 	// Header X-Forwarded-For
 	if fwdFor := req.Header.Get(HeaderXForwardedFor); !ess.IsStrEmpty(fwdFor) {
 		index := strings.Index(fwdFor, ",")
@@ -236,9 +251,10 @@ func isJSONPReqeust(r *http.Request) bool {
 	return !ess.IsStrEmpty(callback)
 }
 
-func isGzipAccepted(req *http.Request) bool {
-	specs := ParseAcceptEncoding(req)
+func isGzipAccepted(req *Request, r *http.Request) bool {
+	specs := ParseAcceptEncoding(r)
 	if specs != nil {
+		req.AcceptEncoding = specs.MostQualified()
 		for _, v := range specs {
 			if v.Value == "gzip" {
 				return true
