@@ -31,7 +31,7 @@ func Shutdown() {
 		graceTime = "60s"
 	}
 
-	graceTimeout, _ = time.ParseDuration(graceTime)
+	graceTimeout, _ := time.ParseDuration(graceTime)
 	ctx, cancel := context.WithTimeout(context.Background(), graceTimeout)
 	if err := aahServer.Shutdown(ctx); err != nil {
 		log.Error(err)
