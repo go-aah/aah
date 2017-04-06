@@ -7,7 +7,7 @@
 package ahttp
 
 // Version no. of aah framework ahttp library
-const Version = "0.2"
+const Version = "0.3"
 
 // HTTP Method names
 const (
