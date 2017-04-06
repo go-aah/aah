@@ -25,7 +25,7 @@ const (
 )
 
 const (
-	aahGoServer         = "aah-go-server"
+	aahServerName       = "aah-go-server"
 	gzipContentEncoding = "gzip"
 )
 
@@ -272,7 +272,7 @@ func (e *engine) writeReply(ctx *Context) {
 	// Gzip
 	e.prepareGzipHeaders(ctx, buf.Len() == 0)
 
-	ctx.Res.Header().Set(ahttp.HeaderServer, aahGoServer)
+	ctx.Res.Header().Set(ahttp.HeaderServer, aahServerName)
 
 	// HTTP status
 	ctx.Res.WriteHeader(reply.Code)

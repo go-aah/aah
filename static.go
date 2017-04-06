@@ -22,7 +22,7 @@ import (
 // serveStatic method static file/directory delivery.
 func (e *engine) serveStatic(ctx *Context) error {
 	res, req := ctx.Res, ctx.Req
-	res.Header().Set(ahttp.HeaderServer, aahGoServer)
+	res.Header().Set(ahttp.HeaderServer, aahServerName)
 
 	var fileabs string
 	if ctx.route.IsDir() {

@@ -12,8 +12,6 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
-	"net"
-	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -181,70 +179,6 @@ func Init(importPath string) {
 	logAsFatal(initConfig(appConfigDir()))
 
 	initInternal()
-}
-
-// Start method starts the HTTP server based on aah config "server.*".
-func Start() {
-	defer aahRecover()
-
-	if !appInitialized {
-		log.Fatal("aah application is not initialized, call `aah.Init` before the `aah.Start`.")
-	}
-
-	log.Infof("App Name: %v", AppName())
-	log.Infof("App Profile: %v", AppProfile())
-	log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
-	log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
-
-	// Publish `OnStart` event
-	AppEventStore().sortAndPublishSync(&Event{Name: EventOnStart})
-
-	address := AppHTTPAddress()
-	appEngine = newEngine(AppConfig())
-	server := &http.Server{
-		Handler:        appEngine,
-		ReadTimeout:    appHTTPReadTimeout,
-		WriteTimeout:   appHTTPWriteTimeout,
-		MaxHeaderBytes: appHTTPMaxHdrBytes,
-	}
-
-	server.SetKeepAlivesEnabled(AppConfig().BoolDefault("server.keep_alive", true))
-
-	writePID(AppName(), AppBaseDir(), AppConfig())
-
-	// Unix Socket
-	if strings.HasPrefix(address, "unix") {
-		log.Infof("Listening and serving HTTP on %v", address)
-
-		sockFile := address[5:]
-		if err := os.Remove(sockFile); !os.IsNotExist(err) {
-			logAsFatal(err)
-		}
-
-		listener, err := net.Listen("unix", sockFile)
-		logAsFatal(err)
-
-		defer func() {
-			_ = listener.Close()
-		}()
-
-		server.Addr = address
-		logAsFatal(server.Serve(listener))
-		return
-	}
-
-	server.Addr = fmt.Sprintf("%s:%s", AppHTTPAddress(), strconv.Itoa(AppHTTPPort()))
-
-	// HTTPS
-	if IsSSLEnabled() {
-		log.Infof("Listening and serving HTTPS on %v", server.Addr)
-		logAsFatal(server.ListenAndServeTLS(appSSLCert, appSSLKey))
-		return
-	}
-
-	// HTTP
-	log.Infof("Listening and serving HTTP on %v", server.Addr)
-	logAsFatal(server.ListenAndServe())
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
