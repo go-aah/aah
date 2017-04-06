@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -58,7 +57,7 @@ func Start() {
 		return
 	}
 
-	aahServer.Addr = fmt.Sprintf("%s:%s", AppHTTPAddress(), strconv.Itoa(AppHTTPPort()))
+	aahServer.Addr = fmt.Sprintf("%s:%s", AppHTTPAddress(), AppHTTPPort())
 
 	// HTTPS
 	if IsSSLEnabled() {

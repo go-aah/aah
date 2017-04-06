@@ -49,7 +49,7 @@ var (
 
 	appDefaultProfile        = "dev"
 	appProfilePrefix         = "env."
-	appDefaultHTTPPort       = 8080
+	appDefaultHTTPPort       = "8080"
 	appDefaultDateFormat     = "2006-01-02"
 	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
 
@@ -106,10 +106,17 @@ func AppHTTPAddress() string {
 	return AppConfig().StringDefault("server.address", "")
 }
 
-// AppHTTPPort method returns aah application HTTP port number if available
-// otherwise returns default port number 8080.
-func AppHTTPPort() int {
-	return AppConfig().IntDefault("server.port", appDefaultHTTPPort)
+// AppHTTPPort method returns aah application HTTP port number if available or
+// if empty returns port 80; otherwise returns default port number 8080.
+func AppHTTPPort() string {
+	port, found := AppConfig().String("server.port")
+	if !found {
+		port = appDefaultHTTPPort
+	}
+	if ess.IsStrEmpty(port) {
+		port = "80"
+	}
+	return port
 }
 
 // AppDateFormat method returns aah application date format
