@@ -97,13 +97,13 @@ func TestHTTPNegotiateEncoding(t *testing.T) {
 	encoding := NegotiateEncoding(req1)
 	assert.Equal(t, "gzip", encoding.Value)
 	assert.Equal(t, "gzip;q=1.0", encoding.Raw)
-	assert.True(t, isGzipAccepted(req1))
+	assert.True(t, isGzipAccepted(&Request{}, req1))
 
 	req2 := createRawHTTPRequest(HeaderAcceptEncoding, "gzip;q=1.0, identity; q=0.5, *;q=0")
 	encoding = NegotiateEncoding(req2)
 	assert.Equal(t, "gzip", encoding.Value)
 	assert.Equal(t, "gzip;q=1.0", encoding.Raw)
-	assert.True(t, isGzipAccepted(req1))
+	assert.True(t, isGzipAccepted(&Request{}, req1))
 
 	req3 := createRawHTTPRequest(HeaderAcceptEncoding, "")
 	encoding = NegotiateEncoding(req3)
@@ -113,7 +113,7 @@ func TestHTTPNegotiateEncoding(t *testing.T) {
 	encoding = NegotiateEncoding(req4)
 	assert.Equal(t, "compress", encoding.Value)
 	assert.Equal(t, "compress;q=0.5", encoding.Raw)
-	assert.False(t, isGzipAccepted(req4))
+	assert.False(t, isGzipAccepted(&Request{}, req4))
 }
 
 func createRawHTTPRequest(hdrKey, value string) *http.Request {
