@@ -20,8 +20,7 @@
 // If you would like to store custom types in session then Register your custom
 // types using `gob.Register(...)`.
 //
-// Secure cookie is inspired from Gorilla secure cookie library. It is
-// implemented as per extensible design of aah framework.
+// Secure cookie code is inspired from Gorilla secure cookie library.
 package session
 
 import (
