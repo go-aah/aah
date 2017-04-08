@@ -1,12 +1,13 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/atemplate source code and usage is governed by a MIT style
+// go-aah/view source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package atemplate
+package view
 
 import (
-	"bytes"
 	"html/template"
+
+	"aahframework.org/log.v0"
 )
 
 // tmplSafeHTML method outputs given HTML as-is, use it with care.
@@ -17,17 +18,11 @@ func tmplSafeHTML(str string) template.HTML {
 // tmplImport method renders given template with View Args and imports into
 // current template.
 func tmplImport(name string, viewArgs map[string]interface{}) template.HTML {
-	tmpl := commonTemplates.Lookup(name)
-	if tmpl != nil {
-		buf := bufPool.Get().(*bytes.Buffer)
-		defer func() {
-			buf.Reset()
-			bufPool.Put(buf)
-		}()
-
-		if err := tmpl.Execute(buf, viewArgs); err == nil {
-			return tmplSafeHTML(buf.String())
-		}
+	tmplStr, err := commonTemplate.Execute(name, viewArgs)
+	if err != nil {
+		log.Error(err)
+		return template.HTML("")
 	}
-	return template.HTML("")
+
+	return tmplSafeHTML(tmplStr)
 }
