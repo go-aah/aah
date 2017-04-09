@@ -6,6 +6,7 @@ package aah
 
 import (
 	"errors"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
+	"aahframework.org/session.v0"
 )
 
 var (
@@ -32,8 +34,8 @@ type (
 		// `Reply()` builder for composing response.
 		//
 		// Note: If you're using `cxt.Res` directly, don't forget to call
-		// `Reply().Done()` so that framework will not interfere with your
-		// response composition.
+		// `Reply().Done()` so that framework will not intervene with your
+		// response.
 		Res ahttp.ResponseWriter
 
 		controller string
@@ -41,6 +43,7 @@ type (
 		target     interface{}
 		domain     *router.Domain
 		route      *router.Route
+		session    *session.Session
 		reply      *Reply
 		viewArgs   map[string]interface{}
 		abort      bool
@@ -92,6 +95,27 @@ func (ctx *Context) Msg(key string, args ...interface{}) string {
 // empty string returned.
 func (ctx *Context) Msgl(locale *ahttp.Locale, key string, args ...interface{}) string {
 	return AppI18n().Lookup(locale, key, args...)
+}
+
+// Session method always returns `session.Session` object. Use `Session.IsNew`
+// to identify whether sesison is newly created or restored from the request
+// which was already created.
+func (ctx *Context) Session() *session.Session {
+	if ctx.session == nil {
+		ctx.session = AppSessionManager().NewSession()
+		ctx.AddViewArg(keySessionValues, ctx.session)
+	}
+	return ctx.session
+}
+
+// Cookie method returns a named cookie from HTTP request otherwise error.
+func (ctx *Context) Cookie(name string) (*http.Cookie, error) {
+	return ctx.Req.Cookie(name)
+}
+
+// Cookies method returns all the cookies from HTTP request.
+func (ctx *Context) Cookies() []*http.Cookie {
+	return ctx.Req.Cookies()
 }
 
 // Abort method sets the abort to true. It means framework will not proceed with
@@ -160,13 +184,16 @@ func (ctx *Context) SetMethod(method string) {
 func (ctx *Context) Reset() {
 	ctx.Req = nil
 	ctx.Res = nil
-	ctx.target = nil
-	ctx.domain = nil
 	ctx.controller = ""
 	ctx.action = nil
+	ctx.target = nil
+	ctx.domain = nil
+	ctx.route = nil
+	ctx.session = nil
 	ctx.reply = nil
 	ctx.viewArgs = nil
 	ctx.abort = false
+	ctx.decorated = false
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
