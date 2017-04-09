@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
@@ -38,13 +39,14 @@ type (
 	// Engine is the aah framework application server handler for request and response.
 	// Implements `http.Handler` interface.
 	engine struct {
-		gzipEnabled      bool
-		gzipLevel        int
-		requestIDEnabled bool
-		requestIDHeader  string
-		ctxPool          *pool.Pool
-		reqPool          *pool.Pool
-		bufPool          *pool.Pool
+		isRequestIDEnabled bool
+		requestIDHeader    string
+		isSessionStateless bool
+		isGzipEnabled      bool
+		gzipLevel          int
+		ctxPool            *pool.Pool
+		reqPool            *pool.Pool
+		bufPool            *pool.Pool
 	}
 
 	byName []os.FileInfo
@@ -56,7 +58,7 @@ type (
 
 // ServeHTTP method implementation of http.Handler interface.
 func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if e.requestIDEnabled {
+	if e.isRequestIDEnabled {
 		e.setRequestID(r)
 	}
 
@@ -69,12 +71,20 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 'OnRequest' server extension point
 	publishOnRequestEvent(ctx)
 
-	// handling route
+	// Handling route
 	if e.handleRoute(ctx) == notContinuePipeline {
 		return
 	}
 
-	// set defaults when actual value not found
+	// Load session from request if session is stateful
+	if !e.isSessionStateless {
+		ctx.session = AppSessionManager().GetSession(r)
+		if ctx.session != nil {
+			ctx.AddViewArg(keySessionValues, ctx.session)
+		}
+	}
+
+	// Set defaults when actual value not found
 	e.setDefaults(ctx)
 
 	// Middlewares
@@ -129,7 +139,7 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 	ctx.reply = NewReply()
 	ctx.viewArgs = make(map[string]interface{}, 0)
 
-	if ctx.Req.IsGzipAccepted && e.gzipEnabled {
+	if ctx.Req.IsGzipAccepted && e.isGzipEnabled {
 		ctx.Res = ahttp.WrapGzipResponseWriter(w, e.gzipLevel)
 	} else {
 		ctx.Res = ahttp.WrapResponseWriter(w)
@@ -251,48 +261,64 @@ func (e *engine) writeReply(ctx *Context) {
 		}
 	}
 
+	// Gzip
+	e.writeGzipHeaders(ctx, buf.Len() == 0)
+
 	// HTTP headers
-	for k, v := range reply.Hdr {
-		for _, vv := range v {
-			ctx.Res.Header().Add(k, vv)
-		}
-	}
+	e.writeHeaders(ctx)
 
 	// Set Cookies
-	for _, c := range reply.cookies {
-		http.SetCookie(ctx.Res, c)
-	}
-
-	// ContentType
-	// if it's not set then it will auto detect later in the writer
-	if reply.IsContentTypeSet() {
-		ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
-	}
-
-	// Gzip
-	e.prepareGzipHeaders(ctx, buf.Len() == 0)
-
-	ctx.Res.Header().Set(ahttp.HeaderServer, aahServerName)
+	e.setCookies(ctx)
 
 	// HTTP status
 	ctx.Res.WriteHeader(reply.Code)
 
-	// Write it on the wire
+	// Write response buffer on the wire
 	_, _ = buf.WriteTo(ctx.Res)
 
 	// 'OnAfterReply' server extension point
 	publishOnAfterReplyEvent(ctx)
 }
 
-// prepareGzipHeaders method prepares appropriate headers for gzip response
-func (e *engine) prepareGzipHeaders(ctx *Context, delCntEnc bool) {
-	if ctx.Req.IsGzipAccepted && e.gzipEnabled {
+// writeHeaders method writes the headers on the wire.
+func (e *engine) writeHeaders(ctx *Context) {
+	for k, v := range ctx.Reply().Hdr {
+		for _, vv := range v {
+			ctx.Res.Header().Add(k, vv)
+		}
+	}
+
+	// ContentType, if it's not set then auto detect later in the writer
+	if ctx.Reply().IsContentTypeSet() {
+		ctx.Res.Header().Set(ahttp.HeaderContentType, ctx.Reply().ContType)
+	}
+
+	ctx.Res.Header().Set(ahttp.HeaderServer, aahServerName)
+}
+
+// writeGzipHeaders method prepares appropriate headers for gzip response
+func (e *engine) writeGzipHeaders(ctx *Context, delCntEnc bool) {
+	if ctx.Req.IsGzipAccepted && e.isGzipEnabled {
 		ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
 		ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
 		ctx.Res.Header().Del(ahttp.HeaderContentLength)
 
 		if ctx.Reply().Code == http.StatusNoContent || delCntEnc {
 			ctx.Res.Header().Del(ahttp.HeaderContentEncoding)
+		}
+	}
+}
+
+// setCookies method sets the user cookies, session cookie and saves session
+// into session store is session mode is stateful.
+func (e *engine) setCookies(ctx *Context) {
+	for _, c := range ctx.Reply().cookies {
+		http.SetCookie(ctx.Res, c)
+	}
+
+	if !e.isSessionStateless && ctx.session != nil {
+		if err := AppSessionManager().SaveSession(ctx.Res, ctx.session); err != nil {
+			log.Error(err)
 		}
 	}
 }
@@ -344,19 +370,22 @@ func newEngine(cfg *config.Config) *engine {
 		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", gzipLevel))
 	}
 
+	sessionStateless := strings.ToLower(cfg.StringDefault("session.mode", "stateless")) == "stateless"
+
 	return &engine{
-		gzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
-		gzipLevel:        gzipLevel,
-		requestIDEnabled: cfg.BoolDefault("request.id.enable", false),
-		requestIDHeader:  cfg.StringDefault("request.id.header", "X-Request-Id"), // TODO move this header name to ahttp library
+		isRequestIDEnabled: cfg.BoolDefault("request.id.enable", true),
+		requestIDHeader:    cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
+		isSessionStateless: sessionStateless,
+		isGzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
+		gzipLevel:          gzipLevel,
 		ctxPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.context", 0),
+			cfg.IntDefault("runtime.pooling.global", 0),
 			func() interface{} {
 				return &Context{}
 			},
 		),
 		reqPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.context", 0),
+			cfg.IntDefault("runtime.pooling.global", 0),
 			func() interface{} {
 				return &ahttp.Request{}
 			},
