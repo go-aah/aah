@@ -24,21 +24,6 @@ func AppConfig() *config.Config {
 	return appConfig
 }
 
-// MergeAppConfig method allows to you to merge external config into aah
-// application anytime.
-//
-// Note: This method trigger application refresh on logs, i18n, routes
-// and view engine after configuration merge. Use it with care.
-func MergeAppConfig(cfg *config.Config) {
-	defer aahRecover()
-
-	if err := AppConfig().Merge(cfg); err != nil {
-		log.Errorf("Unable to merge config into aah application[%s]: %s", AppName(), err)
-	}
-
-	initInternal()
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________

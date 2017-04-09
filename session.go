@@ -24,7 +24,7 @@ func AppSessionManager() *session.Manager {
 }
 
 // AddSessionStore method allows you to add custom session store which
-// implements `session.Store` interface. The `name` parameter is used in
+// implements `session.Storer` interface. The `name` parameter is used in
 // aah.conf on `session.store.type = "name"`.
 func AddSessionStore(name string, store session.Store) error {
 	return session.AddStore(name, store)

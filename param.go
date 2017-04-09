@@ -35,7 +35,7 @@ func paramsMiddleware(ctx *Context, m *Middleware) {
 		switch contentType {
 		case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeXML.Mime:
 			if payloadBytes, err := ioutil.ReadAll(req.Body); err == nil {
-				ctx.Req.Payload = string(payloadBytes)
+				ctx.Req.Payload = payloadBytes
 			} else {
 				log.Errorf("unable to read request body for '%s': %s", contentType, err)
 			}
@@ -78,17 +78,17 @@ func paramsMiddleware(ctx *Context, m *Middleware) {
 // tmplPathParam method returns Request Path Param value for the given key.
 func tmplPathParam(viewArgs map[string]interface{}, key string) template.HTML {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
-	return template.HTML(params.PathValue(key))
+	return template.HTML(template.HTMLEscapeString(params.PathValue(key)))
 }
 
 // tmplFormParam method returns Request Form value for the given key.
 func tmplFormParam(viewArgs map[string]interface{}, key string) template.HTML {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
-	return template.HTML(params.FormValue(key))
+	return template.HTML(template.HTMLEscapeString(params.FormValue(key)))
 }
 
 // tmplQueryParam method returns Request Query String value for the given key.
 func tmplQueryParam(viewArgs map[string]interface{}, key string) template.HTML {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
-	return template.HTML(params.QueryValue(key))
+	return template.HTML(template.HTMLEscapeString(params.QueryValue(key)))
 }

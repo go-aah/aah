@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"os"
 	"path"
@@ -20,7 +19,6 @@ import (
 	"time"
 
 	"aahframework.org/aruntime.v0"
-	"aahframework.org/atemplate.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -148,15 +146,10 @@ func AllAppProfiles() []string {
 	return profiles
 }
 
-// IsSSLEnabled method returns true if aah application is enabled with SSL
+// AppIsSSLEnabled method returns true if aah application is enabled with SSL
 // otherwise false.
-func IsSSLEnabled() bool {
+func AppIsSSLEnabled() bool {
 	return AppConfig().BoolDefault("server.ssl.enable", false)
-}
-
-// AddTemplateFunc method adds template func map into view engine.
-func AddTemplateFunc(funcs template.FuncMap) {
-	atemplate.AddTemplateFunc(funcs)
 }
 
 // SetAppProfile method sets given profile as current aah application profile.
@@ -185,7 +178,25 @@ func Init(importPath string) {
 	logAsFatal(initPath(importPath))
 	logAsFatal(initConfig(appConfigDir()))
 
-	initInternal()
+	if appBuildInfo == nil {
+		// aah CLI is accessing application for build purpose
+		log.SetLevel(log.LevelWarn)
+		logAsFatal(initAppVariables())
+		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
+		log.SetLevel(log.LevelDebug)
+	} else {
+		// publish `OnInit` server event
+		AppEventStore().sortAndPublishSync(&Event{Name: EventOnInit})
+
+		logAsFatal(initAppVariables())
+		logAsFatal(initLogs(AppConfig()))
+		logAsFatal(initI18n(appI18nDir()))
+		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
+		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
+		logAsFatal(initSessionManager(AppConfig()))
+	}
+
+	appInitialized = true
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -218,24 +229,6 @@ func logAsFatal(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func initInternal() {
-	logAsFatal(initAppVariables())
-
-	if appBuildInfo == nil {
-		// aah CLI is accessing app codebase
-		log.SetLevel(log.LevelWarn)
-		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
-		log.SetLevel(log.LevelDebug)
-	} else {
-		logAsFatal(initLogs(AppConfig()))
-		logAsFatal(initI18n(appI18nDir()))
-		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
-		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
-	}
-
-	appInitialized = true
 }
 
 func initPath(importPath string) error {
@@ -291,7 +284,7 @@ func initAppVariables() error {
 
 	appSSLCert = cfg.StringDefault("server.ssl.cert", "")
 	appSSLKey = cfg.StringDefault("server.ssl.key", "")
-	if IsSSLEnabled() && (ess.IsStrEmpty(appSSLCert) || ess.IsStrEmpty(appSSLKey)) {
+	if AppIsSSLEnabled() && (ess.IsStrEmpty(appSSLCert) || ess.IsStrEmpty(appSSLKey)) {
 		return errors.New("HTTP SSL is enabled, so 'server.ssl.cert' & 'server.ssl.key' value is required")
 	}
 

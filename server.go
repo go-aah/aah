@@ -30,7 +30,8 @@ func Start() {
 	log.Infof("App Version: %v", AppBuildInfo().Version)
 	log.Infof("App Build Date: %v", AppBuildInfo().Date)
 	log.Infof("App Profile: %v", AppProfile())
-	log.Infof("App SSL Enabled: %v", IsSSLEnabled())
+	log.Infof("App TLS/SSL Enabled: %v", AppIsSSLEnabled())
+	log.Infof("App Session Mode: %v", AppConfig().StringDefault("session.mode", "stateless"))
 	log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
 	log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
 
@@ -58,9 +59,10 @@ func Start() {
 	}
 
 	aahServer.Addr = fmt.Sprintf("%s:%s", AppHTTPAddress(), AppHTTPPort())
+	log.Infof("aah server running on %v", aahServer.Addr)
 
 	// HTTPS
-	if IsSSLEnabled() {
+	if AppIsSSLEnabled() {
 		startHTTPS()
 		return
 	}
@@ -87,14 +89,12 @@ func startUnix(address string) {
 }
 
 func startHTTPS() {
-	log.Infof("Listening and serving HTTPS on %v", aahServer.Addr)
 	if err := aahServer.ListenAndServeTLS(appSSLCert, appSSLKey); err != nil {
 		log.Error(err)
 	}
 }
 
 func startHTTP() {
-	log.Infof("Listening and serving HTTP on %v", aahServer.Addr)
 	if err := aahServer.ListenAndServe(); err != nil {
 		log.Error(err)
 	}

@@ -54,7 +54,15 @@ func initI18n(cfgDir string) error {
 // tmplI18n method is mapped to Go template func for resolving i18n values.
 func tmplI18n(viewArgs map[string]interface{}, key string, args ...interface{}) template.HTML {
 	if locale, ok := viewArgs["Locale"].(*ahttp.Locale); ok {
-		return template.HTML(template.HTMLEscapeString(AppI18n().Lookup(locale, key, args...)))
+		if len(args) == 0 {
+			return template.HTML(AppI18n().Lookup(locale, key, args...))
+		}
+
+		sanatizeArgs := make([]interface{}, len(args))
+		for _, value := range args {
+			sanatizeArgs = append(sanatizeArgs, sanatizeValue(value))
+		}
+		return template.HTML(AppI18n().Lookup(locale, key, sanatizeArgs...))
 	}
 	return template.HTML("")
 }
