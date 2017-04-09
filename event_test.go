@@ -12,6 +12,58 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
+func TestOnInitEvent(t *testing.T) {
+	onInitFunc1 := func(e *Event) {
+		fmt.Println("onInitFunc1:", e)
+	}
+
+	onInitFunc2 := func(e *Event) {
+		fmt.Println("onInitFunc2:", e)
+	}
+
+	onInitFunc3 := func(e *Event) {
+		fmt.Println("onInitFunc3:", e)
+	}
+
+	assert.False(t, AppEventStore().IsEventExists(EventOnInit))
+
+	OnInit(onInitFunc1)
+	assert.True(t, AppEventStore().IsEventExists(EventOnInit))
+	assert.Equal(t, 1, AppEventStore().SubscriberCount(EventOnInit))
+
+	OnInit(onInitFunc3, 4)
+	assert.Equal(t, 2, AppEventStore().SubscriberCount(EventOnInit))
+
+	OnInit(onInitFunc2, 2)
+	assert.Equal(t, 3, AppEventStore().SubscriberCount(EventOnInit))
+
+	// publish 1
+	AppEventStore().sortAndPublishSync(&Event{Name: EventOnInit, Data: "On Init event published 1"})
+
+	AppEventStore().Unsubscribe(EventOnInit, onInitFunc2)
+	assert.Equal(t, 2, AppEventStore().SubscriberCount(EventOnInit))
+
+	// publish 2
+	PublishEventSync(EventOnInit, "On Init event published 2")
+
+	AppEventStore().Unsubscribe(EventOnInit, onInitFunc1)
+	assert.Equal(t, 1, AppEventStore().SubscriberCount(EventOnInit))
+
+	// publish 3
+	PublishEventSync(EventOnInit, "On Init event published 3")
+	PublishEventSync(EventOnStart, "On start not gonna fire")
+
+	// event not exists
+	AppEventStore().Unsubscribe(EventOnStart, onInitFunc1)
+
+	AppEventStore().Unsubscribe(EventOnInit, onInitFunc3)
+	assert.Equal(t, 0, AppEventStore().SubscriberCount(EventOnInit))
+	assert.Equal(t, 0, AppEventStore().SubscriberCount(EventOnStart))
+
+	// EventOnInit not exists
+	AppEventStore().Unsubscribe(EventOnInit, onInitFunc3)
+}
+
 func TestOnStartEvent(t *testing.T) {
 	onStartFunc1 := func(e *Event) {
 		fmt.Println("onStartFunc1:", e)
@@ -51,13 +103,14 @@ func TestOnStartEvent(t *testing.T) {
 
 	// publish 3
 	AppEventStore().sortAndPublishSync(&Event{Name: EventOnStart, Data: "On start event published 3"})
-	PublishEventSync(EventOnStart, "On start not gonna fire")
+	PublishEventSync(EventOnInit, "On init not gonna fire")
 
 	// event not exists
-	AppEventStore().Unsubscribe(EventOnStart, onStartFunc1)
+	AppEventStore().Unsubscribe(EventOnInit, onStartFunc1)
 
 	AppEventStore().Unsubscribe(EventOnStart, onStartFunc3)
 	assert.Equal(t, 0, AppEventStore().SubscriberCount(EventOnStart))
+	assert.Equal(t, 0, AppEventStore().SubscriberCount(EventOnInit))
 
 	// EventOnInit not exists
 	AppEventStore().Unsubscribe(EventOnStart, onStartFunc3)
