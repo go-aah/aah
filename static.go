@@ -6,6 +6,7 @@ package aah
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,7 +15,6 @@ import (
 	"sort"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/atemplate.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
@@ -72,13 +72,13 @@ func (e *engine) serveStatic(ctx *Context) error {
 			return nil
 		}
 
-		e.prepareGzipHeaders(ctx, false)
+		e.writeGzipHeaders(ctx, false)
 
 		directoryList(res, req.Raw, f)
 		return nil
 	}
 
-	e.prepareGzipHeaders(ctx, false)
+	e.writeGzipHeaders(ctx, false)
 
 	http.ServeContent(res, req.Raw, file, fi.ModTime(), f)
 	return nil
@@ -113,7 +113,7 @@ func directoryList(res http.ResponseWriter, req *http.Request, f http.File) {
 		url := url.URL{Path: name}
 		fmt.Fprintf(res, "<tr><td><a href=\"%s\">%s</a></td><td width=\"200px\" align=\"right\">%s</td></tr>\n",
 			url.String(),
-			atemplate.HTMLEscape(name),
+			template.HTMLEscapeString(name),
 			d.ModTime().Format(appDefaultDateTimeFormat),
 		)
 	}

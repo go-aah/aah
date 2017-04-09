@@ -5,20 +5,21 @@
 package aah
 
 import (
+	"fmt"
 	"html/template"
 	"path/filepath"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/atemplate.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
+	"aahframework.org/view.v0"
 )
 
 var (
-	appViewEngine            atemplate.TemplateEnginer
-	appTemplateExt           string
+	appViewEngine            view.Enginer
+	appViewExt               string
 	appDefaultTmplLayout     string
 	appViewFileCaseSensitive bool
 	isExternalTmplEngine     bool
@@ -29,8 +30,18 @@ var (
 //___________________________________
 
 // AppViewEngine method returns aah application view Engine instance.
-func AppViewEngine() atemplate.TemplateEnginer {
+func AppViewEngine() view.Enginer {
 	return appViewEngine
+}
+
+// AddTemplateFunc method adds template func map into view engine.
+func AddTemplateFunc(funcs template.FuncMap) {
+	view.AddTemplateFunc(funcs)
+}
+
+// AddViewEngine method adds the given name and view engine to view store.
+func AddViewEngine(name string, engine view.Enginer) error {
+	return view.AddEngine(name, engine)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -48,26 +59,25 @@ func initViewEngine(viewDir string, appCfg *config.Config) error {
 	}
 
 	// application config values
-	appTemplateExt = appCfg.StringDefault("view.ext", ".html")
-	appDefaultTmplLayout = "master" + appTemplateExt
+	appViewExt = appCfg.StringDefault("view.ext", ".html")
+	appDefaultTmplLayout = "master" + appViewExt
 	appViewFileCaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
 
-	// initialize if external TemplateEngine is not registered.
+	// initialize if external View Engine is not registered.
 	if appViewEngine == nil {
-		tmplEngineName := appCfg.StringDefault("view.engine", "go")
-		switch tmplEngineName {
-		case "go":
-			appViewEngine = &atemplate.TemplateEngine{}
+		isExternalTmplEngine = false
+		viewEngineName := appCfg.StringDefault("view.engine", "go")
+		viewEngine, found := view.GetEngine(viewEngineName)
+		if !found {
+			return fmt.Errorf("view: named engine not found: %s", viewEngineName)
 		}
 
-		isExternalTmplEngine = false
-	} else {
-		isExternalTmplEngine = true
+		appViewEngine = viewEngine
+		return appViewEngine.Init(appCfg, viewDir)
 	}
 
-	appViewEngine.Init(appCfg, viewDir)
-
-	return appViewEngine.Load()
+	isExternalTmplEngine = true
+	return nil
 }
 
 // handlePreReplyStage method does 1) sets response header, 2) if HTML content type
@@ -145,32 +155,49 @@ func findViewTemplate(ctx *Context) {
 	}
 
 	tmplPath := filepath.Join("pages", controllerName)
-	tmplName := ctx.action.Name + appTemplateExt
+	tmplName := ctx.action.Name + appViewExt
 	htmlRdr := ctx.Reply().Rdr.(*HTML)
 	if !ess.IsStrEmpty(htmlRdr.Filename) {
 		tmplName = htmlRdr.Filename
 	}
 
 	log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
-	htmlRdr.Template = appViewEngine.Get(htmlRdr.Layout, tmplPath, tmplName)
-	if htmlRdr.Template == nil {
-		tmplFile := filepath.Join("views", "pages", controllerName, tmplName)
-		if !appViewFileCaseSensitive {
-			tmplFile = strings.ToLower(tmplFile)
-		}
+	var err error
+	if htmlRdr.Template, err = appViewEngine.Get(htmlRdr.Layout, tmplPath, tmplName); err != nil {
+		if err == view.ErrTemplateNotFound {
+			tmplFile := filepath.Join("views", "pages", controllerName, tmplName)
+			if !appViewFileCaseSensitive {
+				tmplFile = strings.ToLower(tmplFile)
+			}
 
-		log.Errorf("template not found: %s", tmplFile)
+			log.Errorf("template not found: %s", tmplFile)
+		} else {
+			log.Error(err)
+		}
+	}
+}
+
+// sanatizeValue method sanatizes string type value, rest we can't do any.
+// It's a user responbility.
+func sanatizeValue(value interface{}) interface{} {
+	switch v := value.(type) {
+	case string:
+		return template.HTMLEscapeString(v)
+	default:
+		return v
 	}
 }
 
 func init() {
-	atemplate.AddTemplateFunc(template.FuncMap{
-		"config": tmplConfig,
-		"rurl":   tmplURL,
-		"rurlm":  tmplURLm,
-		"i18n":   tmplI18n,
-		"pparam": tmplPathParam,
-		"fparam": tmplFormParam,
-		"qparam": tmplQueryParam,
+	AddTemplateFunc(template.FuncMap{
+		"config":  tmplConfig,
+		"rurl":    tmplURL,
+		"rurlm":   tmplURLm,
+		"i18n":    tmplI18n,
+		"pparam":  tmplPathParam,
+		"fparam":  tmplFormParam,
+		"qparam":  tmplQueryParam,
+		"session": tmplSessionValue,
+		"flash":   tmplFlashValue,
 	})
 }
