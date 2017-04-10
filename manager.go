@@ -4,7 +4,7 @@
 
 // Package session provides HTTP state management library for aah framework.
 // Default store is `Cookie` and framework provides `FileStore` and extensible
-// `session.Store` interface. Using store interface you can write any key-value
+// `session.Storer` interface. Using store interface you can write any key-value
 // Database, NoSQL Database, and RDBMS for storing encoded session data.
 //
 // Features:
@@ -48,15 +48,15 @@ var (
 	ErrCookieTimestampIsExpired = errors.New("session: cookie timestamp expried")
 	ErrSignVerificationIsFailed = errors.New("session: sign verification is failed")
 	ErrUnableToDecrypt          = errors.New("session: given value unable to decrypt")
-	ErrBase64Decode             = errors.New("base64 decode error")
+	ErrBase64Decode             = errors.New("session: base64 decode error")
 
-	registerStores = make(map[string]Store)
+	registerStores = make(map[string]Storer)
 )
 
 type (
-	// Store is interface for implementing pluggable storage provider.
-	Store interface {
-		Init(cfg *config.Config) error
+	// Storer is interface for implementing pluggable storage implementation.
+	Storer interface {
+		Init(appCfg *config.Config) error
 		Read(id string) string
 		Save(id, value string) error
 		Delete(id string) error
@@ -69,7 +69,7 @@ type (
 		cfg     *config.Config
 		Options *Options
 
-		store           Store
+		store           Storer
 		storeName       string
 		isSignKey       bool
 		signKey         []byte
@@ -98,7 +98,7 @@ type (
 
 // AddStore method allows you to add user created session store
 // for aah framework application.
-func AddStore(name string, store Store) error {
+func AddStore(name string, store Storer) error {
 	if store == nil {
 		return ErrSessionStoreIsNil
 	}
@@ -113,11 +113,11 @@ func AddStore(name string, store Store) error {
 
 // NewManager method initializes the session manager and store based on
 // configuration from aah.conf section `session { ... }`.
-func NewManager(cfg *config.Config) (*Manager, error) {
-	m := &Manager{cfg: cfg}
+func NewManager(appCfg *config.Config) (*Manager, error) {
+	m := &Manager{cfg: appCfg}
 
 	// Store
-	m.storeName = cfg.StringDefault("session.store.type", "cookie")
+	m.storeName = m.cfg.StringDefault("session.store.type", "cookie")
 	if m.storeName != "cookie" {
 		store, found := registerStores[m.storeName]
 		if !found {
@@ -130,7 +130,7 @@ func NewManager(cfg *config.Config) (*Manager, error) {
 	}
 
 	// Sign key
-	signKey := cfg.StringDefault("session.sign_key", "")
+	signKey := m.cfg.StringDefault("session.sign_key", "")
 	m.isSignKey = !ess.IsStrEmpty(signKey)
 	if m.isSignKey {
 		m.signKey = []byte(signKey)
@@ -138,7 +138,7 @@ func NewManager(cfg *config.Config) (*Manager, error) {
 
 	// Enc key
 	var err error
-	encKey := cfg.StringDefault("session.enc_key", "")
+	encKey := m.cfg.StringDefault("session.enc_key", "")
 	m.isEncKey = !ess.IsStrEmpty(encKey)
 	if m.isEncKey {
 		m.encKey = []byte(encKey)
@@ -147,19 +147,19 @@ func NewManager(cfg *config.Config) (*Manager, error) {
 		}
 	}
 
-	m.idLength = cfg.IntDefault("session.id_length", 32)
+	m.idLength = m.cfg.IntDefault("session.id_length", 32)
 
 	// Cookie Options
 	m.Options = &Options{
-		Name:     cfg.StringDefault("session.prefix", "aah") + "_session",
-		Domain:   cfg.StringDefault("session.domain", ""),
-		Path:     cfg.StringDefault("session.path", "/"),
-		HTTPOnly: cfg.BoolDefault("session.http_only", true),
-		Secure:   cfg.BoolDefault("session.secure", true),
+		Name:     m.cfg.StringDefault("session.prefix", "aah") + "_session",
+		Domain:   m.cfg.StringDefault("session.domain", ""),
+		Path:     m.cfg.StringDefault("session.path", "/"),
+		HTTPOnly: m.cfg.BoolDefault("session.http_only", true),
+		Secure:   m.cfg.BoolDefault("session.secure", true),
 	}
 
 	// TTL value
-	ttl := cfg.StringDefault("session.ttl", "")
+	ttl := m.cfg.StringDefault("session.ttl", "")
 	if ess.IsStrEmpty(ttl) {
 		m.Options.MaxAge = 0
 	} else {
@@ -169,7 +169,7 @@ func NewManager(cfg *config.Config) (*Manager, error) {
 	}
 
 	// Cleanup
-	if m.cleanupInterval, err = toSeconds(cfg.StringDefault("session.cleanup_interval", "30m")); err != nil {
+	if m.cleanupInterval, err = toSeconds(m.cfg.StringDefault("session.cleanup_interval", "30m")); err != nil {
 		return nil, err
 	}
 

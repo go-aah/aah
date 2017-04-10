@@ -30,7 +30,7 @@ func TestSessionGetCookie(t *testing.T) {
 	gob.Register(map[interface{}]interface{}{})
 
 	header := http.Header{}
-	header.Add("Cookie", cookieValue)
+	header.Add(ahttp.HeaderCookie, cookieValue)
 	req := &http.Request{
 		Header: header,
 	}
@@ -74,7 +74,7 @@ func testSessionStoreSave(t *testing.T, cfgStr string) {
 
 	// Reading value
 	header := http.Header{}
-	header.Add("Cookie", result.Header.Get(ahttp.HeaderSetCookie))
+	header.Add(ahttp.HeaderCookie, result.Header.Get(ahttp.HeaderSetCookie))
 	req := &http.Request{
 		Header: header,
 	}

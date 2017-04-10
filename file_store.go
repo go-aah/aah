@@ -16,6 +16,9 @@ import (
 	"aahframework.org/log.v0"
 )
 
+// Storer interface comply
+var _ Storer = &FileStore{}
+
 // FileStore is the aah framework session store implementation.
 type FileStore struct {
 	path       string
