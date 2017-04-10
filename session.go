@@ -6,7 +6,7 @@ package session
 
 // Version is aah framework session library version no.
 const (
-	Version = "0.1"
+	Version = "0.2"
 
 	flashKeyPrefix = "_flash_"
 )
