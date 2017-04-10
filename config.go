@@ -2,22 +2,26 @@
 // go-aah/config source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-// Package config is nice and handy thin layer around `forge` config syntax;
-// which is similar to HOCON syntax. aah framework is powered with `aah/config`
-// library. Internally `aah/config` uses `forge` syntax developed by
-// `https://github.com/brettlangdon`.
+// Package config is nice and handy layer built around `forge` config syntax;
+// which is similar to HOCON syntax. Internally `aah/config` uses `forge`
+// syntax developed by `https://github.com/brettlangdon`.
+//
+// aah framework is powered with `aahframework.org/config` library.
 package config
 
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"aahframework.org/essentials.v0"
 	"aahframework.org/forge.v0"
 )
 
 // Version no. of aahframework.org/config library
-var Version = "0.3"
+var Version = "0.4"
+
+var errKeyNotFound = errors.New("config: not found")
 
 // Config handles the configuration values and enables environment profile's,
 // merge, etc. Also it provide nice and handly methods for accessing config values.
@@ -222,18 +226,15 @@ func (c *Config) Get(key string) (interface{}, bool) {
 //
 func (c *Config) StringList(key string) ([]string, bool) {
 	values := []string{}
-	lst, found := c.getListValue(key)
-	if lst == nil || !found {
+	if lst, found := c.getListValue(key); found {
+		for idx := 0; idx < lst.Length(); idx++ {
+			if v, err := lst.GetString(idx); err == nil {
+				values = append(values, v)
+			}
+		}
 		return values, found
 	}
-
-	for idx := 0; idx < lst.Length(); idx++ {
-		if v, err := lst.GetString(idx); err == nil {
-			values = append(values, v)
-		}
-	}
-
-	return values, true
+	return values, false
 }
 
 // IntList method returns the int slice value for the given key.
@@ -254,19 +255,16 @@ func (c *Config) StringList(key string) ([]string, bool) {
 // 			Values: [10, 20, 30, 40, 50]
 //
 func (c *Config) IntList(key string) ([]int, bool) {
-	values := []int{}
-	lst, found := c.getListValue(key)
-	if lst == nil || !found {
-		return values, found
+	var result []int
+	values, found := c.Int64List(key)
+	if !found {
+		return result, found
 	}
 
-	for idx := 0; idx < lst.Length(); idx++ {
-		if v, err := lst.GetInteger(idx); err == nil {
-			values = append(values, int(v))
-		}
+	for _, v := range values {
+		result = append(result, int(v))
 	}
-
-	return values, true
+	return result, true
 }
 
 // Int64List method returns the int64 slice value for the given key.
@@ -310,8 +308,8 @@ func (c *Config) Int64List(key string) ([]int64, bool) {
 // First it tries to get value within enabled profile
 // otherwise it tries without profile
 func (c *Config) SetString(key string, value string) {
-	if v, found := c.getraw(c.prepareKey(key)); found {
-		_ = v.UpdateValue(value)
+	if err := c.updateValue(key, value); err == errKeyNotFound {
+		c.addValue(key, forge.NewString(value))
 	}
 }
 
@@ -326,8 +324,8 @@ func (c *Config) SetInt(key string, value int) {
 // First it tries to get value within enabled profile
 // otherwise it tries without profile
 func (c *Config) SetInt64(key string, value int64) {
-	if v, found := c.getraw(c.prepareKey(key)); found {
-		_ = v.UpdateValue(value)
+	if err := c.updateValue(key, value); err == errKeyNotFound {
+		c.addValue(key, forge.NewInteger(value))
 	}
 }
 
@@ -342,8 +340,8 @@ func (c *Config) SetFloat32(key string, value float32) {
 // First it tries to get value within enabled profile
 // otherwise it tries without profile
 func (c *Config) SetFloat64(key string, value float64) {
-	if v, found := c.getraw(c.prepareKey(key)); found {
-		_ = v.UpdateValue(value)
+	if err := c.updateValue(key, value); err == errKeyNotFound {
+		c.addValue(key, forge.NewFloat(value))
 	}
 }
 
@@ -351,8 +349,8 @@ func (c *Config) SetFloat64(key string, value float64) {
 // First it tries to get value within enabled profile
 // otherwise it tries without profile
 func (c *Config) SetBool(key string, value bool) {
-	if v, found := c.getraw(c.prepareKey(key)); found {
-		_ = v.UpdateValue(value)
+	if err := c.updateValue(key, value); err == errKeyNotFound {
+		c.addValue(key, forge.NewBoolean(value))
 	}
 }
 
@@ -446,7 +444,6 @@ func (c *Config) get(key string) (interface{}, bool) {
 	if v, found := c.getraw(key); found {
 		return v.GetValue(), true // found
 	}
-
 	return nil, false // not found
 }
 
@@ -463,12 +460,7 @@ func (c *Config) getListValue(key string) (*forge.List, bool) {
 		return nil, false
 	}
 
-	lst, ok := value.(*forge.List)
-	if !ok {
-		return nil, false
-	}
-
-	return lst, true
+	return value.(*forge.List), true
 }
 
 func (c *Config) getraw(key string) (forge.Value, bool) {
@@ -476,6 +468,32 @@ func (c *Config) getraw(key string) (forge.Value, bool) {
 	if err != nil {
 		return nil, false // not found
 	}
-
 	return v, true // found
+}
+
+func (c *Config) updateValue(key string, value interface{}) error {
+	if v, found := c.getraw(c.prepareKey(key)); found {
+		_ = v.UpdateValue(value)
+	}
+	return errKeyNotFound
+}
+
+func (c *Config) getSection(parts []string) *forge.Section {
+	current := c.cfg
+	for _, part := range parts {
+		if nc, err := current.GetSection(part); err == nil { // exists
+			current = nc
+			continue
+		}
+		current = current.AddSection(part)
+	}
+	return current
+}
+
+func (c *Config) addValue(key string, value forge.Value) {
+	parts := strings.Split(key, ".")
+	if len(parts) > 1 {
+		section := c.getSection(parts[:len(parts)-1])
+		section.Set(parts[len(parts)-1], value)
+	}
 }

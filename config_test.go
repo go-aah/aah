@@ -379,6 +379,35 @@ func TestNestedKeyWithProfile(t *testing.T) {
 	releases, found = cfg.StringList("docs.releases")
 	assert.True(t, found)
 	assert.True(t, len(releases) > 0)
+
+	// not a list type
+	devStr, found := cfg.StringList("env.dev.string")
+	assert.False(t, found)
+	assert.True(t, len(devStr) == 0)
+
+	value := cfg.StringDefault("env.path", "")
+	assert.NotNil(t, value)
+}
+
+func TestConfigSetValues(t *testing.T) {
+	testdataPath := getTestdataPath()
+	cfg, err := LoadFiles(join(testdataPath, "test-4.cfg"))
+	assert.FailNowOnError(t, err, "loading failed")
+
+	// env.active
+	assert.False(t, cfg.IsExists("env.active"))
+	cfg.SetString("env.active", "dev")
+	assert.True(t, cfg.IsExists("env.active"))
+	assert.Equal(t, "dev", cfg.StringDefault("env.active", ""))
+
+	cfg.SetString("env.active", "prod")
+	assert.Equal(t, "prod", cfg.StringDefault("env.active", ""))
+
+	// request.id.header
+	assert.False(t, cfg.IsExists("request.id.header"))
+	cfg.SetString("request.id.header", "My-Request-Hdr")
+	assert.True(t, cfg.IsExists("request.id.header"))
+	assert.Equal(t, "My-Request-Hdr", cfg.StringDefault("request.id.header", ""))
 }
 
 func initString(t *testing.T, configStr string) *Config {
