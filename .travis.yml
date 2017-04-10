@@ -10,9 +10,9 @@ branches:
     - /^v[0-9]\.[0-9]/
 
 go:
-  - 1.6
-  - 1.7
+  - 1.7.x
   - 1.8
+  - 1.8.x
   - tip
 
 go_import_path: aahframework.org/config.v0
