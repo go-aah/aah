@@ -76,18 +76,16 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Load session from request if session is stateful
-	if !e.isSessionStateless {
-		ctx.session = AppSessionManager().GetSession(r)
-		if ctx.session != nil {
-			ctx.AddViewArg(keySessionValues, ctx.session)
-		}
-	}
+	// Load session
+	e.loadSession(ctx)
+
+	// Parsing request params
+	e.parseRequestParams(ctx)
 
 	// Set defaults when actual value not found
 	e.setDefaults(ctx)
 
-	// Middlewares
+	// Middlewares, interceptors, targeted controller
 	e.executeMiddlewares(ctx)
 
 	// Write Reply on the wire
@@ -211,6 +209,16 @@ func (e *engine) handleRoute(ctx *Context) routeStatus {
 	}
 
 	return continuePipeline
+}
+
+// loadSession method loads session from request for `stateful` session.
+func (e *engine) loadSession(ctx *Context) {
+	if !e.isSessionStateless {
+		ctx.session = AppSessionManager().GetSession(ctx.Req.Raw)
+		if ctx.session != nil {
+			ctx.AddViewArg(keySessionValues, ctx.session)
+		}
+	}
 }
 
 // setDefaults method sets default value based on aah app configuration

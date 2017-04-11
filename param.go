@@ -16,13 +16,13 @@ import (
 const keyRequestParams = "RequestParams"
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Params middleware
+// Params method
 //___________________________________
 
-// ParamsMiddleware parses the incoming HTTP request to collects request
-// parameters (query string and payload) stores into context. Query string
-// parameters made available in ViewArgs.
-func paramsMiddleware(ctx *Context, m *Middleware) {
+// parseRequestParams method parses the incoming HTTP request to collects request
+// parameters (Payload, Form, Query, Multi-part) stores into context. Request
+// params are made available in View via template functions.
+func (e *engine) parseRequestParams(ctx *Context) {
 	req := ctx.Req.Raw
 
 	if ctx.Req.Method != ahttp.MethodGet {
@@ -67,8 +67,6 @@ func paramsMiddleware(ctx *Context, m *Middleware) {
 
 	// All the request parameters made available to templates via funcs.
 	ctx.AddViewArg(keyRequestParams, ctx.Req.Params)
-
-	m.Next(ctx)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
