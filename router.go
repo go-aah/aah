@@ -24,7 +24,7 @@ import (
 )
 
 // Version no. of aah framework router library
-const Version = "0.3"
+const Version = "0.4"
 
 var (
 	// HTTPMethodActionMap is default Controller Action name for corresponding
@@ -40,9 +40,9 @@ var (
 		ahttp.MethodTrace:   "Trace",
 	}
 
-	// ErrNoRoutesConfigFound returned when routes config file not found or doesn't
-	// have config information.
-	ErrNoRoutesConfigFound = errors.New("no domain routes config found")
+	// ErrNoDomainRoutesConfigFound returned when routes config file not found or doesn't
+	// have `domains { ... }` config information.
+	ErrNoDomainRoutesConfigFound = errors.New("router: no domain routes config found")
 )
 
 type (
@@ -86,9 +86,6 @@ type (
 		ListDir  bool
 	}
 
-	// Routes is a Route-slice type
-	Routes []Route
-
 	// PathParam is single URL path parameter (not a query string values)
 	PathParam struct {
 		Key   string
@@ -130,7 +127,7 @@ func IsDefaultAction(action string) bool {
 // applies env profile override values if available.
 func (r *Router) Load() (err error) {
 	if !ess.IsFileExists(r.configPath) {
-		return fmt.Errorf("aah application routes configuration does not exists: %v", r.configPath)
+		return fmt.Errorf("router: configuration does not exists: %v", r.configPath)
 	}
 
 	r.config, err = config.LoadFile(r.configPath)
@@ -142,7 +139,7 @@ func (r *Router) Load() (err error) {
 	if envRoutesValues, found := r.appCfg.GetSubConfig("routes"); found {
 		log.Debug("env routes {...} values found, applying it")
 		if err = r.config.Merge(envRoutesValues); err != nil {
-			return fmt.Errorf("routes.conf: %s", err)
+			return fmt.Errorf("router: routes.conf: %s", err)
 		}
 	}
 
@@ -196,14 +193,14 @@ func (r *Router) RegisteredActions() map[string]map[string]uint8 {
 func (r *Router) processRoutesConfig() (err error) {
 	domains := r.config.KeysByPath("domains")
 	if len(domains) == 0 {
-		return ErrNoRoutesConfigFound
+		return ErrNoDomainRoutesConfigFound
 	}
 
 	_ = r.config.SetProfile("domains")
 
 	// allocate for no. of domains
 	r.Domains = make(map[string]*Domain, len(domains))
-	log.Debugf("No. of domains found: %v", len(domains))
+	log.Debugf("Domain count: %d", len(domains))
 
 	for _, key := range domains {
 		domainCfg, _ := r.config.GetSubConfig(key)
@@ -221,89 +218,103 @@ func (r *Router) processRoutesConfig() (err error) {
 		}
 
 		domain := &Domain{
-			Name:        domainCfg.StringDefault("name", key),
-			Host:        host,
-			Port:        port,
-			IsSubDomain: domainCfg.BoolDefault("subdomain", false),
-			trees:       make(map[string]*node),
-			routes:      make(map[string]*Route),
-		}
-		log.Debugf("Domain: %v", domain.key())
-
-		// loading global configuration
-		if domainCfg.IsExists("global") {
-			globalCfg, _ := domainCfg.GetSubConfig("global")
-
-			domain.MethodNotAllowed = globalCfg.BoolDefault("method_not_allowed", true)
-			domain.RedirectTrailingSlash = globalCfg.BoolDefault("redirect_trailing_slash", true)
-			domain.AutoOptions = globalCfg.BoolDefault("auto_options", true)
-			log.Tracef("Domain global config "+
-				"[methodNotAllowed: %v, redirectTrailingSlash: %v, autoOptions: %v]",
-				domain.MethodNotAllowed, domain.RedirectTrailingSlash, domain.AutoOptions)
-
-			// not found route
-			if globalCfg.IsExists("not_found") {
-				domain.NotFoundRoute, err = createGlobalRoute(globalCfg, "not_found")
-				if err != nil {
-					return
-				}
-
-				log.Tracef("Not found route: %v.%v", domain.NotFoundRoute.Controller,
-					domain.NotFoundRoute.Action)
-			}
+			Name:                  domainCfg.StringDefault("name", key),
+			Host:                  host,
+			Port:                  port,
+			IsSubDomain:           domainCfg.BoolDefault("subdomain", false),
+			MethodNotAllowed:      domainCfg.BoolDefault("method_not_allowed", true),
+			RedirectTrailingSlash: domainCfg.BoolDefault("redirect_trailing_slash", true),
+			AutoOptions:           domainCfg.BoolDefault("auto_options", true),
+			trees:                 make(map[string]*node),
+			routes:                make(map[string]*Route),
 		}
 
-		// loading static routes
-		if domainCfg.IsExists("static") {
-			staticCfg, _ := domainCfg.GetSubConfig("static")
-
-			routes, er := parseStaticRoutesSection(staticCfg)
-			if er != nil {
-				err = er
-				return
+		// not found route
+		if domainCfg.IsExists("not_found") {
+			controller, found := domainCfg.String("not_found.controller")
+			if !found {
+				return errors.New("'not_found.controller' key is missing")
 			}
 
-			log.Debugf("Static routes found: %v", len(routes))
-
-			for idx := range routes {
-				route := routes[idx]
-				if err = domain.AddRoute(&route); err != nil {
-					return
-				}
-
-				log.Tracef("Static:: Route Name: %v, Path: %v, Dir: %v, ListDir: %v, File: %v",
-					route.Name, route.Path, route.Dir, route.ListDir, route.File)
+			action, found := domainCfg.String("not_found.action")
+			if !found {
+				return errors.New("'not_found.action' key is missing")
 			}
+
+			domain.NotFoundRoute = &Route{Controller: controller, Action: action}
 		}
 
-		// loading namespace routes
-		if domainCfg.IsExists("routes") {
-			routesCfg, _ := domainCfg.GetSubConfig("routes")
+		// processing static routes
+		if err = r.processStaticRoutes(domain, domainCfg); err != nil {
+			return
+		}
 
-			routes, er := parseRoutesSection(routesCfg, "", "")
-			if er != nil {
-				err = er
-				return
-			}
-			log.Debugf("Routes found: %v", len(routes))
-
-			for idx := range routes {
-				route := routes[idx]
-				if err = domain.AddRoute(&route); err != nil {
-					return
-				}
-
-				log.Tracef("Route Name: %v (%v), Path: %v, Method: %v, Controller: %v, Action: %v",
-					route.Name, route.ParentName, route.Path, route.Method, route.Controller, route.Action)
-			}
+		// processing namespace routes
+		if err = r.processRoutes(domain, domainCfg); err != nil {
+			return
 		}
 
 		// add domain routes
-		r.Domains[domain.key()] = domain
+		key := domain.key()
+		log.Debugf("Domain: %s, routes found: %d", key, len(domain.routes))
+		for _, dr := range domain.routes {
+			parentInfo := ""
+			if !ess.IsStrEmpty(dr.ParentName) {
+				parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
+			}
+			log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v",
+				dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action)
+		}
+
+		r.Domains[key] = domain
 
 	} // End of domains
 
+	r.config.ClearProfile()
 	return
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Router unexpoted methods
+//___________________________________
+
+func (r *Router) processStaticRoutes(domain *Domain, domainCfg *config.Config) error {
+	staticCfg, found := domainCfg.GetSubConfig("static")
+	if !found {
+		return nil
+	}
+
+	routes, err := parseStaticSection(staticCfg)
+	if err != nil {
+		return err
+	}
+
+	for idx := range routes {
+		if err = domain.AddRoute(routes[idx]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
+	routesCfg, found := domainCfg.GetSubConfig("routes")
+	if !found {
+		return nil
+	}
+
+	routes, err := parseRoutesSection(routesCfg, "", "")
+	if err != nil {
+		return err
+	}
+
+	for idx := range routes {
+		if err = domain.AddRoute(routes[idx]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -346,6 +357,10 @@ func (d *Domain) LookupByName(name string) *Route {
 
 // AddRoute method to add the given route into domain routing tree.
 func (d *Domain) AddRoute(route *Route) error {
+	if ess.IsStrEmpty(route.Method) {
+		return errors.New("router: method value is empty")
+	}
+
 	tree := d.trees[route.Method]
 	if tree == nil {
 		tree = new(node)
@@ -576,24 +591,7 @@ func addRegisteredAction(methods map[string]map[string]uint8, route *Route) {
 	}
 }
 
-func createGlobalRoute(cfg *config.Config, routeName string) (*Route, error) {
-	controller, found := cfg.String(routeName + ".controller")
-	if !found {
-		return nil, fmt.Errorf("'global.%v.controller' key is missing", routeName)
-	}
-
-	action, found := cfg.String(routeName + ".action")
-	if !found {
-		return nil, fmt.Errorf("'global.%v.action' key is missing", routeName)
-	}
-
-	return &Route{
-		Controller: controller,
-		Action:     action,
-	}, nil
-}
-
-func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (routes Routes, err error) {
+func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (routes []*Route, err error) {
 	for _, routeName := range cfg.Keys() {
 		// getting 'path'
 		routePath, found := cfg.String(routeName + ".path")
@@ -623,7 +621,7 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 		routeAction := cfg.StringDefault(routeName+".action", HTTPMethodActionMap[routeMethod])
 
 		for _, m := range strings.Split(routeMethod, ",") {
-			routes = append(routes, Route{
+			routes = append(routes, &Route{
 				Name:       routeName,
 				Path:       path.Join(prefixPath, routePath),
 				Method:     strings.TrimSpace(m),
@@ -648,9 +646,9 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 	return
 }
 
-func parseStaticRoutesSection(cfg *config.Config) (routes Routes, err error) {
+func parseStaticSection(cfg *config.Config) (routes []*Route, err error) {
 	for _, routeName := range cfg.Keys() {
-		route := Route{Name: routeName, Method: ahttp.MethodGet, IsStatic: true}
+		route := &Route{Name: routeName, Method: ahttp.MethodGet, IsStatic: true}
 
 		// getting 'path'
 		routePath, found := cfg.String(routeName + ".path")

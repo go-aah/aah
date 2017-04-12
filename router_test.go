@@ -69,6 +69,23 @@ func TestRouterLoadConfiguration(t *testing.T) {
 
 	routeNotFound := domain.LookupByName("cancel_booking_not_found")
 	assert.Nil(t, routeNotFound)
+
+	// Method missing
+	err = domain.AddRoute(&Route{
+		Name: "MethodMissing",
+		Path: "/:user/test",
+	})
+	assert.Equal(t, "router: method value is empty", err.Error())
+
+	err = domain.AddRoute(&Route{
+		Name:   "ErrorRoute",
+		Path:   "/:user/test",
+		Method: "GET",
+	})
+	assert.True(t, strings.HasPrefix(err.Error(), "wildcard route ':user' conflicts"))
+
+	domain.Port = ""
+	assert.Equal(t, "localhost", domain.key())
 }
 
 func TestRouterStaticLoadConfiguration(t *testing.T) {
@@ -133,6 +150,18 @@ func TestRouterErrorControllerLoadConfiguration(t *testing.T) {
 	assert.Equal(t, "'app_index.controller' key is missing", err.Error())
 }
 
+func TestRouterErrorNotFoundLoadConfiguration(t *testing.T) {
+	router, err := createRouter("routes-notfound-controller-error.conf")
+	assert.NotNilf(t, err, "expected error loading '%v'", "routes-notfound-controller-error.conf")
+	assert.NotNil(t, router)
+	assert.Equal(t, "'not_found.controller' key is missing", err.Error())
+
+	router, err = createRouter("routes-notfound-action-error.conf")
+	assert.NotNilf(t, err, "expected error loading '%v'", "routes-notfound-action-error.conf")
+	assert.NotNil(t, router)
+	assert.Equal(t, "'not_found.action' key is missing", err.Error())
+}
+
 func TestRouterErrorStaticPathLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-static-path-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-path-error.conf")
@@ -161,20 +190,6 @@ func TestRouterErrorStaticNoDirFileLoadConfiguration(t *testing.T) {
 	assert.Equal(t, "either 'static.public.dir' or 'static.public.file' key have to be present", err.Error())
 }
 
-func TestRouterErrorGlobalControllerLoadConfiguration(t *testing.T) {
-	router, err := createRouter("routes-global-controller-error.conf")
-	assert.NotNilf(t, err, "expected error loading '%v'", "routes-global-controller-error.conf")
-	assert.NotNil(t, router)
-	assert.Equal(t, "'global.not_found.controller' key is missing", err.Error())
-}
-
-func TestRouterErrorGlobalActionLoadConfiguration(t *testing.T) {
-	router, err := createRouter("routes-global-action-error.conf")
-	assert.NotNilf(t, err, "expected error loading '%v'", "routes-global-action-error.conf")
-	assert.NotNil(t, router)
-	assert.Equal(t, "'global.not_found.action' key is missing", err.Error())
-}
-
 func TestRouterErrorStaticPathBeginSlashLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-static-path-slash-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-path-slash-error.conf")
@@ -191,7 +206,7 @@ func TestRouterErrorRoutesPathBeginSlashLoadConfiguration(t *testing.T) {
 
 func TestRouterNoDomainRoutesFound(t *testing.T) {
 	router, err := createRouter("routes-no-domains.conf")
-	assert.Equal(t, ErrNoRoutesConfigFound, err)
+	assert.Equal(t, ErrNoDomainRoutesConfigFound, err)
 	assert.NotNil(t, router)
 }
 
@@ -356,7 +371,7 @@ func TestRouterDomainAddRoute(t *testing.T) {
 func TestRouterConfigNotExists(t *testing.T) {
 	router, err := createRouter("routes-not-exists.conf")
 	assert.NotNil(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "aah application routes configuration does not exists"))
+	assert.True(t, strings.HasPrefix(err.Error(), "router: configuration does not exists"))
 	assert.Nil(t, router.config)
 }
 
