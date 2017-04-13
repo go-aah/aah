@@ -617,8 +617,13 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 		}
 
 		// getting 'action', if not found it will default to `HTTPMethodActionMap`
-		// based on `routeMethod`
-		routeAction := cfg.StringDefault(routeName+".action", HTTPMethodActionMap[routeMethod])
+		// based on `routeMethod`. For multiple HTTP method mapping scenario,
+		// this is required attribute.
+		routeAction := cfg.StringDefault(routeName+".action", findActionByHTTPMethod(routeMethod))
+		if ess.IsStrEmpty(routeAction) {
+			err = fmt.Errorf("'%v.action' key is missing, it seems to be multiple HTTP methods", routeName)
+			return
+		}
 
 		for _, m := range strings.Split(routeMethod, ",") {
 			routes = append(routes, &Route{
@@ -694,4 +699,11 @@ func parseStaticSection(cfg *config.Config) (routes []*Route, err error) {
 	}
 
 	return
+}
+
+func findActionByHTTPMethod(method string) string {
+	if action, found := HTTPMethodActionMap[method]; found {
+		return action
+	}
+	return ""
 }
