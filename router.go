@@ -606,29 +606,46 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 			return
 		}
 
+		routePath = path.Join(prefixPath, routePath)
+
+		// check child routes exists
+		notToSkip := true
+		if cfg.IsExists(routeName + ".routes") {
+			if !cfg.IsExists(routeName + ".controller") {
+				notToSkip = false
+			}
+		}
+
 		// getting 'method', default to GET, if method not found
 		routeMethod := strings.ToUpper(cfg.StringDefault(routeName+".method", ahttp.MethodGet))
 
 		// getting 'controller'
 		routeController, found := cfg.String(routeName + ".controller")
-		if !found {
+		if !found && notToSkip {
 			err = fmt.Errorf("'%v.controller' key is missing", routeName)
 			return
 		}
 
 		// getting 'action', if not found it will default to `HTTPMethodActionMap`
-		// based on `routeMethod`
-		routeAction := cfg.StringDefault(routeName+".action", HTTPMethodActionMap[routeMethod])
+		// based on `routeMethod`. For multiple HTTP method mapping scenario,
+		// this is required attribute.
+		routeAction := cfg.StringDefault(routeName+".action", findActionByHTTPMethod(routeMethod))
+		if ess.IsStrEmpty(routeAction) && notToSkip {
+			err = fmt.Errorf("'%v.action' key is missing, it seems to be multiple HTTP methods", routeName)
+			return
+		}
 
-		for _, m := range strings.Split(routeMethod, ",") {
-			routes = append(routes, &Route{
-				Name:       routeName,
-				Path:       path.Join(prefixPath, routePath),
-				Method:     strings.TrimSpace(m),
-				Controller: routeController,
-				Action:     routeAction,
-				ParentName: parentName,
-			})
+		if notToSkip {
+			for _, m := range strings.Split(routeMethod, ",") {
+				routes = append(routes, &Route{
+					Name:       routeName,
+					Path:       routePath,
+					Method:     strings.TrimSpace(m),
+					Controller: routeController,
+					Action:     routeAction,
+					ParentName: parentName,
+				})
+			}
 		}
 
 		// loading child routes
@@ -694,4 +711,11 @@ func parseStaticSection(cfg *config.Config) (routes []*Route, err error) {
 	}
 
 	return
+}
+
+func findActionByHTTPMethod(method string) string {
+	if action, found := HTTPMethodActionMap[method]; found {
+		return action
+	}
+	return ""
 }
