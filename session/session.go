@@ -1,15 +1,10 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/session source code and usage is governed by a MIT style
+// go-aah/security source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package session
 
-// Version is aah framework session library version no.
-const (
-	Version = "0.2"
-
-	flashKeyPrefix = "_flash_"
-)
+const flashKeyPrefix = "_flash_"
 
 type (
 	// Session hold the information for particular HTTP request.

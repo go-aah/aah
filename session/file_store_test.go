@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/session source code and usage is governed by a MIT style
+// go-aah/security source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package session
@@ -22,15 +22,17 @@ func TestSessionFileStoreGet(t *testing.T) {
 	defer ess.DeleteFiles(filepath.Join(getTestdataPath(), "session"))
 
 	m := createTestManager(t, `
-  session {
-    store {
-      type = "file"
-      filepath = "testdata/session"
-    }
+	security {
+	  session {
+	    store {
+	      type = "file"
+	      filepath = "testdata/session"
+	    }
 
-    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
-    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
-  }
+	    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
+	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
+	  }
+	}
   `)
 
 	// Session ID is SWkGHtLck_sv7kWKDvvN8mwSq3CPfmkoRkz1POMtnx8
@@ -56,15 +58,17 @@ func TestSessionFileStoreGet(t *testing.T) {
 
 func TestSessionFileStoreSave(t *testing.T) {
 	testSessionStoreSave(t, `
-  session {
-    store {
-      type = "file"
-      filepath = "testdata/session"
-    }
+	security {
+	  session {
+	    store {
+	      type = "file"
+	      filepath = "testdata/session"
+	    }
 
-    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
-    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
-  }
+	    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
+	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
+	  }
+	}
   `)
 }
 
@@ -73,15 +77,17 @@ func TestSessionFileStoreDeleteAndCleanup(t *testing.T) {
 	defer ess.DeleteFiles(sessionDir)
 
 	m := createTestManager(t, `
-  session {
-    store {
-      type = "file"
-      filepath = "testdata/session"
-    }
+	security {
+	  session {
+	    store {
+	      type = "file"
+	      filepath = "testdata/session"
+	    }
 
-    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
-    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
-  }
+	    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
+	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
+	  }
+	}
   `)
 
 	// register custom type
