@@ -375,6 +375,22 @@ func TestRouterConfigNotExists(t *testing.T) {
 	assert.Nil(t, router.config)
 }
 
+func TestRouterNamespaceConfig(t *testing.T) {
+	wd, _ := os.Getwd()
+	appCfg, _ := config.ParseString("")
+	router := New(filepath.Join(wd, "testdata", "routes-namespace.conf"), appCfg)
+	err := router.Load()
+	assert.FailNowOnError(t, err, "")
+
+	routes := router.Domains["localhost"].routes
+	assert.NotNil(t, routes)
+	assert.Equal(t, 4, len(routes))
+	assert.Equal(t, "/v1/users", routes["create_user"].Path)
+	assert.Equal(t, "POST", routes["create_user"].Method)
+	assert.Equal(t, "/v1/users/:id/settings", routes["disable_user"].Path)
+	assert.Equal(t, "GET", routes["disable_user"].Method)
+}
+
 func createRouter(filename string) (*Router, error) {
 	wd, _ := os.Getwd()
 	appCfg, _ := config.ParseString(`routes {
