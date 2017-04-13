@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/session source code and usage is governed by a MIT style
+// go-aah/security source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package session
@@ -15,7 +15,13 @@ import (
 )
 
 func TestSessionEncodeAndDecodeNoSignEnc(t *testing.T) {
-	m := createTestManager(t, "session { }")
+	m := createTestManager(t, `
+		security {
+				session {
+
+			}
+		}
+		`)
 
 	// string value
 	name := "test-name"
@@ -52,11 +58,13 @@ func TestSessionEncodeAndDecodeNoSignEnc(t *testing.T) {
 
 func TestSessionEncodeAndDecodeWithSignEnc(t *testing.T) {
 	m := createTestManager(t, `
-  session {
-    ttl = "30m"
-    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
-    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
-  }
+	security {
+	  session {
+	    ttl = "30m"
+	    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
+	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
+	  }
+	}
   `)
 
 	session := m.NewSession()
@@ -90,11 +98,13 @@ func TestSessionRegisterStore(t *testing.T) {
 
 func TestSessionStoreNotExists(t *testing.T) {
 	cfg, _ := config.ParseString(`
-  session {
-    store {
-      type = "custom"
-    }
-  }
+	security {
+	  session {
+	    store {
+	      type = "custom"
+	    }
+	  }
+	}
   `)
 	m, err := NewManager(cfg)
 	assert.NotNil(t, err)
@@ -104,11 +114,13 @@ func TestSessionStoreNotExists(t *testing.T) {
 
 func TestSessionManagerMisc(t *testing.T) {
 	m := createTestManager(t, `
-  session {
-    ttl = "30m"
-    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
-    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
-  }
+	security {
+	  session {
+	    ttl = "30m"
+	    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
+	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
+	  }
+	}
   `)
 
 	session, err := m.DecodeToSession("MTQ5MTM2OTI4NXxpV1l2SHZrc0tZaXprdlA5Ql9ZS3RWOC1yOFVoWElack1VTGJIM01aV2dGdmJvamJOR2Rmc05KQW1SeHNTS2FoNEJLY2NFN2MyenVCbGllaU1NRFV88hn8MIb0L5HFU6GAkvwYjQ1rvmaL3lG3am2ZageHxQ0=")

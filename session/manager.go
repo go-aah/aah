@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/session source code and usage is governed by a MIT style
+// go-aah/security source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 // Package session provides HTTP state management library for aah framework.
@@ -117,7 +117,7 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 	m := &Manager{cfg: appCfg}
 
 	// Store
-	m.storeName = m.cfg.StringDefault("session.store.type", "cookie")
+	m.storeName = m.cfg.StringDefault("security.session.store.type", "cookie")
 	if m.storeName != "cookie" {
 		store, found := registerStores[m.storeName]
 		if !found {
@@ -130,7 +130,7 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 	}
 
 	// Sign key
-	signKey := m.cfg.StringDefault("session.sign_key", "")
+	signKey := m.cfg.StringDefault("security.session.sign_key", "")
 	m.isSignKey = !ess.IsStrEmpty(signKey)
 	if m.isSignKey {
 		m.signKey = []byte(signKey)
@@ -138,7 +138,7 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 
 	// Enc key
 	var err error
-	encKey := m.cfg.StringDefault("session.enc_key", "")
+	encKey := m.cfg.StringDefault("security.session.enc_key", "")
 	m.isEncKey = !ess.IsStrEmpty(encKey)
 	if m.isEncKey {
 		m.encKey = []byte(encKey)
@@ -147,19 +147,19 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 		}
 	}
 
-	m.idLength = m.cfg.IntDefault("session.id_length", 32)
+	m.idLength = m.cfg.IntDefault("security.session.id_length", 32)
 
 	// Cookie Options
 	m.Options = &Options{
-		Name:     m.cfg.StringDefault("session.prefix", "aah") + "_session",
-		Domain:   m.cfg.StringDefault("session.domain", ""),
-		Path:     m.cfg.StringDefault("session.path", "/"),
-		HTTPOnly: m.cfg.BoolDefault("session.http_only", true),
-		Secure:   m.cfg.BoolDefault("session.secure", true),
+		Name:     m.cfg.StringDefault("security.session.prefix", "aah") + "_session",
+		Domain:   m.cfg.StringDefault("security.session.domain", ""),
+		Path:     m.cfg.StringDefault("security.session.path", "/"),
+		HTTPOnly: m.cfg.BoolDefault("security.session.http_only", true),
+		Secure:   m.cfg.BoolDefault("security.session.secure", true),
 	}
 
 	// TTL value
-	ttl := m.cfg.StringDefault("session.ttl", "")
+	ttl := m.cfg.StringDefault("security.session.ttl", "")
 	if ess.IsStrEmpty(ttl) {
 		m.Options.MaxAge = 0
 	} else {
@@ -169,7 +169,7 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 	}
 
 	// Cleanup
-	if m.cleanupInterval, err = toSeconds(m.cfg.StringDefault("session.cleanup_interval", "30m")); err != nil {
+	if m.cleanupInterval, err = toSeconds(m.cfg.StringDefault("security.session.cleanup_interval", "30m")); err != nil {
 		return nil, err
 	}
 

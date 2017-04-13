@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/session source code and usage is governed by a MIT style
+// go-aah/security source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package session
@@ -20,10 +20,12 @@ func TestSessionGetCookie(t *testing.T) {
 	cookieValue := `aah_session=MTQ5MTI4ODQ3NHxHSThCS19qQ2FsbWJ2ZFc3aUNPSUM4RllPRVhTd1had19jS2w0MjE5WU1qLXRLempVeWNhLUFaejhvMEVyY1JmenBLSjRMYXNvd291elN5T2wtMy12dkhRWFlFRThDQmN2VTBnUWZ6UExLaW9zUFFZbnB1YV9VOXJORXNnLWtCT0pOQk5HYzhmVndpR3ZVNUZyRnh4Qy05cHdJOHRNYVJ4YXRGNEtObU94WG1iVnVZM1pJSkdERHpMbzN1VUpxVzgycnZUWWtlbnZUTWdxRDRCTEJEaEhsNHNnZmR3RFJrV1AyUkdfckNFa1lKb2d3VWR3Y0FzS1JtUllPTi0ydHQ3T2JDaUcxQ1JEQUVLbzNUNlRzM1VlUHVTYmtwWUItbFp5czRtd3FGb1VmcHFETkthR2dMWkpHRmM1a1NfZWxXLUljZUdMblJCYTZuTE12NkRvV0ZrQnVYMFFsdUM3clpFdzdUYUFIcFhSaUQ0bHZRS19ZRzExbzlLUTdCVTZnT2xNTmZIal9Oc2VOdWJtd3M3bnlibmlpLTJDRnRkQ1hyU2hYV0pienlTREl1QnRoZHNaQ3lvaGYzbWFCajA0Zi1XcFBwOXF3PT181BI_L4loH_Kcug8MEVnsFj4Ha25umy-8fI0atPVo04k=`
 
 	m := createTestManager(t, `
-  session {
-    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
-    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
-  }
+	security {
+	  session {
+	    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
+	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
+	  }
+	}
   `)
 
 	// register custom type
@@ -41,10 +43,12 @@ func TestSessionGetCookie(t *testing.T) {
 
 func TestSessionCookieStoreSave(t *testing.T) {
 	testSessionStoreSave(t, `
-  session {
-    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
-    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
-  }
+	security {
+	  session {
+	    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
+	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
+	  }
+	}
   `)
 }
 

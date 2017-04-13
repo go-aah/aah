@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/session source code and usage is governed by a MIT style
+// go-aah/security source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package session
@@ -28,7 +28,7 @@ type FileStore struct {
 
 // Init method initialize the file store using given application config.
 func (f *FileStore) Init(cfg *config.Config) error {
-	storePath, found := cfg.String("session.store.filepath")
+	storePath, found := cfg.String("security.session.store.filepath")
 	if !found {
 		return errors.New("session: file store storage path is not provided")
 	}
@@ -51,7 +51,7 @@ func (f *FileStore) Init(cfg *config.Config) error {
 	}
 
 	// session file prefix
-	f.filePrefix = cfg.StringDefault("session.name", "aah_session")
+	f.filePrefix = cfg.StringDefault("security.session.prefix", "aah") + "_session"
 	f.m = &sync.RWMutex{}
 
 	log.Infof("Session file store is initialized at path: %v", f.path)
