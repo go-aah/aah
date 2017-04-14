@@ -192,8 +192,8 @@ func Init(importPath string) {
 		logAsFatal(initLogs(AppConfig()))
 		logAsFatal(initI18n(appI18nDir()))
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
+		logAsFatal(initSecurity(appConfigDir(), AppConfig()))
 		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
-		logAsFatal(initSessionManager(AppConfig()))
 	}
 
 	appInitialized = true
@@ -297,26 +297,30 @@ func initAppVariables() error {
 }
 
 func initLogs(appCfg *config.Config) error {
-	if logCfg, found := appCfg.GetSubConfig("log"); found {
-		receiver := logCfg.StringDefault("receiver", "")
-
-		if strings.EqualFold(receiver, "file") {
-			file := logCfg.StringDefault("file", "")
-			if ess.IsStrEmpty(file) {
-				logFileName := strings.Replace(AppName(), " ", "-", -1)
-				logCfg.SetString("file", filepath.Join(appLogsDir(), logFileName+".log"))
-			} else if !filepath.IsAbs(file) {
-				logCfg.SetString("file", filepath.Join(appLogsDir(), file))
-			}
-		}
-
-		logger, err := log.Newc(logCfg)
-		if err != nil {
-			return err
-		}
-
-		log.SetOutput(logger)
+	logCfg, found := appCfg.GetSubConfig("log")
+	if !found {
+		log.Debug("Section 'log {...}' configuration not exists, move on.")
+		return nil
 	}
+
+	receiver := logCfg.StringDefault("receiver", "")
+
+	if strings.EqualFold(receiver, "file") {
+		file := logCfg.StringDefault("file", "")
+		if ess.IsStrEmpty(file) {
+			logFileName := strings.Replace(AppName(), " ", "-", -1)
+			logCfg.SetString("file", filepath.Join(appLogsDir(), logFileName+".log"))
+		} else if !filepath.IsAbs(file) {
+			logCfg.SetString("file", filepath.Join(appLogsDir(), file))
+		}
+	}
+
+	logger, err := log.Newc(logCfg)
+	if err != nil {
+		return err
+	}
+
+	log.SetOutput(logger)
 
 	return nil
 }

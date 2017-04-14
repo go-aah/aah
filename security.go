@@ -5,22 +5,31 @@
 package aah
 
 import (
+	"path/filepath"
+
 	"aahframework.org/config.v0"
-	"aahframework.org/session.v0"
+	"aahframework.org/security.v0"
+	"aahframework.org/security.v0/session"
 )
 
 const keySessionValues = "SessionValues"
 
-var appSessionManager *session.Manager
+var appSecurity *security.Security
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Global methods
 //___________________________________
 
+// AppSecurity method returns the application security instance,
+// which manages the Session, CORS, CSRF, Security Headers, etc.
+func AppSecurity() *security.Security {
+	return appSecurity
+}
+
 // AppSessionManager method returns the application session manager.
 // By default session is stateless.
 func AppSessionManager() *session.Manager {
-	return appSessionManager
+	return AppSecurity().SessionManager
 }
 
 // AddSessionStore method allows you to add custom session store which
@@ -34,15 +43,18 @@ func AddSessionStore(name string, store session.Storer) error {
 // Unexported methods
 //___________________________________
 
-func initSessionManager(cfg *config.Config) error {
+func initSecurity(cfgDir string, appCfg *config.Config) error {
 	var err error
-	if appSessionManager, err = session.NewManager(cfg); err != nil {
+	configPath := filepath.Join(cfgDir, "security.conf")
+	if appSecurity, err = security.New(configPath, appCfg); err != nil {
 		return err
 	}
 
 	// Based on aah server SSL configuration `http.Cookie.Secure` value is set, even
-	// though it's true in aah.conf at `session.secure = true`.
-	appSessionManager.Options.Secure = AppIsSSLEnabled()
+	// though it's true in aah.conf at `security.session.secure = true`.
+	if AppSessionManager() != nil {
+		AppSessionManager().Options.Secure = AppIsSSLEnabled()
+	}
 
 	return nil
 }

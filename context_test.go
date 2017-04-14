@@ -123,7 +123,7 @@ func TestContextSession(t *testing.T) {
 	err := initConfig(cfgDir)
 	assert.Nil(t, err)
 
-	err = initSessionManager(AppConfig())
+	err = initSecurity(cfgDir, AppConfig())
 	assert.Nil(t, err)
 
 	ctx := &Context{viewArgs: make(map[string]interface{})}
