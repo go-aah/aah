@@ -77,7 +77,8 @@ func TestContextViewArgs(t *testing.T) {
 }
 
 func TestContextMsg(t *testing.T) {
-	err := initI18n(getTestdataPath())
+	i18nDir := filepath.Join(getTestdataPath(), appI18nDir())
+	err := initI18n(i18nDir)
 	assert.Nil(t, err)
 	assert.NotNil(t, AppI18n())
 
@@ -88,12 +89,12 @@ func TestContextMsg(t *testing.T) {
 	msg := ctx.Msg("label.pages.site.get_involved.title")
 	assert.Equal(t, "", msg)
 
-	msg = ctx.Msgl(ahttp.ToLocale(&ahttp.AcceptSpec{Value: "en-US", Raw: "en-US"}), "label.pages.site.get_involved.title")
-	assert.Equal(t, "Get Involved - aah web framework for Go", msg)
+	msg = ctx.Msgl(ahttp.ToLocale(&ahttp.AcceptSpec{Value: "en", Raw: "en"}), "label.pages.site.get_involved.title")
+	assert.Equal(t, "en: Get Involved - aah web framework for Go", msg)
 
 	ctx.Req = getAahRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", "en-us;q=0.0,en;q=0.7,en-gb;q=0.8")
 	msg = ctx.Msg("label.pages.site.get_involved.title")
-	assert.Equal(t, "Get Involved - aah web framework for Go", msg)
+	assert.Equal(t, "en: Get Involved - aah web framework for Go", msg)
 
 	ctx.Reset()
 }

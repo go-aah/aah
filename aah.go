@@ -255,14 +255,16 @@ func initAppVariables() error {
 	var err error
 	cfg := AppConfig()
 
-	appName = cfg.StringDefault("name", filepath.Base(appBaseDir))
+	appName = cfg.StringDefault("name", filepath.Base(AppBaseDir()))
 
 	appProfile = cfg.StringDefault("env.active", appDefaultProfile)
-	logAsFatal(SetAppProfile(AppProfile()))
+	if err = SetAppProfile(AppProfile()); err != nil {
+		return err
+	}
 
 	readTimeout := cfg.StringDefault("server.timeout.read", "90s")
 	writeTimeout := cfg.StringDefault("server.timeout.write", "90s")
-	if !(strings.HasSuffix(readTimeout, "s") || strings.HasSuffix(readTimeout, "m")) &&
+	if !(strings.HasSuffix(readTimeout, "s") || strings.HasSuffix(readTimeout, "m")) ||
 		!(strings.HasSuffix(writeTimeout, "s") || strings.HasSuffix(writeTimeout, "m")) {
 		return errors.New("'server.timeout.{read|write}' value is not a valid time unit")
 	}
