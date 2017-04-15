@@ -133,11 +133,13 @@ func (st *Stacktrace) Parse() {
 
 			if !isCreatedBy {
 				rparen := strings.LastIndex(sline, "(")
-				comma := strings.IndexByte(sline[rparen:], ',')
-				if comma == -1 {
-					sline = sline[:rparen+1] + ")"
-				} else {
-					sline = sline[:rparen+1] + " ... )"
+				if rparen != -1 {
+					comma := strings.IndexByte(sline[rparen:], ',')
+					if comma == -1 {
+						sline = sline[:rparen+1] + ")"
+					} else {
+						sline = sline[:rparen+1] + " ... )"
+					}
 				}
 			}
 
