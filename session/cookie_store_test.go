@@ -31,13 +31,12 @@ func TestSessionGetCookie(t *testing.T) {
 	// register custom type
 	gob.Register(map[interface{}]interface{}{})
 
-	header := http.Header{}
-	header.Add(ahttp.HeaderCookie, cookieValue)
-	req := &http.Request{
-		Header: header,
-	}
-
+	req := &http.Request{Header: http.Header{}}
 	session := m.GetSession(req)
+	assert.Nil(t, session)
+
+	req.Header.Add(ahttp.HeaderCookie, cookieValue)
+	session = m.GetSession(req)
 	assertSessionValue(t, session)
 }
 
@@ -89,4 +88,20 @@ func testSessionStoreSave(t *testing.T, cfgStr string) {
 	assert.Equal(t, 364534.4637, resultSession.GetFlash("my-2"))
 	assert.Nil(t, resultSession.GetFlash("my-1"))
 	assert.Nil(t, resultSession.GetFlash("my-2"))
+}
+
+func TestSessionNewCookie(t *testing.T) {
+	m := createTestManager(t, `
+	security {
+	  session {
+	    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
+	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
+	  }
+	}
+  `)
+
+	opts := *m.Options
+	opts.MaxAge = 3600
+	cookie := newCookie("This is my cookie for maxage", &opts)
+	assert.Equal(t, 3600, cookie.MaxAge)
 }

@@ -11,7 +11,6 @@
 //  - Extensible session store interface
 //  - Signed session data
 //  - Encrypted session data
-//  - Base64 encoded
 //
 // Non-cookie store session data is maintained via store interface. Only Session ID
 // is transmitted over the wire in the Cookie. Please refer `session.FileStore` for
@@ -69,6 +68,7 @@ type (
 		cfg     *config.Config
 		Options *Options
 
+		mode            string
 		store           Storer
 		storeName       string
 		isSignKey       bool
@@ -115,6 +115,9 @@ func AddStore(name string, store Storer) error {
 // configuration from aah.conf section `session { ... }`.
 func NewManager(appCfg *config.Config) (*Manager, error) {
 	m := &Manager{cfg: appCfg}
+
+	// Session mode
+	m.mode = m.cfg.StringDefault("security.session.mode", "stateless")
 
 	// Store
 	m.storeName = m.cfg.StringDefault("security.session.store.type", "cookie")
@@ -177,7 +180,7 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 	m.maxCookieSize = 4096
 
 	// Schedule cleanup
-	if !m.isCookieStore() {
+	if !m.IsCookieStore() {
 		time.AfterFunc(time.Duration(m.cleanupInterval)*time.Second, func() {
 			log.Info("Running expired session cleanup at %v", time.Now())
 			m.store.Cleanup(m)
@@ -206,7 +209,7 @@ func (m *Manager) GetSession(r *http.Request) *Session {
 	}
 
 	encodedStr := cookie.Value
-	if !m.isCookieStore() {
+	if !m.IsCookieStore() {
 		if id, er := m.DecodeToString(encodedStr); er == nil {
 			encodedStr = m.store.Read(id)
 		} else {
@@ -224,7 +227,7 @@ func (m *Manager) GetSession(r *http.Request) *Session {
 		log.Error(err)
 
 		// clean expried session
-		if err == ErrCookieTimestampIsExpired && !m.isCookieStore() {
+		if err == ErrCookieTimestampIsExpired && !m.IsCookieStore() {
 			if id, err := m.DecodeToString(cookie.Value); err == nil {
 				log.Info("Cleaning expried session: %v", id)
 				_ = m.store.Delete(id)
@@ -249,7 +252,7 @@ func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
 		err        error
 	)
 
-	if m.isCookieStore() {
+	if m.IsCookieStore() {
 		encodedStr, err = m.Encode(m.Options.Name, s)
 	} else {
 		encodedStr, err = m.Encode(m.Options.Name, s.ID)
@@ -259,7 +262,7 @@ func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
 		return err
 	}
 
-	if !m.isCookieStore() {
+	if !m.IsCookieStore() {
 		if encoded, err := m.Encode(m.Options.Name, s); err == nil {
 			if err = m.store.Save(s.ID, encoded); err != nil {
 				log.Error(err) // store save had error, still we log and go forward
@@ -275,7 +278,7 @@ func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
 // DeleteSession method deletes the session from store and sets deletion
 // for browser cookie.
 func (m *Manager) DeleteSession(w http.ResponseWriter, s *Session) error {
-	if !m.isCookieStore() {
+	if !m.IsCookieStore() {
 		if err := m.store.Delete(s.ID); err != nil {
 			log.Error(err) // store delete had error, still we log and go forward
 		}
@@ -418,11 +421,12 @@ func (m *Manager) Decode(name, value string, dst interface{}) error {
 	return decodeGob(dst, b)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
+// IsStateful methdo returns true if session mode is stateful otherwise false.
+func (m *Manager) IsStateful() bool {
+	return m.mode == "stateful"
+}
 
-// isCookieStore method returns true if store is cookie otherwise false.
-func (m *Manager) isCookieStore() bool {
+// IsCookieStore method returns true if session store is cookie otherwise false.
+func (m *Manager) IsCookieStore() bool {
 	return m.storeName == "cookie"
 }

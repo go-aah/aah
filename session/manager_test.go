@@ -27,6 +27,9 @@ func TestSessionEncodeAndDecodeNoSignEnc(t *testing.T) {
 	name := "test-name"
 	value := "This is testing of encode and decode value without sign and encryption"
 
+	assert.False(t, m.IsStateful())
+	assert.True(t, m.IsCookieStore())
+
 	encodedStr, err := m.Encode(name, value)
 	assert.Nil(t, err)
 	assert.False(t, encodedStr == value)
