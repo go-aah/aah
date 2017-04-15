@@ -2,6 +2,8 @@
 // go-aah/security source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
+// Package security houses all the application security implementation (Session,
+// Basic Auth, Token Auth, CORS, CSRF, Security Headers, etc.) by aah framework.
 package security
 
 import (
@@ -14,7 +16,7 @@ import (
 )
 
 // Version is aah framework security library version no.
-const Version = "0.3"
+const Version = "0.3.1"
 
 // Security is holds the security management implementation.
 type Security struct {
