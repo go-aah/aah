@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
@@ -41,7 +40,6 @@ type (
 	engine struct {
 		isRequestIDEnabled bool
 		requestIDHeader    string
-		isSessionStateless bool
 		isGzipEnabled      bool
 		gzipLevel          int
 		ctxPool            *pool.Pool
@@ -213,7 +211,7 @@ func (e *engine) handleRoute(ctx *Context) routeStatus {
 
 // loadSession method loads session from request for `stateful` session.
 func (e *engine) loadSession(ctx *Context) {
-	if !e.isSessionStateless {
+	if AppSessionManager().IsStateful() {
 		ctx.session = AppSessionManager().GetSession(ctx.Req.Raw)
 		if ctx.session != nil {
 			ctx.AddViewArg(keySessionValues, ctx.session)
@@ -324,7 +322,7 @@ func (e *engine) setCookies(ctx *Context) {
 		http.SetCookie(ctx.Res, c)
 	}
 
-	if !e.isSessionStateless && ctx.session != nil {
+	if AppSessionManager().IsStateful() && ctx.session != nil {
 		if err := AppSessionManager().SaveSession(ctx.Res, ctx.session); err != nil {
 			log.Error(err)
 		}
@@ -378,12 +376,9 @@ func newEngine(cfg *config.Config) *engine {
 		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", gzipLevel))
 	}
 
-	sessionStateless := strings.ToLower(cfg.StringDefault("session.mode", "stateless")) == "stateless"
-
 	return &engine{
 		isRequestIDEnabled: cfg.BoolDefault("request.id.enable", true),
 		requestIDHeader:    cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
-		isSessionStateless: sessionStateless,
 		isGzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
 		gzipLevel:          gzipLevel,
 		ctxPool: pool.NewPool(

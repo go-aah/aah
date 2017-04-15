@@ -26,12 +26,17 @@ func Start() {
 		log.Fatal("aah application is not initialized, call `aah.Init` before the `aah.Start`.")
 	}
 
+	sessionMode := "stateless"
+	if AppSessionManager().IsStateful() {
+		sessionMode = "stateful"
+	}
+
 	log.Infof("App Name: %v", AppName())
 	log.Infof("App Version: %v", AppBuildInfo().Version)
 	log.Infof("App Build Date: %v", AppBuildInfo().Date)
 	log.Infof("App Profile: %v", AppProfile())
 	log.Infof("App TLS/SSL Enabled: %v", AppIsSSLEnabled())
-	log.Infof("App Session Mode: %v", AppConfig().StringDefault("session.mode", "stateless"))
+	log.Infof("App Session Mode: %v", sessionMode)
 	log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
 	log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
 

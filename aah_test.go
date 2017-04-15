@@ -81,3 +81,13 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.Equal(t, "'request.multipart_size' value is not a valid size unit", err.Error())
 	AppConfig().SetString("request.multipart_size", "12mb")
 }
+
+func TestAahRecover(t *testing.T) {
+	defer aahRecover()
+
+	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
+	err := initConfig(cfgDir)
+	assert.Nil(t, err)
+
+	panic("this is recover test")
+}
