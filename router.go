@@ -63,7 +63,7 @@ func getRouteNameAndAnchorLink(routeName string) (string, string) {
 }
 
 func composeRouteURL(domain *router.Domain, routePath, anchorLink string) string {
-	if ess.IsStrEmpty(domain.Port) {
+	if ess.IsStrEmpty(domain.Port) || domain.Port == "80" {
 		routePath = fmt.Sprintf("//%s%s", domain.Host, routePath)
 	} else {
 		routePath = fmt.Sprintf("//%s:%s%s", domain.Host, domain.Port, routePath)
@@ -211,7 +211,7 @@ func handleRouteNotFound(ctx *Context, domain *router.Domain, route *router.Rout
 // Mapped to Go template func.
 func tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL {
 	if len(args) == 0 {
-		log.Errorf("route not found: %v", args)
+		log.Errorf("router: template 'rurl' - route name is empty: %v", args)
 		return template.URL("#")
 	}
 

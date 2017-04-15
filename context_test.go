@@ -6,7 +6,7 @@ package aah
 
 import (
 	"net/http"
-	"net/url"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -14,7 +14,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
-	router "aahframework.org/router.v0"
+	"aahframework.org/router.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -53,7 +53,7 @@ func TestContextReverseURL(t *testing.T) {
 	assert.NotNil(t, AppRouter())
 
 	ctx := &Context{
-		Req: getAahRequest("localhost:8080", "GET", "/doc/v0.3/mydoc.html", ""),
+		Req: getAahRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", ""),
 	}
 
 	reverseURL := ctx.ReverseURL("version_home", "v0.1")
@@ -77,23 +77,24 @@ func TestContextViewArgs(t *testing.T) {
 }
 
 func TestContextMsg(t *testing.T) {
-	err := initI18n(getTestdataPath())
+	i18nDir := filepath.Join(getTestdataPath(), appI18nDir())
+	err := initI18n(i18nDir)
 	assert.Nil(t, err)
 	assert.NotNil(t, AppI18n())
 
 	ctx := &Context{
-		Req: getAahRequest("localhost:8080", "GET", "/doc/v0.3/mydoc.html", "en-us;q=0.0,en;q=0.7, da, en-gb;q=0.8"),
+		Req: getAahRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", "en-us;q=0.0,en;q=0.7, da, en-gb;q=0.8"),
 	}
 
 	msg := ctx.Msg("label.pages.site.get_involved.title")
 	assert.Equal(t, "", msg)
 
-	msg = ctx.Msgl(ahttp.ToLocale(&ahttp.AcceptSpec{Value: "en-US", Raw: "en-US"}), "label.pages.site.get_involved.title")
-	assert.Equal(t, "Get Involved - aah web framework for Go", msg)
+	msg = ctx.Msgl(ahttp.ToLocale(&ahttp.AcceptSpec{Value: "en", Raw: "en"}), "label.pages.site.get_involved.title")
+	assert.Equal(t, "en: Get Involved - aah web framework for Go", msg)
 
-	ctx.Req = getAahRequest("localhost:8080", "GET", "/doc/v0.3/mydoc.html", "en-us;q=0.0,en;q=0.7,en-gb;q=0.8")
+	ctx.Req = getAahRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", "en-us;q=0.0,en;q=0.7,en-gb;q=0.8")
 	msg = ctx.Msg("label.pages.site.get_involved.title")
-	assert.Equal(t, "Get Involved - aah web framework for Go", msg)
+	assert.Equal(t, "en: Get Involved - aah web framework for Go", msg)
 
 	ctx.Reset()
 }
@@ -116,6 +117,40 @@ func TestContextSetTarget(t *testing.T) {
 
 	err3 := ctx.setTarget(&router.Route{Controller: "Level3", Action: "NoAction"})
 	assert.Equal(t, errTargetNotFound, err3)
+}
+
+func TestContextSession(t *testing.T) {
+	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
+	err := initConfig(cfgDir)
+	assert.Nil(t, err)
+
+	err = initSecurity(cfgDir, AppConfig())
+	assert.Nil(t, err)
+
+	ctx := &Context{viewArgs: make(map[string]interface{})}
+	s1 := ctx.Session()
+	assert.NotNil(t, s1)
+	assert.True(t, s1.IsNew)
+	assert.NotNil(t, s1.ID)
+}
+
+func TestContextCookie(t *testing.T) {
+	cookieValue := `aah_session=MTQ5MTI4ODQ3NHxHSThCS19qQ2FsbWJ2ZFc3aUNPSUM4RllPRVhTd1had19jS2w0MjE5WU1qLXRLempVeWNhLUFaejhvMEVyY1JmenBLSjRMYXNvd291elN5T2wtMy12dkhRWFlFRThDQmN2VTBnUWZ6UExLaW9zUFFZbnB1YV9VOXJORXNnLWtCT0pOQk5HYzhmVndpR3ZVNUZyRnh4Qy05cHdJOHRNYVJ4YXRGNEtObU94WG1iVnVZM1pJSkdERHpMbzN1VUpxVzgycnZUWWtlbnZUTWdxRDRCTEJEaEhsNHNnZmR3RFJrV1AyUkdfckNFa1lKb2d3VWR3Y0FzS1JtUllPTi0ydHQ3T2JDaUcxQ1JEQUVLbzNUNlRzM1VlUHVTYmtwWUItbFp5czRtd3FGb1VmcHFETkthR2dMWkpHRmM1a1NfZWxXLUljZUdMblJCYTZuTE12NkRvV0ZrQnVYMFFsdUM3clpFdzdUYUFIcFhSaUQ0bHZRS19ZRzExbzlLUTdCVTZnT2xNTmZIal9Oc2VOdWJtd3M3bnlibmlpLTJDRnRkQ1hyU2hYV0pienlTREl1QnRoZHNaQ3lvaGYzbWFCajA0Zi1XcFBwOXF3PT181BI_L4loH_Kcug8MEVnsFj4Ha25umy-8fI0atPVo04k=`
+
+	req, _ := http.NewRequest("GET", "http://localhost:8080/user/registration", nil)
+	req.Header.Add(ahttp.HeaderCookie, cookieValue)
+
+	aahReq := ahttp.ParseRequest(req, &ahttp.Request{})
+	ctx := &Context{Req: aahReq}
+
+	v1, err := ctx.Cookie("aah_session")
+	assert.Nil(t, err)
+	assert.NotNil(t, v1)
+	assert.Equal(t, "aah_session", v1.Name)
+
+	v2 := ctx.Cookies()
+	assert.NotNil(t, v1)
+	assert.True(t, len(v2) == 1)
 }
 
 func TestContextAbort(t *testing.T) {
@@ -142,6 +177,63 @@ func TestContextEmbeddedAndController(t *testing.T) {
 	assertEmbeddedIndexes(t, Level4{}, [][]int{{0, 0, 0, 0}})
 	assertEmbeddedIndexes(t, Path1{}, [][]int{{1}})
 	assertEmbeddedIndexes(t, Path2{}, [][]int{{0, 0}, {1, 1}, {2, 0, 0, 0, 0}})
+}
+
+func TestContextSetURL(t *testing.T) {
+	ctx := &Context{
+		Req: getAahRequest("POST", "http://localhost:8080/users/edit", ""),
+	}
+
+	assert.Equal(t, "localhost:8080", ctx.Req.Host)
+	assert.Equal(t, "POST", ctx.Req.Method)
+	assert.Equal(t, "/users/edit", ctx.Req.Path)
+	assert.False(t, ctx.decorated)
+
+	// No effects, since decorated is false
+	ctx.SetURL("http://status.localhost:8080/maintenance")
+	assert.Equal(t, "/users/edit", ctx.Req.Path)
+	assert.Equal(t, "localhost:8080", ctx.Req.Host)
+
+	// now it affects
+	ctx.decorated = true
+	ctx.SetURL("http://status.localhost:8080/maintenance")
+	assert.True(t, ctx.decorated)
+	assert.Equal(t, "status.localhost:8080", ctx.Req.Host)
+	assert.Equal(t, "POST", ctx.Req.Method) // no change expected
+	assert.Equal(t, "/maintenance", ctx.Req.Path)
+
+	// incorrect URL
+	ctx.SetURL("http://status. localhost :8080//maintenance")
+	assert.Equal(t, "status.localhost:8080", ctx.Req.Host)
+	assert.Equal(t, "POST", ctx.Req.Method) // no change expected
+	assert.Equal(t, "/maintenance", ctx.Req.Path)
+}
+
+func TestContextSetMethod(t *testing.T) {
+	ctx := &Context{
+		Req: getAahRequest("POST", "http://localhost:8080/users/edit", ""),
+	}
+
+	assert.Equal(t, "localhost:8080", ctx.Req.Host)
+	assert.Equal(t, "POST", ctx.Req.Method)
+	assert.Equal(t, "/users/edit", ctx.Req.Path)
+	assert.False(t, ctx.decorated)
+
+	// No effects, since decorated is false
+	ctx.SetMethod("GET")
+	assert.Equal(t, "POST", ctx.Req.Method)
+
+	// now it affects
+	ctx.decorated = true
+	ctx.SetMethod("get")
+	assert.Equal(t, "GET", ctx.Req.Method)
+	assert.Equal(t, "localhost:8080", ctx.Req.Host) // no change expected
+	assert.Equal(t, "/users/edit", ctx.Req.Path)    // no change expected
+	assert.True(t, ctx.decorated)
+
+	// invalid method
+	ctx.SetMethod("nomethod")
+	assert.Equal(t, "GET", ctx.Req.Method)
 }
 
 func assertEmbeddedIndexes(t *testing.T, c interface{}, expected [][]int) {
@@ -182,17 +274,9 @@ func addToCRegistry() {
 	AddController((*Path2)(nil), nil)
 }
 
-func getAahRequest(host, method, urlStr, al string) *ahttp.Request {
-	reqURL, _ := url.Parse(urlStr)
-
-	rawReq := &http.Request{
-		Host:   host,
-		URL:    reqURL,
-		Method: method,
-		Header: http.Header{},
-	}
+func getAahRequest(method, target, al string) *ahttp.Request {
+	rawReq := httptest.NewRequest(method, target, nil)
 	rawReq.Header.Add(ahttp.HeaderAcceptLanguage, al)
-
 	return ahttp.ParseRequest(rawReq, &ahttp.Request{})
 }
 

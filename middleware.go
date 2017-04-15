@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"net/http"
 	"reflect"
 
 	"aahframework.org/log.v0"
@@ -33,7 +34,13 @@ type (
 // Middlewares method adds given middleware into middleware stack
 func Middlewares(middlewares ...MiddlewareFunc) {
 	mwStack = mwStack[:len(mwStack)-2]
-	mwStack = append(mwStack, middlewares...)
+
+	for _, m := range middlewares {
+		if m != nil {
+			mwStack = append(mwStack, m)
+		}
+	}
+
 	mwStack = append(
 		mwStack,
 		interceptorMiddleware,
@@ -41,6 +48,30 @@ func Middlewares(middlewares ...MiddlewareFunc) {
 	)
 
 	invalidateMwChain()
+}
+
+// ToMiddleware method expands the possibilities. It helps Golang community to
+// convert the third-party or your own net/http middleware into `aah.MiddlewareFunc`
+//
+// You can register below handler types:
+// 1) aah.ToMiddleware(h http.Handler)
+// 2) aah.ToMiddleware(func(w http.ResponseWriter, r *http.Request))
+func ToMiddleware(handler interface{}) MiddlewareFunc {
+	switch handler.(type) {
+	case MiddlewareFunc:
+		return handler.(MiddlewareFunc)
+	case http.Handler:
+		h := handler.(http.Handler)
+		return func(ctx *Context, m *Middleware) {
+			h.ServeHTTP(ctx.Res, ctx.Req.Raw)
+			m.Next(ctx)
+		}
+	case func(http.ResponseWriter, *http.Request):
+		return ToMiddleware(http.HandlerFunc(handler.(func(http.ResponseWriter, *http.Request))))
+	default:
+		log.Errorf("Not a vaild handler: %s", funcName(handler))
+		return nil
+	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -182,7 +213,6 @@ func invalidateMwChain() {
 
 func init() {
 	mwStack = append(mwStack,
-		paramsMiddleware,
 		interceptorMiddleware,
 		actionMiddleware,
 	)

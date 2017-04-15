@@ -19,10 +19,10 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
-func TestStatusCodes(t *testing.T) {
+func TestReplyStatusCodes(t *testing.T) {
 	re := NewReply()
 
-	assert.False(t, re.IsStatusSet())
+	assert.Equal(t, http.StatusOK, re.Code)
 
 	re.Ok()
 	assert.Equal(t, http.StatusOK, re.Code)
@@ -38,6 +38,9 @@ func TestStatusCodes(t *testing.T) {
 
 	re.MovedPermanently()
 	assert.Equal(t, http.StatusMovedPermanently, re.Code)
+
+	re.Found()
+	assert.Equal(t, http.StatusFound, re.Code)
 
 	re.TemporaryRedirect()
 	assert.Equal(t, http.StatusTemporaryRedirect, re.Code)
@@ -67,7 +70,7 @@ func TestStatusCodes(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, re.Code)
 }
 
-func TestTextReply(t *testing.T) {
+func TestReplyText(t *testing.T) {
 	buf, re1 := getBufferAndReply()
 
 	re1.Text("welcome to %s %s", "aah", "framework")
@@ -87,7 +90,7 @@ func TestTextReply(t *testing.T) {
 	assert.Equal(t, "welcome to aah framework", buf.String())
 }
 
-func TestJSONReply(t *testing.T) {
+func TestReplyJSON(t *testing.T) {
 	buf, re1 := getBufferAndReply()
 	appConfig = getReplyRenderCfg()
 
@@ -128,7 +131,7 @@ func TestJSONReply(t *testing.T) {
 		buf.String())
 }
 
-func TestJSONPReply(t *testing.T) {
+func TestReplyJSONP(t *testing.T) {
 	buf, re1 := getBufferAndReply()
 	appConfig = getReplyRenderCfg()
 
@@ -166,7 +169,7 @@ func TestJSONPReply(t *testing.T) {
 		buf.String())
 }
 
-func TestXMLReply(t *testing.T) {
+func TestReplyXML(t *testing.T) {
 	buf, re1 := getBufferAndReply()
 	appConfig = getReplyRenderCfg()
 
@@ -203,12 +206,12 @@ func TestXMLReply(t *testing.T) {
 		buf.String())
 }
 
-func TestBytesReply(t *testing.T) {
+func TestReplyBytes(t *testing.T) {
 	buf, re1 := getBufferAndReply()
 	re1.Bytes(ahttp.ContentTypeXML.Raw(),
 		[]byte(`<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`))
 
-	assert.False(t, re1.IsStatusSet())
+	assert.Equal(t, http.StatusOK, re1.Code)
 
 	// Just apply it again, no reason!
 	re1.Header(ahttp.HeaderContentType, ahttp.ContentTypeXML.Raw())
@@ -219,13 +222,13 @@ func TestBytesReply(t *testing.T) {
 		buf.String())
 }
 
-func TestAttachmentFileReply(t *testing.T) {
+func TestReplyAttachmentFile(t *testing.T) {
 	f1, _ := os.Open(getReplyFilepath("file1.txt"))
 	defer ess.CloseQuietly(f1)
 
 	buf, re1 := getBufferAndReply()
 	re1.File("sample.txt", f1)
-	assert.False(t, re1.IsStatusSet())
+	assert.Equal(t, http.StatusOK, re1.Code)
 
 	err := re1.Rdr.Render(buf)
 	assert.FailOnError(t, err, "")
@@ -249,7 +252,7 @@ Each incoming request passes through a pre-defined list of steps
 
 }
 
-func TestHTMLReply(t *testing.T) {
+func TestReplyHTML(t *testing.T) {
 	tmplStr := `
 	{{ define "title" }}<title>This is test title</title>{{ end }}
 	{{ define "body" }}<p>This is test body</p>{{ end }}
@@ -287,6 +290,55 @@ func TestHTMLReply(t *testing.T) {
 	err = re1.Rdr.Render(buf)
 	assert.NotNil(t, err)
 	assert.Equal(t, "template is nil", err.Error())
+
+	// HTMLlf
+	relf := NewReply()
+	relf.HTMLlf("docs.html", "Filename.html", nil)
+	assert.Equal(t, "text/html; charset=utf-8", relf.ContType)
+
+	htmllf := relf.Rdr.(*HTML)
+	assert.Equal(t, "docs.html", htmllf.Layout)
+	assert.Equal(t, "Filename.html", htmllf.Filename)
+}
+
+func TestReplyRedirect(t *testing.T) {
+	redirect1 := NewReply()
+	redirect1.Redirect("/go-to-see.page")
+	assert.Equal(t, http.StatusFound, redirect1.Code)
+	assert.True(t, redirect1.redirect)
+	assert.Equal(t, "/go-to-see.page", redirect1.redirectURL)
+
+	redirect2 := NewReply()
+	redirect2.Redirects("/go-to-see-gone-premanent.page", http.StatusMovedPermanently)
+	assert.Equal(t, http.StatusMovedPermanently, redirect2.Code)
+	assert.True(t, redirect2.redirect)
+	assert.Equal(t, "/go-to-see-gone-premanent.page", redirect2.redirectURL)
+}
+
+func TestReplyDone(t *testing.T) {
+	re1 := NewReply()
+
+	assert.False(t, re1.done)
+	re1.Done()
+	assert.True(t, re1.done)
+}
+
+func TestReplyCookie(t *testing.T) {
+	re1 := NewReply()
+
+	assert.Nil(t, re1.cookies)
+	re1.Cookie(&http.Cookie{
+		Name:     "aah-test-cookie",
+		Value:    "This is reply cookie interface test value",
+		Path:     "/",
+		Domain:   "*.sample.com",
+		HttpOnly: true,
+	})
+
+	assert.NotNil(t, re1.cookies)
+
+	cookie := re1.cookies[0]
+	assert.Equal(t, "aah-test-cookie", cookie.Name)
 }
 
 func getReplyRenderCfg() *config.Config {

@@ -116,27 +116,98 @@ func TestOnStartEvent(t *testing.T) {
 	AppEventStore().Unsubscribe(EventOnStart, onStartFunc3)
 }
 
+func TestOnShutdownEvent(t *testing.T) {
+	onShutdownFunc1 := func(e *Event) {
+		fmt.Println("onShutdownFunc1:", e)
+	}
+
+	onShutdownFunc2 := func(e *Event) {
+		fmt.Println("onShutdownFunc2:", e)
+	}
+
+	onShutdownFunc3 := func(e *Event) {
+		fmt.Println("onShutdownFunc3:", e)
+	}
+
+	assert.False(t, AppEventStore().IsEventExists(EventOnShutdown))
+
+	OnShutdown(onShutdownFunc1)
+	assert.True(t, AppEventStore().IsEventExists(EventOnShutdown))
+	assert.Equal(t, 1, AppEventStore().SubscriberCount(EventOnShutdown))
+
+	OnShutdown(onShutdownFunc3, 4)
+	assert.Equal(t, 2, AppEventStore().SubscriberCount(EventOnShutdown))
+
+	OnShutdown(onShutdownFunc2, 2)
+	assert.Equal(t, 3, AppEventStore().SubscriberCount(EventOnShutdown))
+
+	// publish 1
+	AppEventStore().sortAndPublishSync(&Event{Name: EventOnShutdown, Data: "On shutdown event published 1"})
+
+	AppEventStore().Unsubscribe(EventOnShutdown, onShutdownFunc2)
+	assert.Equal(t, 2, AppEventStore().SubscriberCount(EventOnShutdown))
+
+	// publish 2
+	PublishEventSync(EventOnShutdown, "On shutdown event published 2")
+
+	AppEventStore().Unsubscribe(EventOnShutdown, onShutdownFunc1)
+	assert.Equal(t, 1, AppEventStore().SubscriberCount(EventOnShutdown))
+
+	// publish 3
+	AppEventStore().sortAndPublishSync(&Event{Name: EventOnShutdown, Data: "On shutdown event published 3"})
+	PublishEventSync(EventOnShutdown, "On shutdown not gonna fire")
+
+	// event not exists
+	AppEventStore().Unsubscribe(EventOnShutdown, onShutdownFunc1)
+
+	AppEventStore().Unsubscribe(EventOnShutdown, onShutdownFunc3)
+	assert.Equal(t, 0, AppEventStore().SubscriberCount(EventOnShutdown))
+
+	// EventOnShutdown not exists
+	AppEventStore().Unsubscribe(EventOnShutdown, onShutdownFunc3)
+}
+
 func TestServerExtensionEvent(t *testing.T) {
+	// OnRequest
 	assert.Nil(t, onRequestFunc)
+	publishOnRequestEvent(&Context{})
 	OnRequest(func(e *Event) {
 		t.Log("OnRequest event func called")
 	})
 	assert.NotNil(t, onRequestFunc)
 
-	onRequestFunc(&Event{Name: "OnRequest", Data: "request Data"})
+	onRequestFunc(&Event{Name: EventOnRequest, Data: "request Data OnRequest"})
+	publishOnRequestEvent(&Context{})
 	OnRequest(func(e *Event) {
 		t.Log("OnRequest event func called 2")
 	})
 
+	// OnPreReply
 	assert.Nil(t, onPreReplyFunc)
+	publishOnPreReplyEvent(&Context{})
 	OnPreReply(func(e *Event) {
 		t.Log("OnPreReply event func called")
 	})
 	assert.NotNil(t, onPreReplyFunc)
 
-	onPreReplyFunc(&Event{Name: "OnPreReply", Data: "Context Data"})
+	onPreReplyFunc(&Event{Name: EventOnPreReply, Data: "Context Data OnPreReply"})
+	publishOnPreReplyEvent(&Context{})
 	OnPreReply(func(e *Event) {
 		t.Log("OnPreReply event func called 2")
+	})
+
+	// OnAfterReply
+	assert.Nil(t, onAfterReplyFunc)
+	publishOnAfterReplyEvent(&Context{})
+	OnAfterReply(func(e *Event) {
+		t.Log("OnAfterReply event func called")
+	})
+	assert.NotNil(t, onAfterReplyFunc)
+
+	onAfterReplyFunc(&Event{Name: EventOnAfterReply, Data: "Context Data OnAfterReply"})
+	publishOnAfterReplyEvent(&Context{})
+	OnAfterReply(func(e *Event) {
+		t.Log("OnAfterReply event func called 2")
 	})
 }
 

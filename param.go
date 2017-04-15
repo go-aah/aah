@@ -16,23 +16,26 @@ import (
 const keyRequestParams = "RequestParams"
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Params middleware
+// Params method
 //___________________________________
 
-// ParamsMiddleware parses the incoming HTTP request to collects request
-// parameters (query string and payload) stores into context. Query string
-// parameters made available in ViewArgs.
-func paramsMiddleware(ctx *Context, m *Middleware) {
+// parseRequestParams method parses the incoming HTTP request to collects request
+// parameters (Payload, Form, Query, Multi-part) stores into context. Request
+// params are made available in View via template functions.
+func (e *engine) parseRequestParams(ctx *Context) {
 	req := ctx.Req.Raw
 
 	if ctx.Req.Method != ahttp.MethodGet {
 		contentType := ctx.Req.ContentType.Mime
 		log.Debugf("request content type: %s", contentType)
 
+		// TODO add support for content-type restriction and return 415 status for that
+		// TODO HTML sanitizer for Form and Multipart Form
+
 		switch contentType {
 		case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeXML.Mime:
 			if payloadBytes, err := ioutil.ReadAll(req.Body); err == nil {
-				ctx.Req.Payload = string(payloadBytes)
+				ctx.Req.Payload = payloadBytes
 			} else {
 				log.Errorf("unable to read request body for '%s': %s", contentType, err)
 			}
@@ -43,15 +46,11 @@ func paramsMiddleware(ctx *Context, m *Middleware) {
 				log.Errorf("unable to parse form: %s", err)
 			}
 		case ahttp.ContentTypeMultipartForm.Mime:
-			if isMultipartEnabled {
-				if err := req.ParseMultipartForm(appMultipartMaxMemory); err == nil {
-					ctx.Req.Params.Form = req.MultipartForm.Value
-					ctx.Req.Params.File = req.MultipartForm.File
-				} else {
-					log.Errorf("unable to parse multipart form: %s", err)
-				}
+			if err := req.ParseMultipartForm(appMultipartMaxMemory); err == nil {
+				ctx.Req.Params.Form = req.MultipartForm.Value
+				ctx.Req.Params.File = req.MultipartForm.File
 			} else {
-				log.Warn("multipart processing is disabled in aah.conf")
+				log.Errorf("unable to parse multipart form: %s", err)
 			}
 		} // switch end
 
@@ -68,8 +67,6 @@ func paramsMiddleware(ctx *Context, m *Middleware) {
 
 	// All the request parameters made available to templates via funcs.
 	ctx.AddViewArg(keyRequestParams, ctx.Req.Params)
-
-	m.Next(ctx)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -79,17 +76,17 @@ func paramsMiddleware(ctx *Context, m *Middleware) {
 // tmplPathParam method returns Request Path Param value for the given key.
 func tmplPathParam(viewArgs map[string]interface{}, key string) template.HTML {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
-	return template.HTML(params.PathValue(key))
+	return template.HTML(template.HTMLEscapeString(params.PathValue(key)))
 }
 
 // tmplFormParam method returns Request Form value for the given key.
 func tmplFormParam(viewArgs map[string]interface{}, key string) template.HTML {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
-	return template.HTML(params.FormValue(key))
+	return template.HTML(template.HTMLEscapeString(params.FormValue(key)))
 }
 
 // tmplQueryParam method returns Request Query String value for the given key.
 func tmplQueryParam(viewArgs map[string]interface{}, key string) template.HTML {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
-	return template.HTML(params.QueryValue(key))
+	return template.HTML(template.HTMLEscapeString(params.QueryValue(key)))
 }

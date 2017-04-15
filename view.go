@@ -5,21 +5,23 @@
 package aah
 
 import (
+	"fmt"
 	"html/template"
 	"path/filepath"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/atemplate.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
+	"aahframework.org/view.v0"
 )
 
 var (
-	appTemplateEngine        atemplate.TemplateEnginer
-	appTemplateExt           string
+	appViewEngine            view.Enginer
+	appViewExt               string
 	appDefaultTmplLayout     string
-	appTemplateCaseSensitive bool
+	appViewFileCaseSensitive bool
 	isExternalTmplEngine     bool
 )
 
@@ -27,9 +29,19 @@ var (
 // Global methods
 //___________________________________
 
-// AppTemplateEngine method returns aah application Template Engine instance.
-func AppTemplateEngine() atemplate.TemplateEnginer {
-	return appTemplateEngine
+// AppViewEngine method returns aah application view Engine instance.
+func AppViewEngine() view.Enginer {
+	return appViewEngine
+}
+
+// AddTemplateFunc method adds template func map into view engine.
+func AddTemplateFunc(funcs template.FuncMap) {
+	view.AddTemplateFunc(funcs)
+}
+
+// AddViewEngine method adds the given name and view engine to view store.
+func AddViewEngine(name string, engine view.Enginer) error {
+	return view.AddEngine(name, engine)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -40,28 +52,32 @@ func appViewsDir() string {
 	return filepath.Join(AppBaseDir(), "views")
 }
 
-func initTemplateEngine() error {
-	// application config values
-	appTemplateExt = AppConfig().StringDefault("template.ext", ".html")
-	appDefaultTmplLayout = "master" + appTemplateExt
-	appTemplateCaseSensitive = AppConfig().BoolDefault("template.case_sensitive", false)
-
-	// initialize if external TemplateEngine is not registered.
-	if appTemplateEngine == nil {
-		tmplEngineName := AppConfig().StringDefault("template.engine", "go")
-		switch tmplEngineName {
-		case "go":
-			appTemplateEngine = &atemplate.TemplateEngine{}
-		}
-
-		isExternalTmplEngine = false
-	} else {
-		isExternalTmplEngine = true
+func initViewEngine(viewDir string, appCfg *config.Config) error {
+	if !ess.IsFileExists(viewDir) {
+		// view directory not exists
+		return nil
 	}
 
-	appTemplateEngine.Init(AppConfig(), appViewsDir())
+	// application config values
+	appViewExt = appCfg.StringDefault("view.ext", ".html")
+	appDefaultTmplLayout = "master" + appViewExt
+	appViewFileCaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
 
-	return appTemplateEngine.Load()
+	// initialize if external View Engine is not registered.
+	if appViewEngine == nil {
+		isExternalTmplEngine = false
+		viewEngineName := appCfg.StringDefault("view.engine", "go")
+		viewEngine, found := view.GetEngine(viewEngineName)
+		if !found {
+			return fmt.Errorf("view: named engine not found: %s", viewEngineName)
+		}
+
+		appViewEngine = viewEngine
+		return appViewEngine.Init(appCfg, viewDir)
+	}
+
+	isExternalTmplEngine = true
+	return nil
 }
 
 // handlePreReplyStage method does 1) sets response header, 2) if HTML content type
@@ -75,13 +91,13 @@ func handlePreReplyStage(ctx *Context) {
 		if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
 			ctx.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
 			reply.ContentType(ctx.Req.AcceptContentType.Raw())
-		} else { // default Content-Type defined 'render.default' in aah.conf
-			reply.ContentType(defaultContentType().Raw())
+		} else if ct := defaultContentType(); ct != nil { // as per 'render.default' in aah.conf
+			reply.ContentType(ct.Raw())
 		}
 	}
 
 	// HTML response
-	if AppMode() == appModeWeb && ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
+	if ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
 		if reply.Rdr == nil {
 			reply.Rdr = &HTML{}
 		}
@@ -118,8 +134,7 @@ func handlePreReplyStage(ctx *Context) {
 // defaultContentType method returns the Content-Type based on 'render.default'
 // config from aah.conf
 func defaultContentType() *ahttp.ContentType {
-	cfgValue := AppConfig().StringDefault("render.default", "")
-	switch cfgValue {
+	switch AppConfig().StringDefault("render.default", "") {
 	case "html":
 		return ahttp.ContentTypeHTML
 	case "json":
@@ -129,7 +144,7 @@ func defaultContentType() *ahttp.ContentType {
 	case "text":
 		return ahttp.ContentTypePlainText
 	default:
-		return ahttp.ContentTypeOctetStream
+		return nil
 	}
 }
 
@@ -140,32 +155,49 @@ func findViewTemplate(ctx *Context) {
 	}
 
 	tmplPath := filepath.Join("pages", controllerName)
-	tmplName := ctx.action.Name + appTemplateExt
+	tmplName := ctx.action.Name + appViewExt
 	htmlRdr := ctx.Reply().Rdr.(*HTML)
 	if !ess.IsStrEmpty(htmlRdr.Filename) {
 		tmplName = htmlRdr.Filename
 	}
 
 	log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
-	htmlRdr.Template = appTemplateEngine.Get(htmlRdr.Layout, tmplPath, tmplName)
-	if htmlRdr.Template == nil {
-		tmplFile := filepath.Join("views", "pages", controllerName, tmplName)
-		if !appTemplateCaseSensitive {
-			tmplFile = strings.ToLower(tmplFile)
-		}
+	var err error
+	if htmlRdr.Template, err = appViewEngine.Get(htmlRdr.Layout, tmplPath, tmplName); err != nil {
+		if err == view.ErrTemplateNotFound {
+			tmplFile := filepath.Join("views", "pages", controllerName, tmplName)
+			if !appViewFileCaseSensitive {
+				tmplFile = strings.ToLower(tmplFile)
+			}
 
-		log.Errorf("template not found: %s", tmplFile)
+			log.Errorf("template not found: %s", tmplFile)
+		} else {
+			log.Error(err)
+		}
+	}
+}
+
+// sanatizeValue method sanatizes string type value, rest we can't do any.
+// It's a user responbility.
+func sanatizeValue(value interface{}) interface{} {
+	switch v := value.(type) {
+	case string:
+		return template.HTMLEscapeString(v)
+	default:
+		return v
 	}
 }
 
 func init() {
-	atemplate.AddTemplateFunc(template.FuncMap{
-		"config": tmplConfig,
-		"rurl":   tmplURL,
-		"rurlm":  tmplURLm,
-		"i18n":   tmplI18n,
-		"pparam": tmplPathParam,
-		"fparam": tmplFormParam,
-		"qparam": tmplQueryParam,
+	AddTemplateFunc(template.FuncMap{
+		"config":  tmplConfig,
+		"rurl":    tmplURL,
+		"rurlm":   tmplURLm,
+		"i18n":    tmplI18n,
+		"pparam":  tmplPathParam,
+		"fparam":  tmplFormParam,
+		"qparam":  tmplQueryParam,
+		"session": tmplSessionValue,
+		"flash":   tmplFlashValue,
 	})
 }

@@ -12,6 +12,8 @@ import (
 	"aahframework.org/i18n.v0"
 )
 
+const keyLocale = "Locale"
+
 var appI18n *i18n.I18n
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -53,8 +55,16 @@ func initI18n(cfgDir string) error {
 
 // tmplI18n method is mapped to Go template func for resolving i18n values.
 func tmplI18n(viewArgs map[string]interface{}, key string, args ...interface{}) template.HTML {
-	if locale, ok := viewArgs["Locale"].(*ahttp.Locale); ok {
-		return template.HTML(template.HTMLEscapeString(AppI18n().Lookup(locale, key, args...)))
+	if locale, ok := viewArgs[keyLocale].(*ahttp.Locale); ok {
+		if len(args) == 0 {
+			return template.HTML(AppI18n().Lookup(locale, key, args...))
+		}
+
+		sanatizeArgs := make([]interface{}, 0)
+		for _, value := range args {
+			sanatizeArgs = append(sanatizeArgs, sanatizeValue(value))
+		}
+		return template.HTML(AppI18n().Lookup(locale, key, sanatizeArgs...))
 	}
 	return template.HTML("")
 }

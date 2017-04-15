@@ -6,6 +6,7 @@ package aah
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,88 +15,93 @@ import (
 	"sort"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/atemplate.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
 )
 
 // serveStatic method static file/directory delivery.
-func serveStatic(w http.ResponseWriter, req *http.Request, route *router.Route, pathParams *router.PathParams) error {
+func (e *engine) serveStatic(ctx *Context) error {
+	res, req := ctx.Res, ctx.Req
+	res.Header().Set(ahttp.HeaderServer, aahServerName)
+
 	var fileabs string
-	if route.IsDir() {
-		fileabs = filepath.Join(AppBaseDir(), route.Dir, filepath.FromSlash(pathParams.Get("filepath")))
+	if ctx.route.IsDir() {
+		fileabs = filepath.Join(AppBaseDir(), ctx.route.Dir, filepath.FromSlash(ctx.Req.Params.PathValue("filepath")))
 	} else {
-		fileabs = filepath.Join(AppBaseDir(), "static", filepath.FromSlash(route.File))
+		fileabs = filepath.Join(AppBaseDir(), "static", filepath.FromSlash(ctx.route.File))
 	}
 
 	dir, file := filepath.Split(fileabs)
 	log.Tracef("Dir: %s, File: %s", dir, file)
 
-	fs := ahttp.Dir(dir, route.ListDir)
+	fs := ahttp.Dir(dir, ctx.route.ListDir)
 	f, err := fs.Open(file)
+	defer ess.CloseQuietly(f)
 	if err != nil {
 		if err == ahttp.ErrDirListNotAllowed {
-			log.Warnf("directory listing not allowed: %s", req.URL.Path)
-			w.WriteHeader(http.StatusForbidden)
-			_, _ = w.Write([]byte("403 Directory listing not allowed"))
-			return nil
+			log.Warnf("directory listing not allowed: %s", req.Path)
+			res.WriteHeader(http.StatusForbidden)
+			fmt.Fprintf(res, "403 Directory listing not allowed")
 		} else if os.IsNotExist(err) {
-			log.Errorf("file not found: %s", req.URL.Path)
+			log.Errorf("file not found: %s", req.Path)
 			return errFileNotFound
 		} else if os.IsPermission(err) {
-			log.Warnf("permission issue: %s", req.URL.Path)
-			w.WriteHeader(http.StatusForbidden)
-			_, _ = w.Write([]byte("403 Forbidden"))
-			return nil
+			log.Warnf("permission issue: %s", req.Path)
+			res.WriteHeader(http.StatusForbidden)
+			fmt.Fprintf(res, "403 Forbidden")
+		} else {
+			res.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(res, "500 Internal Server Error")
 		}
 
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("500 Internal Server Error"))
 		return nil
 	}
-	defer ess.CloseQuietly(f)
 
 	fi, err := f.Stat()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("500 Internal Server Error"))
+		res.WriteHeader(http.StatusInternalServerError)
+		_, _ = res.Write([]byte("500 Internal Server Error"))
 		return nil
 	}
 
 	if fi.IsDir() {
 		// redirect if the directory name doesn't end in a slash
-		if req.URL.Path[len(req.URL.Path)-1] != '/' {
-			log.Debugf("redirecting to dir: %s", req.URL.Path+"/")
-			http.Redirect(w, req, path.Base(req.URL.Path)+"/", http.StatusFound)
+		if req.Path[len(req.Path)-1] != '/' {
+			log.Debugf("redirecting to dir: %s", req.Path+"/")
+			http.Redirect(res, req.Raw, path.Base(req.Path)+"/", http.StatusFound)
 			return nil
 		}
 
-		directoryList(w, req, f)
+		e.writeGzipHeaders(ctx, false)
+
+		directoryList(res, req.Raw, f)
 		return nil
 	}
 
-	http.ServeContent(w, req, file, fi.ModTime(), f)
+	e.writeGzipHeaders(ctx, false)
+
+	http.ServeContent(res, req.Raw, file, fi.ModTime(), f)
 	return nil
 }
 
-func directoryList(w http.ResponseWriter, req *http.Request, f http.File) {
+// directoryList method compose directory listing response
+func directoryList(res http.ResponseWriter, req *http.Request, f http.File) {
 	dirs, err := f.Readdir(-1)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("Error reading directory"))
+		res.WriteHeader(http.StatusInternalServerError)
+		_, _ = res.Write([]byte("Error reading directory"))
 		return
 	}
 	sort.Sort(byName(dirs))
 
-	w.Header().Set(ahttp.HeaderContentType, ahttp.ContentTypeHTML.Raw())
+	res.Header().Set(ahttp.HeaderContentType, ahttp.ContentTypeHTML.Raw())
 	reqPath := req.URL.Path
-	fmt.Fprintf(w, "<html>\n")
-	fmt.Fprintf(w, "<head><title>Listing of %s</title></head>\n", reqPath)
-	fmt.Fprintf(w, "<body bgcolor=\"white\">\n")
-	fmt.Fprintf(w, "<h1>Listing of %s</h1><hr>\n", reqPath)
-	fmt.Fprintf(w, "<pre><table border=\"0\">\n")
-	fmt.Fprintf(w, "<tr><td collapse=\"2\"><a href=\"../\">../</a></td></tr>\n")
+	fmt.Fprintf(res, "<html>\n")
+	fmt.Fprintf(res, "<head><title>Listing of %s</title></head>\n", reqPath)
+	fmt.Fprintf(res, "<body bgcolor=\"white\">\n")
+	fmt.Fprintf(res, "<h1>Listing of %s</h1><hr>\n", reqPath)
+	fmt.Fprintf(res, "<pre><table border=\"0\">\n")
+	fmt.Fprintf(res, "<tr><td collapse=\"2\"><a href=\"../\">../</a></td></tr>\n")
 	for _, d := range dirs {
 		name := d.Name()
 		if d.IsDir() {
@@ -105,15 +111,15 @@ func directoryList(w http.ResponseWriter, req *http.Request, f http.File) {
 		// part of the URL path, and not indicate the start of a query
 		// string or fragment.
 		url := url.URL{Path: name}
-		fmt.Fprintf(w, "<tr><td><a href=\"%s\">%s</a></td><td width=\"200px\" align=\"right\">%s</td></tr>\n",
+		fmt.Fprintf(res, "<tr><td><a href=\"%s\">%s</a></td><td width=\"200px\" align=\"right\">%s</td></tr>\n",
 			url.String(),
-			atemplate.HTMLEscape(name),
+			template.HTMLEscapeString(name),
 			d.ModTime().Format(appDefaultDateTimeFormat),
 		)
 	}
-	fmt.Fprintf(w, "</table></pre>\n")
-	fmt.Fprintf(w, "<hr></body>\n")
-	fmt.Fprintf(w, "</html>\n")
+	fmt.Fprintf(res, "</table></pre>\n")
+	fmt.Fprintf(res, "<hr></body>\n")
+	fmt.Fprintf(res, "</html>\n")
 }
 
 // Sort interface for Directory list

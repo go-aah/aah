@@ -6,10 +6,16 @@ package aah
 
 import (
 	"errors"
+	"net/http"
+	"net/url"
 	"reflect"
+	"strings"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
+	"aahframework.org/security.v0/session"
 )
 
 var (
@@ -24,8 +30,12 @@ type (
 		// Req is HTTP request instance
 		Req *ahttp.Request
 
-		// Res is HTTP response writer. It is recommended to use
+		// Res is HTTP response writer compliant. It is highly recommended to use
 		// `Reply()` builder for composing response.
+		//
+		// Note: If you're using `cxt.Res` directly, don't forget to call
+		// `Reply().Done()` so that framework will not intervene with your
+		// response.
 		Res ahttp.ResponseWriter
 
 		controller string
@@ -33,9 +43,11 @@ type (
 		target     interface{}
 		domain     *router.Domain
 		route      *router.Route
+		session    *session.Session
 		reply      *Reply
 		viewArgs   map[string]interface{}
 		abort      bool
+		decorated  bool
 	}
 )
 
@@ -85,6 +97,27 @@ func (ctx *Context) Msgl(locale *ahttp.Locale, key string, args ...interface{}) 
 	return AppI18n().Lookup(locale, key, args...)
 }
 
+// Session method always returns `session.Session` object. Use `Session.IsNew`
+// to identify whether sesison is newly created or restored from the request
+// which was already created.
+func (ctx *Context) Session() *session.Session {
+	if ctx.session == nil {
+		ctx.session = AppSessionManager().NewSession()
+		ctx.AddViewArg(keySessionValues, ctx.session)
+	}
+	return ctx.session
+}
+
+// Cookie method returns a named cookie from HTTP request otherwise error.
+func (ctx *Context) Cookie(name string) (*http.Cookie, error) {
+	return ctx.Req.Cookie(name)
+}
+
+// Cookies method returns all the cookies from HTTP request.
+func (ctx *Context) Cookies() []*http.Cookie {
+	return ctx.Req.Cookies()
+}
+
 // Abort method sets the abort to true. It means framework will not proceed with
 // next middleware, next interceptor or action based on context it being used.
 // Contexts: 1) If it's called in the middleware, then middleware chain stops;
@@ -97,17 +130,70 @@ func (ctx *Context) Abort() {
 	ctx.abort = true
 }
 
+// SetURL method is to set the request URL to change the behaviour of request
+// routing. Ideal for URL rewrting. URL can be relative or absolute URL.
+//
+// Note: This method only takes effect on `OnRequest` server event.
+func (ctx *Context) SetURL(pathURL string) {
+	if !ctx.decorated {
+		return
+	}
+
+	u, err := url.Parse(pathURL)
+	if err != nil {
+		log.Errorf("invalid URL provided: %s", err)
+		return
+	}
+
+	rawReq := ctx.Req.Raw
+	if !ess.IsStrEmpty(u.Host) {
+		log.Debugf("Host have been updated from '%s' to '%s'", ctx.Req.Host, u.Host)
+		rawReq.Host = u.Host
+		rawReq.URL.Host = u.Host
+	}
+
+	log.Debugf("URL path have been updated from '%s' to '%s'", ctx.Req.Path, u.Path)
+	rawReq.URL.Path = u.Path
+
+	// Update the context
+	ctx.Req.Host = rawReq.Host
+	ctx.Req.Path = rawReq.URL.Path
+}
+
+// SetMethod method is to set the request `Method` to change the behaviour
+// of request routing. Ideal for URL rewrting.
+//
+// Note: This method only takes effect on `OnRequest` server event.
+func (ctx *Context) SetMethod(method string) {
+	if !ctx.decorated {
+		return
+	}
+
+	method = strings.ToUpper(method)
+	if _, found := router.HTTPMethodActionMap[method]; !found {
+		log.Errorf("given method '%s' is not valid", method)
+		return
+	}
+
+	log.Debugf("Request method have been updated from '%s' to '%s'", ctx.Req.Method, method)
+	ctx.Req.Raw.Method = method
+	ctx.Req.Method = method
+}
+
 // Reset method resets context instance for reuse.
 func (ctx *Context) Reset() {
 	ctx.Req = nil
 	ctx.Res = nil
-	ctx.target = nil
-	ctx.domain = nil
 	ctx.controller = ""
 	ctx.action = nil
+	ctx.target = nil
+	ctx.domain = nil
+	ctx.route = nil
+	ctx.session = nil
 	ctx.reply = nil
 	ctx.viewArgs = nil
 	ctx.abort = false
+	ctx.decorated = false
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

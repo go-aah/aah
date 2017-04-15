@@ -1,0 +1,19 @@
+# test i18n file - en-US
+
+label {
+  pages {
+    site {
+      index {
+        title = "en-US: Welcome to aah framework, A scalable, performant, rapid development Web framework for Go"
+      }
+
+      get_involved {
+        title = "en-US: Get Involved - aah web framework for Go"
+      }
+
+      with_args {
+        title = "en-US: %s no %v - aah web framework for Go"
+      }
+    }
+  }
+}

@@ -30,12 +30,18 @@ const (
 	// Except when 1) Static file request, 2) `Reply().Done()`
 	// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
 	EventOnPreReply = "OnPreReply"
+
+	// EventOnAfterReply event is fired when before server writes the reply on the wire.
+	// Except when 1) Static file request, 2) `Reply().Done()`
+	// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
+	EventOnAfterReply = "OnAfterReply"
 )
 
 var (
-	appEventStore  = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
-	onRequestFunc  EventCallbackFunc
-	onPreReplyFunc EventCallbackFunc
+	appEventStore    = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
+	onRequestFunc    EventCallbackFunc
+	onPreReplyFunc   EventCallbackFunc
+	onAfterReplyFunc EventCallbackFunc
 )
 
 type (
@@ -103,6 +109,10 @@ func UnsubscribeEventf(eventName string, ec EventCallbackFunc) {
 	AppEventStore().Unsubscribe(eventName, ec)
 }
 
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Global methods - Server events
+//___________________________________
+
 // OnInit method is to subscribe to aah application `OnInit` event. `OnInit` event
 // published right after the aah application configuration `aah.conf` initialized.
 func OnInit(ecb EventCallbackFunc, priority ...int) {
@@ -117,6 +127,17 @@ func OnInit(ecb EventCallbackFunc, priority ...int) {
 // event pubished right before the aah server listen and serving request.
 func OnStart(ecb EventCallbackFunc, priority ...int) {
 	AppEventStore().Subscribe(EventOnStart, EventCallback{
+		Callback:    ecb,
+		PublishOnce: true,
+		priority:    parsePriority(priority...),
+	})
+}
+
+// OnShutdown method is to subscribe to aah application `OnShutdown` event.
+// `OnShutdown` event pubished right before the aah server is stopped Listening
+// and serving request.
+func OnShutdown(ecb EventCallbackFunc, priority ...int) {
+	AppEventStore().Subscribe(EventOnShutdown, EventCallback{
 		Callback:    ecb,
 		PublishOnce: true,
 		priority:    parsePriority(priority...),
@@ -150,6 +171,19 @@ func OnPreReply(sef EventCallbackFunc) {
 		return
 	}
 	log.Warn("'OnPreReply' aah server extension function is already subscribed.")
+}
+
+// OnAfterReply method is to subscribe to aah server `OnAfterReply` extension point.
+// `OnAfterReply` called for every reply from aah server.
+//
+// Except when 1) Static file request, 2) `Reply().Done()`
+// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
+func OnAfterReply(sef EventCallbackFunc) {
+	if onAfterReplyFunc == nil {
+		onAfterReplyFunc = sef
+		return
+	}
+	log.Warn("'OnAfterReply' aah server extension function is already subscribed.")
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -272,6 +306,26 @@ func (ec EventCallbacks) Swap(i, j int)      { ec[i], ec[j] = ec[j], ec[i] }
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
+
+func publishOnRequestEvent(ctx *Context) {
+	if onRequestFunc != nil {
+		ctx.decorated = true
+		onRequestFunc(&Event{Name: EventOnRequest, Data: ctx})
+		ctx.decorated = false
+	}
+}
+
+func publishOnPreReplyEvent(ctx *Context) {
+	if onPreReplyFunc != nil {
+		onPreReplyFunc(&Event{Name: EventOnPreReply, Data: ctx})
+	}
+}
+
+func publishOnAfterReplyEvent(ctx *Context) {
+	if onAfterReplyFunc != nil {
+		onAfterReplyFunc(&Event{Name: EventOnAfterReply, Data: ctx})
+	}
+}
 
 // funcEqual method to compare to function callback interface data. In effect
 // comparing the pointers of the indirect layer. Read more about the
