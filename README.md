@@ -1,13 +1,14 @@
 # aah framework
 [![Build Status](https://travis-ci.org/go-aah/aah.svg?branch=master)](https://travis-ci.org/go-aah/aah) [![codecov](https://codecov.io/gh/go-aah/aah/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/aah/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/aah.v0)](https://goreportcard.com/report/aahframework.org/aah.v0)
 [![Powered by Go](https://img.shields.io/badge/powered_by-go-blue.svg)](https://golang.org)
-[![Version](https://img.shields.io/badge/version-0.3-blue.svg)](https://github.com/go-aah/aah/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/aah.v0?status.svg)](https://godoc.org/aahframework.org/aah.v0)
+[![Version](https://img.shields.io/badge/version-0.4-blue.svg)](https://github.com/go-aah/aah/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/aah.v0?status.svg)](https://godoc.org/aahframework.org/aah.v0)
 [![License](https://img.shields.io/github/license/go-aah/aah.svg)](LICENSE)
 
-***v0.3 [pre-release](https://github.com/go-aah/aah/releases/latest) and tagged on Mar 24, 2017***
+***v0.4 [pre-release](https://github.com/go-aah/aah/releases/latest) and tagged on Apr 14, 2017***
 
-Actively working towards better and extensible web framework for Go. Working on website and documentation of aah framework.
+aah - A scalable, performant, rapid development Web framework for Go.
 
+Actively working on documentation of aah framework. However you can give it try and share your feedback.
 
 **Stay tuned on -**
   * Gitter - [![chat online](https://img.shields.io/gitter/room/aahframework/community.svg)](https://gitter.im/aahframework/community)
@@ -15,7 +16,7 @@ Actively working towards better and extensible web framework for Go. Working on 
 
 
 # Installation aah framework
-#### Stable Version
+#### Version (pre-release)
 ```bash
 # install the aah framework
 # it installs framework and aah CLI tool
