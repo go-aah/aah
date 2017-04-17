@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Jeevanandam M (https://github.com/jeevatkm)
+// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
 // go-aah/log source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 

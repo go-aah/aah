@@ -163,10 +163,10 @@ file = "test-aah-filename.log"
 rotate {
 	mode = "lines"
 
-	# this value is needed if rotate="lines"; default is unlimited
+	# this value is needed if rotate.mode="lines"; default is unlimited
 	lines = 20
 
-	# this value is needed in MB if rotate="size"; default is unlimited
+	# this value is needed in MB if rotate.mode="size"; default is 100 MB
 	#size = 250
 }
  `
