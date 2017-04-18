@@ -5,6 +5,8 @@
 package aah
 
 import (
+	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -12,11 +14,33 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
+	"golang.org/x/crypto/acme/autocert"
+
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
 
-var aahServer *http.Server
+var (
+	aahServer          *http.Server
+	appTLSCfg          *tls.Config
+	appAutocertManager *autocert.Manager
+)
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Global methods
+//___________________________________
+
+// AddServerTLSConfig method can be used for custom TLS config for aah server.
+// Note: if `server.ssl.lets_encrypt.enable=true` then framework sets the
+// `GetCertificate` from autocert manager.
+//
+// Use `aah.OnInit` or `func init() {...}` to assign your custom TLSConfig.
+func AddServerTLSConfig(tlsCfg *tls.Config) {
+	appTLSCfg = tlsCfg
+}
 
 // Start method starts the Go HTTP server based on aah config "server.*".
 func Start() {
@@ -43,7 +67,6 @@ func Start() {
 	// Publish `OnStart` event
 	AppEventStore().sortAndPublishSync(&Event{Name: EventOnStart})
 
-	address := AppHTTPAddress()
 	appEngine = newEngine(AppConfig())
 	aahServer = &http.Server{
 		Handler:        appEngine,
@@ -58,13 +81,12 @@ func Start() {
 	go listenSignals()
 
 	// Unix Socket
-	if strings.HasPrefix(address, "unix") {
-		startUnix(address)
+	if strings.HasPrefix(AppHTTPAddress(), "unix") {
+		startUnix(AppHTTPAddress())
 		return
 	}
 
 	aahServer.Addr = fmt.Sprintf("%s:%s", AppHTTPAddress(), AppHTTPPort())
-	log.Infof("aah server running on %v", aahServer.Addr)
 
 	// HTTPS
 	if AppIsSSLEnabled() {
@@ -76,8 +98,12 @@ func Start() {
 	startHTTP()
 }
 
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
+
 func startUnix(address string) {
-	log.Infof("Listening and serving HTTP on %v", address)
+	log.Infof("aah server running on %v", address)
 
 	sockFile := address[5:]
 	if err := os.Remove(sockFile); !os.IsNotExist(err) {
@@ -94,12 +120,30 @@ func startUnix(address string) {
 }
 
 func startHTTPS() {
+	log.Infof("Let's Encypyt cert enabled: %v", appIsLetsEncrypt)
+	log.Infof("aah server running on %v", aahServer.Addr)
+
+	// assign custom TLS config if provided
+	if appTLSCfg != nil {
+		aahServer.TLSConfig = appTLSCfg
+	}
+
+	// Add cert, if let's encrypt enabled
+	if appIsLetsEncrypt {
+		if appTLSCfg == nil {
+			aahServer.TLSConfig = &tls.Config{GetCertificate: appAutocertManager.GetCertificate}
+		} else {
+			aahServer.TLSConfig.GetCertificate = appAutocertManager.GetCertificate
+		}
+	}
+
 	if err := aahServer.ListenAndServeTLS(appSSLCert, appSSLKey); err != nil {
 		log.Error(err)
 	}
 }
 
 func startHTTP() {
+	log.Infof("aah server running on %v", aahServer.Addr)
 	if err := aahServer.ListenAndServe(); err != nil {
 		log.Error(err)
 	}
@@ -118,4 +162,32 @@ func listenSignals() {
 		}
 		Shutdown()
 	}()
+}
+
+func initAutoCertManager(cfg *config.Config) error {
+	if !AppIsSSLEnabled() || !appIsLetsEncrypt {
+		return nil
+	}
+
+	hostPolicy, found := cfg.StringList("server.ssl.lets_encrypt.host_policy")
+	if !found || len(hostPolicy) == 0 {
+		return errors.New("'server.ssl.lets_encrypt.host_policy' is empty, provide at least one hostname")
+	}
+
+	renewBefore := time.Duration(cfg.IntDefault("server.ssl.lets_encrypt.renew_before", 10))
+
+	appAutocertManager = &autocert.Manager{
+		Prompt:      autocert.AcceptTOS,
+		HostPolicy:  autocert.HostWhitelist(hostPolicy...),
+		RenewBefore: 24 * renewBefore * time.Hour,
+		ForceRSA:    cfg.BoolDefault("server.ssl.lets_encrypt.force_rsa", false),
+		Email:       cfg.StringDefault("server.ssl.lets_encrypt.email", ""),
+	}
+
+	cacheDir := cfg.StringDefault("server.ssl.lets_encrypt.cache_dir", "")
+	if !ess.IsStrEmpty(cacheDir) {
+		appAutocertManager.Cache = autocert.DirCache(cacheDir)
+	}
+
+	return nil
 }

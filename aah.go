@@ -25,7 +25,7 @@ import (
 )
 
 // Version no. of aah framework
-const Version = "0.4"
+const Version = "0.5"
 
 // aah application variables
 var (
@@ -39,6 +39,7 @@ var (
 	appHTTPMaxHdrBytes    int
 	appSSLCert            string
 	appSSLKey             string
+	appIsLetsEncrypt      bool
 	appMultipartMaxMemory int64
 	appPID                int
 	appInitialized        bool
@@ -84,13 +85,6 @@ func AppProfile() string {
 // 		$GOPATH/src/github.com/user/myproject
 // 		<app/binary/path/base/directory>
 func AppBaseDir() string {
-	if appIsPackaged {
-		wd, _ := os.Getwd()
-		if strings.HasSuffix(wd, "/bin") {
-			wd = wd[:len(wd)-4]
-		}
-		appBaseDir = wd
-	}
 	return appBaseDir
 }
 
@@ -104,17 +98,19 @@ func AppHTTPAddress() string {
 	return AppConfig().StringDefault("server.address", "")
 }
 
-// AppHTTPPort method returns aah application HTTP port number if available or
-// if empty returns port 80; otherwise returns default port number 8080.
+// AppHTTPPort method returns aah application HTTP port number based on `server.port`
+// value. Possible outcomes are user-defined port, `80`, `443` and `8080`.
 func AppHTTPPort() string {
-	port, found := AppConfig().String("server.port")
-	if !found {
-		port = appDefaultHTTPPort
+	port := AppConfig().StringDefault("server.port", appDefaultHTTPPort)
+	if !ess.IsStrEmpty(port) {
+		return port
 	}
-	if ess.IsStrEmpty(port) {
-		port = "80"
+
+	if AppIsSSLEnabled() {
+		return "443"
 	}
-	return port
+
+	return "80"
 }
 
 // AppDateFormat method returns aah application date format
@@ -189,7 +185,7 @@ func Init(importPath string) {
 		AppEventStore().sortAndPublishSync(&Event{Name: EventOnInit})
 
 		logAsFatal(initAppVariables())
-		logAsFatal(initLogs(AppConfig()))
+		logAsFatal(initLogs(appLogsDir(), AppConfig()))
 		logAsFatal(initI18n(appI18nDir()))
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
 		logAsFatal(initSecurity(appConfigDir(), AppConfig()))
@@ -214,13 +210,6 @@ func aahRecover() {
 	}
 }
 
-func appDir() string {
-	if appIsPackaged {
-		return AppBaseDir()
-	}
-	return filepath.Join(AppBaseDir(), "app")
-}
-
 func appLogsDir() string {
 	return filepath.Join(AppBaseDir(), "logs")
 }
@@ -231,20 +220,21 @@ func logAsFatal(err error) {
 	}
 }
 
-func initPath(importPath string) error {
-	var err error
-	goPath, err = ess.GoPath()
-	if err != nil {
+func initPath(importPath string) (err error) {
+	appImportPath = path.Clean(importPath)
+	appIsPackaged = isBinDirExists() && !isAppDirExists()
+
+	if goPath, err = ess.GoPath(); err != nil && !appIsPackaged {
 		return err
 	}
 
-	appImportPath = path.Clean(importPath)
 	goSrcDir = filepath.Join(goPath, "src")
 	appBaseDir = filepath.Join(goSrcDir, filepath.FromSlash(appImportPath))
+	if appIsPackaged {
+		appBaseDir = getWorkingDir()
+	}
 
-	appIsPackaged = !ess.IsFileExists(appDir())
-
-	if !appIsPackaged && !ess.IsFileExists(appBaseDir) {
+	if !ess.IsFileExists(appBaseDir) {
 		return fmt.Errorf("aah application does not exists: %s", appImportPath)
 	}
 
@@ -264,8 +254,7 @@ func initAppVariables() error {
 
 	readTimeout := cfg.StringDefault("server.timeout.read", "90s")
 	writeTimeout := cfg.StringDefault("server.timeout.write", "90s")
-	if !(strings.HasSuffix(readTimeout, "s") || strings.HasSuffix(readTimeout, "m")) ||
-		!(strings.HasSuffix(writeTimeout, "s") || strings.HasSuffix(writeTimeout, "m")) {
+	if !isValidTimeUnit(readTimeout, "s", "m") || !isValidTimeUnit(writeTimeout, "s", "m") {
 		return errors.New("'server.timeout.{read|write}' value is not a valid time unit")
 	}
 
@@ -284,10 +273,15 @@ func initAppVariables() error {
 		return errors.New("'server.max_header_bytes' value is not a valid size unit")
 	}
 
+	appIsLetsEncrypt = cfg.BoolDefault("server.ssl.lets_encrypt.enable", false)
 	appSSLCert = cfg.StringDefault("server.ssl.cert", "")
 	appSSLKey = cfg.StringDefault("server.ssl.key", "")
-	if AppIsSSLEnabled() && (ess.IsStrEmpty(appSSLCert) || ess.IsStrEmpty(appSSLKey)) {
-		return errors.New("HTTP SSL is enabled, so 'server.ssl.cert' & 'server.ssl.key' value is required")
+	if err = checkSSLConfigValues(AppIsSSLEnabled(), appIsLetsEncrypt, appSSLCert, appSSLKey); err != nil {
+		return err
+	}
+
+	if err = initAutoCertManager(cfg); err != nil {
+		return err
 	}
 
 	multipartMemoryStr := cfg.StringDefault("request.multipart_size", "32mb")
@@ -298,7 +292,7 @@ func initAppVariables() error {
 	return nil
 }
 
-func initLogs(appCfg *config.Config) error {
+func initLogs(logsDir string, appCfg *config.Config) error {
 	logCfg, found := appCfg.GetSubConfig("log")
 	if !found {
 		log.Debug("Section 'log {...}' configuration not exists, move on.")
@@ -311,9 +305,9 @@ func initLogs(appCfg *config.Config) error {
 		file := logCfg.StringDefault("file", "")
 		if ess.IsStrEmpty(file) {
 			logFileName := strings.Replace(AppName(), " ", "-", -1)
-			logCfg.SetString("file", filepath.Join(appLogsDir(), logFileName+".log"))
+			logCfg.SetString("file", filepath.Join(logsDir, logFileName+".log"))
 		} else if !filepath.IsAbs(file) {
-			logCfg.SetString("file", filepath.Join(appLogsDir(), file))
+			logCfg.SetString("file", filepath.Join(logsDir, file))
 		}
 	}
 

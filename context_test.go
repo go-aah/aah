@@ -7,7 +7,6 @@ package aah
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -247,22 +246,22 @@ func addToCRegistry() {
 	cRegistry = controllerRegistry{}
 
 	AddController((*Level1)(nil), []*MethodInfo{
-		&MethodInfo{
+		{
 			Name:       "Index",
 			Parameters: []*ParameterInfo{},
 		},
 	})
 	AddController((*Level2)(nil), []*MethodInfo{
-		&MethodInfo{
+		{
 			Name:       "Scope",
 			Parameters: []*ParameterInfo{},
 		},
 	})
 	AddController((*Level3)(nil), []*MethodInfo{
-		&MethodInfo{
+		{
 			Name: "Testing",
 			Parameters: []*ParameterInfo{
-				&ParameterInfo{
+				{
 					Name: "userId",
 					Type: reflect.TypeOf((*int)(nil)),
 				},
@@ -281,6 +280,5 @@ func getAahRequest(method, target, al string) *ahttp.Request {
 }
 
 func getTestdataPath() string {
-	wd, _ := os.Getwd()
-	return filepath.Join(wd, "testdata")
+	return filepath.Join(getWorkingDir(), "testdata")
 }

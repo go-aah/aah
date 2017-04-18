@@ -6,9 +6,12 @@ package aah
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -42,6 +45,38 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.True(t, ess.IsStrEmpty(appSSLCert))
 	assert.True(t, ess.IsStrEmpty(appSSLKey))
 
+	AppConfig().SetString("env.default", "dev")
+	profiles := AllAppProfiles()
+	assert.NotNil(t, profiles)
+	assert.True(t, len(profiles) == 1)
+	assert.Equal(t, "dev", profiles[0])
+
+	// App port no
+	AppConfig().SetString("server.port", "")
+	assert.Equal(t, "80", AppHTTPPort())
+	AppConfig().SetBool("server.ssl.enable", true)
+	assert.Equal(t, "443", AppHTTPPort())
+
+	// app packaged
+	assert.False(t, isBinDirExists())
+	assert.False(t, isAppDirExists())
+
+	// init auto cert
+	AppConfig().SetBool("server.ssl.lets_encrypt.enable", true)
+	defer ess.DeleteFiles(filepath.Join(getTestdataPath(), "autocert"))
+	AppConfig().SetString("server.ssl.lets_encrypt.cache_dir", filepath.Join(getTestdataPath(), "autocert"))
+	err = initAppVariables()
+	assert.Nil(t, err)
+	assert.NotNil(t, appAutocertManager)
+
+	AppConfig().SetBool("server.ssl.enable", false)
+	err = initAppVariables()
+	assert.Equal(t, "let's encrypt enabled, however SSL 'server.ssl.enable' is not enabled for application", err.Error())
+
+	// revert values
+	AppConfig().SetString("server.port", appDefaultHTTPPort)
+	AppConfig().SetBool("server.ssl.lets_encrypt.enable", false)
+
 	// config error scenario
 
 	// unsupported read timeout
@@ -72,7 +107,8 @@ func TestAahInitAppVariables(t *testing.T) {
 	// ssl cert required if enabled
 	AppConfig().SetBool("server.ssl.enable", true)
 	err = initAppVariables()
-	assert.Equal(t, "HTTP SSL is enabled, so 'server.ssl.cert' & 'server.ssl.key' value is required", err.Error())
+	assert.True(t, (!appIsLetsEncrypt && strings.Contains(err.Error(), "server.ssl.cert")))
+	assert.True(t, (!appIsLetsEncrypt && strings.Contains(err.Error(), "server.ssl.key")))
 	AppConfig().SetBool("server.ssl.enable", false)
 
 	// multipart size parsing error
@@ -90,4 +126,39 @@ func TestAahRecover(t *testing.T) {
 	assert.Nil(t, err)
 
 	panic("this is recover test")
+}
+
+func TestAahLogDir(t *testing.T) {
+	logsDir := filepath.Join(getTestdataPath(), "logs")
+	logFile := filepath.Join(logsDir, "test.log")
+	defer ess.DeleteFiles(logsDir)
+
+	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
+	err := initConfig(cfgDir)
+	assert.Nil(t, err)
+
+	err = initLogs(logsDir, AppConfig())
+	assert.Nil(t, err)
+
+	AppConfig().SetString("log.receiver", "file")
+	AppConfig().SetString("log.file", logFile)
+	err = initLogs(logsDir, AppConfig())
+	assert.Nil(t, err)
+	assert.True(t, ess.IsFileExists(logFile))
+
+	cfg, _ := config.ParseString("")
+	logger, _ := log.Newc(cfg)
+	log.SetOutput(logger)
+}
+
+func TestWritePID(t *testing.T) {
+	pidfile := filepath.Join(getTestdataPath(), "test-app.pid")
+	defer ess.DeleteFiles(pidfile)
+
+	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
+	err := initConfig(cfgDir)
+	assert.Nil(t, err)
+
+	writePID("test-app", getTestdataPath(), AppConfig())
+	assert.True(t, ess.IsFileExists(pidfile))
 }

@@ -27,6 +27,7 @@ const (
 const (
 	aahServerName       = "aah-go-server"
 	gzipContentEncoding = "gzip"
+	hstsValue           = "max-age=31536000; includeSubDomains"
 )
 
 var errFileNotFound = errors.New("file not found")
@@ -300,6 +301,12 @@ func (e *engine) writeHeaders(ctx *Context) {
 	}
 
 	ctx.Res.Header().Set(ahttp.HeaderServer, aahServerName)
+
+	// Set the HSTS if SSL is enabled on aah server
+	// Know more: https://www.owasp.org/index.php/HTTP_Strict_Transport_Security_Cheat_Sheet
+	if AppIsSSLEnabled() {
+		ctx.Res.Header().Set(ahttp.HeaderStrictTransportSecurity, hstsValue)
+	}
 }
 
 // writeGzipHeaders method prepares appropriate headers for gzip response
