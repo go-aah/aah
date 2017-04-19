@@ -77,7 +77,7 @@ func Start() {
 
 	aahServer.SetKeepAlivesEnabled(AppConfig().BoolDefault("server.keep_alive", true))
 
-	go writePID(AppName(), AppBaseDir(), AppConfig())
+	go writePID(getBinaryFileName(), AppBaseDir())
 	go listenSignals()
 
 	// Unix Socket

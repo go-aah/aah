@@ -10,11 +10,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +27,7 @@ const Version = "0.5"
 // aah application variables
 var (
 	appName               string
+	appDesc               string
 	appImportPath         string
 	appProfile            string
 	appBaseDir            string
@@ -72,6 +70,12 @@ type BuildInfo struct {
 // of the base directory.
 func AppName() string {
 	return appName
+}
+
+// AppDesc method returns aah application friendly description from app config
+// otherwise empty string.
+func AppDesc() string {
+	return appDesc
 }
 
 // AppProfile returns aah application configuration profile name
@@ -246,6 +250,7 @@ func initAppVariables() error {
 	cfg := AppConfig()
 
 	appName = cfg.StringDefault("name", filepath.Base(AppBaseDir()))
+	appDesc = cfg.StringDefault("desc", "")
 
 	appProfile = cfg.StringDefault("env.active", appDefaultProfile)
 	if err = SetAppProfile(AppProfile()); err != nil {
@@ -304,8 +309,7 @@ func initLogs(logsDir string, appCfg *config.Config) error {
 	if strings.EqualFold(receiver, "file") {
 		file := logCfg.StringDefault("file", "")
 		if ess.IsStrEmpty(file) {
-			logFileName := strings.Replace(AppName(), " ", "-", -1)
-			logCfg.SetString("file", filepath.Join(logsDir, logFileName+".log"))
+			logCfg.SetString("file", filepath.Join(logsDir, getBinaryFileName()+".log"))
 		} else if !filepath.IsAbs(file) {
 			logCfg.SetString("file", filepath.Join(logsDir, file))
 		}
@@ -319,16 +323,4 @@ func initLogs(logsDir string, appCfg *config.Config) error {
 	log.SetOutput(logger)
 
 	return nil
-}
-
-func writePID(appName, appBaseDir string, cfg *config.Config) {
-	appPID = os.Getpid()
-	pidfile := cfg.StringDefault("pidfile", appName+".pid")
-	if !filepath.IsAbs(pidfile) {
-		pidfile = filepath.Join(appBaseDir, pidfile)
-	}
-
-	if err := ioutil.WriteFile(pidfile, []byte(strconv.Itoa(appPID)), 0644); err != nil {
-		log.Error(err)
-	}
 }

@@ -159,6 +159,6 @@ func TestWritePID(t *testing.T) {
 	err := initConfig(cfgDir)
 	assert.Nil(t, err)
 
-	writePID("test-app", getTestdataPath(), AppConfig())
+	writePID("test-app", getTestdataPath())
 	assert.True(t, ess.IsFileExists(pidfile))
 }

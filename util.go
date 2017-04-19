@@ -6,8 +6,10 @@ package aah
 
 import (
 	"errors"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"aahframework.org/essentials.v0"
@@ -49,4 +51,16 @@ func checkSSLConfigValues(isSSLEnabled, isLetsEncrypt bool, sslCert, sslKey stri
 		return errors.New("let's encrypt enabled, however SSL 'server.ssl.enable' is not enabled for application")
 	}
 	return nil
+}
+
+func writePID(appBinaryName, appBaseDir string) {
+	appPID = os.Getpid()
+	pidfile := filepath.Join(appBaseDir, appBinaryName+".pid")
+	if err := ioutil.WriteFile(pidfile, []byte(strconv.Itoa(appPID)), 0644); err != nil {
+		log.Error(err)
+	}
+}
+
+func getBinaryFileName() string {
+	return ess.StripExt(AppBuildInfo().BinaryName)
 }
