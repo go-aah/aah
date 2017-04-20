@@ -69,7 +69,7 @@ func (c *Config) Keys() []string {
 }
 
 // GetSubConfig create new sub config from the given key path. Only `Section`
-// type can be created as sub config.
+// type can be created as sub config. Profile value is not propagated to sub config.
 func (c *Config) GetSubConfig(key string) (*Config, bool) {
 	v, err := c.cfg.Resolve(c.prepareKey(key))
 	if err != nil {
@@ -369,6 +369,14 @@ func (c *Config) IsExists(key string) bool {
 	return f
 }
 
+// ToJSON method returns the configuration values as JSON string.
+func (c *Config) ToJSON() string {
+	if b, err := c.cfg.ToJSON(); err == nil {
+		return string(b)
+	}
+	return "{}"
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Configuration loading methods
 //___________________________________
@@ -491,7 +499,7 @@ func (c *Config) getSection(parts []string) *forge.Section {
 }
 
 func (c *Config) addValue(key string, value forge.Value) {
-	parts := strings.Split(key, ".")
+	parts := strings.Split(c.prepareKey(key), ".")
 	if len(parts) > 1 {
 		section := c.getSection(parts[:len(parts)-1])
 		section.Set(parts[len(parts)-1], value)
