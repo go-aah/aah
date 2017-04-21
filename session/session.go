@@ -4,6 +4,8 @@
 
 package session
 
+import "time"
+
 const flashKeyPrefix = "_flash_"
 
 type (
@@ -25,6 +27,9 @@ type (
 		// IsAuthenticated is helpful to identify user session already authenicated or
 		// not. Don't forget to set it true after successful authentication.
 		IsAuthenticated bool
+
+		// CreatedTime is when the session was created.
+		CreatedTime time.Time
 
 		maxAge int
 	}
@@ -86,4 +91,52 @@ func (s *Session) GetFlash(key string) interface{} {
 func (s *Session) SetFlash(key string, value interface{}) {
 	key = flashKeyPrefix + key
 	s.Set(key, value)
+}
+
+// GetBool method returns the `bool` value from otherwise false.
+func (s *Session) GetBool(key string) bool {
+	if value := s.Get(key); value != nil {
+		return value.(bool)
+	}
+	return false
+}
+
+// GetInt method returns the `int` value from session otherwise 0.
+func (s *Session) GetInt(key string) int {
+	if value := s.Get(key); value != nil {
+		return value.(int)
+	}
+	return 0
+}
+
+// GetInt64 method returns the `int64` value from session otherwise 0.
+func (s *Session) GetInt64(key string) int64 {
+	if value := s.Get(key); value != nil {
+		return value.(int64)
+	}
+	return 0
+}
+
+// GetString method returns the `string` value from session otherwise empty string.
+func (s *Session) GetString(key string) string {
+	if value := s.Get(key); value != nil {
+		return value.(string)
+	}
+	return ""
+}
+
+// GetFloat32 method returns the `float32` value from session otherwise 0.
+func (s *Session) GetFloat32(key string) float32 {
+	if value := s.Get(key); value != nil {
+		return value.(float32)
+	}
+	return 0
+}
+
+// GetFloat64 method returns the `float64` value from session otherwise 0.
+func (s *Session) GetFloat64(key string) float64 {
+	if value := s.Get(key); value != nil {
+		return value.(float64)
+	}
+	return 0
 }
