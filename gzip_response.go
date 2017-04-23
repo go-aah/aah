@@ -26,6 +26,7 @@ var (
 	_ http.CloseNotifier = &GzipResponse{}
 	_ http.Flusher       = &GzipResponse{}
 	_ http.Hijacker      = &GzipResponse{}
+	_ http.Pusher        = &GzipResponse{}
 	_ io.Closer          = &GzipResponse{}
 	_ ResponseWriter     = &GzipResponse{}
 )
@@ -111,4 +112,10 @@ func (g *GzipResponse) Flush() {
 // and close the connection.
 func (g *GzipResponse) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return g.r.Hijack()
+}
+
+// Push method calls underlying Push method HTTP/2 if compatible otherwise
+// returns nil
+func (g *GzipResponse) Push(target string, opts *http.PushOptions) error {
+	return g.r.Push(target, opts)
 }
