@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"aahframework.org/aruntime.v0"
@@ -175,16 +174,18 @@ func SetAppBuildInfo(bi *BuildInfo) {
 func Init(importPath string) {
 	defer aahRecover()
 
-	logAsFatal(initPath(importPath))
-	logAsFatal(initConfig(appConfigDir()))
-
 	if appBuildInfo == nil {
 		// aah CLI is accessing application for build purpose
 		log.SetLevel(log.LevelWarn)
+		logAsFatal(initPath(importPath))
+		logAsFatal(initConfig(appConfigDir()))
 		logAsFatal(initAppVariables())
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
 		log.SetLevel(log.LevelDebug)
 	} else {
+		logAsFatal(initPath(importPath))
+		logAsFatal(initConfig(appConfigDir()))
+
 		// publish `OnInit` server event
 		AppEventStore().sortAndPublishSync(&Event{Name: EventOnInit})
 
@@ -194,6 +195,7 @@ func Init(importPath string) {
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
 		logAsFatal(initSecurity(appConfigDir(), AppConfig()))
 		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
+		log.Info("aah application initialized successfully")
 	}
 
 	appInitialized = true
@@ -298,23 +300,20 @@ func initAppVariables() error {
 }
 
 func initLogs(logsDir string, appCfg *config.Config) error {
-	logCfg, found := appCfg.GetSubConfig("log")
-	if !found {
+	if !appCfg.IsExists("log") {
 		log.Debug("Section 'log {...}' configuration not exists, move on.")
 		return nil
 	}
 
-	receiver := logCfg.StringDefault("receiver", "")
-
-	if strings.EqualFold(receiver, "file") {
-		file := logCfg.StringDefault("file", "")
+	if appCfg.StringDefault("log.receiver", "") == "file" {
+		file := appCfg.StringDefault("log.file", "")
 		if ess.IsStrEmpty(file) {
-			logCfg.SetString("file", filepath.Join(logsDir, getBinaryFileName()+".log"))
+			appCfg.SetString("log.file", filepath.Join(logsDir, getBinaryFileName()+".log"))
 		} else if !filepath.IsAbs(file) {
-			logCfg.SetString("file", filepath.Join(logsDir, file))
+			appCfg.SetString("log.file", filepath.Join(logsDir, file))
 		}
 	}
-
+	logCfg, _ := appCfg.GetSubConfig("log")
 	logger, err := log.Newc(logCfg)
 	if err != nil {
 		return err

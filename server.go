@@ -103,8 +103,6 @@ func Start() {
 //___________________________________
 
 func startUnix(address string) {
-	log.Infof("aah server running on %v", address)
-
 	sockFile := address[5:]
 	if err := os.Remove(sockFile); !os.IsNotExist(err) {
 		logAsFatal(err)
@@ -114,6 +112,7 @@ func startUnix(address string) {
 	logAsFatal(err)
 
 	aahServer.Addr = address
+	log.Infof("aah server running on %v", aahServer.Addr)
 	if err := aahServer.Serve(listener); err != nil {
 		log.Error(err)
 	}
@@ -121,7 +120,6 @@ func startUnix(address string) {
 
 func startHTTPS() {
 	log.Infof("Let's Encypyt cert enabled: %v", appIsLetsEncrypt)
-	log.Infof("aah server running on %v", aahServer.Addr)
 
 	// assign custom TLS config if provided
 	if appTLSCfg != nil {
@@ -135,8 +133,11 @@ func startHTTPS() {
 		} else {
 			aahServer.TLSConfig.GetCertificate = appAutocertManager.GetCertificate
 		}
+	} else {
+		log.Infof("SSLCert: %v, SSLKey: %v", appSSLCert, appSSLKey)
 	}
 
+	log.Infof("aah server running on %v", aahServer.Addr)
 	if err := aahServer.ListenAndServeTLS(appSSLCert, appSSLKey); err != nil {
 		log.Error(err)
 	}

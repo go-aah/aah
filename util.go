@@ -39,8 +39,6 @@ func isValidTimeUnit(str string, units ...string) bool {
 }
 
 func checkSSLConfigValues(isSSLEnabled, isLetsEncrypt bool, sslCert, sslKey string) error {
-	log.Debugf("SSLCert: %v, SSLKey: %v", sslCert, sslKey)
-
 	if isSSLEnabled {
 		if !isLetsEncrypt && (ess.IsStrEmpty(sslCert) || ess.IsStrEmpty(sslKey)) {
 			return errors.New("SSL config is incomplete; either enable 'server.ssl.lets_encrypt.enable' or provide 'server.ssl.cert' & 'server.ssl.key' value")
