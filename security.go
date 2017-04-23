@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"aahframework.org/config.v0"
@@ -47,7 +48,7 @@ func initSecurity(cfgDir string, appCfg *config.Config) error {
 	var err error
 	configPath := filepath.Join(cfgDir, "security.conf")
 	if appSecurity, err = security.New(configPath, appCfg); err != nil {
-		return err
+		return fmt.Errorf("security init: %s", err)
 	}
 
 	// Based on aah server SSL configuration `http.Cookie.Secure` value is set, even
@@ -81,4 +82,12 @@ func tmplFlashValue(viewArgs map[string]interface{}, key string) interface{} {
 		return sanatizeValue(value)
 	}
 	return nil
+}
+
+// tmplIsAuthenticated method returns the value of `Session.IsAuthenticated`.
+func tmplIsAuthenticated(viewArgs map[string]interface{}) interface{} {
+	if sv, found := viewArgs[keySessionValues]; found {
+		return sv.(*session.Session).IsAuthenticated
+	}
+	return false
 }

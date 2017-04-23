@@ -44,4 +44,7 @@ func TestSecuritySessionTemplateFuns(t *testing.T) {
 
 	v2 := tmplFlashValue(viewArgs, "my-flashvalue")
 	assert.Equal(t, "user not found", v2)
+
+	v3 := tmplIsAuthenticated(viewArgs)
+	assert.False(t, v3)
 }

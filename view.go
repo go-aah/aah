@@ -190,14 +190,15 @@ func sanatizeValue(value interface{}) interface{} {
 
 func init() {
 	AddTemplateFunc(template.FuncMap{
-		"config":  tmplConfig,
-		"rurl":    tmplURL,
-		"rurlm":   tmplURLm,
-		"i18n":    tmplI18n,
-		"pparam":  tmplPathParam,
-		"fparam":  tmplFormParam,
-		"qparam":  tmplQueryParam,
-		"session": tmplSessionValue,
-		"flash":   tmplFlashValue,
+		"config":          tmplConfig,
+		"rurl":            tmplURL,
+		"rurlm":           tmplURLm,
+		"i18n":            tmplI18n,
+		"pparam":          tmplPathParam,
+		"fparam":          tmplFormParam,
+		"qparam":          tmplQueryParam,
+		"session":         tmplSessionValue,
+		"isauthenticated": tmplIsAuthenticated,
+		"flash":           tmplFlashValue,
 	})
 }
