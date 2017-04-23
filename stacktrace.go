@@ -5,6 +5,7 @@
 package aruntime
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -93,9 +94,14 @@ func (st *Stacktrace) Parse() {
 	st.GoRoutines = make([]*GoRoutine, st.RoutineCnt)
 
 	ri := -1
-	lines := strings.Split(st.Raw, "\n")
 	gopathSrcLen := len(st.gopathSrc) + 1
 	gorootSrcLen := len(st.gorootSrc) + 1
+
+	var lines []string
+	scanner := bufio.NewScanner(strings.NewReader(st.Raw))
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
 
 	for linePos := 0; linePos < len(lines); linePos++ {
 		sline := strings.TrimSpace(lines[linePos])
@@ -114,7 +120,7 @@ func (st *Stacktrace) Parse() {
 			continue
 		}
 
-		if strings.HasPrefix(sline, "/") {
+		if strings.HasPrefix(sline, "/") || strings.HasPrefix(sline[2:], "/") {
 			if strings.HasPrefix(sline, st.gopathSrc) {
 				sline = sline[gopathSrcLen:]
 			} else if strings.HasPrefix(sline, st.gorootSrc) {
