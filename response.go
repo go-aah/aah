@@ -30,7 +30,7 @@ type (
 		Unwrap() http.ResponseWriter
 	}
 
-	// Response implements multiple interface (ReaderFrom, CloseNotifier, Flusher,
+	// Response implements multiple interface (CloseNotifier, Flusher,
 	// Hijacker) and handy methods for aah framework.
 	Response struct {
 		w            http.ResponseWriter
@@ -45,6 +45,7 @@ var (
 	_ http.CloseNotifier = &Response{}
 	_ http.Flusher       = &Response{}
 	_ http.Hijacker      = &Response{}
+	_ http.Pusher        = &Response{}
 	_ io.Closer          = &Response{}
 	_ ResponseWriter     = &Response{}
 )
@@ -131,6 +132,15 @@ func (r *Response) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	}
 
 	return nil, nil, errors.New("http.Hijacker interface is not compatible")
+}
+
+// Push method calls underlying Push method HTTP/2 if compatible otherwise
+// returns nil
+func (r *Response) Push(target string, opts *http.PushOptions) error {
+	if p, ok := r.w.(http.Pusher); ok {
+		return p.Push(target, opts)
+	}
+	return nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
