@@ -17,7 +17,8 @@ import (
 
 func TestViewAddTemplateFunc(t *testing.T) {
 	AddTemplateFunc(template.FuncMap{
-		"join": strings.Join,
+		"join":     strings.Join,
+		"safeHTML": strings.Join, // for duplicate test, don't mind
 	})
 
 	_, found := TemplateFuncMap["join"]
