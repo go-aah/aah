@@ -19,7 +19,7 @@ import (
 )
 
 // Version no. of aahframework.org/config library
-var Version = "0.4"
+var Version = "0.4.1"
 
 var errKeyNotFound = errors.New("config: not found")
 
