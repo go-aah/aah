@@ -20,6 +20,8 @@
 // types using `gob.Register(...)`.
 //
 // Secure cookie code is inspired from Gorilla secure cookie library.
+//
+// Know more: https://www.owasp.org/index.php/Session_Management_Cheat_Sheet
 package session
 
 import (
@@ -193,9 +195,10 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 // NewSession method creates a new session for the request.
 func (m *Manager) NewSession() *Session {
 	return &Session{
-		ID:     ess.RandomString(m.idLength),
-		Values: make(map[string]interface{}, 0),
-		IsNew:  true,
+		ID:          ess.RandomString(m.idLength),
+		Values:      make(map[string]interface{}, 0),
+		IsNew:       true,
+		CreatedTime: time.Now(),
 	}
 }
 
@@ -263,9 +266,10 @@ func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
 	}
 
 	if !m.IsCookieStore() {
+		// Encode session object send it to store
 		if encoded, err := m.Encode(m.Options.Name, s); err == nil {
 			if err = m.store.Save(s.ID, encoded); err != nil {
-				log.Error(err) // store save had error, still we log and go forward
+				return err
 			}
 		}
 	}
@@ -280,7 +284,8 @@ func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
 func (m *Manager) DeleteSession(w http.ResponseWriter, s *Session) error {
 	if !m.IsCookieStore() {
 		if err := m.store.Delete(s.ID); err != nil {
-			log.Error(err) // store delete had error, still we log and go forward
+			// store delete had error, log it and go forward to clean the cookie
+			log.Error(err)
 		}
 	}
 

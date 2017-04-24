@@ -158,8 +158,8 @@ func TestSessionManagerMisc(t *testing.T) {
 func assertSessionValue(t *testing.T, s *Session) {
 	t.Logf("Session: %v", s)
 	assert.NotNil(t, s)
-	assert.Equal(t, "my key value 1", s.Get("my-key-1"))
-	assert.Equal(t, 65454523452, s.Get("my-key-2"))
+	assert.Equal(t, "my key value 1", s.GetString("my-key-1"))
+	assert.Equal(t, 65454523452, s.GetInt("my-key-2"))
 	assert.Nil(t, s.Get("not-exists"))
 
 	maps := s.Get("my-key-3").(map[interface{}]interface{})

@@ -63,6 +63,10 @@ func testSessionStoreSave(t *testing.T, cfgStr string) {
 	session.Set("my-key-1", "my key value 1")
 	session.Set("my-key-2", 65454523452)
 	session.Set("my-key-3", map[interface{}]interface{}{"test1": "test1value", "test2": 6546546})
+	session.Set("my-key-4", float32(364.46))
+	session.Set("my-key-5", true)
+	session.Set("my-key-6", float64(364534.4637))
+	session.Set("my-key-7", int64(65454523452))
 	session.SetFlash("my-1", "my 1 flash value")
 	session.SetFlash("my-2", 364534.4637)
 
@@ -88,6 +92,10 @@ func testSessionStoreSave(t *testing.T, cfgStr string) {
 	assert.Equal(t, 364534.4637, resultSession.GetFlash("my-2"))
 	assert.Nil(t, resultSession.GetFlash("my-1"))
 	assert.Nil(t, resultSession.GetFlash("my-2"))
+	assert.Equal(t, float32(364.46), resultSession.GetFloat32("my-key-4"))
+	assert.Equal(t, float64(364534.4637), resultSession.GetFloat64("my-key-6"))
+	assert.Equal(t, int64(65454523452), resultSession.GetInt64("my-key-7"))
+	assert.Equal(t, true, resultSession.GetBool("my-key-5"))
 }
 
 func TestSessionNewCookie(t *testing.T) {
