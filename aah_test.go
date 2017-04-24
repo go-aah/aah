@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
@@ -29,6 +30,7 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, "aahframework", AppName())
+	assert.Equal(t, "aah framework test config", AppDesc())
 	assert.Equal(t, "127.0.0.1", AppHTTPAddress())
 	assert.Equal(t, "80", AppHTTPPort())
 	assert.Equal(t, "2006-01-02", AppDateFormat())
@@ -118,6 +120,18 @@ func TestAahInitAppVariables(t *testing.T) {
 	AppConfig().SetString("request.multipart_size", "12mb")
 }
 
+func TestAahInitPath(t *testing.T) {
+	err := initPath("github.com/jeevatkm/testapp")
+	assert.NotNil(t, err)
+	assert.Equal(t, "aah application does not exists: github.com/jeevatkm/testapp", err.Error())
+	assert.True(t, !ess.IsStrEmpty(goSrcDir))
+	assert.True(t, !ess.IsStrEmpty(goPath))
+
+	// cleanup
+	appImportPath, appBaseDir, goPath, goSrcDir = "", "", "", ""
+	appIsPackaged = false
+}
+
 func TestAahRecover(t *testing.T) {
 	defer aahRecover()
 
@@ -161,4 +175,20 @@ func TestWritePID(t *testing.T) {
 
 	writePID("test-app", getTestdataPath())
 	assert.True(t, ess.IsFileExists(pidfile))
+}
+
+func TestAahBuildInfo(t *testing.T) {
+	assert.Nil(t, AppBuildInfo())
+
+	buildTime := time.Now().Format(time.RFC3339)
+	SetAppBuildInfo(&BuildInfo{
+		BinaryName: "testapp",
+		Date:       buildTime,
+		Version:    "1.0.0",
+	})
+
+	assert.NotNil(t, AppBuildInfo())
+	assert.Equal(t, "testapp", AppBuildInfo().BinaryName)
+	assert.Equal(t, buildTime, AppBuildInfo().Date)
+	assert.Equal(t, "1.0.0", AppBuildInfo().Version)
 }

@@ -33,11 +33,11 @@ func TestParamTemplateFuncs(t *testing.T) {
 	viewArgs[keyRequestParams] = aahReq1.Params
 
 	v1 := tmplQueryParam(viewArgs, "_ref")
-	assert.Equal(t, "true", string(v1))
+	assert.Equal(t, "true", v1)
 
 	v2 := tmplFormParam(viewArgs, "email")
-	assert.Equal(t, "welcome@welcome.com", string(v2))
+	assert.Equal(t, "welcome@welcome.com", v2)
 
 	v3 := tmplPathParam(viewArgs, "userId")
-	assert.Equal(t, "100001", string(v3))
+	assert.Equal(t, "100001", v3)
 }

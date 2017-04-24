@@ -202,13 +202,13 @@ func (r *Reply) FileInline(filename string, file io.ReadCloser) *Reply {
 // by framework. Also it sets HTTP 'Content-Type' as 'text/html; charset=utf-8'.
 // By default aah framework renders the template based on
 // 1) path 'Controller.Action',
-// 2) template extension 'template.ext' and
-// 3) case sensitive 'template.case_sensitive' from aah.conf
-// 4) default layout is 'master'
+// 2) view extension 'view.ext' and
+// 3) case sensitive 'view.case_sensitive' from aah.conf
+// 4) default layout is 'master.html'
 //    E.g.:
 //      Controller: App
 //      Action: Login
-//      template.ext: html
+//      view.ext: html
 //
 //      template => /views/pages/app/login.html
 //               => /views/pages/App/Login.html
@@ -296,9 +296,9 @@ func (r *Reply) HeaderAppend(key, value string) *Reply {
 	return r
 }
 
-// Done method concludes middleware flow, action flow by returning control over
-// to framework and informing that reply has already been sent via `aahContext.Res`
-// and that no further action is needed.
+// Done method indicates to framework and informing that reply has already
+// been sent via `aah.Context.Res` and that no further action is needed.
+// Framework doesn't intervene with response if this method called.
 func (r *Reply) Done() *Reply {
 	r.done = true
 	return r
