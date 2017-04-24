@@ -54,7 +54,7 @@ func (f *FileStore) Init(cfg *config.Config) error {
 	f.filePrefix = cfg.StringDefault("security.session.prefix", "aah") + "_session"
 	f.m = &sync.RWMutex{}
 
-	log.Infof("Session file store is initialized at path: %v", f.path)
+	log.Infof("Session file store is initialized at path: %v", filepath.FromSlash(f.path))
 	return nil
 }
 

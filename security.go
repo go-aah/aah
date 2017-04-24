@@ -45,10 +45,8 @@ func New(configPath string, appCfg *config.Config) (*Security, error) {
 
 	isSessionConfigExists := s.config.IsExists("security.session")
 	log.Debugf("Session config exists: %v", isSessionConfigExists)
-	if isSessionConfigExists {
-		if s.SessionManager, err = session.NewManager(s.config); err != nil {
-			return nil, err
-		}
+	if s.SessionManager, err = session.NewManager(s.config); err != nil {
+		return nil, err
 	}
 
 	return s, nil
