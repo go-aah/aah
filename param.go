@@ -5,7 +5,6 @@
 package aah
 
 import (
-	"html/template"
 	"io/ioutil"
 	"net/http"
 
@@ -74,19 +73,19 @@ func (e *engine) parseRequestParams(ctx *Context) {
 //___________________________________
 
 // tmplPathParam method returns Request Path Param value for the given key.
-func tmplPathParam(viewArgs map[string]interface{}, key string) template.HTML {
+func tmplPathParam(viewArgs map[string]interface{}, key string) interface{} {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
-	return template.HTML(template.HTMLEscapeString(params.PathValue(key)))
+	return sanatizeValue(params.PathValue(key))
 }
 
 // tmplFormParam method returns Request Form value for the given key.
-func tmplFormParam(viewArgs map[string]interface{}, key string) template.HTML {
+func tmplFormParam(viewArgs map[string]interface{}, key string) interface{} {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
-	return template.HTML(template.HTMLEscapeString(params.FormValue(key)))
+	return sanatizeValue(params.FormValue(key))
 }
 
 // tmplQueryParam method returns Request Query String value for the given key.
-func tmplQueryParam(viewArgs map[string]interface{}, key string) template.HTML {
+func tmplQueryParam(viewArgs map[string]interface{}, key string) interface{} {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
-	return template.HTML(template.HTMLEscapeString(params.QueryValue(key)))
+	return sanatizeValue(params.QueryValue(key))
 }
