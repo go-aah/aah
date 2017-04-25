@@ -151,6 +151,15 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Equal(t, 500, resp3.StatusCode)
 	assert.Equal(t, "Internal Server Error", resp3.Status)
 	assert.True(t, strings.Contains(string(body3), "panic flow testing"))
+
+	// Request 4 static
+	r4 := httptest.NewRequest("GET", "http://localhost:8080/assets/logo.png", nil)
+	w4 := httptest.NewRecorder()
+	e.ServeHTTP(w4, r4)
+
+	resp4 := w4.Result()
+	assert.Equal(t, 404, resp4.StatusCode)
+	assert.Equal(t, "Not Found", resp4.Status)
 }
 
 func TestEngineGzipHeaders(t *testing.T) {

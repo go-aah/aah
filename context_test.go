@@ -69,7 +69,7 @@ func TestContextReverseURL(t *testing.T) {
 }
 
 func TestContextViewArgs(t *testing.T) {
-	ctx := &Context{viewArgs: make(map[string]interface{}, 0)}
+	ctx := &Context{viewArgs: make(map[string]interface{})}
 
 	ctx.AddViewArg("key1", "key1 value")
 	assert.Equal(t, "key1 value", ctx.viewArgs["key1"])

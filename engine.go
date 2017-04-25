@@ -134,7 +134,7 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 
 	ctx.Req = ahttp.ParseRequest(req, r)
 	ctx.reply = NewReply()
-	ctx.viewArgs = make(map[string]interface{}, 0)
+	ctx.viewArgs = make(map[string]interface{})
 
 	if ctx.Req.IsGzipAccepted && e.isGzipEnabled {
 		ctx.Res = ahttp.WrapGzipResponseWriter(w, e.gzipLevel)

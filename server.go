@@ -115,7 +115,7 @@ func Shutdown() {
 
 	graceTimeout, _ := time.ParseDuration(graceTime)
 	ctx, cancel := context.WithTimeout(context.Background(), graceTimeout)
-	if err := aahServer.Shutdown(ctx); err != nil {
+	if err := aahServer.Shutdown(ctx); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
 
@@ -149,22 +149,31 @@ func startUnix(address string) {
 }
 
 func startHTTPS() {
-	log.Infof("Let's Encypyt cert enabled: %v", appIsLetsEncrypt)
-
-	// assign custom TLS config if provided
-	if appTLSCfg != nil {
+	// Assign user-defined TLS config if provided
+	if appTLSCfg == nil {
+		aahServer.TLSConfig = new(tls.Config)
+	} else {
+		log.Info("Adding user provided TLS Config")
 		aahServer.TLSConfig = appTLSCfg
 	}
 
 	// Add cert, if let's encrypt enabled
 	if appIsLetsEncrypt {
-		if appTLSCfg == nil {
-			aahServer.TLSConfig = &tls.Config{GetCertificate: appAutocertManager.GetCertificate}
-		} else {
-			aahServer.TLSConfig.GetCertificate = appAutocertManager.GetCertificate
-		}
+		log.Infof("Let's Encypyt CA Cert enabled")
+		aahServer.TLSConfig.GetCertificate = appAutocertManager.GetCertificate
 	} else {
 		log.Infof("SSLCert: %v, SSLKey: %v", appSSLCert, appSSLKey)
+	}
+
+	// Enable & Disable HTTP/2
+	if AppConfig().BoolDefault("server.ssl.disable_http2", false) {
+		// To disable HTTP/2 is-
+		//  - Don't add "h2" to TLSConfig.NextProtos
+		//  - Initialize TLSNextProto with empty map
+		// Otherwise Go will enable HTTP/2 by default. It's not gonna listen to you :)
+		aahServer.TLSNextProto = map[string]func(*http.Server, *tls.Conn, http.Handler){}
+	} else {
+		aahServer.TLSConfig.NextProtos = append(aahServer.TLSConfig.NextProtos, "h2")
 	}
 
 	log.Infof("aah server running on %v", aahServer.Addr)

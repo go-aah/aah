@@ -205,7 +205,7 @@ func actionMiddleware(ctx *Context, m *Middleware) {
 func invalidateMwChain() {
 	mwChain = nil
 	cnt := len(mwStack)
-	mwChain = make([]*Middleware, cnt, cnt)
+	mwChain = make([]*Middleware, cnt)
 
 	for idx := 0; idx < cnt; idx++ {
 		mwChain[idx] = &Middleware{next: mwStack[idx]}

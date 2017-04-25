@@ -118,6 +118,9 @@ func TestAahInitAppVariables(t *testing.T) {
 	err = initAppVariables()
 	assert.Equal(t, "'request.multipart_size' value is not a valid size unit", err.Error())
 	AppConfig().SetString("request.multipart_size", "12mb")
+
+	// cleanup
+	appConfig = nil
 }
 
 func TestAahInitPath(t *testing.T) {
