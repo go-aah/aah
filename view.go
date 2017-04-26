@@ -113,6 +113,9 @@ func handlePreReplyStage(ctx *Context) {
 		}
 
 		for k, v := range ctx.ViewArgs() {
+			if _, found := htmlRdr.ViewArgs[k]; found {
+				continue
+			}
 			htmlRdr.ViewArgs[k] = v
 		}
 
