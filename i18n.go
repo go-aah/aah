@@ -6,20 +6,23 @@
 // framework. Messages config format is `forge` config syntax (go-aah/config)
 // which is similar to HOCON syntax aka typesafe config.
 //
-// Message filename format is `message.<Language-ID>`. Language is combination
-// of Language + Region value. aah framework implements Language code is as per
-// two-letter `ISO 639-1` standard and Region code is as per two-letter
+// Message filename format is `message.<Language-ID>`. Language ID is combination
+// of `Language + Region` or `Language` value. aah framework implements Language
+// code is as per two-letter `ISO 639-1` standard and Region code is as per two-letter
 // `ISO 3166-1` standard.
 //
 // Supported message file extension formats are (incasesensitive)
-// 	* Priority 1: Language + Region => en-us | en-US
-// 	* Priority 2: Language          => en
+// 	1) Language + Region => en-us | en-US
+// 	2) Language          => en
 //
 // 	For Example:
 // 		message.en-US or message.en-us
 // 		message.en-GB or message.en-gb
 // 		message.en-CA or message.en-ca
 // 		message.en
+// 		message.es
+// 		message.zh
+// 		message.nl
 // 		etc.
 //
 // Note: Sub directories is supported, so you can organize message files.
@@ -39,13 +42,14 @@ import (
 )
 
 // Version no. of aah framework i18n library
-const Version = "0.1"
+const Version = "0.2"
 
 // I18n holds the message store and related information for internationalization
 // and localization.
 type I18n struct {
-	Store        map[string]*config.Config
-	fileExtRegex string
+	Store         map[string]*config.Config
+	DefaultLocale string
+	fileExtRegex  string
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -55,7 +59,7 @@ type I18n struct {
 // New method creates aah i18n message store
 func New() *I18n {
 	return &I18n{
-		Store:        make(map[string]*config.Config, 0),
+		Store:        make(map[string]*config.Config),
 		fileExtRegex: `messages\.[a-z]{2}(\-[a-zA-Z]{2})?$`,
 	}
 }
@@ -122,6 +126,12 @@ func (s *I18n) Lookup(locale *ahttp.Locale, key string, args ...interface{}) str
 
 	log.Tracef("Message is retrieved from locale: %v", locale.Language)
 	if msg, found := retriveValue(s.findStoreByLocale(locale.Language), key, args...); found {
+		return msg
+	}
+
+	// fallback to `i18n.default` config value.
+	log.Tracef("Message is retrieved with `i18n.default`: %v", s.DefaultLocale)
+	if msg, found := retriveValue(s.findStoreByLocale(s.DefaultLocale), key, args...); found {
 		return msg
 	}
 

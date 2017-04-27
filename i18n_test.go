@@ -55,6 +55,7 @@ func TestMsgRetrive_enGB(t *testing.T) {
 	store := New()
 
 	_ = store.Load(filepath.Join(wd, "testdata"))
+	store.DefaultLocale = "en"
 
 	locale := ahttp.Locale{Raw: "en-GB", Language: "en", Region: "GB"}
 
@@ -76,6 +77,7 @@ func TestMsgRetrive_en(t *testing.T) {
 	store := New()
 
 	_ = store.Load(filepath.Join(wd, "testdata"))
+	store.DefaultLocale = "en"
 
 	locale := ahttp.Locale{Raw: "en", Language: "en"}
 
