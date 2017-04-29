@@ -20,6 +20,12 @@ const jsonpReqParamKey = "callback"
 type (
 	// Request is extends `http.Request` for aah framework
 	Request struct {
+		// Schema value is protocol info it's a derived value in the order as below.
+		//  - `X-Forwarded-Proto` is not empty return value as is
+		//  - `http.Request.TLS` is not nil value is `https`
+		//  - `http.Request.TLS` is nil value is `http`
+		Schema string
+
 		// Host value of the HTTP 'Host' header (e.g. 'example.com:8080').
 		Host string
 
@@ -93,6 +99,7 @@ type (
 // ParseRequest method populates the given aah framework `ahttp.Request`
 // instance from Go HTTP request.
 func ParseRequest(r *http.Request, req *Request) *Request {
+	req.Schema = identifyScheme(r)
 	req.Host = r.Host
 	req.Method = r.Method
 	req.Path = r.URL.Path
@@ -127,6 +134,7 @@ func (r *Request) Cookies() []*http.Cookie {
 
 // Reset method resets request instance for reuse.
 func (r *Request) Reset() {
+	r.Schema = ""
 	r.Host = ""
 	r.Method = ""
 	r.Path = ""
@@ -208,6 +216,24 @@ func (p *Params) FormFile(key string) (multipart.File, *multipart.FileHeader, er
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
+
+// identifyScheme method is to identify value of protocol value. It's is derived
+// one, Go language doesn't provide directly.
+//  - `X-Forwarded-Proto` is not empty return value as is
+//  - `http.Request.TLS` is not nil value is `https`
+//  - `http.Request.TLS` is nil value is `http`
+func identifyScheme(r *http.Request) string {
+	scheme := r.Header.Get(HeaderXForwardedProto)
+	if !ess.IsStrEmpty(scheme) {
+		return scheme
+	}
+
+	if r.TLS != nil {
+		return "https"
+	}
+
+	return "http"
+}
 
 // clientIP returns IP address from HTTP request, typically known as Client IP or
 // Remote IP. It parses the IP in the order of X-Forwarded-For, X-Real-IP
