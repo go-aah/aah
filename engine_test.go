@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -160,6 +161,29 @@ func TestEngineServeHTTP(t *testing.T) {
 	resp4 := w4.Result()
 	assert.Equal(t, 404, resp4.StatusCode)
 	assert.Equal(t, "Not Found", resp4.Status)
+
+	// Request 5 RedirectTrailingSlash - 302 status
+	wd, _ := os.Getwd()
+	appBaseDir = wd
+	r5 := httptest.NewRequest("GET", "http://localhost:8080/testdata", nil)
+	w5 := httptest.NewRecorder()
+	e.ServeHTTP(w5, r5)
+
+	resp5 := w5.Result()
+	assert.Equal(t, 302, resp5.StatusCode)
+	assert.Equal(t, "Found", resp5.Status)
+	assert.Equal(t, "http://localhost:8080/testdata/", resp5.Header.Get(ahttp.HeaderLocation))
+
+	r6 := httptest.NewRequest("GET", "http://localhost:8080/testdata/", nil)
+	w6 := httptest.NewRecorder()
+	e.ServeHTTP(w6, r6)
+
+	resp6 := w6.Result()
+	body6, _ := ioutil.ReadAll(resp6.Body)
+	body6Str := string(body6)
+	assert.True(t, strings.Contains(body6Str, "Listing of /testdata/"))
+	assert.True(t, strings.Contains(body6Str, "config/"))
+	appBaseDir = ""
 }
 
 func TestEngineGzipHeaders(t *testing.T) {

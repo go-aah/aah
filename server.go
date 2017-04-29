@@ -142,8 +142,8 @@ func startUnix(address string) {
 	logAsFatal(err)
 
 	aahServer.Addr = address
-	log.Infof("aah server running on %v", aahServer.Addr)
-	if err := aahServer.Serve(listener); err != nil {
+	log.Infof("aah go server running on %v", aahServer.Addr)
+	if err := aahServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
 }
@@ -176,15 +176,15 @@ func startHTTPS() {
 		aahServer.TLSConfig.NextProtos = append(aahServer.TLSConfig.NextProtos, "h2")
 	}
 
-	log.Infof("aah server running on %v", aahServer.Addr)
-	if err := aahServer.ListenAndServeTLS(appSSLCert, appSSLKey); err != nil {
+	log.Infof("aah go server running on %v", aahServer.Addr)
+	if err := aahServer.ListenAndServeTLS(appSSLCert, appSSLKey); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
 }
 
 func startHTTP() {
-	log.Infof("aah server running on %v", aahServer.Addr)
-	if err := aahServer.ListenAndServe(); err != nil {
+	log.Infof("aah go server running on %v", aahServer.Addr)
+	if err := aahServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
 }

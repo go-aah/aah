@@ -120,6 +120,7 @@ func handlePreReplyStage(ctx *Context) {
 		}
 
 		// ViewArgs values from framework
+		htmlRdr.ViewArgs["Scheme"] = ctx.Req.Schema
 		htmlRdr.ViewArgs["Host"] = ctx.Req.Host
 		htmlRdr.ViewArgs["HTTPMethod"] = ctx.Req.Method
 		htmlRdr.ViewArgs["RequestPath"] = ctx.Req.Path
@@ -128,9 +129,8 @@ func handlePreReplyStage(ctx *Context) {
 		htmlRdr.ViewArgs["IsJSONP"] = ctx.Req.IsJSONP
 		htmlRdr.ViewArgs["HTTPReferer"] = ctx.Req.Referer
 		htmlRdr.ViewArgs["AahVersion"] = Version
-		htmlRdr.ViewArgs["AppBinary"] = AppBuildInfo().BinaryName
-		htmlRdr.ViewArgs["AppVersion"] = AppBuildInfo().Version
-		htmlRdr.ViewArgs["AppBuildDate"] = AppBuildInfo().Date
+		htmlRdr.ViewArgs["EnvProfile"] = AppProfile()
+		htmlRdr.ViewArgs["AppBuildInfo"] = AppBuildInfo()
 
 		// find view template by convention if not provided
 		findViewTemplate(ctx)
