@@ -5,7 +5,9 @@
 package ahttp
 
 import (
+	"crypto/tls"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -150,6 +152,24 @@ func TestHTTPRequestCookies(t *testing.T) {
 
 	cookie, _ := aahReq.Cookie("test-2")
 	assert.Equal(t, "test-2 value", cookie.Value)
+}
+
+func TestRequestSchemeDerived(t *testing.T) {
+	req := httptest.NewRequest("GET", "http://127.0.0.1:8080/welcome.html", nil)
+	scheme1 := identifyScheme(req)
+	assert.Equal(t, "http", scheme1)
+
+	req.TLS = &tls.ConnectionState{}
+	scheme2 := identifyScheme(req)
+	assert.Equal(t, "https", scheme2)
+
+	req.Header.Set(HeaderXForwardedProto, "https")
+	scheme3 := identifyScheme(req)
+	assert.Equal(t, "https", scheme3)
+
+	req.Header.Set(HeaderXForwardedProto, "http")
+	scheme4 := identifyScheme(req)
+	assert.Equal(t, "http", scheme4)
 }
 
 func createRequestWithHost(host, remote string) *http.Request {
