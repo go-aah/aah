@@ -195,7 +195,6 @@ func Init(importPath string) {
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
 		logAsFatal(initSecurity(appConfigDir(), AppConfig()))
 		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
-		log.Info("aah application initialized successfully")
 	}
 
 	appInitialized = true
