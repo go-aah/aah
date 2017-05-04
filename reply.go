@@ -320,6 +320,18 @@ func (r *Reply) IsContentTypeSet() bool {
 	return !ess.IsStrEmpty(r.ContType)
 }
 
+// Reset method resets the values into initialized state.
+func (r *Reply) Reset() {
+	r.Code = 0
+	r.ContType = ""
+	r.Hdr = nil
+	r.Rdr = nil
+	r.cookies = make([]*http.Cookie, 0)
+	r.redirect = false
+	r.redirectURL = ""
+	r.done = false
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported Reply methods
 //___________________________________

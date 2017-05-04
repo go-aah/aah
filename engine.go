@@ -45,6 +45,7 @@ type (
 		gzipLevel          int
 		ctxPool            *pool.Pool
 		reqPool            *pool.Pool
+		replyPool          *pool.Pool
 		bufPool            *pool.Pool
 	}
 
@@ -62,7 +63,9 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := e.prepareContext(w, r)
-	defer e.putContext(ctx)
+	defer func() {
+		e.putContext(ctx)
+	}()
 
 	// Recovery handling, capture every possible panic(s)
 	defer e.handleRecovery(ctx)
@@ -133,7 +136,7 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 	ctx, r := e.getContext(), e.getRequest()
 
 	ctx.Req = ahttp.ParseRequest(req, r)
-	ctx.reply = NewReply()
+	ctx.reply = e.getReply()
 	ctx.viewArgs = make(map[string]interface{})
 
 	if ctx.Req.IsGzipAccepted && e.isGzipEnabled {
@@ -336,14 +339,19 @@ func (e *engine) setCookies(ctx *Context) {
 	}
 }
 
-// getContext method gets context from pool
+// getContext method gets context instance from the pool
 func (e *engine) getContext() *Context {
 	return e.ctxPool.Get().(*Context)
 }
 
-// getRequest method gets request from pool
+// getRequest method gets request instance from the pool
 func (e *engine) getRequest() *ahttp.Request {
 	return e.reqPool.Get().(*ahttp.Request)
+}
+
+// getReply method gets reply instance from the pool
+func (e *engine) getReply() *Reply {
+	return e.replyPool.Get().(*Reply)
 }
 
 // putContext method puts context back to pool
@@ -355,6 +363,12 @@ func (e *engine) putContext(ctx *Context) {
 	if ctx.Req != nil {
 		ctx.Req.Reset()
 		e.reqPool.Put(ctx.Req)
+	}
+
+	// clear and put `Reply` into pool
+	if ctx.reply != nil {
+		ctx.reply.Reset()
+		e.replyPool.Put(ctx.reply)
 	}
 
 	// clear and put `aah.Context` into pool
@@ -398,6 +412,12 @@ func newEngine(cfg *config.Config) *engine {
 			cfg.IntDefault("runtime.pooling.global", 0),
 			func() interface{} {
 				return &ahttp.Request{}
+			},
+		),
+		replyPool: pool.NewPool(
+			cfg.IntDefault("runtime.pooling.global", 0),
+			func() interface{} {
+				return NewReply()
 			},
 		),
 		bufPool: pool.NewPool(
