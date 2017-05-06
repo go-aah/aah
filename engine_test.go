@@ -91,6 +91,8 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, AppConfig())
 
+	AppConfig().SetString("server.port", "8080")
+
 	// Router
 	err = initRoutes(cfgDir, AppConfig())
 	assert.Nil(t, err)
