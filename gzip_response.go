@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sync"
 
 	"aahframework.org/essentials.v0"
 )
@@ -21,8 +22,19 @@ type GzipResponse struct {
 	gw *gzip.Writer
 }
 
-// interface compliance
 var (
+	// GzipLevel holds value from app config.
+	GzipLevel int
+
+	grPool = sync.Pool{
+		New: func() interface{} {
+			return &GzipResponse{}
+		},
+	}
+
+	gwPool = sync.Pool{}
+
+	// interface compliance
 	_ http.CloseNotifier = &GzipResponse{}
 	_ http.Flusher       = &GzipResponse{}
 	_ http.Hijacker      = &GzipResponse{}
@@ -35,15 +47,22 @@ var (
 // Global methods
 //___________________________________
 
-// WrapGzipResponseWriter wraps `http.ResponseWriter`, returns aah framework response
+// GetGzipResponseWriter wraps `http.ResponseWriter`, returns aah framework response
 // writer that allows to advantage of response process.
-func WrapGzipResponseWriter(w http.ResponseWriter, level int) ResponseWriter {
-	rw := WrapResponseWriter(w)
+func GetGzipResponseWriter(w ResponseWriter) ResponseWriter {
+	gr := grPool.Get().(*GzipResponse)
+	gr.gw = getGzipWriter(w)
+	gr.r = w.(*Response)
+	return gr
+}
 
-	// Since Gzip level is validated in the framework while loading,
-	// so expected to have valid level which between 1 and 9.
-	gzw, _ := gzip.NewWriterLevel(rw, level)
-	return &GzipResponse{gw: gzw, r: rw.(*Response)}
+// PutGzipResponseWiriter method resets and puts the gzip writer into pool.
+func PutGzipResponseWiriter(rw ResponseWriter) {
+	gw := rw.(*GzipResponse)
+	putGzipWriter(gw.gw)
+	PutResponseWriter(gw.r)
+	_ = gw.Close()
+	grPool.Put(gw)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -118,4 +137,26 @@ func (g *GzipResponse) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 // returns nil
 func (g *GzipResponse) Push(target string, opts *http.PushOptions) error {
 	return g.r.Push(target, opts)
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// GzipResponse Unexported methods
+//___________________________________
+
+func getGzipWriter(w io.Writer) *gzip.Writer {
+	gw := gwPool.Get()
+	if gw == nil {
+		if ngw, err := gzip.NewWriterLevel(w, GzipLevel); err == nil {
+			return ngw
+		}
+		return nil
+	}
+	ngw := gw.(*gzip.Writer)
+	ngw.Reset(w)
+	return ngw
+}
+
+func putGzipWriter(gw *gzip.Writer) {
+	_ = gw.Close()
+	gwPool.Put(gw)
 }
