@@ -42,7 +42,6 @@ type (
 		isRequestIDEnabled bool
 		requestIDHeader    string
 		isGzipEnabled      bool
-		gzipLevel          int
 		ctxPool            *pool.Pool
 		reqPool            *pool.Pool
 		replyPool          *pool.Pool
@@ -63,9 +62,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := e.prepareContext(w, r)
-	defer func() {
-		e.putContext(ctx)
-	}()
+	defer e.putContext(ctx)
 
 	// Recovery handling, capture every possible panic(s)
 	defer e.handleRecovery(ctx)
@@ -134,16 +131,10 @@ func (e *engine) setRequestID(r *http.Request) {
 // controller, parses the request and returns the controller.
 func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Context {
 	ctx, r := e.getContext(), e.getRequest()
-
 	ctx.Req = ahttp.ParseRequest(req, r)
+	ctx.Res = ahttp.GetResponseWriter(w)
 	ctx.reply = e.getReply()
 	ctx.viewArgs = make(map[string]interface{})
-
-	if ctx.Req.IsGzipAccepted && e.isGzipEnabled {
-		ctx.Res = ahttp.WrapGzipResponseWriter(w, e.gzipLevel)
-	} else {
-		ctx.Res = ahttp.WrapResponseWriter(w)
-	}
 
 	return ctx
 }
@@ -272,7 +263,13 @@ func (e *engine) writeReply(ctx *Context) {
 	}
 
 	// Gzip
-	e.writeGzipHeaders(ctx, buf.Len() == 0)
+	if ctx.Req.IsGzipAccepted && e.isGzipEnabled && reply.gzip {
+		if reply.Code != http.StatusNoContent &&
+			reply.Code != http.StatusNotModified &&
+			buf.Len() != 0 {
+			e.wrapGzipWriter(ctx)
+		}
+	}
 
 	// HTTP headers
 	e.writeHeaders(ctx)
@@ -288,6 +285,15 @@ func (e *engine) writeReply(ctx *Context) {
 
 	// 'OnAfterReply' server extension point
 	publishOnAfterReplyEvent(ctx)
+}
+
+// wrapGzipWriter method writes respective header for gzip and wraps write into
+// gzip writer.
+func (e *engine) wrapGzipWriter(ctx *Context) {
+	ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
+	ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
+	ctx.Res.Header().Del(ahttp.HeaderContentLength)
+	ctx.Res = ahttp.GetGzipResponseWriter(ctx.Res)
 }
 
 // writeHeaders method writes the headers on the wire.
@@ -309,19 +315,6 @@ func (e *engine) writeHeaders(ctx *Context) {
 	// Know more: https://www.owasp.org/index.php/HTTP_Strict_Transport_Security_Cheat_Sheet
 	if AppIsSSLEnabled() {
 		ctx.Res.Header().Set(ahttp.HeaderStrictTransportSecurity, hstsValue)
-	}
-}
-
-// writeGzipHeaders method prepares appropriate headers for gzip response
-func (e *engine) writeGzipHeaders(ctx *Context, delCntEnc bool) {
-	if ctx.Req.IsGzipAccepted && e.isGzipEnabled {
-		ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
-		ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
-		ctx.Res.Header().Del(ahttp.HeaderContentLength)
-
-		if ctx.Reply().Code == http.StatusNoContent || delCntEnc {
-			ctx.Res.Header().Del(ahttp.HeaderContentEncoding)
-		}
 	}
 }
 
@@ -356,8 +349,14 @@ func (e *engine) getReply() *Reply {
 
 // putContext method puts context back to pool
 func (e *engine) putContext(ctx *Context) {
-	// Try to close if `io.Closer` interface satisfies.
-	ess.CloseQuietly(ctx.Res)
+	// Close the writer and Put back to pool
+	if ctx.Res != nil {
+		if _, ok := ctx.Res.(*ahttp.GzipResponse); ok {
+			ahttp.PutGzipResponseWiriter(ctx.Res)
+		} else {
+			ahttp.PutResponseWriter(ctx.Res)
+		}
+	}
 
 	// clear and put `ahttp.Request` into pool
 	if ctx.Req != nil {
@@ -392,16 +391,15 @@ func (e *engine) putBuffer(b *bytes.Buffer) {
 //___________________________________
 
 func newEngine(cfg *config.Config) *engine {
-	gzipLevel := cfg.IntDefault("render.gzip.level", 1)
-	if !(gzipLevel >= 1 && gzipLevel <= 9) {
-		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", gzipLevel))
+	ahttp.GzipLevel = cfg.IntDefault("render.gzip.level", 5)
+	if !(ahttp.GzipLevel >= 1 && ahttp.GzipLevel <= 9) {
+		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel))
 	}
 
 	return &engine{
 		isRequestIDEnabled: cfg.BoolDefault("request.id.enable", true),
 		requestIDHeader:    cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
 		isGzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
-		gzipLevel:          gzipLevel,
 		ctxPool: pool.NewPool(
 			cfg.IntDefault("runtime.pooling.global", 0),
 			func() interface{} {

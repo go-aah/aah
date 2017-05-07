@@ -41,7 +41,7 @@ func TestMiddlewareToHandler(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
 	ctx := &Context{
 		Req: ahttp.ParseRequest(req, &ahttp.Request{}),
-		Res: ahttp.WrapResponseWriter(httptest.NewRecorder()),
+		Res: ahttp.GetResponseWriter(httptest.NewRecorder()),
 	}
 
 	// Execute the middleware

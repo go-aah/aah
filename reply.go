@@ -22,6 +22,7 @@ type Reply struct {
 	redirect    bool
 	redirectURL string
 	done        bool
+	gzip        bool
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -33,6 +34,7 @@ func NewReply() *Reply {
 	return &Reply{
 		Hdr:  http.Header{},
 		Code: http.StatusOK,
+		gzip: true,
 	}
 }
 
@@ -314,6 +316,14 @@ func (r *Reply) Cookie(cookie *http.Cookie) *Reply {
 	return r
 }
 
+// DisableGzip method allows you disable Gzip for the reply. By default every
+// response is gzip compressed if the client supports it and gzip enabled in
+// app config.
+func (r *Reply) DisableGzip() *Reply {
+	r.gzip = false
+	return r
+}
+
 // IsContentTypeSet method returns true if Content-Type is set otherwise
 // false.
 func (r *Reply) IsContentTypeSet() bool {
@@ -322,14 +332,15 @@ func (r *Reply) IsContentTypeSet() bool {
 
 // Reset method resets the values into initialized state.
 func (r *Reply) Reset() {
-	r.Code = 0
+	r.Code = http.StatusOK
 	r.ContType = ""
-	r.Hdr = nil
+	r.Hdr = http.Header{}
 	r.Rdr = nil
 	r.cookies = make([]*http.Cookie, 0)
 	r.redirect = false
 	r.redirectURL = ""
 	r.done = false
+	r.gzip = true
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

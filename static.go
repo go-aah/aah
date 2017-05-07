@@ -21,9 +21,6 @@ import (
 
 // serveStatic method static file/directory delivery.
 func (e *engine) serveStatic(ctx *Context) error {
-	res, req := ctx.Res, ctx.Req
-	res.Header().Set(ahttp.HeaderServer, aahServerName)
-
 	var fileabs string
 	if ctx.route.IsDir() {
 		fileabs = filepath.Join(AppBaseDir(), ctx.route.Dir, filepath.FromSlash(ctx.Req.Params.PathValue("filepath")))
@@ -34,9 +31,16 @@ func (e *engine) serveStatic(ctx *Context) error {
 	dir, file := filepath.Split(fileabs)
 	log.Tracef("Dir: %s, File: %s", dir, file)
 
+	ctx.Reply().gzip = checkGzipRequired(file)
+	if ctx.Req.IsGzipAccepted && e.isGzipEnabled && ctx.Reply().gzip {
+		e.wrapGzipWriter(ctx)
+	}
+
+	res, req := ctx.Res, ctx.Req
+	res.Header().Set(ahttp.HeaderServer, aahServerName)
+
 	fs := ahttp.Dir(dir, ctx.route.ListDir)
 	f, err := fs.Open(file)
-	defer ess.CloseQuietly(f)
 	if err != nil {
 		if err == ahttp.ErrDirListNotAllowed {
 			log.Warnf("directory listing not allowed: %s", req.Path)
@@ -57,6 +61,8 @@ func (e *engine) serveStatic(ctx *Context) error {
 		return nil
 	}
 
+	defer ess.CloseQuietly(f)
+
 	fi, err := f.Stat()
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
@@ -72,13 +78,9 @@ func (e *engine) serveStatic(ctx *Context) error {
 			return nil
 		}
 
-		e.writeGzipHeaders(ctx, false)
-
 		directoryList(res, req.Raw, f)
 		return nil
 	}
-
-	e.writeGzipHeaders(ctx, false)
 
 	http.ServeContent(res, req.Raw, file, fi.ModTime(), f)
 	return nil
@@ -120,6 +122,17 @@ func directoryList(res http.ResponseWriter, req *http.Request, f http.File) {
 	fmt.Fprintf(res, "</table></pre>\n")
 	fmt.Fprintf(res, "<hr></body>\n")
 	fmt.Fprintf(res, "</html>\n")
+}
+
+// checkGzipRequired method return for static which requires gzip response.
+func checkGzipRequired(file string) bool {
+	switch filepath.Ext(file) {
+	case ".css", ".js", ".html", ".htm", ".json", ".xml",
+		".txt", ".csv", ".ttf", ".otf", ".eot":
+		return true
+	default:
+		return false
+	}
 }
 
 // Sort interface for Directory list

@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"compress/gzip"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -26,7 +27,17 @@ type (
 )
 
 func (s *Site) GetInvolved() {
+	s.Session().Set("test1", "test1value")
 	s.Reply().Text("GetInvolved action")
+}
+
+func (s *Site) Credits() {
+	s.Reply().Header("X-Custom-Header", "custom value").
+		DisableGzip().
+		JSON(map[string]interface{}{
+			"message": "This is credits page",
+			"code":    1000001,
+		})
 }
 
 func (s *Site) ContributeCode() {
@@ -64,7 +75,6 @@ func TestEngineNew(t *testing.T) {
 
 	e := newEngine(AppConfig())
 	assert.Equal(t, "X-Test-Request-Id", e.requestIDHeader)
-	assert.Equal(t, 5, e.gzipLevel)
 	assert.True(t, e.isRequestIDEnabled)
 	assert.True(t, e.isGzipEnabled)
 	assert.NotNil(t, e.ctxPool)
@@ -101,6 +111,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	// Security
 	err = initSecurity(cfgDir, AppConfig())
 	assert.Nil(t, err)
+	assert.True(t, AppSessionManager().IsStateful())
 
 	// Controllers
 	cRegistry = controllerRegistry{}
@@ -112,6 +123,10 @@ func TestEngineServeHTTP(t *testing.T) {
 		},
 		{
 			Name:       "ContributeCode",
+			Parameters: []*ParameterInfo{},
+		},
+		{
+			Name:       "Credits",
 			Parameters: []*ParameterInfo{},
 		},
 	})
@@ -134,11 +149,13 @@ func TestEngineServeHTTP(t *testing.T) {
 
 	// Request 2
 	r2 := httptest.NewRequest("GET", "http://localhost:8080/get-involved.html", nil)
+	r2.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
 	w2 := httptest.NewRecorder()
 	e.ServeHTTP(w2, r2)
 
 	resp2 := w2.Result()
-	body2, _ := ioutil.ReadAll(resp2.Body)
+	gr2, _ := gzip.NewReader(resp2.Body)
+	body2, _ := ioutil.ReadAll(gr2)
 	assert.Equal(t, 200, resp2.StatusCode)
 	assert.Equal(t, "OK", resp2.Status)
 	assert.Equal(t, "GetInvolved action", string(body2))
@@ -177,6 +194,8 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Equal(t, "http://localhost:8080/testdata/", resp5.Header.Get(ahttp.HeaderLocation))
 
 	r6 := httptest.NewRequest("GET", "http://localhost:8080/testdata/", nil)
+	r6.Header.Add(e.requestIDHeader, "D9391509-595B-4B92-BED7-F6A9BE0DFCF2")
+	r6.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
 	w6 := httptest.NewRecorder()
 	e.ServeHTTP(w6, r6)
 
@@ -185,6 +204,17 @@ func TestEngineServeHTTP(t *testing.T) {
 	body6Str := string(body6)
 	assert.True(t, strings.Contains(body6Str, "Listing of /testdata/"))
 	assert.True(t, strings.Contains(body6Str, "config/"))
+
+	r7 := httptest.NewRequest("GET", "http://localhost:8080/credits", nil)
+	r7.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
+	w7 := httptest.NewRecorder()
+	e.ServeHTTP(w7, r7)
+
+	resp7 := w7.Result()
+	body7, _ := ioutil.ReadAll(resp7.Body)
+	body7Str := string(body7)
+	assert.Equal(t, `{"code":1000001,"message":"This is credits page"}`, body7Str)
+	assert.Equal(t, "custom value", resp7.Header.Get("X-Custom-Header"))
 	appBaseDir = ""
 }
 
@@ -195,15 +225,9 @@ func TestEngineGzipHeaders(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
 	req.Header.Add(ahttp.HeaderAcceptEncoding, "gzip")
 	ctx := e.prepareContext(httptest.NewRecorder(), req)
+	e.wrapGzipWriter(ctx)
 
 	assert.True(t, ctx.Req.IsGzipAccepted)
-
-	e.writeGzipHeaders(ctx, false)
-
 	assert.Equal(t, "gzip", ctx.Res.Header().Get(ahttp.HeaderContentEncoding))
-	assert.Equal(t, "Accept-Encoding", ctx.Res.Header().Get(ahttp.HeaderVary))
-
-	e.writeGzipHeaders(ctx, true)
-	assert.Equal(t, "", ctx.Res.Header().Get(ahttp.HeaderContentEncoding))
 	assert.Equal(t, "Accept-Encoding", ctx.Res.Header().Get(ahttp.HeaderVary))
 }
