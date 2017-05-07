@@ -18,8 +18,8 @@ import (
 
 func TestHTTPResponseWriter(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		writer := WrapResponseWriter(w)
-		defer ess.CloseQuietly(writer)
+		writer := GetResponseWriter(w)
+		defer PutResponseWriter(writer)
 
 		writer.WriteHeader(http.StatusOK)
 		assert.Equal(t, http.StatusOK, writer.Status())
@@ -35,8 +35,8 @@ func TestHTTPResponseWriter(t *testing.T) {
 
 func TestHTTPNoStatusWritten(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		writer := WrapResponseWriter(w)
-		defer ess.CloseQuietly(writer)
+		writer := GetResponseWriter(w)
+		defer PutResponseWriter(writer)
 
 		_, _ = writer.Write([]byte("aah framework no status written"))
 		assert.Equal(t, 31, writer.BytesWritten())
@@ -47,8 +47,8 @@ func TestHTTPNoStatusWritten(t *testing.T) {
 
 func TestHTTPMultipleStatusWritten(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		writer := WrapResponseWriter(w)
-		defer ess.CloseQuietly(writer)
+		writer := GetResponseWriter(w)
+		defer PutResponseWriter(writer)
 
 		writer.WriteHeader(http.StatusOK)
 		writer.WriteHeader(http.StatusAccepted)
@@ -62,7 +62,7 @@ func TestHTTPMultipleStatusWritten(t *testing.T) {
 
 func TestHTTPHijackCall(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		writer := WrapResponseWriter(w)
+		writer := GetResponseWriter(w)
 
 		con, rw, err := writer.(http.Hijacker).Hijack()
 		assert.FailOnError(t, err, "")
@@ -85,7 +85,8 @@ func TestHTTPHijackCall(t *testing.T) {
 
 func TestHTTPCallCloseNotifyAndFlush(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		writer := WrapResponseWriter(w)
+		writer := GetResponseWriter(w)
+		defer PutResponseWriter(writer)
 
 		_, _ = writer.Write([]byte("aah framework calling close notify and flush"))
 		assert.Equal(t, 44, writer.BytesWritten())

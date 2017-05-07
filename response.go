@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sync"
 
 	"aahframework.org/essentials.v0"
 )
@@ -40,8 +41,14 @@ type (
 	}
 )
 
-// interface compliance
 var (
+	rPool = sync.Pool{
+		New: func() interface{} {
+			return &Response{}
+		},
+	}
+
+	// interface compliance
 	_ http.CloseNotifier = &Response{}
 	_ http.Flusher       = &Response{}
 	_ http.Hijacker      = &Response{}
@@ -54,10 +61,22 @@ var (
 // Global methods
 //___________________________________
 
-// WrapResponseWriter wraps `http.ResponseWriter`, returns aah framework response
-// writer that allows to advantage of response process.
-func WrapResponseWriter(w http.ResponseWriter) ResponseWriter {
-	return &Response{w: w}
+// GetResponseWriter method wraps given writer and returns the aah response writer.
+func GetResponseWriter(w http.ResponseWriter) ResponseWriter {
+	rw := rPool.Get().(*Response)
+	rw.w = w
+	return rw
+}
+
+// PutResponseWriter method puts response writer back to pool.
+func PutResponseWriter(aw ResponseWriter) {
+	r := aw.(*Response)
+	_ = r.Close()
+	r.w = nil
+	r.status = 0
+	r.bytesWritten = 0
+	r.wroteStatus = false
+	rPool.Put(r)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

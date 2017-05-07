@@ -20,8 +20,9 @@ import (
 
 func TestHTTPGzipWriter(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		gw := WrapGzipResponseWriter(w, gzip.BestSpeed)
-		defer ess.CloseQuietly(gw)
+		GzipLevel = gzip.BestSpeed
+		gw := GetGzipResponseWriter(GetResponseWriter(w))
+		defer PutGzipResponseWiriter(gw)
 
 		gw.Header().Set(HeaderVary, HeaderAcceptEncoding)
 		gw.Header().Set(HeaderContentEncoding, "gzip")
@@ -42,6 +43,8 @@ func TestHTTPGzipWriter(t *testing.T) {
 
 		gw.(http.Flusher).Flush()
 
+		_ = gw.(http.Pusher).Push("/test/sample.txt", nil)
+
 		ch := gw.(http.CloseNotifier).CloseNotify()
 		assert.NotNil(t, ch)
 	}
@@ -53,7 +56,8 @@ func TestHTTPGzipWriter(t *testing.T) {
 
 func TestHTTPGzipHijack(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		gw := WrapGzipResponseWriter(w, gzip.BestSpeed)
+		GzipLevel = gzip.BestSpeed
+		gw := GetGzipResponseWriter(GetResponseWriter(w))
 
 		con, rw, err := gw.(http.Hijacker).Hijack()
 		assert.FailOnError(t, err, "")
