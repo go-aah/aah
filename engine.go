@@ -57,15 +57,15 @@ type (
 
 // ServeHTTP method implementation of http.Handler interface.
 func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if e.isRequestIDEnabled {
-		e.setRequestID(r)
-	}
-
 	ctx := e.prepareContext(w, r)
 	defer e.putContext(ctx)
 
 	// Recovery handling, capture every possible panic(s)
 	defer e.handleRecovery(ctx)
+
+	if e.isRequestIDEnabled {
+		e.setRequestID(ctx)
+	}
 
 	// 'OnRequest' server extension point
 	publishOnRequestEvent(ctx)
@@ -117,14 +117,15 @@ func (e *engine) handleRecovery(ctx *Context) {
 
 // setRequestID method sets the unique request id in the request header.
 // It won't set new request id header already present.
-func (e *engine) setRequestID(r *http.Request) {
-	if ess.IsStrEmpty(r.Header.Get(e.requestIDHeader)) {
+func (e *engine) setRequestID(ctx *Context) {
+	if ess.IsStrEmpty(ctx.Req.Header.Get(e.requestIDHeader)) {
 		guid := ess.NewGUID()
 		log.Debugf("Request ID: %v", guid)
-		r.Header.Set(e.requestIDHeader, guid)
+		ctx.Req.Header.Set(e.requestIDHeader, guid)
 	} else {
-		log.Debugf("Request already has ID: %v", r.Header.Get(e.requestIDHeader))
+		log.Debugf("Request already has ID: %v", ctx.Req.Header.Get(e.requestIDHeader))
 	}
+	ctx.Reply().Header(e.requestIDHeader, ctx.Req.Header.Get(e.requestIDHeader))
 }
 
 // prepareContext method gets controller, request from pool, set the targeted
@@ -236,13 +237,16 @@ func (e *engine) writeReply(ctx *Context) {
 	}
 
 	if reply.redirect { // handle redirects
-		log.Debugf("Redirecting to '%s' with status '%d'", reply.redirectURL, reply.Code)
-		http.Redirect(ctx.Res, ctx.Req.Raw, reply.redirectURL, reply.Code)
+		log.Debugf("Redirecting to '%s' with status '%d'", reply.path, reply.Code)
+		http.Redirect(ctx.Res, ctx.Req.Raw, reply.path, reply.Code)
 		return
 	}
 
-	// Pre reply stage is for HTML and content type header
-	handlePreReplyStage(ctx)
+	// ContentType
+	e.negotiateContentType(ctx)
+
+	// resolving view template
+	e.resolveView(ctx)
 
 	// 'OnPreReply' server extension point
 	publishOnPreReplyEvent(ctx)
@@ -254,6 +258,12 @@ func (e *engine) writeReply(ctx *Context) {
 	// without messing with response.
 	// HTTP Body
 	if reply.Rdr != nil {
+		if jsonp, ok := reply.Rdr.(*JSON); ok && ctx.Req.IsJSONP && jsonp.IsJSONP {
+			if ess.IsStrEmpty(jsonp.Callback) {
+				jsonp.Callback = ctx.Req.Params.QueryValue("callback")
+			}
+		}
+
 		if err := reply.Rdr.Render(buf); err != nil {
 			log.Error("Render error: ", err)
 			ctx.Res.WriteHeader(http.StatusInternalServerError)
@@ -263,12 +273,9 @@ func (e *engine) writeReply(ctx *Context) {
 	}
 
 	// Gzip
-	if ctx.Req.IsGzipAccepted && e.isGzipEnabled && reply.gzip {
-		if reply.Code != http.StatusNoContent &&
-			reply.Code != http.StatusNotModified &&
-			buf.Len() != 0 {
-			e.wrapGzipWriter(ctx)
-		}
+	if reply.Code != http.StatusNoContent &&
+		reply.Code != http.StatusNotModified && buf.Len() != 0 {
+		e.wrapGzipWriter(ctx)
 	}
 
 	// HTTP headers
@@ -287,13 +294,28 @@ func (e *engine) writeReply(ctx *Context) {
 	publishOnAfterReplyEvent(ctx)
 }
 
+// negotiateContentType method tries to identify if reply.ContType is empty.
+// Not necessarily it will set one.
+func (e *engine) negotiateContentType(ctx *Context) {
+	if !ctx.Reply().IsContentTypeSet() {
+		if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
+			ctx.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
+			ctx.Reply().ContentType(ctx.Req.AcceptContentType.Raw())
+		} else if ct := defaultContentType(); ct != nil { // as per 'render.default' in aah.conf
+			ctx.Reply().ContentType(ct.Raw())
+		}
+	}
+}
+
 // wrapGzipWriter method writes respective header for gzip and wraps write into
 // gzip writer.
 func (e *engine) wrapGzipWriter(ctx *Context) {
-	ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
-	ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
-	ctx.Res.Header().Del(ahttp.HeaderContentLength)
-	ctx.Res = ahttp.GetGzipResponseWriter(ctx.Res)
+	if ctx.Req.IsGzipAccepted && e.isGzipEnabled && ctx.Reply().gzip {
+		ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
+		ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
+		ctx.Res.Header().Del(ahttp.HeaderContentLength)
+		ctx.Res = ahttp.GetGzipResponseWriter(ctx.Res)
+	}
 }
 
 // writeHeaders method writes the headers on the wire.

@@ -27,13 +27,17 @@ const (
 	EventOnRequest = "OnRequest"
 
 	// EventOnPreReply event is fired when before server writes the reply on the wire.
-	// Except when 1) Static file request, 2) `Reply().Done()`
-	// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
+	// Except when
+	//   1) `Reply().Done()`,
+	//   2) `Reply().Redirect(...)` is called.
+	// Refer `aah.Reply.Done()` godoc for more info.
 	EventOnPreReply = "OnPreReply"
 
 	// EventOnAfterReply event is fired when before server writes the reply on the wire.
-	// Except when 1) Static file request, 2) `Reply().Done()`
-	// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
+	// Except when
+	//   1) `Reply().Done()`,
+	//   2) `Reply().Redirect(...)` is called.
+	// Refer `aah.Reply.Done()` godoc for more info.
 	EventOnAfterReply = "OnAfterReply"
 )
 
@@ -162,33 +166,37 @@ func OnRequest(sef EventCallbackFunc) {
 		onRequestFunc = sef
 		return
 	}
-	log.Warn("'OnRequest' aah server extension function is already subscribed.")
+	log.Warn("'OnRequest' aah server extension point is already subscribed.")
 }
 
 // OnPreReply method is to subscribe to aah server `OnPreReply` extension point.
 // `OnPreReply` called for every reply from aah server.
 //
-// Except when 1) Static file request, 2) `Reply().Done()`
-// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
+// Except when
+//   1) `Reply().Done()`,
+//   2) `Reply().Redirect(...)` is called.
+// Refer `aah.Reply.Done()` godoc for more info.
 func OnPreReply(sef EventCallbackFunc) {
 	if onPreReplyFunc == nil {
 		onPreReplyFunc = sef
 		return
 	}
-	log.Warn("'OnPreReply' aah server extension function is already subscribed.")
+	log.Warn("'OnPreReply' aah server extension point is already subscribed.")
 }
 
 // OnAfterReply method is to subscribe to aah server `OnAfterReply` extension point.
 // `OnAfterReply` called for every reply from aah server.
 //
-// Except when 1) Static file request, 2) `Reply().Done()`
-// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
+// Except when
+//   1) `Reply().Done()`,
+//   2) `Reply().Redirect(...)` is called.
+// Refer `aah.Reply.Done()` godoc for more info.
 func OnAfterReply(sef EventCallbackFunc) {
 	if onAfterReplyFunc == nil {
 		onAfterReplyFunc = sef
 		return
 	}
-	log.Warn("'OnAfterReply' aah server extension function is already subscribed.")
+	log.Warn("'OnAfterReply' aah server extension point is already subscribed.")
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

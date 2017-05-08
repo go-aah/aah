@@ -31,6 +31,8 @@ func TestServerStart1(t *testing.T) {
 
 func TestServerStart2(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
+	testEng.Lock()
+	defer testEng.Unlock()
 
 	// App Config
 	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())

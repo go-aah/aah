@@ -80,21 +80,11 @@ func initViewEngine(viewDir string, appCfg *config.Config) error {
 	return nil
 }
 
-// handlePreReplyStage method does 1) sets response header, 2) if HTML content type
-// finds appropriate template based request and route information,
-// 3) Adds request info into view args.
-func handlePreReplyStage(ctx *Context) {
+// resolveView method does -
+//   1) Prepare ViewArgs
+//   2) If HTML content type find appropriate template
+func (e *engine) resolveView(ctx *Context) {
 	reply := ctx.Reply()
-
-	// ContentType
-	if ess.IsStrEmpty(reply.ContType) {
-		if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
-			ctx.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
-			reply.ContentType(ctx.Req.AcceptContentType.Raw())
-		} else if ct := defaultContentType(); ct != nil { // as per 'render.default' in aah.conf
-			reply.ContentType(ct.Raw())
-		}
-	}
 
 	// HTML response
 	if ahttp.ContentTypeHTML.IsEqual(reply.ContType) {

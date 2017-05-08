@@ -32,13 +32,10 @@ func (e *engine) serveStatic(ctx *Context) error {
 	log.Tracef("Dir: %s, File: %s", dir, file)
 
 	ctx.Reply().gzip = checkGzipRequired(file)
-	if ctx.Req.IsGzipAccepted && e.isGzipEnabled && ctx.Reply().gzip {
-		e.wrapGzipWriter(ctx)
-	}
+	e.wrapGzipWriter(ctx)
+	e.writeHeaders(ctx)
 
 	res, req := ctx.Res, ctx.Req
-	res.Header().Set(ahttp.HeaderServer, aahServerName)
-
 	fs := ahttp.Dir(dir, ctx.route.ListDir)
 	f, err := fs.Open(file)
 	if err != nil {
@@ -78,11 +75,23 @@ func (e *engine) serveStatic(ctx *Context) error {
 			return nil
 		}
 
+		// 'OnPreReply' server extension point
+		publishOnPreReplyEvent(ctx)
+
 		directoryList(res, req.Raw, f)
+
+		// 'OnAfterReply' server extension point
+		publishOnAfterReplyEvent(ctx)
 		return nil
 	}
 
+	// 'OnPreReply' server extension point
+	publishOnPreReplyEvent(ctx)
+
 	http.ServeContent(res, req.Raw, file, fi.ModTime(), f)
+
+	// 'OnAfterReply' server extension point
+	publishOnAfterReplyEvent(ctx)
 	return nil
 }
 

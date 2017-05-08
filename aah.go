@@ -41,7 +41,6 @@ var (
 	appPID                int
 	appInitialized        bool
 	appBuildInfo          *BuildInfo
-	appEngine             *engine
 
 	appDefaultProfile        = "dev"
 	appProfilePrefix         = "env."

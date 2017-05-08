@@ -148,7 +148,7 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 			}
 
 			reply.Redirect(ctx.Req.Raw.URL.String())
-			log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.redirectURL)
+			log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.path)
 			return nil
 		}
 	}
