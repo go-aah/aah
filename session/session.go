@@ -29,7 +29,7 @@ type (
 		IsAuthenticated bool
 
 		// CreatedTime is when the session was created.
-		CreatedTime time.Time
+		CreatedTime *time.Time
 
 		maxAge int
 	}
@@ -139,4 +139,28 @@ func (s *Session) GetFloat64(key string) float64 {
 		return value.(float64)
 	}
 	return 0
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
+
+func (s *Session) reset() {
+	s.ID = ""
+	s.Values = nil
+	s.IsNew = false
+	s.CreatedTime = nil
+	s.IsAuthenticated = false
+	s.maxAge = 0
+}
+
+func getSessionObj() *Session {
+	return sPool.Get().(*Session)
+}
+
+func putSessionObj(s *Session) {
+	if s != nil {
+		s.reset()
+		sPool.Put(s)
+	}
 }

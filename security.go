@@ -16,7 +16,7 @@ import (
 )
 
 // Version is aah framework security library version no.
-const Version = "0.4"
+const Version = "0.5"
 
 // Security is holds the security management implementation.
 type Security struct {

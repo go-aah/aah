@@ -102,6 +102,7 @@ func TestSessionFileStoreDeleteAndCleanup(t *testing.T) {
 
 	w1 := httptest.NewRecorder()
 
+	sid := session.ID
 	err := m.SaveSession(w1, session)
 	assert.Nil(t, err)
 
@@ -112,12 +113,13 @@ func TestSessionFileStoreDeleteAndCleanup(t *testing.T) {
 	// Check session in store
 	files, _ := ess.FilesPath(sessionDir, false)
 	assert.Equal(t, 1, len(files))
-	assert.True(t, m.store.IsExists(session.ID))
+	assert.True(t, m.store.IsExists(sid))
 
 	// Cleanup run manual for test
 	m.store.Cleanup(m)
 
 	// Delete session
+	session.ID = sid
 	session.Clear()
 	w2 := httptest.NewRecorder()
 	err = m.SaveSession(w2, session)
@@ -134,5 +136,5 @@ func TestSessionFileStoreDeleteAndCleanup(t *testing.T) {
 	// Sesion data should be delete here
 	files, _ = ess.FilesPath(sessionDir, false)
 	assert.Equal(t, 0, len(files))
-	assert.False(t, m.store.IsExists(session.ID))
+	assert.False(t, m.store.IsExists(sid))
 }

@@ -1,7 +1,7 @@
 # Security - aah framework
-[![Build Status](https://travis-ci.org/go-aah/security.svg?branch=master)](https://travis-ci.org/go-aah/security) [![codecov](https://codecov.io/gh/go-aah/security/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/security/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/security.v0)](https://goreportcard.com/report/aahframework.org/security.v0) [![Version](https://img.shields.io/badge/version-0.4-blue.svg)](https://github.com/go-aah/security/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/security.v0?status.svg)](https://godoc.org/aahframework.org/security.v0)  [![License](https://img.shields.io/github/license/go-aah/security.svg)](LICENSE)
+[![Build Status](https://travis-ci.org/go-aah/security.svg?branch=master)](https://travis-ci.org/go-aah/security) [![codecov](https://codecov.io/gh/go-aah/security/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/security/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/security.v0)](https://goreportcard.com/report/aahframework.org/security.v0) [![Version](https://img.shields.io/badge/version-0.5-blue.svg)](https://github.com/go-aah/security/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/security.v0?status.svg)](https://godoc.org/aahframework.org/security.v0)  [![License](https://img.shields.io/github/license/go-aah/security.svg)](LICENSE)
 
-***v0.4 [released](https://github.com/go-aah/security/releases/latest) and tagged on Apr 23, 2017***
+***v0.5 [released](https://github.com/go-aah/security/releases/latest) and tagged on May 08, 2017***
 
 Security library houses all the application security implementation (Session, Basic Auth, Token Auth, CORS, CSRF, Security Headers, etc.) by aah framework.
 
