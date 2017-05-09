@@ -5,7 +5,6 @@
 package aah
 
 import (
-	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"reflect"
@@ -132,25 +131,6 @@ func TestContextSession(t *testing.T) {
 	assert.NotNil(t, s1)
 	assert.True(t, s1.IsNew)
 	assert.NotNil(t, s1.ID)
-}
-
-func TestContextCookie(t *testing.T) {
-	cookieValue := `aah_session=MTQ5MTI4ODQ3NHxHSThCS19qQ2FsbWJ2ZFc3aUNPSUM4RllPRVhTd1had19jS2w0MjE5WU1qLXRLempVeWNhLUFaejhvMEVyY1JmenBLSjRMYXNvd291elN5T2wtMy12dkhRWFlFRThDQmN2VTBnUWZ6UExLaW9zUFFZbnB1YV9VOXJORXNnLWtCT0pOQk5HYzhmVndpR3ZVNUZyRnh4Qy05cHdJOHRNYVJ4YXRGNEtObU94WG1iVnVZM1pJSkdERHpMbzN1VUpxVzgycnZUWWtlbnZUTWdxRDRCTEJEaEhsNHNnZmR3RFJrV1AyUkdfckNFa1lKb2d3VWR3Y0FzS1JtUllPTi0ydHQ3T2JDaUcxQ1JEQUVLbzNUNlRzM1VlUHVTYmtwWUItbFp5czRtd3FGb1VmcHFETkthR2dMWkpHRmM1a1NfZWxXLUljZUdMblJCYTZuTE12NkRvV0ZrQnVYMFFsdUM3clpFdzdUYUFIcFhSaUQ0bHZRS19ZRzExbzlLUTdCVTZnT2xNTmZIal9Oc2VOdWJtd3M3bnlibmlpLTJDRnRkQ1hyU2hYV0pienlTREl1QnRoZHNaQ3lvaGYzbWFCajA0Zi1XcFBwOXF3PT181BI_L4loH_Kcug8MEVnsFj4Ha25umy-8fI0atPVo04k=`
-
-	req, _ := http.NewRequest("GET", "http://localhost:8080/user/registration", nil)
-	req.Header.Add(ahttp.HeaderCookie, cookieValue)
-
-	aahReq := ahttp.ParseRequest(req, &ahttp.Request{})
-	ctx := &Context{Req: aahReq}
-
-	v1, err := ctx.Cookie("aah_session")
-	assert.Nil(t, err)
-	assert.NotNil(t, v1)
-	assert.Equal(t, "aah_session", v1.Name)
-
-	v2 := ctx.Cookies()
-	assert.NotNil(t, v1)
-	assert.True(t, len(v2) == 1)
 }
 
 func TestContextAbort(t *testing.T) {

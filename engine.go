@@ -258,9 +258,9 @@ func (e *engine) writeReply(ctx *Context) {
 	// without messing with response.
 	// HTTP Body
 	if reply.Rdr != nil {
-		if jsonp, ok := reply.Rdr.(*JSON); ok && ctx.Req.IsJSONP && jsonp.IsJSONP {
+		if jsonp, ok := reply.Rdr.(*JSON); ok && ctx.Req.IsJSONP() && jsonp.IsJSONP {
 			if ess.IsStrEmpty(jsonp.Callback) {
-				jsonp.Callback = ctx.Req.Params.QueryValue("callback")
+				jsonp.Callback = ctx.Req.QueryValue("callback")
 			}
 		}
 

@@ -21,14 +21,7 @@ import (
 
 // serveStatic method static file/directory delivery.
 func (e *engine) serveStatic(ctx *Context) error {
-	var fileabs string
-	if ctx.route.IsDir() {
-		fileabs = filepath.Join(AppBaseDir(), ctx.route.Dir, filepath.FromSlash(ctx.Req.Params.PathValue("filepath")))
-	} else {
-		fileabs = filepath.Join(AppBaseDir(), "static", filepath.FromSlash(ctx.route.File))
-	}
-
-	dir, file := filepath.Split(fileabs)
+	dir, file := filepath.Split(getFilepath(ctx))
 	log.Tracef("Dir: %s, File: %s", dir, file)
 
 	ctx.Reply().gzip = checkGzipRequired(file)
@@ -142,6 +135,16 @@ func checkGzipRequired(file string) bool {
 	default:
 		return false
 	}
+}
+
+func getFilepath(ctx *Context) string {
+	var file string
+	if ctx.route.IsDir() {
+		file = filepath.Join(AppBaseDir(), ctx.route.Dir, ctx.Req.PathValue("filepath"))
+	} else {
+		file = filepath.Join(AppBaseDir(), "static", ctx.route.File)
+	}
+	return filepath.FromSlash(file)
 }
 
 // Sort interface for Directory list

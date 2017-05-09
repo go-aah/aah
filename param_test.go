@@ -6,11 +6,13 @@ package aah
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 
 	"aahframework.org/ahttp.v0"
+	ess "aahframework.org/essentials.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -40,4 +42,25 @@ func TestParamTemplateFuncs(t *testing.T) {
 
 	v3 := tmplPathParam(viewArgs, "userId")
 	assert.Equal(t, "100001", v3)
+}
+
+func TestParamParse(t *testing.T) {
+	defer ess.DeleteFiles("testapp.pid")
+	testEng.Lock()
+	defer testEng.Unlock()
+
+	r1 := httptest.NewRequest("GET", "http://localhost:8080/index.html?lang=en-CA", nil)
+	ctx1 := &Context{
+		Req:      ahttp.ParseRequest(r1, &ahttp.Request{}),
+		viewArgs: make(map[string]interface{}),
+	}
+
+	e := &engine{}
+
+	assert.Nil(t, ctx1.Req.Locale)
+	e.parseRequestParams(ctx1)
+	assert.NotNil(t, ctx1.Req.Locale)
+	assert.Equal(t, "en", ctx1.Req.Locale.Language)
+	assert.Equal(t, "CA", ctx1.Req.Locale.Region)
+	assert.Equal(t, "en-CA", ctx1.Req.Locale.String())
 }

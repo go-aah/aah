@@ -6,7 +6,6 @@ package aah
 
 import (
 	"errors"
-	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
@@ -106,16 +105,6 @@ func (ctx *Context) Session() *session.Session {
 		ctx.AddViewArg(keySessionValues, ctx.session)
 	}
 	return ctx.session
-}
-
-// Cookie method returns a named cookie from HTTP request otherwise error.
-func (ctx *Context) Cookie(name string) (*http.Cookie, error) {
-	return ctx.Req.Cookie(name)
-}
-
-// Cookies method returns all the cookies from HTTP request.
-func (ctx *Context) Cookies() []*http.Cookie {
-	return ctx.Req.Cookies()
 }
 
 // Abort method sets the abort to true. It means framework will not proceed with
