@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"aahframework.org/config.v0"
@@ -52,6 +53,8 @@ var (
 	ErrBase64Decode             = errors.New("session: base64 decode error")
 
 	registerStores = make(map[string]Storer)
+
+	sPool = sync.Pool{New: func() interface{} { return &Session{} }}
 )
 
 type (
@@ -194,12 +197,13 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 
 // NewSession method creates a new session for the request.
 func (m *Manager) NewSession() *Session {
-	return &Session{
-		ID:          ess.RandomString(m.idLength),
-		Values:      make(map[string]interface{}, 0),
-		IsNew:       true,
-		CreatedTime: time.Now(),
-	}
+	s := getSessionObj()
+	s.ID = ess.RandomString(m.idLength)
+	s.Values = make(map[string]interface{})
+	s.IsNew = true
+	t := time.Now()
+	s.CreatedTime = &t
+	return s
 }
 
 // GetSession method returns the session for given request instance otherwise
@@ -246,6 +250,7 @@ func (m *Manager) GetSession(r *http.Request) *Session {
 // SaveSession method saves the given session into store.
 // Add writes the cookie into response.
 func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
+	defer putSessionObj(s)
 	if s.maxAge == -1 {
 		return m.DeleteSession(w, s)
 	}
