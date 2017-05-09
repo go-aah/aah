@@ -15,12 +15,15 @@ import (
 	"aahframework.org/essentials.v0"
 )
 
-const jsonpReqParamKey = "callback"
+const (
+	jsonpReqParamKey = "callback"
+	ajaxHeaderValue  = "XMLHttpRequest"
+)
 
 type (
 	// Request is extends `http.Request` for aah framework
 	Request struct {
-		// Schema value is protocol info it's a derived value in the order as below.
+		// Schema value is protocol info; it's a derived value in the order as below.
 		//  - `X-Forwarded-Proto` is not empty return value as is
 		//  - `http.Request.TLS` is not nil value is `https`
 		//  - `http.Request.TLS` is nil value is `http`
@@ -32,7 +35,7 @@ type (
 		// Method request method e.g. `GET`, `POST`, etc.
 		Method string
 
-		// Path the request URL Path e.g. `/booking/hotel.html`.
+		// Path the request URL Path e.g. `/app/login.html`.
 		Path string
 
 		// Header request HTTP headers
@@ -71,14 +74,11 @@ type (
 		// Locale negotiated value from HTTP Header `Accept-Language`.
 		Locale *Locale
 
-		// IsJSONP is true if request query string has "callback=function_name".
-		IsJSONP bool
-
-		// IsGzipAccepted is true if the HTTP client accepts Gzip response.
+		// IsGzipAccepted is true if the HTTP client accepts Gzip response,
 		// otherwise false.
 		IsGzipAccepted bool
 
-		// Raw an object that Go HTTP server provied, Direct interaction with
+		// Raw an object of Go HTTP server, direct interaction with
 		// raw object is not encouraged.
 		Raw *http.Request
 	}
@@ -111,7 +111,6 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 	req.UserAgent = r.Header.Get(HeaderUserAgent)
 	req.ClientIP = clientIP(r)
 	req.Locale = NegotiateLocale(r)
-	req.IsJSONP = isJSONPReqeust(r)
 	req.IsGzipAccepted = isGzipAccepted(req, r)
 	req.Raw = r
 
@@ -132,6 +131,50 @@ func (r *Request) Cookies() []*http.Cookie {
 	return r.Raw.Cookies()
 }
 
+// IsJSONP method returns true if request query string has "callback=function_name".
+func (r *Request) IsJSONP() bool {
+	return !ess.IsStrEmpty(r.QueryValue(jsonpReqParamKey))
+}
+
+// IsAJAX methods returns true if the request header `X-Requested-With` is
+// `XMLHttpRequest` otherwise false.
+func (r *Request) IsAJAX() bool {
+	return r.Header.Get(HeaderXRequestedWith) == ajaxHeaderValue
+}
+
+// PathValue method return value for given Path param key otherwise empty string.
+func (r *Request) PathValue(key string) string {
+	return r.Params.PathValue(key)
+}
+
+// QueryValue method return value for given query (aka URL) param key
+// otherwise empty string.
+func (r *Request) QueryValue(key string) string {
+	return r.Params.QueryValue(key)
+}
+
+// QueryArrayValue method return array value for given query (aka URL)
+// param key otherwise empty string.
+func (r *Request) QueryArrayValue(key string) []string {
+	return r.Params.QueryArrayValue(key)
+}
+
+// FormValue methos returns value for given form key otherwise empty string.
+func (r *Request) FormValue(key string) string {
+	return r.Params.FormValue(key)
+}
+
+// FormArrayValue methos returns value for given form key otherwise empty string.
+func (r *Request) FormArrayValue(key string) []string {
+	return r.Params.FormArrayValue(key)
+}
+
+// FormFile method returns the first file for the provided form key otherwise
+// returns error. It is caller responsibility to close the file.
+func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, error) {
+	return r.Params.FormFile(key)
+}
+
 // Reset method resets request instance for reuse.
 func (r *Request) Reset() {
 	r.Schema = ""
@@ -148,7 +191,6 @@ func (r *Request) Reset() {
 	r.UserAgent = ""
 	r.ClientIP = ""
 	r.Locale = nil
-	r.IsJSONP = false
 	r.IsGzipAccepted = false
 	r.Raw = nil
 }
@@ -269,12 +311,6 @@ func getReferer(hdr http.Header) string {
 	}
 
 	return referer
-}
-
-func isJSONPReqeust(r *http.Request) bool {
-	query := r.URL.Query()
-	callback := query.Get(jsonpReqParamKey)
-	return !ess.IsStrEmpty(callback)
 }
 
 func isGzipAccepted(req *Request, r *http.Request) bool {
