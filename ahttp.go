@@ -6,8 +6,10 @@
 // Like parse HTTP headers, ResponseWriter, content type, etc.
 package ahttp
 
+import "net/http"
+
 // Version no. of aah framework ahttp library
-const Version = "0.5"
+const Version = "0.6"
 
 // HTTP Method names
 const (
@@ -21,6 +23,12 @@ const (
 	MethodConnect = "CONNECT"
 	MethodTrace   = "TRACE"
 )
+
+// TimeFormat is the time format to use when generating times in HTTP
+// headers. It is like time.RFC1123 but hard-codes GMT as the time
+// zone. The time being formatted must be in UTC for Format to
+// generate the correct format.
+const TimeFormat = http.TimeFormat
 
 type (
 	// Locale value is negotiated from HTTP header `Accept-Language`

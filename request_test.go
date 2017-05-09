@@ -67,21 +67,24 @@ func TestHTTPParseRequest(t *testing.T) {
 	assert.Equal(t, "192.168.0.1", aahReq.ClientIP)
 	assert.Equal(t, "http://localhost:8080/home.html", aahReq.Referer)
 
-	params := aahReq.Params
 	// Query Value
-	assert.Equal(t, "true", params.QueryValue("_ref"))
+	assert.Equal(t, "true", aahReq.QueryValue("_ref"))
+	assert.Equal(t, 1, len(aahReq.QueryArrayValue("_ref")))
 
 	// Path value
-	assert.Equal(t, "", params.PathValue("not_exists"))
+	assert.Equal(t, "", aahReq.PathValue("not_exists"))
 
 	// Form value
-	assert.Equal(t, "", params.FormValue("no_field"))
+	assert.Equal(t, "", aahReq.FormValue("no_field"))
+	assert.Equal(t, 0, len(aahReq.FormArrayValue("no_field")))
 
 	// Form File
-	f, hdr, err := params.FormFile("no_file")
+	f, hdr, err := aahReq.FormFile("no_file")
 	assert.Nil(t, f)
 	assert.Nil(t, hdr)
 	assert.Nil(t, err)
+	assert.False(t, aahReq.IsJSONP())
+	assert.False(t, aahReq.IsAJAX())
 
 	// Reset it
 	aahReq.Reset()
@@ -91,7 +94,6 @@ func TestHTTPParseRequest(t *testing.T) {
 	assert.Nil(t, aahReq.Params)
 	assert.Nil(t, aahReq.Locale)
 	assert.Nil(t, aahReq.Raw)
-	assert.False(t, aahReq.IsJSONP)
 	assert.True(t, len(aahReq.UserAgent) == 0)
 	assert.True(t, len(aahReq.ClientIP) == 0)
 }
