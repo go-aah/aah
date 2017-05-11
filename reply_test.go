@@ -209,7 +209,7 @@ func TestReplyXML(t *testing.T) {
 func TestReplyReadfrom(t *testing.T) {
 	buf, re1 := getBufferAndReply()
 	re1.ContentType(ahttp.ContentTypeOctetStream.Raw()).
-		Readfrom(strings.NewReader(`<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`))
+		Binary([]byte(`<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`))
 
 	assert.Equal(t, http.StatusOK, re1.Code)
 

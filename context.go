@@ -109,14 +109,24 @@ func (ctx *Context) Session() *session.Session {
 
 // Abort method sets the abort to true. It means framework will not proceed with
 // next middleware, next interceptor or action based on context it being used.
-// Contexts: 1) If it's called in the middleware, then middleware chain stops;
-// framework starts processing response. 2) If it's called in Before interceptor
-// then Before<Action> interceptor, mapped <Action>, After<Action> interceptor and
-// After interceptor will not execute; framework starts processing response.
-// 3) If it's called in Mapped <Action> then After<Action> interceptor and
+// Contexts:
+//    1) If it's called in the middleware, then middleware chain stops;
+// framework starts processing response.
+//    2) If it's called in Before interceptor then Before<Action> interceptor,
+// mapped <Action>, After<Action> interceptor and After interceptor will not
+// execute; framework starts processing response.
+//    3) If it's called in Mapped <Action> then After<Action> interceptor and
 // After interceptor will not execute; framework starts processing response.
 func (ctx *Context) Abort() {
 	ctx.abort = true
+}
+
+// IsStaticRoute method returns true if it's static route otherwise false.
+func (ctx *Context) IsStaticRoute() bool {
+	if ctx.route != nil {
+		return ctx.route.IsStatic
+	}
+	return false
 }
 
 // SetURL method is to set the request URL to change the behaviour of request

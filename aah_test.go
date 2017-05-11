@@ -56,7 +56,7 @@ func TestAahInitAppVariables(t *testing.T) {
 	// App port no
 	AppConfig().SetString("server.port", "")
 	assert.Equal(t, "80", AppHTTPPort())
-	AppConfig().SetBool("server.ssl.enable", true)
+	appIsSSLEnabled = true
 	assert.Equal(t, "443", AppHTTPPort())
 
 	// app packaged
@@ -64,6 +64,7 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.False(t, isAppDirExists())
 
 	// init auto cert
+	AppConfig().SetBool("server.ssl.enable", true)
 	AppConfig().SetBool("server.ssl.lets_encrypt.enable", true)
 	defer ess.DeleteFiles(filepath.Join(getTestdataPath(), "autocert"))
 	AppConfig().SetString("server.ssl.lets_encrypt.cache_dir", filepath.Join(getTestdataPath(), "autocert"))

@@ -49,7 +49,7 @@ var (
 )
 
 type (
-	// Event type holds the details of event generated.
+	// Event type holds the details of single event.
 	Event struct {
 		Name string
 		Data interface{}
@@ -224,8 +224,9 @@ func (es *EventStore) Publish(e *Event) {
 				go func(event *Event, ecb EventCallbackFunc) {
 					ecb(event)
 				}(e, ec.Callback)
-
+				es.mu.Lock()
 				es.subscribers[e.Name][idx].published = true
+				es.mu.Unlock()
 			}
 			continue
 		}
@@ -247,7 +248,9 @@ func (es *EventStore) PublishSync(e *Event) {
 		if ec.CallOnce {
 			if !ec.published {
 				ec.Callback(e)
+				es.mu.Lock()
 				es.subscribers[e.Name][idx].published = true
+				es.mu.Unlock()
 			}
 			continue
 		}

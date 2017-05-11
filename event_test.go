@@ -6,6 +6,7 @@ package aah
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ func TestOnInitEvent(t *testing.T) {
 		fmt.Println("onInitFunc3:", e)
 	}
 
+	appEventStore = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
 	assert.False(t, AppEventStore().IsEventExists(EventOnInit))
 
 	OnInit(onInitFunc1)
@@ -77,6 +79,7 @@ func TestOnStartEvent(t *testing.T) {
 		fmt.Println("onStartFunc3:", e)
 	}
 
+	appEventStore = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
 	assert.False(t, AppEventStore().IsEventExists(EventOnStart))
 
 	OnStart(onStartFunc1)
@@ -129,6 +132,7 @@ func TestOnShutdownEvent(t *testing.T) {
 		fmt.Println("onShutdownFunc3:", e)
 	}
 
+	appEventStore = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
 	assert.False(t, AppEventStore().IsEventExists(EventOnShutdown))
 
 	OnShutdown(onShutdownFunc1)

@@ -44,8 +44,8 @@ type (
 		Data interface{}
 	}
 
-	// File renders given path or io.Reader into response and closes the file.
-	File struct {
+	// Binary renders given path or io.Reader into response and closes the file.
+	Binary struct {
 		Path   string
 		Reader io.Reader
 	}
@@ -147,7 +147,7 @@ func (x *XML) Render(w io.Writer) error {
 //___________________________________
 
 // Render method writes File into HTTP response.
-func (f *File) Render(w io.Writer) error {
+func (f *Binary) Render(w io.Writer) error {
 	if f.Reader != nil {
 		defer ess.CloseQuietly(f.Reader)
 		_, err := io.Copy(w, f.Reader)

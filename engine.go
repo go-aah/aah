@@ -25,9 +25,11 @@ const (
 )
 
 const (
-	aahServerName       = "aah-go-server"
-	gzipContentEncoding = "gzip"
-	hstsValue           = "max-age=31536000; includeSubDomains"
+	aahServerName         = "aah-go-server"
+	gzipContentEncoding   = "gzip"
+	hstsHeaderValue       = "max-age=31536000; includeSubDomains"
+	defaultGlobalPoolSize = 500
+	defaultBufPoolSize    = 200
 )
 
 var errFileNotFound = errors.New("file not found")
@@ -104,11 +106,14 @@ func (e *engine) handleRecovery(ctx *Context) {
 		st.Print(buf)
 		log.Error(buf.String())
 
-		if AppProfile() == "prod" {
-			ctx.Reply().InternalServerError().Text("500 Internal Server Error")
-		} else { // detailed error info
-			// TODO design server error page with stack trace info
-			ctx.Reply().InternalServerError().Text("500 Internal Server Error: %s", buf.String())
+		ctx.Reply().InternalServerError()
+		e.negotiateContentType(ctx)
+		if ahttp.ContentTypeJSON.IsEqual(ctx.Reply().ContType) {
+			ctx.Reply().JSON(Data{"code": "500", "message": "Internal Server Error"})
+		} else if ahttp.ContentTypeXML.IsEqual(ctx.Reply().ContType) {
+			ctx.Reply().XML(Data{"code": "500", "message": "Internal Server Error"})
+		} else {
+			ctx.Reply().Text("500 Internal Server Error")
 		}
 
 		e.writeReply(ctx)
@@ -276,6 +281,7 @@ func (e *engine) writeReply(ctx *Context) {
 	if reply.Code != http.StatusNoContent &&
 		reply.Code != http.StatusNotModified && buf.Len() != 0 {
 		e.wrapGzipWriter(ctx)
+		// TODO minify implementation for non-dev
 	}
 
 	// HTTP headers
@@ -336,7 +342,7 @@ func (e *engine) writeHeaders(ctx *Context) {
 	// Set the HSTS if SSL is enabled on aah server
 	// Know more: https://www.owasp.org/index.php/HTTP_Strict_Transport_Security_Cheat_Sheet
 	if AppIsSSLEnabled() {
-		ctx.Res.Header().Set(ahttp.HeaderStrictTransportSecurity, hstsValue)
+		ctx.Res.Header().Set(ahttp.HeaderStrictTransportSecurity, hstsHeaderValue)
 	}
 }
 
@@ -423,25 +429,25 @@ func newEngine(cfg *config.Config) *engine {
 		requestIDHeader:    cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
 		isGzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
 		ctxPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.global", 0),
+			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
 			func() interface{} {
 				return &Context{}
 			},
 		),
 		reqPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.global", 0),
+			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
 			func() interface{} {
 				return &ahttp.Request{}
 			},
 		),
 		replyPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.global", 0),
+			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
 			func() interface{} {
 				return NewReply()
 			},
 		),
 		bufPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.buffer", 0),
+			cfg.IntDefault("runtime.pooling.buffer", defaultBufPoolSize),
 			func() interface{} {
 				return &bytes.Buffer{}
 			},

@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 
@@ -177,18 +178,24 @@ func (r *Reply) Text(format string, values ...interface{}) *Reply {
 	return r
 }
 
+// Binary method writes given bytes into response. It auto-detects the
+// content type of the given bytes if header `Content-Type` is not set.
+func (r *Reply) Binary(b []byte) *Reply {
+	return r.Readfrom(bytes.NewReader(b))
+}
+
 // Readfrom method reads the data from given reader and writes into response.
 // It auto-detects the content type of the file if `Content-Type` is not set.
 // Note: Method will close the reader after serving if it's satisfies the `io.Closer`.
 func (r *Reply) Readfrom(reader io.Reader) *Reply {
-	r.Rdr = &File{Reader: reader}
+	r.Rdr = &Binary{Reader: reader}
 	return r
 }
 
 // File method send the given as file to client. It auto-detects the content type
 // of the file if `Content-Type` is not set.
 func (r *Reply) File(file string) *Reply {
-	r.Rdr = &File{Path: file}
+	r.Rdr = &Binary{Path: file}
 	return r
 }
 

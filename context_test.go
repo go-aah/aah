@@ -141,6 +141,18 @@ func TestContextAbort(t *testing.T) {
 	assert.True(t, ctx.abort)
 }
 
+func TestContentIsStaticRoute(t *testing.T) {
+	ctx1 := &Context{}
+	assert.False(t, ctx1.IsStaticRoute())
+
+	ctx2 := &Context{
+		route: &router.Route{
+			IsStatic: true,
+		},
+	}
+	assert.True(t, ctx2.IsStaticRoute())
+}
+
 func TestContextNil(t *testing.T) {
 	ctx := &Context{}
 

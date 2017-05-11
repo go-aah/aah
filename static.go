@@ -21,6 +21,7 @@ import (
 
 // serveStatic method static file/directory delivery.
 func (e *engine) serveStatic(ctx *Context) error {
+	// TODO static assets Dynamic minify for JS and CSS for non-dev profile
 	dir, file := filepath.Split(getFilepath(ctx))
 	log.Tracef("Dir: %s, File: %s", dir, file)
 

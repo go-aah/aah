@@ -36,6 +36,7 @@ var (
 	appHTTPMaxHdrBytes    int
 	appSSLCert            string
 	appSSLKey             string
+	appIsSSLEnabled       bool
 	appIsLetsEncrypt      bool
 	appMultipartMaxMemory int64
 	appPID                int
@@ -147,7 +148,7 @@ func AllAppProfiles() []string {
 // AppIsSSLEnabled method returns true if aah application is enabled with SSL
 // otherwise false.
 func AppIsSSLEnabled() bool {
-	return AppConfig().BoolDefault("server.ssl.enable", false)
+	return appIsSSLEnabled
 }
 
 // SetAppProfile method sets given profile as current aah application profile.
@@ -278,6 +279,7 @@ func initAppVariables() error {
 		return errors.New("'server.max_header_bytes' value is not a valid size unit")
 	}
 
+	appIsSSLEnabled = cfg.BoolDefault("server.ssl.enable", false)
 	appIsLetsEncrypt = cfg.BoolDefault("server.ssl.lets_encrypt.enable", false)
 	appSSLCert = cfg.StringDefault("server.ssl.cert", "")
 	appSSLKey = cfg.StringDefault("server.ssl.key", "")

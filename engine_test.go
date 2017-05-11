@@ -170,7 +170,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	body3, _ := ioutil.ReadAll(resp3.Body)
 	assert.Equal(t, 500, resp3.StatusCode)
 	assert.Equal(t, "Internal Server Error", resp3.Status)
-	assert.True(t, strings.Contains(string(body3), "panic flow testing"))
+	assert.True(t, strings.Contains(string(body3), "Internal Server Error"))
 
 	// Request 4 static
 	r4 := httptest.NewRequest("GET", "http://localhost:8080/assets/logo.png", nil)

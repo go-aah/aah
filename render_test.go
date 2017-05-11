@@ -159,7 +159,7 @@ func TestRenderFileAndReader(t *testing.T) {
 	defer ess.CloseQuietly(f)
 
 	buf := &bytes.Buffer{}
-	file1 := File{Reader: f}
+	file1 := Binary{Reader: f}
 
 	err := file1.Render(buf)
 	assert.FailOnError(t, err, "")
@@ -169,7 +169,7 @@ Each incoming request passes through a pre-defined list of steps
 
 	// Reader
 	buf.Reset()
-	file2 := File{Path: getRenderFilepath("file1.txt")}
+	file2 := Binary{Path: getRenderFilepath("file1.txt")}
 	err = file2.Render(buf)
 	assert.FailOnError(t, err, "")
 	assert.Equal(t, `
@@ -178,7 +178,7 @@ Each incoming request passes through a pre-defined list of steps
 
 	// Reader string
 	buf.Reset()
-	file3 := File{Reader: strings.NewReader(`<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`)}
+	file3 := Binary{Reader: strings.NewReader(`<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`)}
 	err = file3.Render(buf)
 	assert.FailOnError(t, err, "")
 	assert.Equal(t, `<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`,
@@ -186,14 +186,14 @@ Each incoming request passes through a pre-defined list of steps
 
 	// Directory error
 	buf.Reset()
-	file4 := File{Path: os.Getenv("HOME")}
+	file4 := Binary{Path: os.Getenv("HOME")}
 	err = file4.Render(buf)
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "is a directory"))
 	assert.True(t, ess.IsStrEmpty(buf.String()))
 
 	// File not exists
-	file5 := File{Path: filepath.Join(getTestdataPath(), "file-not-exists.txt")[1:]}
+	file5 := Binary{Path: filepath.Join(getTestdataPath(), "file-not-exists.txt")[1:]}
 	err = file5.Render(buf)
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "file-not-exists.txt: no such file or directory"))

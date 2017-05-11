@@ -23,6 +23,7 @@ var (
 	appDefaultTmplLayout     string
 	appViewFileCaseSensitive bool
 	isExternalTmplEngine     bool
+	viewNotFoundTemplate     *template.Template
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -87,7 +88,7 @@ func (e *engine) resolveView(ctx *Context) {
 	reply := ctx.Reply()
 
 	// HTML response
-	if ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
+	if ahttp.ContentTypeHTML.IsEqual(reply.ContType) && appViewEngine != nil {
 		if reply.Rdr == nil {
 			reply.Rdr = &HTML{}
 		}
@@ -167,6 +168,9 @@ func findViewTemplate(ctx *Context) {
 			}
 
 			log.Errorf("template not found: %s", tmplFile)
+			htmlRdr.ViewArgs["ViewNotFound"] = tmplFile
+			htmlRdr.Layout = ""
+			htmlRdr.Template = viewNotFoundTemplate
 		} else {
 			log.Error(err)
 		}
@@ -184,6 +188,12 @@ func sanatizeValue(value interface{}) interface{} {
 	}
 }
 
+func addViewNotFoundTemplate(e *Event) {
+	viewNotFoundTemplate = template.Must(template.New("not_found").Funcs(view.TemplateFuncMap).Parse(`
+		<strong>View not found: {{ .ViewNotFound }}</strong>
+	`))
+}
+
 func init() {
 	AddTemplateFunc(template.FuncMap{
 		"config":          tmplConfig,
@@ -197,4 +207,6 @@ func init() {
 		"isauthenticated": tmplIsAuthenticated,
 		"flash":           tmplFlashValue,
 	})
+
+	OnStart(addViewNotFoundTemplate)
 }
