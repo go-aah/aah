@@ -55,14 +55,20 @@ func TestContextReverseURL(t *testing.T) {
 		Req: getAahRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", ""),
 	}
 
-	reverseURL := ctx.ReverseURL("version_home", "v0.1")
-	assert.Equal(t, "//localhost:8080/doc/v0.1", reverseURL)
+	reverseURL1 := ctx.ReverseURL("version_home", "v0.1")
+	assert.Equal(t, "//localhost:8080/doc/v0.1", reverseURL1)
 
-	reverseURL = ctx.ReverseURLm("show_doc", map[string]interface{}{
+	reverseURL2 := ctx.ReverseURLm("show_doc", map[string]interface{}{
 		"version": "v0.2",
 		"content": "getting-started.html",
 	})
-	assert.Equal(t, "//localhost:8080/doc/v0.2/getting-started.html", reverseURL)
+	assert.Equal(t, "//localhost:8080/doc/v0.2/getting-started.html", reverseURL2)
+
+	reverseURL3 := ctx.ReverseURL("root.show_doc", "v0.2", "getting-started.html")
+	assert.Equal(t, "//localhost:8080/doc/v0.2/getting-started.html", reverseURL3)
+
+	reverseURL4 := ctx.ReverseURL("root.host")
+	assert.Equal(t, "//localhost:8080", reverseURL4)
 
 	ctx.Reset()
 }

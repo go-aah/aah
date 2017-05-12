@@ -117,7 +117,8 @@ func (e *engine) resolveView(ctx *Context) {
 		htmlRdr.ViewArgs["RequestPath"] = ctx.Req.Path
 		htmlRdr.ViewArgs["Locale"] = ctx.Req.Locale
 		htmlRdr.ViewArgs["ClientIP"] = ctx.Req.ClientIP
-		htmlRdr.ViewArgs["IsJSONP"] = ctx.Req.IsJSONP
+		htmlRdr.ViewArgs["IsJSONP"] = ctx.Req.IsJSONP()
+		htmlRdr.ViewArgs["IsAJAX"] = ctx.Req.IsAJAX()
 		htmlRdr.ViewArgs["HTTPReferer"] = ctx.Req.Referer
 		htmlRdr.ViewArgs["AahVersion"] = Version
 		htmlRdr.ViewArgs["EnvProfile"] = AppProfile()

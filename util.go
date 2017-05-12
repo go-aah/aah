@@ -6,6 +6,7 @@ package aah
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -42,6 +43,14 @@ func checkSSLConfigValues(isSSLEnabled, isLetsEncrypt bool, sslCert, sslKey stri
 	if isSSLEnabled {
 		if !isLetsEncrypt && (ess.IsStrEmpty(sslCert) || ess.IsStrEmpty(sslKey)) {
 			return errors.New("SSL config is incomplete; either enable 'server.ssl.lets_encrypt.enable' or provide 'server.ssl.cert' & 'server.ssl.key' value")
+		} else if !isLetsEncrypt {
+			if !ess.IsFileExists(sslCert) {
+				return fmt.Errorf("SSL cert file not found: %s", sslCert)
+			}
+
+			if !ess.IsFileExists(sslKey) {
+				return fmt.Errorf("SSL key file not found: %s", sslKey)
+			}
 		}
 	}
 
@@ -61,4 +70,13 @@ func writePID(appBinaryName, appBaseDir string) {
 
 func getBinaryFileName() string {
 	return ess.StripExt(AppBuildInfo().BinaryName)
+}
+
+func isNoGzipStatusCode(code int) bool {
+	for _, c := range noGzipStatusCodes {
+		if c == code {
+			return true
+		}
+	}
+	return false
 }

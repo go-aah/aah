@@ -19,6 +19,7 @@ type Reply struct {
 	ContType string
 	Hdr      http.Header
 	Rdr      Render
+	body     *bytes.Buffer
 	cookies  []*http.Cookie
 	redirect bool
 	path     string
@@ -340,12 +341,22 @@ func (r *Reply) IsContentTypeSet() bool {
 	return !ess.IsStrEmpty(r.ContType)
 }
 
+// Body method returns the response body buffer.
+// It might be nil if the -
+//    1) Response is written successfully on the wire
+//    2) Response is not yet rendered
+//    3) Static files, since response is written via `http.ServeContent`
+func (r *Reply) Body() *bytes.Buffer {
+	return r.body
+}
+
 // Reset method resets the values into initialized state.
 func (r *Reply) Reset() {
 	r.Code = http.StatusOK
 	r.ContType = ""
 	r.Hdr = http.Header{}
 	r.Rdr = nil
+	r.body = nil
 	r.cookies = make([]*http.Cookie, 0)
 	r.redirect = false
 	r.path = ""

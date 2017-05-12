@@ -32,7 +32,10 @@ const (
 	defaultBufPoolSize    = 200
 )
 
-var errFileNotFound = errors.New("file not found")
+var (
+	errFileNotFound   = errors.New("file not found")
+	noGzipStatusCodes = []int{http.StatusNotModified, http.StatusNoContent}
+)
 
 type (
 	// routeStatus is feadback of handleRoute method
@@ -253,15 +256,10 @@ func (e *engine) writeReply(ctx *Context) {
 	// resolving view template
 	e.resolveView(ctx)
 
-	// 'OnPreReply' server extension point
-	publishOnPreReplyEvent(ctx)
-
-	buf := e.getBuffer()
-	defer e.putBuffer(buf)
-
 	// Render and detect the errors earlier, framework can write error info
 	// without messing with response.
 	// HTTP Body
+	reply.body = e.getBuffer()
 	if reply.Rdr != nil {
 		if jsonp, ok := reply.Rdr.(*JSON); ok && ctx.Req.IsJSONP() && jsonp.IsJSONP {
 			if ess.IsStrEmpty(jsonp.Callback) {
@@ -269,20 +267,22 @@ func (e *engine) writeReply(ctx *Context) {
 			}
 		}
 
-		if err := reply.Rdr.Render(buf); err != nil {
-			log.Error("Render error: ", err)
-			ctx.Res.WriteHeader(http.StatusInternalServerError)
-			_, _ = ctx.Res.Write([]byte("500 Internal Server Error" + "\n"))
-			return
+		if err := reply.Rdr.Render(reply.body); err != nil {
+			log.Error("Render response body error: ", err)
+			reply.InternalServerError()
+			reply.body.Reset()
+			reply.body.WriteString("500 Internal Server Error\n")
 		}
 	}
 
 	// Gzip
-	if reply.Code != http.StatusNoContent &&
-		reply.Code != http.StatusNotModified && buf.Len() != 0 {
+	if !isNoGzipStatusCode(reply.Code) && reply.body.Len() != 0 {
 		e.wrapGzipWriter(ctx)
 		// TODO minify implementation for non-dev
 	}
+
+	// 'OnPreReply' server extension point
+	publishOnPreReplyEvent(ctx)
 
 	// HTTP headers
 	e.writeHeaders(ctx)
@@ -294,7 +294,7 @@ func (e *engine) writeReply(ctx *Context) {
 	ctx.Res.WriteHeader(reply.Code)
 
 	// Write response buffer on the wire
-	_, _ = buf.WriteTo(ctx.Res)
+	_, _ = reply.body.WriteTo(ctx.Res)
 
 	// 'OnAfterReply' server extension point
 	publishOnAfterReplyEvent(ctx)
@@ -394,6 +394,7 @@ func (e *engine) putContext(ctx *Context) {
 
 	// clear and put `Reply` into pool
 	if ctx.reply != nil {
+		e.putBuffer(ctx.reply.body)
 		ctx.reply.Reset()
 		e.replyPool.Put(ctx.reply)
 	}
@@ -410,6 +411,9 @@ func (e *engine) getBuffer() *bytes.Buffer {
 
 // putBPool puts buffer into pool
 func (e *engine) putBuffer(b *bytes.Buffer) {
+	if b == nil {
+		return
+	}
 	b.Reset()
 	e.bufPool.Put(b)
 }

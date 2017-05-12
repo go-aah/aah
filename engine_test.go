@@ -215,6 +215,18 @@ func TestEngineServeHTTP(t *testing.T) {
 	body7Str := string(body7)
 	assert.Equal(t, `{"code":1000001,"message":"This is credits page"}`, body7Str)
 	assert.Equal(t, "custom value", resp7.Header.Get("X-Custom-Header"))
+
+	r8 := httptest.NewRequest("POST", "http://localhost:8080/credits", nil)
+	r8.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
+	w8 := httptest.NewRecorder()
+	e.ServeHTTP(w8, r8)
+
+	resp8 := w8.Result()
+	reader8, _ := gzip.NewReader(resp8.Body)
+	body8, _ := ioutil.ReadAll(reader8)
+	assert.Equal(t, "405 Method Not Allowed", string(body8))
+	assert.Equal(t, "GET, OPTIONS", resp8.Header.Get("Allow"))
+
 	appBaseDir = ""
 }
 

@@ -63,7 +63,7 @@ func getRouteNameAndAnchorLink(routeName string) (string, string) {
 }
 
 func composeRouteURL(domain *router.Domain, routePath, anchorLink string) string {
-	if ess.IsStrEmpty(domain.Port) || domain.Port == "80" {
+	if ess.IsStrEmpty(domain.Port) {
 		routePath = fmt.Sprintf("//%s%s", domain.Host, routePath)
 	} else {
 		routePath = fmt.Sprintf("//%s:%s%s", domain.Host, domain.Port, routePath)
