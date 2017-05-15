@@ -17,14 +17,6 @@ import (
 	"aahframework.org/log.v0"
 )
 
-func isBinDirExists() bool {
-	return ess.IsFileExists(filepath.Join(getWorkingDir(), "bin"))
-}
-
-func isAppDirExists() bool {
-	return ess.IsFileExists(filepath.Join(getWorkingDir(), "app"))
-}
-
 func getWorkingDir() string {
 	wd, _ := os.Getwd()
 	return wd

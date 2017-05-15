@@ -25,6 +25,8 @@ var (
 
 type (
 	// Context type for aah framework, gets embedded in application controller.
+	//
+	// Note: this is not standard package `context.Context`.
 	Context struct {
 		// Req is HTTP request instance
 		Req *ahttp.Request

@@ -169,6 +169,11 @@ func SetAppBuildInfo(bi *BuildInfo) {
 	appBuildInfo = bi
 }
 
+// SetAppPackaged method sets the info of binary is packaged or not.
+func SetAppPackaged(pack bool) {
+	appIsPackaged = pack
+}
+
 // Init method initializes `aah` application, if anything goes wrong during
 // initialize process, it will log it as fatal msg and exit.
 func Init(importPath string) {
@@ -227,8 +232,6 @@ func logAsFatal(err error) {
 
 func initPath(importPath string) (err error) {
 	appImportPath = path.Clean(importPath)
-	appIsPackaged = isBinDirExists() && !isAppDirExists()
-
 	if goPath, err = ess.GoPath(); err != nil && !appIsPackaged {
 		return err
 	}

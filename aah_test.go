@@ -60,8 +60,7 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.Equal(t, "443", AppHTTPPort())
 
 	// app packaged
-	assert.False(t, isBinDirExists())
-	assert.False(t, isAppDirExists())
+	assert.False(t, appIsPackaged)
 
 	// init auto cert
 	AppConfig().SetBool("server.ssl.enable", true)
@@ -120,8 +119,12 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.Equal(t, "'request.multipart_size' value is not a valid size unit", err.Error())
 	AppConfig().SetString("request.multipart_size", "12mb")
 
+	SetAppPackaged(true)
+	assert.True(t, appIsPackaged)
+
 	// cleanup
 	appConfig = nil
+	SetAppPackaged(false)
 }
 
 func TestAahInitPath(t *testing.T) {
