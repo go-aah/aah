@@ -33,7 +33,7 @@ func TestLogDefault(t *testing.T) {
 	testPanic(logger, "panic", "this is panic")
 	testPanic(logger, "panicf", "this is panicf")
 	testPanic(logger, "panicln", "this is panicln")
-	time.Sleep(1 * time.Millisecond)
+	waitToDrain(logger)
 }
 
 func TestMisc(t *testing.T) {
@@ -117,6 +117,14 @@ func cleaupFiles(match string) {
 			if found, _ := filepath.Match(match, info.Name()); found {
 				_ = os.Remove(filepath.Join(pwd, info.Name()))
 			}
+		}
+	}
+}
+
+func waitToDrain(l *Logger) {
+	for {
+		if l.IsBufferEmpty() {
+			break
 		}
 	}
 }

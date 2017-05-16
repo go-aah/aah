@@ -65,7 +65,7 @@ const (
 
 var (
 	// Version no. of aahframework.org/log library
-	Version = "0.3"
+	Version = "0.3.1"
 
 	// FmtFlags is the list of log format flags supported by aah/log library
 	// Usage of flag order is up to format composition.
@@ -205,8 +205,14 @@ func (l *Logger) SetReceiver(receiver Receiver) error {
 	return l.receiver.Init(l.cfg)
 }
 
+// IsBufferEmpty returns true if logger buffer is empty otherwise false.
+// This method can be used to ensure all the log entry is written successfully.
+func (l *Logger) IsBufferEmpty() bool {
+	return len(l.ec) == 0
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Logger methods
+// Logger logging methods
 //_______________________________________
 
 // Error logs message as `ERROR`. Arguments handled in the mananer of `fmt.Print`.

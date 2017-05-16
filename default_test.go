@@ -6,7 +6,6 @@ package log
 
 import (
 	"testing"
-	"time"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/test.v0/assert"
@@ -43,7 +42,7 @@ func TestDefaultLogger(t *testing.T) {
 	testStdPanic("panicf", "this is panicf")
 	testStdPanic("panicln", "this is panicln")
 
-	time.Sleep(1 * time.Millisecond)
+	waitToDrain(std)
 }
 
 func TestDefaultLoggerMisc(t *testing.T) {
@@ -56,7 +55,7 @@ func TestDefaultLoggerMisc(t *testing.T) {
 
 	assert.Nil(t, SetLevel("trace"))
 	assert.Nil(t, SetPattern("%level:-5 %message"))
-	time.Sleep(1 * time.Millisecond)
+	waitToDrain(std)
 }
 
 func testStdPanic(method, msg string) {
