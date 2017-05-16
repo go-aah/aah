@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"sync"
 
 	"aahframework.org/config.v0"
 )
@@ -32,6 +33,7 @@ var (
 // ConsoleReceiver writes the log entry into os.Stderr.
 // For non-windows it  writes with color.
 type ConsoleReceiver struct {
+	rw           *sync.RWMutex
 	out          io.Writer
 	formatter    string
 	flags        *[]FlagPart
@@ -58,6 +60,8 @@ func (c *ConsoleReceiver) Init(cfg *config.Config) error {
 
 // SetPattern method initializes the logger format pattern.
 func (c *ConsoleReceiver) SetPattern(pattern string) error {
+	c.rw.Lock()
+	defer c.rw.Unlock()
 	flags, err := parseFlag(pattern)
 	if err != nil {
 		return err
@@ -77,6 +81,8 @@ func (c *ConsoleReceiver) IsCallerInfo() bool {
 
 // Log method writes the log entry into os.Stderr.
 func (c *ConsoleReceiver) Log(entry *Entry) {
+	c.rw.RLock()
+	defer c.rw.RUnlock()
 	if c.isColor {
 		_, _ = c.out.Write(levelToColor[entry.Level])
 	}

@@ -85,12 +85,8 @@ func applyFormatter(formatter string, flags *[]FlagPart, entry *Entry) []byte {
 		return textFormatter(flags, entry)
 	}
 
-	lm, err := jsonFormatter(entry)
-	if err == nil {
-		return lm
-	}
-
-	return []byte(err.Error())
+	lm, _ := jsonFormatter(entry)
+	return lm
 }
 
 // parseFlag it parses the log message formart into flag parts

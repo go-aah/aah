@@ -123,6 +123,21 @@ func Panicln(format string, v ...interface{}) {
 	panic(fmt.Sprintf(format, v...))
 }
 
+// SetDefaultLogger method sets the given logger instance as default logger.
+func SetDefaultLogger(l *Logger) {
+	std = l
+}
+
+// SetLevel method sets log level for default logger.
+func SetLevel(level string) error {
+	return std.SetLevel(level)
+}
+
+// SetPattern method sets the log format pattern for default logger.
+func SetPattern(pattern string) error {
+	return std.SetPattern(pattern)
+}
+
 func init() {
 	cfg, _ := config.ParseString("log { }")
 	std, _ = New(cfg)

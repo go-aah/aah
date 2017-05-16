@@ -2,22 +2,23 @@
 // go-aah/log source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-// Package log implements a simple, flexible & powerful logger.
-// Currently it supports `console`, `file` (rotation by daily, size,  lines),
-// logging receivers and logging stats. It also has a predefined 'standard'
-// Logger accessible through helper functions `Error{f}`, `Warn{f}`, `Info{f}`,
-// `Debug{f}`, `Trace{f}` which are easier to use than creating a Logger manually.
-// That logger writes to standard error and prints log `Entry` details
-// as per `DefaultPattern`.
+// Package log implements a simple, flexible, non-blocking logger.
+// It supports `console`, `file` (rotation by daily, size, lines).
+// It also has a predefined 'standard' Logger accessible through helper
+// functions `Error{f}`, `Warn{f}`, `Info{f}`, `Debug{f}`, `Trace{f}`,
+// `Print{f,ln}`, `Fatal{f,ln}`, `Panic{f,ln}` which are easier to use than creating
+// a Logger manually. Default logger writes to standard error and prints log
+// `Entry` details as per `DefaultPattern`.
 //
-// Note: aah log package is drop-in replacement for standard go logger with features.
+// aah log package can be used as drop-in replacement for standard go logger
+// with features.
 //
 // 	log.Info("Welcome ", "to ", "aah ", "logger")
-// 	log.Infof("%v, %v, & %v", "simple", "flexible", "powerful logger")
+// 	log.Infof("%v, %v, %v", "simple", "flexible", "non-blocking logger")
 //
 // 	// Output:
-// 	2016-07-03 19:22:11.504 INFO  - Welcome to aah logger
-// 	2016-07-03 19:22:11.504 INFO  - simple, flexible, & powerful logger
+// 	2016-07-03 19:22:11.504 INFO  Welcome to aah logger
+// 	2016-07-03 19:22:11.504 INFO  simple, flexible, non-blocking logger
 package log
 
 import (
@@ -188,19 +189,17 @@ func (l *Logger) SetPattern(pattern string) error {
 	if l.receiver == nil {
 		return ErrLogReceiverIsNil
 	}
-
-	l.m.Lock()
-	defer l.m.Unlock()
 	return l.receiver.SetPattern(pattern)
 }
 
 // SetReceiver sets the given receiver into logger instance.
 func (l *Logger) SetReceiver(receiver Receiver) error {
+	l.m.Lock()
+	defer l.m.Unlock()
+
 	if receiver == nil {
 		return ErrLogReceiverIsNil
 	}
-	l.m.Lock()
-	defer l.m.Unlock()
 
 	l.receiver = receiver
 	return l.receiver.Init(l.cfg)

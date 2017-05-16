@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"aahframework.org/config.v0"
@@ -20,6 +21,7 @@ var _ Receiver = &FileReceiver{}
 
 // FileReceiver writes the log entry into file.
 type FileReceiver struct {
+	rw           *sync.RWMutex
 	filename     string
 	out          io.Writer
 	formatter    string
@@ -74,6 +76,8 @@ func (f *FileReceiver) Init(cfg *config.Config) error {
 
 // SetPattern method initializes the logger format pattern.
 func (f *FileReceiver) SetPattern(pattern string) error {
+	f.rw.Lock()
+	defer f.rw.Unlock()
 	flags, err := parseFlag(pattern)
 	if err != nil {
 		return err
@@ -97,6 +101,8 @@ func (f *FileReceiver) IsCallerInfo() bool {
 
 // Log method logs the given entry values into file.
 func (f *FileReceiver) Log(entry *Entry) {
+	f.rw.RLock()
+	defer f.rw.RUnlock()
 	if f.isRotate() {
 		_ = f.rotateFile()
 	}
