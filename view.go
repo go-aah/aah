@@ -23,7 +23,9 @@ var (
 	appDefaultTmplLayout     string
 	appViewFileCaseSensitive bool
 	isExternalTmplEngine     bool
-	viewNotFoundTemplate     *template.Template
+	viewNotFoundTemplate     = template.Must(template.New("not_found").Parse(`
+		<strong>View not found: {{ .ViewNotFound }}</strong>
+	`))
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -189,12 +191,6 @@ func sanatizeValue(value interface{}) interface{} {
 	}
 }
 
-func addViewNotFoundTemplate(e *Event) {
-	viewNotFoundTemplate = template.Must(template.New("not_found").Funcs(view.TemplateFuncMap).Parse(`
-		<strong>View not found: {{ .ViewNotFound }}</strong>
-	`))
-}
-
 func init() {
 	AddTemplateFunc(template.FuncMap{
 		"config":          tmplConfig,
@@ -208,6 +204,4 @@ func init() {
 		"isauthenticated": tmplIsAuthenticated,
 		"flash":           tmplFlashValue,
 	})
-
-	OnStart(addViewNotFoundTemplate)
 }

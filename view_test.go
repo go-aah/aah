@@ -159,7 +159,7 @@ func TestViewResolveViewNotFound(t *testing.T) {
 
 	assert.NotNil(t, ctx.Reply().Rdr)
 	htmlRdr := ctx.Reply().Rdr.(*HTML)
-	assert.Nil(t, htmlRdr.Template)
+	assert.NotNil(t, htmlRdr.Template)
 
 	// cleanup
 	appViewEngine = nil

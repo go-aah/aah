@@ -181,12 +181,12 @@ func Init(importPath string) {
 
 	if appBuildInfo == nil {
 		// aah CLI is accessing application for build purpose
-		log.SetLevel(log.LevelWarn)
+		_ = log.SetLevel("warn")
 		logAsFatal(initPath(importPath))
 		logAsFatal(initConfig(appConfigDir()))
 		logAsFatal(initAppVariables())
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
-		log.SetLevel(log.LevelDebug)
+		_ = log.SetLevel("debug")
 	} else {
 		logAsFatal(initPath(importPath))
 		logAsFatal(initConfig(appConfigDir()))
@@ -316,13 +316,12 @@ func initLogs(logsDir string, appCfg *config.Config) error {
 			appCfg.SetString("log.file", filepath.Join(logsDir, file))
 		}
 	}
-	logCfg, _ := appCfg.GetSubConfig("log")
-	logger, err := log.Newc(logCfg)
+
+	logger, err := log.New(appCfg)
 	if err != nil {
 		return err
 	}
 
-	log.SetOutput(logger)
-
+	log.SetDefaultLogger(logger)
 	return nil
 }

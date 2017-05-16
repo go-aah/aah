@@ -168,8 +168,8 @@ func TestAahLogDir(t *testing.T) {
 	assert.True(t, ess.IsFileExists(logFile))
 
 	cfg, _ := config.ParseString("")
-	logger, _ := log.Newc(cfg)
-	log.SetOutput(logger)
+	logger, _ := log.New(cfg)
+	log.SetDefaultLogger(logger)
 }
 
 func TestWritePID(t *testing.T) {
