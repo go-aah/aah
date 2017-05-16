@@ -6,7 +6,6 @@ package log
 
 import (
 	"testing"
-	"time"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/test.v0/assert"
@@ -122,5 +121,5 @@ func testConsoleLogger(t *testing.T, cfgStr string) {
 	logger.Error("Yes, yes, yes - finally an error")
 	logger.Errorf("Yes, yes, yes - %v", "finally an error")
 
-	time.Sleep(1 * time.Millisecond)
+	waitToDrain(logger)
 }

@@ -6,13 +6,12 @@ package log
 
 import (
 	"testing"
-	"time"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/test.v0/assert"
 )
 
-func TestFileLoggerDailyRotation(t *testing.T) {
+func TestFileLoggerRotation(t *testing.T) {
 	cleaupFiles("*.log")
 	fileConfigStr1 := `
   log {
@@ -161,5 +160,5 @@ func testFileLogger(t *testing.T, cfgStr string, loop int) {
 		logger.Errorf("Yes, yes, yes - %v", "finally an error")
 	}
 
-	time.Sleep(2 * time.Millisecond)
+	waitToDrain(logger)
 }
