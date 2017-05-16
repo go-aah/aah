@@ -73,6 +73,10 @@ func TestMisc(t *testing.T) {
 	discard.Log(&Entry{})
 	_ = discard.SetPattern("nothing")
 	assert.False(t, discard.IsCallerInfo())
+
+	// util
+	assert.Nil(t, getReceiverByName("SMTP"))
+	assert.Equal(t, "", formatTime(time.Time{}))
 }
 
 func testPanic(logger *Logger, method, msg string) {

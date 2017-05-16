@@ -71,6 +71,20 @@ func TestConsoleLoggerUnknownFormatFlag(t *testing.T) {
 	assert.Equal(t, "unrecognized log format flag: myfile", err.Error())
 }
 
+func TestConsoleLoggerUnknownLevel(t *testing.T) {
+	configStr := `
+  log {
+    # default config plus
+		level = "MYLEVEL"
+    pattern = "%time:2006-01-02 15:04:05.000 %level:-5 %message"
+  }
+  `
+	cfg, _ := config.ParseString(configStr)
+	logger, err := New(cfg)
+	assert.Nil(t, logger)
+	assert.Equal(t, "log: unknown log level 'MYLEVEL'", err.Error())
+}
+
 func TestConsoleLoggerDefaults(t *testing.T) {
 	configStr := `
   log {
@@ -81,6 +95,11 @@ func TestConsoleLoggerDefaults(t *testing.T) {
 	logger, err := New(cfg)
 	assert.NotNil(t, logger)
 	assert.Nil(t, err)
+
+	// receiver nil scenario
+	logger.receiver = nil
+	err = logger.SetPattern("%time:2006-01-02 15:04:05.000 %level:-5 %message")
+	assert.Equal(t, "log: receiver is nil", err.Error())
 }
 
 func testConsoleLogger(t *testing.T, cfgStr string) {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"aahframework.org/config.v0"
+	"aahframework.org/test.v0/assert"
 )
 
 func TestDefaultLogger(t *testing.T) {
@@ -42,6 +43,19 @@ func TestDefaultLogger(t *testing.T) {
 	testStdPanic("panicf", "this is panicf")
 	testStdPanic("panicln", "this is panicln")
 
+	time.Sleep(1 * time.Millisecond)
+}
+
+func TestDefaultLoggerMisc(t *testing.T) {
+	cfg, _ := config.ParseString("log { }")
+	newStd, _ := New(cfg)
+	SetDefaultLogger(newStd)
+	Print("welcome 2 print")
+	Printf("welcome 2 printf")
+	Println("welcome 2 println")
+
+	assert.Nil(t, SetLevel("trace"))
+	assert.Nil(t, SetPattern("%level:-5 %message"))
 	time.Sleep(1 * time.Millisecond)
 }
 

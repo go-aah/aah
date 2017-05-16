@@ -120,6 +120,25 @@ func TestFileLoggerUnknownFormatFlag(t *testing.T) {
 	assert.Equal(t, "unrecognized log format flag: myfile", err.Error())
 }
 
+func TestFileLoggerIncorrectSizeValue(t *testing.T) {
+	defer cleaupFiles("*.log")
+	configStr := `
+  log {
+    receiver = "file"
+    level = "debug"
+    pattern = "%time:2006-01-02 15:04:05.000 %level:-5 %shortfile %line %custom:- %message"
+    file = "daily-aah-filename.log"
+    rotate {
+      policy = "size"
+      size = "500kbs"
+    }
+  }
+	`
+	cfg, _ := config.ParseString(configStr)
+	_, err := New(cfg)
+	assert.Equal(t, "format: invalid input '500kbs'", err.Error())
+}
+
 func testFileLogger(t *testing.T, cfgStr string, loop int) {
 	cfg, _ := config.ParseString(cfgStr)
 	logger, err := New(cfg)
