@@ -5,60 +5,72 @@
 package log
 
 import (
-	"fmt"
 	"testing"
+	"time"
 
+	"aahframework.org/config.v0"
 	"aahframework.org/test.v0/assert"
 )
 
-func TestDefaultStandardLogger(t *testing.T) {
-	SetLevel(LevelInfo)
-	_ = SetPattern("%time:2006-01-02 15:04:05.000 %level:-5 %line %custom:- %message")
+func TestDefaultLogger(t *testing.T) {
+	cfg, _ := config.ParseString(`
+  log {
+    pattern = "%utctime:2006-01-02 15:04:05.000 %level:-5 %longfile %line %custom:- %message"
+  }
+  `)
+	std, _ = New(cfg)
+
+	Print("welcome print")
+	Printf("welcome printf")
+	Println("welcome println")
+
 	Trace("I shoudn't see this msg, because standard logger level is DEBUG")
+	Tracef("I shoudn't see this msg, because standard logger level is DEBUG: %v", 4)
+
 	Debug("I would like to see this message, debug is useful for dev")
-	Info("Yes, I would love to")
+	Debugf("I would like to see this message, debug is useful for %v", "dev")
+
+	Info("Yes, I would love to see")
+	Infof("Yes, I would love to %v", "see")
+
 	Warn("Yes, yes it's an warning")
+	Warnf("Yes, yes it's an %v", "warning")
+
 	Error("Yes, yes, yes - finally an error")
-	fmt.Println()
+	Errorf("Yes, yes, yes - %v", "finally an error")
 
-	t.Logf("First round: %#v\n\n", Stats())
+	testStdPanic("panic", "this is panic")
+	testStdPanic("panicf", "this is panicf")
+	testStdPanic("panicln", "this is panicln")
 
-	SetLevel(LevelDebug)
-	_ = SetPattern("%time:2006-01-02 15:04:05.000 %level:-5 %shortfile %line %custom:- %message")
-	Tracef("I shoudn't see this msg: %v", 4)
-	Debugf("I would like to see this message, debug is useful for dev: %v", 3)
-	Infof("Yes, I would love to: %v", 2)
-	Warnf("Yes, yes it's an warning: %v", 1)
-	Errorf("Yes, yes, yes - finally an error: %v", 0)
-
-	t.Logf("Second round: %#v\n\n", Stats())
-
-	err := SetPattern("%level:-5 %shortfile %line %unknown")
-	assert.NotNil(t, err)
-
-	newLogger, _ := New(`receiver = "CONSOLE"; level = "DEBUG";`)
-	SetOutput(newLogger)
-	Info("Fresh new face ...")
+	time.Sleep(1 * time.Millisecond)
 }
 
-func TestPanicDefaultStandardLogger(t *testing.T) {
+func TestDefaultLoggerMisc(t *testing.T) {
+	cfg, _ := config.ParseString("log { }")
+	newStd, _ := New(cfg)
+	SetDefaultLogger(newStd)
+	Print("welcome 2 print")
+	Printf("welcome 2 printf")
+	Println("welcome 2 println")
+
+	assert.Nil(t, SetLevel("trace"))
+	assert.Nil(t, SetPattern("%level:-5 %message"))
+	time.Sleep(1 * time.Millisecond)
+}
+
+func testStdPanic(method, msg string) {
 	defer func() {
 		if r := recover(); r != nil {
 			_ = r
 		}
 	}()
 
-	SetLevel(levelPanic)
-	Panic("This is panic message")
-}
-
-func TestPanicfDefaultStandardLogger(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			_ = r
-		}
-	}()
-
-	SetLevel(levelPanic)
-	Panicf("This is panic %v", "message from param")
+	if method == "panic" {
+		Panic(msg)
+	} else if method == "panicf" {
+		Panicf("%s", msg)
+	} else if method == "panicln" {
+		Panicln("%s", msg)
+	}
 }
