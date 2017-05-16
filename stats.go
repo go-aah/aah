@@ -4,18 +4,18 @@
 
 package log
 
-// ReceiverStats tracks the number of output lines and bytes written.
-type ReceiverStats struct {
+// receiverStats tracks the number of output lines and bytes written.
+type receiverStats struct {
 	lines int64
 	bytes int64
 }
 
 // Lines returns the number of lines written.
-func (s *ReceiverStats) Lines() int64 {
+func (s *receiverStats) Lines() int64 {
 	return s.lines
 }
 
 // Bytes returns the number of bytes written.
-func (s *ReceiverStats) Bytes() int64 {
+func (s *receiverStats) Bytes() int64 {
 	return s.bytes
 }

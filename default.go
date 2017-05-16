@@ -7,106 +7,123 @@ package log
 import (
 	"fmt"
 	"os"
+
+	"aahframework.org/config.v0"
 )
 
-var stdLogger Logger
+var std *Logger
 
-// Fatal logs message as `FATAL` and calls os.Exit(1)
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Logger methods
+//_______________________________________
+
+// Error logs message as `ERROR`. Arguments handled in the mananer of `fmt.Print`.
+func Error(v ...interface{}) {
+	std.output(LevelError, 3, nil, v...)
+}
+
+// Errorf logs message as `ERROR`. Arguments handled in the mananer of `fmt.Printf`.
+func Errorf(format string, v ...interface{}) {
+	std.output(LevelError, 3, &format, v...)
+}
+
+// Warn logs message as `WARN`. Arguments handled in the mananer of `fmt.Print`.
+func Warn(v ...interface{}) {
+	std.output(LevelWarn, 3, nil, v...)
+}
+
+// Warnf logs message as `WARN`. Arguments handled in the mananer of `fmt.Printf`.
+func Warnf(format string, v ...interface{}) {
+	std.output(LevelWarn, 3, &format, v...)
+}
+
+// Info logs message as `INFO`. Arguments handled in the mananer of `fmt.Print`.
+func Info(v ...interface{}) {
+	std.output(LevelInfo, 3, nil, v...)
+}
+
+// Infof logs message as `INFO`. Arguments handled in the mananer of `fmt.Printf`.
+func Infof(format string, v ...interface{}) {
+	std.output(LevelInfo, 3, &format, v...)
+}
+
+// Debug logs message as `DEBUG`. Arguments handled in the mananer of `fmt.Print`.
+func Debug(v ...interface{}) {
+	std.output(LevelDebug, 3, nil, v...)
+}
+
+// Debugf logs message as `DEBUG`. Arguments handled in the mananer of `fmt.Printf`.
+func Debugf(format string, v ...interface{}) {
+	std.output(LevelDebug, 3, &format, v...)
+}
+
+// Trace logs message as `TRACE`. Arguments handled in the mananer of `fmt.Print`.
+func Trace(v ...interface{}) {
+	std.output(LevelTrace, 3, nil, v...)
+}
+
+// Tracef logs message as `TRACE`. Arguments handled in the mananer of `fmt.Printf`.
+func Tracef(format string, v ...interface{}) {
+	std.output(LevelTrace, 3, &format, v...)
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Logger methods - Drop-in replacement
+// for Go standard logger
+//_______________________________________
+
+// Print logs message as `INFO`. Arguments handled in the mananer of `fmt.Print`.
+func Print(v ...interface{}) {
+	std.output(LevelInfo, 3, nil, v...)
+}
+
+// Printf logs message as `INFO`. Arguments handled in the mananer of `fmt.Printf`.
+func Printf(format string, v ...interface{}) {
+	std.output(LevelInfo, 3, &format, v...)
+}
+
+// Println logs message as `INFO`. Arguments handled in the mananer of `fmt.Printf`.
+func Println(format string, v ...interface{}) {
+	std.output(LevelInfo, 3, &format, v...)
+}
+
+// Fatal logs message as `FATAL` and call to os.Exit(1).
 func Fatal(v ...interface{}) {
-	_ = stdLogger.Output(levelFatal, 2, nil, v...)
+	std.output(levelFatal, 3, nil, v...)
 	os.Exit(1)
 }
 
-// Fatalf logs message as `FATAL` and calls os.Exit(1)
+// Fatalf logs message as `FATAL` and call to os.Exit(1).
 func Fatalf(format string, v ...interface{}) {
-	_ = stdLogger.Output(levelFatal, 2, &format, v...)
+	std.output(levelFatal, 3, &format, v...)
 	os.Exit(1)
 }
 
-// Panic logs message as `PANIC` and calls panic()
+// Fatalln logs message as `FATAL` and call to os.Exit(1).
+func Fatalln(format string, v ...interface{}) {
+	std.output(levelFatal, 3, &format, v...)
+	os.Exit(1)
+}
+
+// Panic logs message as `PANIC` and call to panic().
 func Panic(v ...interface{}) {
-	_ = stdLogger.Output(levelPanic, 2, nil, v...)
+	std.output(levelPanic, 3, nil, v...)
 	panic("")
 }
 
-// Panicf logs message as `PANIC` and calls panic()
+// Panicf logs message as `PANIC` and call to panic().
 func Panicf(format string, v ...interface{}) {
-	_ = stdLogger.Output(levelPanic, 2, &format, v...)
+	std.output(levelPanic, 3, &format, v...)
 	panic(fmt.Sprintf(format, v...))
 }
 
-// Error logs message as `LevelError`
-func Error(v ...interface{}) {
-	_ = stdLogger.Output(LevelError, 2, nil, v...)
-}
-
-// Errorf logs message as `LevelError`
-func Errorf(format string, v ...interface{}) {
-	_ = stdLogger.Output(LevelError, 2, &format, v...)
-}
-
-// Warn logs message as `LevelWarn`
-func Warn(v ...interface{}) {
-	_ = stdLogger.Output(LevelWarn, 2, nil, v...)
-}
-
-// Warnf logs message as `LevelWarn`
-func Warnf(format string, v ...interface{}) {
-	_ = stdLogger.Output(LevelWarn, 2, &format, v...)
-}
-
-// Info logs message as `LevelInfo`
-func Info(v ...interface{}) {
-	_ = stdLogger.Output(LevelInfo, 2, nil, v...)
-}
-
-// Infof logs message as `LevelInfo`
-func Infof(format string, v ...interface{}) {
-	_ = stdLogger.Output(LevelInfo, 2, &format, v...)
-}
-
-// Debug logs message as `LevelDebug`
-func Debug(v ...interface{}) {
-	_ = stdLogger.Output(LevelDebug, 2, nil, v...)
-}
-
-// Debugf logs message as `LevelDebug`
-func Debugf(format string, v ...interface{}) {
-	_ = stdLogger.Output(LevelDebug, 2, &format, v...)
-}
-
-// Trace logs message as `LevelTrace`
-func Trace(v ...interface{}) {
-	_ = stdLogger.Output(LevelTrace, 2, nil, v...)
-}
-
-// Tracef logs message as `LevelTrace`
-func Tracef(format string, v ...interface{}) {
-	_ = stdLogger.Output(LevelTrace, 2, &format, v...)
-}
-
-// Stats returns current logger statistics like number of lines written,
-// number of bytes written, etc.
-func Stats() *ReceiverStats {
-	return stdLogger.Stats()
-}
-
-// SetPattern sets the log entry format
-func SetPattern(pattern string) error {
-	return stdLogger.SetPattern(pattern)
-}
-
-// SetLevel allows to set log level dynamically
-func SetLevel(level Level) {
-	stdLogger.SetLevel(level)
-}
-
-// SetOutput allows to set standard logger implementation
-// which statisfies `Logger` interface
-func SetOutput(logger Logger) {
-	stdLogger = logger
+// Panicln logs message as `PANIC` and call to panic().
+func Panicln(format string, v ...interface{}) {
+	std.output(levelPanic, 3, &format, v...)
+	panic(fmt.Sprintf(format, v...))
 }
 
 func init() {
-	stdLogger, _ = New(`receiver = "CONSOLE"; level = "DEBUG";`)
+	cfg, _ := config.ParseString("log { }")
+	std, _ = New(cfg)
 }
