@@ -71,21 +71,17 @@ func TestFileLoggerRotation(t *testing.T) {
 	cleaupFiles("*.log")
 }
 
-func TestFileLoggerFileRequired(t *testing.T) {
+func TestFileLoggerFileOpenError(t *testing.T) {
 	fileConfigStr := `
   log {
     receiver = "file"
-    level = "debug"
-    pattern = "%utctime:2006-01-02 15:04:05.000 %level:-5 %longfile %line %custom:- %message"
-    rotate {
-      policy = "daily"
-    }
+		file = ""
   }
   `
 	cfg, _ := config.ParseString(fileConfigStr)
 	logger, err := New(cfg)
 	assert.Nil(t, logger)
-	assert.Equal(t, "log: file value is required", err.Error())
+	assert.Equal(t, "open : no such file or directory", err.Error())
 }
 
 func TestFileLoggerUnsupportedFormat(t *testing.T) {
@@ -160,5 +156,4 @@ func testFileLogger(t *testing.T, cfgStr string, loop int) {
 		logger.Errorf("Yes, yes, yes - %v", "finally an error")
 	}
 
-	waitToDrain(logger)
 }

@@ -65,7 +65,7 @@ const (
 
 var (
 	// Version no. of aahframework.org/log library
-	Version = "0.3.1"
+	Version = "0.3.2"
 
 	// FmtFlags is the list of log format flags supported by aah/log library
 	// Usage of flag order is up to format composition.
@@ -124,7 +124,6 @@ type (
 		m        *sync.Mutex
 		level    Level
 		receiver Receiver
-		ec       chan *Entry
 	}
 )
 
@@ -156,9 +155,6 @@ func New(cfg *config.Config) (*Logger, error) {
 		return nil, err
 	}
 
-	logger.ec = make(chan *Entry, 1000) // TODO make it configurable
-	go logger.listenToEntry()
-
 	return logger, nil
 }
 
@@ -186,6 +182,8 @@ func (l *Logger) SetLevel(level string) error {
 
 // SetPattern methods sets the log format pattern.
 func (l *Logger) SetPattern(pattern string) error {
+	l.m.Lock()
+	defer l.m.Unlock()
 	if l.receiver == nil {
 		return ErrLogReceiverIsNil
 	}
@@ -203,12 +201,6 @@ func (l *Logger) SetReceiver(receiver Receiver) error {
 
 	l.receiver = receiver
 	return l.receiver.Init(l.cfg)
-}
-
-// IsBufferEmpty returns true if logger buffer is empty otherwise false.
-// This method can be used to ensure all the log entry is written successfully.
-func (l *Logger) IsBufferEmpty() bool {
-	return len(l.ec) == 0
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -333,6 +325,7 @@ func (l *Logger) output(level Level, calldepth int, format *string, v ...interfa
 	}
 
 	entry := getEntry()
+	defer putEntry(entry)
 	entry.Time = time.Now()
 	entry.Level = level
 	if format == nil {
@@ -345,14 +338,5 @@ func (l *Logger) output(level Level, calldepth int, format *string, v ...interfa
 		entry.File, entry.Line = fetchCallerInfo(calldepth)
 	}
 
-	l.ec <- entry
-}
-
-// listenToEntry method listens to entry channel and log the entry into receiver.
-func (l Logger) listenToEntry() {
-	for {
-		entry := <-l.ec
-		l.receiver.Log(entry)
-		putEntry(entry)
-	}
+	l.receiver.Log(entry)
 }

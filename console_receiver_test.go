@@ -121,5 +121,4 @@ func testConsoleLogger(t *testing.T, cfgStr string) {
 	logger.Error("Yes, yes, yes - finally an error")
 	logger.Errorf("Yes, yes, yes - %v", "finally an error")
 
-	waitToDrain(logger)
 }
