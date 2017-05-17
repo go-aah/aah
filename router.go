@@ -24,7 +24,7 @@ import (
 )
 
 // Version no. of aah framework router library
-const Version = "0.4"
+const Version = "0.6"
 
 var (
 	// HTTPMethodActionMap is default Controller Action name for corresponding
@@ -212,8 +212,13 @@ func (r *Router) processRoutesConfig() (err error) {
 			return
 		}
 
-		port := domainCfg.StringDefault("port", "8080")
-		if port == "80" {
+		// Router takes the port-no in the order they found-
+		//   1) routes.conf `domains.<domain-name>.port`
+		//   2) aah.conf `server.port`
+		//   3) 8080
+		port := domainCfg.StringDefault("port",
+			r.appCfg.StringDefault("server.port", "8080"))
+		if port == "80" || port == "443" {
 			port = ""
 		}
 
