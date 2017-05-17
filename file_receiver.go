@@ -5,12 +5,10 @@
 package log
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"aahframework.org/config.v0"
@@ -21,7 +19,6 @@ var _ Receiver = &FileReceiver{}
 
 // FileReceiver writes the log entry into file.
 type FileReceiver struct {
-	rw           *sync.RWMutex
 	filename     string
 	out          io.Writer
 	formatter    string
@@ -44,10 +41,6 @@ type FileReceiver struct {
 func (f *FileReceiver) Init(cfg *config.Config) error {
 	// File
 	f.filename = cfg.StringDefault("log.file", "")
-	if ess.IsStrEmpty(f.filename) {
-		return errors.New("log: file value is required")
-	}
-
 	if err := f.openFile(); err != nil {
 		return err
 	}
@@ -76,8 +69,6 @@ func (f *FileReceiver) Init(cfg *config.Config) error {
 
 // SetPattern method initializes the logger format pattern.
 func (f *FileReceiver) SetPattern(pattern string) error {
-	f.rw.Lock()
-	defer f.rw.Unlock()
 	flags, err := parseFlag(pattern)
 	if err != nil {
 		return err
@@ -101,8 +92,6 @@ func (f *FileReceiver) IsCallerInfo() bool {
 
 // Log method logs the given entry values into file.
 func (f *FileReceiver) Log(entry *Entry) {
-	f.rw.RLock()
-	defer f.rw.RUnlock()
 	if f.isRotate() {
 		_ = f.rotateFile()
 	}
@@ -180,11 +169,10 @@ func (f *FileReceiver) openFile() error {
 }
 
 func (f *FileReceiver) close() {
-	if f.isClosed {
-		return
+	if !f.isClosed {
+		ess.CloseQuietly(f.out)
+		f.isClosed = true
 	}
-	ess.CloseQuietly(f.out)
-	f.isClosed = true
 }
 
 func (f *FileReceiver) backupFileName() string {

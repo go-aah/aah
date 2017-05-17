@@ -7,7 +7,6 @@ package log
 import (
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -80,9 +79,9 @@ func isCallerInfo(flags *[]FlagPart) bool {
 
 func getReceiverByName(name string) Receiver {
 	if name == "FILE" {
-		return &FileReceiver{rw: &sync.RWMutex{}}
+		return &FileReceiver{}
 	} else if name == "CONSOLE" {
-		return &ConsoleReceiver{rw: &sync.RWMutex{}}
+		return &ConsoleReceiver{}
 	}
 	return nil
 }

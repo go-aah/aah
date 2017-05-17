@@ -42,7 +42,6 @@ func TestDefaultLogger(t *testing.T) {
 	testStdPanic("panicf", "this is panicf")
 	testStdPanic("panicln", "this is panicln")
 
-	waitToDrain(std)
 }
 
 func TestDefaultLoggerMisc(t *testing.T) {
@@ -55,7 +54,6 @@ func TestDefaultLoggerMisc(t *testing.T) {
 
 	assert.Nil(t, SetLevel("trace"))
 	assert.Nil(t, SetPattern("%level:-5 %message"))
-	waitToDrain(std)
 }
 
 func testStdPanic(method, msg string) {

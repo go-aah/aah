@@ -138,12 +138,6 @@ func SetPattern(pattern string) error {
 	return std.SetPattern(pattern)
 }
 
-// IsBufferEmpty returns true if logger buffer is empty otherwise false.
-// This method can be used to ensure all the log entry is written successfully.
-func IsBufferEmpty() bool {
-	return std.IsBufferEmpty()
-}
-
 func init() {
 	cfg, _ := config.ParseString("log { }")
 	std, _ = New(cfg)
