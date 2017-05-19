@@ -17,7 +17,7 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
-func TestTextRender(t *testing.T) {
+func TestRenderText(t *testing.T) {
 	buf := &bytes.Buffer{}
 	text1 := Text{
 		Format: "welcome to %s %s",
@@ -36,7 +36,7 @@ func TestTextRender(t *testing.T) {
 	assert.Equal(t, "welcome to aah framework", buf.String())
 }
 
-func TestJSONRender(t *testing.T) {
+func TestRenderJSON(t *testing.T) {
 	buf := &bytes.Buffer{}
 	appConfig = getRenderCfg()
 
@@ -68,7 +68,7 @@ func TestJSONRender(t *testing.T) {
 		buf.String())
 }
 
-func TestJSONPRender(t *testing.T) {
+func TestRenderJSONP(t *testing.T) {
 	buf := &bytes.Buffer{}
 	appConfig = getRenderCfg()
 
@@ -100,7 +100,7 @@ func TestJSONPRender(t *testing.T) {
 		buf.String())
 }
 
-func TestXMLRender(t *testing.T) {
+func TestRenderXML(t *testing.T) {
 	buf := &bytes.Buffer{}
 	appConfig = getRenderCfg()
 
@@ -135,7 +135,7 @@ func TestXMLRender(t *testing.T) {
 		buf.String())
 }
 
-func TestFailureXMLRender(t *testing.T) {
+func TestRenderFailureXML(t *testing.T) {
 	buf := &bytes.Buffer{}
 	appConfig = getRenderCfg()
 
@@ -154,28 +154,50 @@ func TestFailureXMLRender(t *testing.T) {
 	assert.Equal(t, "xml: unsupported type: struct { Name string; Age int; Address string }", err.Error())
 }
 
-func TestBytesRender(t *testing.T) {
-	buf := &bytes.Buffer{}
-	bytes1 := Bytes{Data: []byte(`<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`)}
-
-	err := bytes1.Render(buf)
-	assert.FailOnError(t, err, "")
-	assert.Equal(t, `<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`,
-		buf.String())
-}
-
-func TestFileRender(t *testing.T) {
+func TestRenderFileAndReader(t *testing.T) {
 	f, _ := os.Open(getRenderFilepath("file1.txt"))
 	defer ess.CloseQuietly(f)
 
 	buf := &bytes.Buffer{}
-	file1 := File{Data: f}
+	file1 := Binary{Reader: f}
 
 	err := file1.Render(buf)
 	assert.FailOnError(t, err, "")
 	assert.Equal(t, `
 Each incoming request passes through a pre-defined list of steps
 `, buf.String())
+
+	// Reader
+	buf.Reset()
+	file2 := Binary{Path: getRenderFilepath("file1.txt")}
+	err = file2.Render(buf)
+	assert.FailOnError(t, err, "")
+	assert.Equal(t, `
+Each incoming request passes through a pre-defined list of steps
+`, buf.String())
+
+	// Reader string
+	buf.Reset()
+	file3 := Binary{Reader: strings.NewReader(`<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`)}
+	err = file3.Render(buf)
+	assert.FailOnError(t, err, "")
+	assert.Equal(t, `<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`,
+		buf.String())
+
+	// Directory error
+	buf.Reset()
+	file4 := Binary{Path: os.Getenv("HOME")}
+	err = file4.Render(buf)
+	assert.NotNil(t, err)
+	assert.True(t, strings.Contains(err.Error(), "is a directory"))
+	assert.True(t, ess.IsStrEmpty(buf.String()))
+
+	// File not exists
+	file5 := Binary{Path: filepath.Join(getTestdataPath(), "file-not-exists.txt")[1:]}
+	err = file5.Render(buf)
+	assert.NotNil(t, err)
+	assert.True(t, strings.Contains(err.Error(), "file-not-exists.txt: no such file or directory"))
+	assert.True(t, ess.IsStrEmpty(buf.String()))
 }
 
 func TestHTMLRender(t *testing.T) {

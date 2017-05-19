@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"path/filepath"
 	"testing"
 
 	"aahframework.org/config.v0"
@@ -13,7 +14,8 @@ import (
 
 func TestRouterTemplateFuncs(t *testing.T) {
 	appCfg, _ := config.ParseString("")
-	err := initRoutes(getTestdataPath(), appCfg)
+	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
+	err := initRoutes(cfgDir, appCfg)
 	assert.Nil(t, err)
 	assert.NotNil(t, AppRouter())
 

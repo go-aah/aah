@@ -27,13 +27,17 @@ const (
 	EventOnRequest = "OnRequest"
 
 	// EventOnPreReply event is fired when before server writes the reply on the wire.
-	// Except when 1) Static file request, 2) `Reply().Done()`
-	// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
+	// Except when
+	//   1) `Reply().Done()`,
+	//   2) `Reply().Redirect(...)` is called.
+	// Refer `aah.Reply.Done()` godoc for more info.
 	EventOnPreReply = "OnPreReply"
 
 	// EventOnAfterReply event is fired when before server writes the reply on the wire.
-	// Except when 1) Static file request, 2) `Reply().Done()`
-	// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
+	// Except when
+	//   1) `Reply().Done()`,
+	//   2) `Reply().Redirect(...)` is called.
+	// Refer `aah.Reply.Done()` godoc for more info.
 	EventOnAfterReply = "OnAfterReply"
 )
 
@@ -45,7 +49,7 @@ var (
 )
 
 type (
-	// Event type holds the details of event generated.
+	// Event type holds the details of single event.
 	Event struct {
 		Name string
 		Data interface{}
@@ -59,10 +63,10 @@ type (
 
 	// EventCallback type is store particular callback in priority for calling sequance.
 	EventCallback struct {
-		Callback    EventCallbackFunc
-		PublishOnce bool
-		priority    int
-		published   bool
+		Callback  EventCallbackFunc
+		CallOnce  bool
+		priority  int
+		published bool
 	}
 
 	// EventCallbacks type is slice of `EventCallback` type.
@@ -97,6 +101,11 @@ func SubscribeEvent(eventName string, ec EventCallback) {
 	AppEventStore().Subscribe(eventName, ec)
 }
 
+// SubscribeEventf method is to subscribe to new or existing event by `EventCallbackFunc`.
+func SubscribeEventf(eventName string, ecf EventCallbackFunc) {
+	AppEventStore().Subscribe(eventName, EventCallback{Callback: ecf})
+}
+
 // UnsubscribeEvent method is to unsubscribe by event name and `EventCallback`
 // from app event store.
 func UnsubscribeEvent(eventName string, ec EventCallback) {
@@ -105,8 +114,8 @@ func UnsubscribeEvent(eventName string, ec EventCallback) {
 
 // UnsubscribeEventf method is to unsubscribe by event name and `EventCallbackFunc`
 // from app event store.
-func UnsubscribeEventf(eventName string, ec EventCallbackFunc) {
-	AppEventStore().Unsubscribe(eventName, ec)
+func UnsubscribeEventf(eventName string, ecf EventCallbackFunc) {
+	AppEventStore().Unsubscribe(eventName, ecf)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -117,9 +126,9 @@ func UnsubscribeEventf(eventName string, ec EventCallbackFunc) {
 // published right after the aah application configuration `aah.conf` initialized.
 func OnInit(ecb EventCallbackFunc, priority ...int) {
 	AppEventStore().Subscribe(EventOnInit, EventCallback{
-		Callback:    ecb,
-		PublishOnce: true,
-		priority:    parsePriority(priority...),
+		Callback: ecb,
+		CallOnce: true,
+		priority: parsePriority(priority...),
 	})
 }
 
@@ -127,9 +136,9 @@ func OnInit(ecb EventCallbackFunc, priority ...int) {
 // event pubished right before the aah server listen and serving request.
 func OnStart(ecb EventCallbackFunc, priority ...int) {
 	AppEventStore().Subscribe(EventOnStart, EventCallback{
-		Callback:    ecb,
-		PublishOnce: true,
-		priority:    parsePriority(priority...),
+		Callback: ecb,
+		CallOnce: true,
+		priority: parsePriority(priority...),
 	})
 }
 
@@ -138,9 +147,9 @@ func OnStart(ecb EventCallbackFunc, priority ...int) {
 // and serving request.
 func OnShutdown(ecb EventCallbackFunc, priority ...int) {
 	AppEventStore().Subscribe(EventOnShutdown, EventCallback{
-		Callback:    ecb,
-		PublishOnce: true,
-		priority:    parsePriority(priority...),
+		Callback: ecb,
+		CallOnce: true,
+		priority: parsePriority(priority...),
 	})
 }
 
@@ -151,39 +160,43 @@ func OnShutdown(ecb EventCallbackFunc, priority ...int) {
 // the `ctx.SetURL()` and `ctx.SetMethod()` methods. Calls to these methods will
 // impact how the request is routed and can be used for rewrite rules.
 //
-// Route is not yet processed at this point.
+// Route is not yet populated/evaluated at this point.
 func OnRequest(sef EventCallbackFunc) {
 	if onRequestFunc == nil {
 		onRequestFunc = sef
 		return
 	}
-	log.Warn("'OnRequest' aah server extension function is already subscribed.")
+	log.Warn("'OnRequest' aah server extension point is already subscribed.")
 }
 
 // OnPreReply method is to subscribe to aah server `OnPreReply` extension point.
 // `OnPreReply` called for every reply from aah server.
 //
-// Except when 1) Static file request, 2) `Reply().Done()`
-// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
+// Except when
+//   1) `Reply().Done()`,
+//   2) `Reply().Redirect(...)` is called.
+// Refer `aah.Reply.Done()` godoc for more info.
 func OnPreReply(sef EventCallbackFunc) {
 	if onPreReplyFunc == nil {
 		onPreReplyFunc = sef
 		return
 	}
-	log.Warn("'OnPreReply' aah server extension function is already subscribed.")
+	log.Warn("'OnPreReply' aah server extension point is already subscribed.")
 }
 
 // OnAfterReply method is to subscribe to aah server `OnAfterReply` extension point.
 // `OnAfterReply` called for every reply from aah server.
 //
-// Except when 1) Static file request, 2) `Reply().Done()`
-// 3) `Reply().Redirect(...)` is called. Refer `aah.Reply.Done()` godoc for more info.
+// Except when
+//   1) `Reply().Done()`,
+//   2) `Reply().Redirect(...)` is called.
+// Refer `aah.Reply.Done()` godoc for more info.
 func OnAfterReply(sef EventCallbackFunc) {
 	if onAfterReplyFunc == nil {
 		onAfterReplyFunc = sef
 		return
 	}
-	log.Warn("'OnAfterReply' aah server extension function is already subscribed.")
+	log.Warn("'OnAfterReply' aah server extension point is already subscribed.")
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -206,13 +219,14 @@ func (es *EventStore) Publish(e *Event) {
 
 	log.Debugf("Event [%s] published in asynchronous mode", e.Name)
 	for idx, ec := range es.subscribers[e.Name] {
-		if ec.PublishOnce {
+		if ec.CallOnce {
 			if !ec.published {
 				go func(event *Event, ecb EventCallbackFunc) {
 					ecb(event)
 				}(e, ec.Callback)
-
+				es.mu.Lock()
 				es.subscribers[e.Name][idx].published = true
+				es.mu.Unlock()
 			}
 			continue
 		}
@@ -231,10 +245,12 @@ func (es *EventStore) PublishSync(e *Event) {
 
 	log.Debugf("Event [%s] publishing in synchronous mode", e.Name)
 	for idx, ec := range es.subscribers[e.Name] {
-		if ec.PublishOnce {
+		if ec.CallOnce {
 			if !ec.published {
 				ec.Callback(e)
+				es.mu.Lock()
 				es.subscribers[e.Name][idx].published = true
+				es.mu.Unlock()
 			}
 			continue
 		}

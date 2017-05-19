@@ -6,6 +6,7 @@ package aah
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ func TestOnInitEvent(t *testing.T) {
 		fmt.Println("onInitFunc3:", e)
 	}
 
+	appEventStore = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
 	assert.False(t, AppEventStore().IsEventExists(EventOnInit))
 
 	OnInit(onInitFunc1)
@@ -77,6 +79,7 @@ func TestOnStartEvent(t *testing.T) {
 		fmt.Println("onStartFunc3:", e)
 	}
 
+	appEventStore = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
 	assert.False(t, AppEventStore().IsEventExists(EventOnStart))
 
 	OnStart(onStartFunc1)
@@ -129,6 +132,7 @@ func TestOnShutdownEvent(t *testing.T) {
 		fmt.Println("onShutdownFunc3:", e)
 	}
 
+	appEventStore = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
 	assert.False(t, AppEventStore().IsEventExists(EventOnShutdown))
 
 	OnShutdown(onShutdownFunc1)
@@ -224,13 +228,14 @@ func TestSubscribeAndUnsubscribeAndPublish(t *testing.T) {
 		fmt.Println("myEventFunc3:", e)
 	}
 
-	ecb1 := EventCallback{Callback: myEventFunc1, PublishOnce: true}
+	ecb1 := EventCallback{Callback: myEventFunc1, CallOnce: true}
 	assert.Equal(t, 0, AppEventStore().SubscriberCount("myEvent1"))
 	SubscribeEvent("myEvent1", ecb1)
 	assert.Equal(t, 1, AppEventStore().SubscriberCount("myEvent1"))
 
 	SubscribeEvent("myEvent1", EventCallback{Callback: myEventFunc2})
-	assert.Equal(t, 2, AppEventStore().SubscriberCount("myEvent1"))
+	SubscribeEventf("myEvent1", myEventFunc2)
+	assert.Equal(t, 3, AppEventStore().SubscriberCount("myEvent1"))
 
 	assert.Equal(t, 0, AppEventStore().SubscriberCount("myEvent2"))
 	SubscribeEvent("myEvent2", EventCallback{Callback: myEventFunc3})
@@ -240,14 +245,14 @@ func TestSubscribeAndUnsubscribeAndPublish(t *testing.T) {
 	time.Sleep(time.Millisecond * 100) // for goroutine to finish
 
 	UnsubscribeEvent("myEvent1", ecb1)
-	assert.Equal(t, 1, AppEventStore().SubscriberCount("myEvent1"))
+	assert.Equal(t, 2, AppEventStore().SubscriberCount("myEvent1"))
 
 	PublishEvent("myEvent1", "myEvent1 is fired async")
 	time.Sleep(time.Millisecond * 100) // for goroutine to finish
 
 	PublishEvent("myEventNotExists", nil)
 
-	SubscribeEvent("myEvent2", EventCallback{Callback: myEventFunc3, PublishOnce: true})
+	SubscribeEvent("myEvent2", EventCallback{Callback: myEventFunc3, CallOnce: true})
 	PublishEvent("myEvent2", "myEvent2 is fired async")
 	time.Sleep(time.Millisecond * 100) // for goroutine to finish
 

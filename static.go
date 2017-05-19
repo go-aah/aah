@@ -21,22 +21,17 @@ import (
 
 // serveStatic method static file/directory delivery.
 func (e *engine) serveStatic(ctx *Context) error {
-	res, req := ctx.Res, ctx.Req
-	res.Header().Set(ahttp.HeaderServer, aahServerName)
-
-	var fileabs string
-	if ctx.route.IsDir() {
-		fileabs = filepath.Join(AppBaseDir(), ctx.route.Dir, filepath.FromSlash(ctx.Req.Params.PathValue("filepath")))
-	} else {
-		fileabs = filepath.Join(AppBaseDir(), "static", filepath.FromSlash(ctx.route.File))
-	}
-
-	dir, file := filepath.Split(fileabs)
+	// TODO static assets Dynamic minify for JS and CSS for non-dev profile
+	dir, file := filepath.Split(getFilepath(ctx))
 	log.Tracef("Dir: %s, File: %s", dir, file)
 
+	ctx.Reply().gzip = checkGzipRequired(file)
+	e.wrapGzipWriter(ctx)
+	e.writeHeaders(ctx)
+
+	res, req := ctx.Res, ctx.Req
 	fs := ahttp.Dir(dir, ctx.route.ListDir)
 	f, err := fs.Open(file)
-	defer ess.CloseQuietly(f)
 	if err != nil {
 		if err == ahttp.ErrDirListNotAllowed {
 			log.Warnf("directory listing not allowed: %s", req.Path)
@@ -57,6 +52,8 @@ func (e *engine) serveStatic(ctx *Context) error {
 		return nil
 	}
 
+	defer ess.CloseQuietly(f)
+
 	fi, err := f.Stat()
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
@@ -72,15 +69,23 @@ func (e *engine) serveStatic(ctx *Context) error {
 			return nil
 		}
 
-		e.writeGzipHeaders(ctx, false)
+		// 'OnPreReply' server extension point
+		publishOnPreReplyEvent(ctx)
 
 		directoryList(res, req.Raw, f)
+
+		// 'OnAfterReply' server extension point
+		publishOnAfterReplyEvent(ctx)
 		return nil
 	}
 
-	e.writeGzipHeaders(ctx, false)
+	// 'OnPreReply' server extension point
+	publishOnPreReplyEvent(ctx)
 
 	http.ServeContent(res, req.Raw, file, fi.ModTime(), f)
+
+	// 'OnAfterReply' server extension point
+	publishOnAfterReplyEvent(ctx)
 	return nil
 }
 
@@ -120,6 +125,27 @@ func directoryList(res http.ResponseWriter, req *http.Request, f http.File) {
 	fmt.Fprintf(res, "</table></pre>\n")
 	fmt.Fprintf(res, "<hr></body>\n")
 	fmt.Fprintf(res, "</html>\n")
+}
+
+// checkGzipRequired method return for static which requires gzip response.
+func checkGzipRequired(file string) bool {
+	switch filepath.Ext(file) {
+	case ".css", ".js", ".html", ".htm", ".json", ".xml",
+		".txt", ".csv", ".ttf", ".otf", ".eot":
+		return true
+	default:
+		return false
+	}
+}
+
+func getFilepath(ctx *Context) string {
+	var file string
+	if ctx.route.IsDir() {
+		file = filepath.Join(AppBaseDir(), ctx.route.Dir, ctx.Req.PathValue("filepath"))
+	} else {
+		file = filepath.Join(AppBaseDir(), "static", ctx.route.File)
+	}
+	return filepath.FromSlash(file)
 }
 
 // Sort interface for Directory list

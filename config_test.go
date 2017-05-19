@@ -35,11 +35,11 @@ func TestConfigTemplateFuncs(t *testing.T) {
 	assert.NotNil(t, AppConfig())
 
 	v1 := tmplConfig("request.multipart_size")
-	assert.Equal(t, "32mb", string(v1))
+	assert.Equal(t, "32mb", v1.(string))
 
 	v2 := tmplConfig("server.timeout.grace_shutdown")
-	assert.Equal(t, "60s", string(v2))
+	assert.Equal(t, "60s", v2.(string))
 
 	v3 := tmplConfig("key.not.exists")
-	assert.Equal(t, "", string(v3))
+	assert.Equal(t, "", v3.(string))
 }

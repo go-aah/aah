@@ -46,6 +46,7 @@ func appI18nDir() string {
 
 func initI18n(cfgDir string) error {
 	appI18n = i18n.New()
+	appI18n.DefaultLocale = AppDefaultI18nLang()
 	return appI18n.Load(cfgDir)
 }
 

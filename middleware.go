@@ -55,7 +55,8 @@ func Middlewares(middlewares ...MiddlewareFunc) {
 //
 // You can register below handler types:
 // 1) aah.ToMiddleware(h http.Handler)
-// 2) aah.ToMiddleware(func(w http.ResponseWriter, r *http.Request))
+// 2) aah.ToMiddleware(h http.HandlerFunc)
+// 3) aah.ToMiddleware(func(w http.ResponseWriter, r *http.Request))
 func ToMiddleware(handler interface{}) MiddlewareFunc {
 	switch handler.(type) {
 	case MiddlewareFunc:
@@ -102,6 +103,10 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 
 	// Finally action and method
 	defer func() {
+		if ctx.abort {
+			return
+		}
+
 		if finallyActionMethod := target.MethodByName(incpFinallyActionName + ctx.action.Name); finallyActionMethod.IsValid() {
 			log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpFinallyActionName+ctx.action.Name)
 			finallyActionMethod.Call(emptyArg)
@@ -116,13 +121,15 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 	// Panic action and method
 	defer func() {
 		if r := recover(); r != nil {
+			if ctx.abort {
+				return
+			}
+
 			if panicActionMethod := target.MethodByName(incpPanicActionName + ctx.action.Name); panicActionMethod.IsValid() {
 				log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpPanicActionName+ctx.action.Name)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicActionMethod.Call(rv)
-			}
-
-			if panicAction := target.MethodByName(incpPanicActionName); panicAction.IsValid() {
+			} else if panicAction := target.MethodByName(incpPanicActionName); panicAction.IsValid() {
 				log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpPanicActionName)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicAction.Call(rv)
@@ -198,7 +205,7 @@ func actionMiddleware(ctx *Context, m *Middleware) {
 func invalidateMwChain() {
 	mwChain = nil
 	cnt := len(mwStack)
-	mwChain = make([]*Middleware, cnt, cnt)
+	mwChain = make([]*Middleware, cnt)
 
 	for idx := 0; idx < cnt; idx++ {
 		mwChain[idx] = &Middleware{next: mwStack[idx]}

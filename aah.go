@@ -10,12 +10,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
 	"aahframework.org/aruntime.v0"
@@ -25,11 +21,12 @@ import (
 )
 
 // Version no. of aah framework
-const Version = "0.4"
+const Version = "0.5"
 
 // aah application variables
 var (
 	appName               string
+	appDesc               string
 	appImportPath         string
 	appProfile            string
 	appBaseDir            string
@@ -39,11 +36,12 @@ var (
 	appHTTPMaxHdrBytes    int
 	appSSLCert            string
 	appSSLKey             string
+	appIsSSLEnabled       bool
+	appIsLetsEncrypt      bool
 	appMultipartMaxMemory int64
 	appPID                int
 	appInitialized        bool
 	appBuildInfo          *BuildInfo
-	appEngine             *engine
 
 	appDefaultProfile        = "dev"
 	appProfilePrefix         = "env."
@@ -73,6 +71,12 @@ func AppName() string {
 	return appName
 }
 
+// AppDesc method returns aah application friendly description from app config
+// otherwise empty string.
+func AppDesc() string {
+	return appDesc
+}
+
 // AppProfile returns aah application configuration profile name
 // For e.g.: dev, prod, etc. Default is `dev`
 func AppProfile() string {
@@ -84,13 +88,6 @@ func AppProfile() string {
 // 		$GOPATH/src/github.com/user/myproject
 // 		<app/binary/path/base/directory>
 func AppBaseDir() string {
-	if appIsPackaged {
-		wd, _ := os.Getwd()
-		if strings.HasSuffix(wd, "/bin") {
-			wd = wd[:len(wd)-4]
-		}
-		appBaseDir = wd
-	}
 	return appBaseDir
 }
 
@@ -104,17 +101,19 @@ func AppHTTPAddress() string {
 	return AppConfig().StringDefault("server.address", "")
 }
 
-// AppHTTPPort method returns aah application HTTP port number if available or
-// if empty returns port 80; otherwise returns default port number 8080.
+// AppHTTPPort method returns aah application HTTP port number based on `server.port`
+// value. Possible outcomes are user-defined port, `80`, `443` and `8080`.
 func AppHTTPPort() string {
-	port, found := AppConfig().String("server.port")
-	if !found {
-		port = appDefaultHTTPPort
+	port := AppConfig().StringDefault("server.port", appDefaultHTTPPort)
+	if !ess.IsStrEmpty(port) {
+		return port
 	}
-	if ess.IsStrEmpty(port) {
-		port = "80"
+
+	if AppIsSSLEnabled() {
+		return "443"
 	}
-	return port
+
+	return "80"
 }
 
 // AppDateFormat method returns aah application date format
@@ -149,7 +148,7 @@ func AllAppProfiles() []string {
 // AppIsSSLEnabled method returns true if aah application is enabled with SSL
 // otherwise false.
 func AppIsSSLEnabled() bool {
-	return AppConfig().BoolDefault("server.ssl.enable", false)
+	return appIsSSLEnabled
 }
 
 // SetAppProfile method sets given profile as current aah application profile.
@@ -170,26 +169,33 @@ func SetAppBuildInfo(bi *BuildInfo) {
 	appBuildInfo = bi
 }
 
+// SetAppPackaged method sets the info of binary is packaged or not.
+func SetAppPackaged(pack bool) {
+	appIsPackaged = pack
+}
+
 // Init method initializes `aah` application, if anything goes wrong during
 // initialize process, it will log it as fatal msg and exit.
 func Init(importPath string) {
 	defer aahRecover()
 
-	logAsFatal(initPath(importPath))
-	logAsFatal(initConfig(appConfigDir()))
-
 	if appBuildInfo == nil {
 		// aah CLI is accessing application for build purpose
-		log.SetLevel(log.LevelWarn)
+		_ = log.SetLevel("warn")
+		logAsFatal(initPath(importPath))
+		logAsFatal(initConfig(appConfigDir()))
 		logAsFatal(initAppVariables())
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
-		log.SetLevel(log.LevelDebug)
+		_ = log.SetLevel("debug")
 	} else {
+		logAsFatal(initPath(importPath))
+		logAsFatal(initConfig(appConfigDir()))
+
 		// publish `OnInit` server event
 		AppEventStore().sortAndPublishSync(&Event{Name: EventOnInit})
 
 		logAsFatal(initAppVariables())
-		logAsFatal(initLogs(AppConfig()))
+		logAsFatal(initLogs(appLogsDir(), AppConfig()))
 		logAsFatal(initI18n(appI18nDir()))
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
 		logAsFatal(initSecurity(appConfigDir(), AppConfig()))
@@ -214,13 +220,6 @@ func aahRecover() {
 	}
 }
 
-func appDir() string {
-	if appIsPackaged {
-		return AppBaseDir()
-	}
-	return filepath.Join(AppBaseDir(), "app")
-}
-
 func appLogsDir() string {
 	return filepath.Join(AppBaseDir(), "logs")
 }
@@ -231,20 +230,19 @@ func logAsFatal(err error) {
 	}
 }
 
-func initPath(importPath string) error {
-	var err error
-	goPath, err = ess.GoPath()
-	if err != nil {
+func initPath(importPath string) (err error) {
+	appImportPath = path.Clean(importPath)
+	if goPath, err = ess.GoPath(); err != nil && !appIsPackaged {
 		return err
 	}
 
-	appImportPath = path.Clean(importPath)
 	goSrcDir = filepath.Join(goPath, "src")
 	appBaseDir = filepath.Join(goSrcDir, filepath.FromSlash(appImportPath))
+	if appIsPackaged {
+		appBaseDir = getWorkingDir()
+	}
 
-	appIsPackaged = !ess.IsFileExists(appDir())
-
-	if !appIsPackaged && !ess.IsFileExists(appBaseDir) {
+	if !ess.IsFileExists(appBaseDir) {
 		return fmt.Errorf("aah application does not exists: %s", appImportPath)
 	}
 
@@ -256,6 +254,7 @@ func initAppVariables() error {
 	cfg := AppConfig()
 
 	appName = cfg.StringDefault("name", filepath.Base(AppBaseDir()))
+	appDesc = cfg.StringDefault("desc", "")
 
 	appProfile = cfg.StringDefault("env.active", appDefaultProfile)
 	if err = SetAppProfile(AppProfile()); err != nil {
@@ -264,8 +263,7 @@ func initAppVariables() error {
 
 	readTimeout := cfg.StringDefault("server.timeout.read", "90s")
 	writeTimeout := cfg.StringDefault("server.timeout.write", "90s")
-	if !(strings.HasSuffix(readTimeout, "s") || strings.HasSuffix(readTimeout, "m")) ||
-		!(strings.HasSuffix(writeTimeout, "s") || strings.HasSuffix(writeTimeout, "m")) {
+	if !isValidTimeUnit(readTimeout, "s", "m") || !isValidTimeUnit(writeTimeout, "s", "m") {
 		return errors.New("'server.timeout.{read|write}' value is not a valid time unit")
 	}
 
@@ -284,10 +282,16 @@ func initAppVariables() error {
 		return errors.New("'server.max_header_bytes' value is not a valid size unit")
 	}
 
+	appIsSSLEnabled = cfg.BoolDefault("server.ssl.enable", false)
+	appIsLetsEncrypt = cfg.BoolDefault("server.ssl.lets_encrypt.enable", false)
 	appSSLCert = cfg.StringDefault("server.ssl.cert", "")
 	appSSLKey = cfg.StringDefault("server.ssl.key", "")
-	if AppIsSSLEnabled() && (ess.IsStrEmpty(appSSLCert) || ess.IsStrEmpty(appSSLKey)) {
-		return errors.New("HTTP SSL is enabled, so 'server.ssl.cert' & 'server.ssl.key' value is required")
+	if err = checkSSLConfigValues(AppIsSSLEnabled(), appIsLetsEncrypt, appSSLCert, appSSLKey); err != nil {
+		return err
+	}
+
+	if err = initAutoCertManager(cfg); err != nil {
+		return err
 	}
 
 	multipartMemoryStr := cfg.StringDefault("request.multipart_size", "32mb")
@@ -298,43 +302,26 @@ func initAppVariables() error {
 	return nil
 }
 
-func initLogs(appCfg *config.Config) error {
-	logCfg, found := appCfg.GetSubConfig("log")
-	if !found {
+func initLogs(logsDir string, appCfg *config.Config) error {
+	if !appCfg.IsExists("log") {
 		log.Debug("Section 'log {...}' configuration not exists, move on.")
 		return nil
 	}
 
-	receiver := logCfg.StringDefault("receiver", "")
-
-	if strings.EqualFold(receiver, "file") {
-		file := logCfg.StringDefault("file", "")
+	if appCfg.StringDefault("log.receiver", "") == "file" {
+		file := appCfg.StringDefault("log.file", "")
 		if ess.IsStrEmpty(file) {
-			logFileName := strings.Replace(AppName(), " ", "-", -1)
-			logCfg.SetString("file", filepath.Join(appLogsDir(), logFileName+".log"))
+			appCfg.SetString("log.file", filepath.Join(logsDir, getBinaryFileName()+".log"))
 		} else if !filepath.IsAbs(file) {
-			logCfg.SetString("file", filepath.Join(appLogsDir(), file))
+			appCfg.SetString("log.file", filepath.Join(logsDir, file))
 		}
 	}
 
-	logger, err := log.Newc(logCfg)
+	logger, err := log.New(appCfg)
 	if err != nil {
 		return err
 	}
 
-	log.SetOutput(logger)
-
+	log.SetDefaultLogger(logger)
 	return nil
-}
-
-func writePID(appName, appBaseDir string, cfg *config.Config) {
-	appPID = os.Getpid()
-	pidfile := cfg.StringDefault("pidfile", appName+".pid")
-	if !filepath.IsAbs(pidfile) {
-		pidfile = filepath.Join(appBaseDir, pidfile)
-	}
-
-	if err := ioutil.WriteFile(pidfile, []byte(strconv.Itoa(appPID)), 0644); err != nil {
-		log.Error(err)
-	}
 }

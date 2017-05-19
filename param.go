@@ -5,15 +5,18 @@
 package aah
 
 import (
-	"html/template"
 	"io/ioutil"
 	"net/http"
 
 	"aahframework.org/ahttp.v0"
+	ess "aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
 
-const keyRequestParams = "RequestParams"
+const (
+	keyRequestParams  = "RequestParams"
+	keyOverrideLocale = "lang"
+)
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Params method
@@ -65,6 +68,11 @@ func (e *engine) parseRequestParams(ctx *Context) {
 		}(req)
 	}
 
+	// i18n option override by Query parameter `lang`
+	if lang := ctx.Req.QueryValue(keyOverrideLocale); !ess.IsStrEmpty(lang) {
+		ctx.Req.Locale = ahttp.NewLocale(lang)
+	}
+
 	// All the request parameters made available to templates via funcs.
 	ctx.AddViewArg(keyRequestParams, ctx.Req.Params)
 }
@@ -74,19 +82,19 @@ func (e *engine) parseRequestParams(ctx *Context) {
 //___________________________________
 
 // tmplPathParam method returns Request Path Param value for the given key.
-func tmplPathParam(viewArgs map[string]interface{}, key string) template.HTML {
+func tmplPathParam(viewArgs map[string]interface{}, key string) interface{} {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
-	return template.HTML(template.HTMLEscapeString(params.PathValue(key)))
+	return sanatizeValue(params.PathValue(key))
 }
 
 // tmplFormParam method returns Request Form value for the given key.
-func tmplFormParam(viewArgs map[string]interface{}, key string) template.HTML {
+func tmplFormParam(viewArgs map[string]interface{}, key string) interface{} {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
-	return template.HTML(template.HTMLEscapeString(params.FormValue(key)))
+	return sanatizeValue(params.FormValue(key))
 }
 
 // tmplQueryParam method returns Request Query String value for the given key.
-func tmplQueryParam(viewArgs map[string]interface{}, key string) template.HTML {
+func tmplQueryParam(viewArgs map[string]interface{}, key string) interface{} {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
-	return template.HTML(template.HTMLEscapeString(params.QueryValue(key)))
+	return sanatizeValue(params.QueryValue(key))
 }

@@ -63,7 +63,7 @@ func getRouteNameAndAnchorLink(routeName string) (string, string) {
 }
 
 func composeRouteURL(domain *router.Domain, routePath, anchorLink string) string {
-	if ess.IsStrEmpty(domain.Port) || domain.Port == "80" {
+	if ess.IsStrEmpty(domain.Port) {
 		routePath = fmt.Sprintf("//%s%s", domain.Host, routePath)
 	} else {
 		routePath = fmt.Sprintf("//%s:%s%s", domain.Host, domain.Port, routePath)
@@ -148,7 +148,7 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 			}
 
 			reply.Redirect(ctx.Req.Raw.URL.String())
-			log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.redirectURL)
+			log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.path)
 			return nil
 		}
 	}
@@ -185,12 +185,12 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 func handleRouteNotFound(ctx *Context, domain *router.Domain, route *router.Route) {
 	// handle effectively to reduce heap allocation
 	if domain.NotFoundRoute == nil {
-		log.Warnf("Route not found: %s, isStaticFile: false", ctx.Req.Path)
+		log.Warnf("Route not found: %s, isStaticRoute: false", ctx.Req.Path)
 		ctx.Reply().NotFound().Text("404 Not Found")
 		return
 	}
 
-	log.Warnf("Route not found: %s, isStaticFile: %v", ctx.Req.Path, route.IsStatic)
+	log.Warnf("Route not found: %s, isStaticRoute: %v", ctx.Req.Path, route.IsStatic)
 	if err := ctx.setTarget(route); err == errTargetNotFound {
 		ctx.Reply().NotFound().Text("404 Not Found")
 		return
@@ -200,7 +200,7 @@ func handleRouteNotFound(ctx *Context, domain *router.Domain, route *router.Rout
 	notFoundAction := target.MethodByName(ctx.action.Name)
 
 	log.Debugf("Calling user defined not-found action: %s.%s", ctx.controller, ctx.action.Name)
-	notFoundAction.Call([]reflect.Value{reflect.ValueOf(route.IsStatic)})
+	notFoundAction.Call(emptyArg)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

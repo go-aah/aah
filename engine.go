@@ -25,11 +25,17 @@ const (
 )
 
 const (
-	aahServerName       = "aah-go-server"
-	gzipContentEncoding = "gzip"
+	aahServerName         = "aah-go-server"
+	gzipContentEncoding   = "gzip"
+	hstsHeaderValue       = "max-age=31536000; includeSubDomains"
+	defaultGlobalPoolSize = 500
+	defaultBufPoolSize    = 200
 )
 
-var errFileNotFound = errors.New("file not found")
+var (
+	errFileNotFound   = errors.New("file not found")
+	noGzipStatusCodes = []int{http.StatusNotModified, http.StatusNoContent}
+)
 
 type (
 	// routeStatus is feadback of handleRoute method
@@ -41,9 +47,9 @@ type (
 		isRequestIDEnabled bool
 		requestIDHeader    string
 		isGzipEnabled      bool
-		gzipLevel          int
 		ctxPool            *pool.Pool
 		reqPool            *pool.Pool
+		replyPool          *pool.Pool
 		bufPool            *pool.Pool
 	}
 
@@ -56,15 +62,15 @@ type (
 
 // ServeHTTP method implementation of http.Handler interface.
 func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if e.isRequestIDEnabled {
-		e.setRequestID(r)
-	}
-
 	ctx := e.prepareContext(w, r)
 	defer e.putContext(ctx)
 
 	// Recovery handling, capture every possible panic(s)
 	defer e.handleRecovery(ctx)
+
+	if e.isRequestIDEnabled {
+		e.setRequestID(ctx)
+	}
 
 	// 'OnRequest' server extension point
 	publishOnRequestEvent(ctx)
@@ -103,11 +109,14 @@ func (e *engine) handleRecovery(ctx *Context) {
 		st.Print(buf)
 		log.Error(buf.String())
 
-		if AppProfile() == "prod" {
-			ctx.Reply().InternalServerError().Text("500 Internal Server Error")
-		} else { // detailed error info
-			// TODO design server error page with stack trace info
-			ctx.Reply().InternalServerError().Text("500 Internal Server Error: %s", buf.String())
+		ctx.Reply().InternalServerError()
+		e.negotiateContentType(ctx)
+		if ahttp.ContentTypeJSON.IsEqual(ctx.Reply().ContType) {
+			ctx.Reply().JSON(Data{"code": "500", "message": "Internal Server Error"})
+		} else if ahttp.ContentTypeXML.IsEqual(ctx.Reply().ContType) {
+			ctx.Reply().XML(Data{"code": "500", "message": "Internal Server Error"})
+		} else {
+			ctx.Reply().Text("500 Internal Server Error")
 		}
 
 		e.writeReply(ctx)
@@ -116,30 +125,25 @@ func (e *engine) handleRecovery(ctx *Context) {
 
 // setRequestID method sets the unique request id in the request header.
 // It won't set new request id header already present.
-func (e *engine) setRequestID(r *http.Request) {
-	if ess.IsStrEmpty(r.Header.Get(e.requestIDHeader)) {
+func (e *engine) setRequestID(ctx *Context) {
+	if ess.IsStrEmpty(ctx.Req.Header.Get(e.requestIDHeader)) {
 		guid := ess.NewGUID()
 		log.Debugf("Request ID: %v", guid)
-		r.Header.Set(e.requestIDHeader, guid)
+		ctx.Req.Header.Set(e.requestIDHeader, guid)
 	} else {
-		log.Debugf("Request already has ID: %v", r.Header.Get(e.requestIDHeader))
+		log.Debugf("Request already has ID: %v", ctx.Req.Header.Get(e.requestIDHeader))
 	}
+	ctx.Reply().Header(e.requestIDHeader, ctx.Req.Header.Get(e.requestIDHeader))
 }
 
 // prepareContext method gets controller, request from pool, set the targeted
 // controller, parses the request and returns the controller.
 func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Context {
 	ctx, r := e.getContext(), e.getRequest()
-
 	ctx.Req = ahttp.ParseRequest(req, r)
-	ctx.reply = NewReply()
-	ctx.viewArgs = make(map[string]interface{}, 0)
-
-	if ctx.Req.IsGzipAccepted && e.isGzipEnabled {
-		ctx.Res = ahttp.WrapGzipResponseWriter(w, e.gzipLevel)
-	} else {
-		ctx.Res = ahttp.WrapResponseWriter(w)
-	}
+	ctx.Res = ahttp.GetResponseWriter(w)
+	ctx.reply = e.getReply()
+	ctx.viewArgs = make(map[string]interface{})
 
 	return ctx
 }
@@ -241,34 +245,44 @@ func (e *engine) writeReply(ctx *Context) {
 	}
 
 	if reply.redirect { // handle redirects
-		log.Debugf("Redirecting to '%s' with status '%d'", reply.redirectURL, reply.Code)
-		http.Redirect(ctx.Res, ctx.Req.Raw, reply.redirectURL, reply.Code)
+		log.Debugf("Redirecting to '%s' with status '%d'", reply.path, reply.Code)
+		http.Redirect(ctx.Res, ctx.Req.Raw, reply.path, reply.Code)
 		return
 	}
 
-	// Pre reply stage is for HTML and content type header
-	handlePreReplyStage(ctx)
+	// ContentType
+	e.negotiateContentType(ctx)
 
-	// 'OnPreReply' server extension point
-	publishOnPreReplyEvent(ctx)
-
-	buf := e.getBuffer()
-	defer e.putBuffer(buf)
+	// resolving view template
+	e.resolveView(ctx)
 
 	// Render and detect the errors earlier, framework can write error info
 	// without messing with response.
 	// HTTP Body
+	reply.body = e.getBuffer()
 	if reply.Rdr != nil {
-		if err := reply.Rdr.Render(buf); err != nil {
-			log.Error("Render error: ", err)
-			ctx.Res.WriteHeader(http.StatusInternalServerError)
-			_, _ = ctx.Res.Write([]byte("500 Internal Server Error" + "\n"))
-			return
+		if jsonp, ok := reply.Rdr.(*JSON); ok && ctx.Req.IsJSONP() && jsonp.IsJSONP {
+			if ess.IsStrEmpty(jsonp.Callback) {
+				jsonp.Callback = ctx.Req.QueryValue("callback")
+			}
+		}
+
+		if err := reply.Rdr.Render(reply.body); err != nil {
+			log.Error("Render response body error: ", err)
+			reply.InternalServerError()
+			reply.body.Reset()
+			reply.body.WriteString("500 Internal Server Error\n")
 		}
 	}
 
 	// Gzip
-	e.writeGzipHeaders(ctx, buf.Len() == 0)
+	if !isNoGzipStatusCode(reply.Code) && reply.body.Len() != 0 {
+		e.wrapGzipWriter(ctx)
+		// TODO minify implementation for non-dev
+	}
+
+	// 'OnPreReply' server extension point
+	publishOnPreReplyEvent(ctx)
 
 	// HTTP headers
 	e.writeHeaders(ctx)
@@ -280,10 +294,34 @@ func (e *engine) writeReply(ctx *Context) {
 	ctx.Res.WriteHeader(reply.Code)
 
 	// Write response buffer on the wire
-	_, _ = buf.WriteTo(ctx.Res)
+	_, _ = reply.body.WriteTo(ctx.Res)
 
 	// 'OnAfterReply' server extension point
 	publishOnAfterReplyEvent(ctx)
+}
+
+// negotiateContentType method tries to identify if reply.ContType is empty.
+// Not necessarily it will set one.
+func (e *engine) negotiateContentType(ctx *Context) {
+	if !ctx.Reply().IsContentTypeSet() {
+		if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
+			ctx.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
+			ctx.Reply().ContentType(ctx.Req.AcceptContentType.Raw())
+		} else if ct := defaultContentType(); ct != nil { // as per 'render.default' in aah.conf
+			ctx.Reply().ContentType(ct.Raw())
+		}
+	}
+}
+
+// wrapGzipWriter method writes respective header for gzip and wraps write into
+// gzip writer.
+func (e *engine) wrapGzipWriter(ctx *Context) {
+	if ctx.Req.IsGzipAccepted && e.isGzipEnabled && ctx.Reply().gzip {
+		ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
+		ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
+		ctx.Res.Header().Del(ahttp.HeaderContentLength)
+		ctx.Res = ahttp.GetGzipResponseWriter(ctx.Res)
+	}
 }
 
 // writeHeaders method writes the headers on the wire.
@@ -300,18 +338,11 @@ func (e *engine) writeHeaders(ctx *Context) {
 	}
 
 	ctx.Res.Header().Set(ahttp.HeaderServer, aahServerName)
-}
 
-// writeGzipHeaders method prepares appropriate headers for gzip response
-func (e *engine) writeGzipHeaders(ctx *Context, delCntEnc bool) {
-	if ctx.Req.IsGzipAccepted && e.isGzipEnabled {
-		ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
-		ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
-		ctx.Res.Header().Del(ahttp.HeaderContentLength)
-
-		if ctx.Reply().Code == http.StatusNoContent || delCntEnc {
-			ctx.Res.Header().Del(ahttp.HeaderContentEncoding)
-		}
+	// Set the HSTS if SSL is enabled on aah server
+	// Know more: https://www.owasp.org/index.php/HTTP_Strict_Transport_Security_Cheat_Sheet
+	if AppIsSSLEnabled() {
+		ctx.Res.Header().Set(ahttp.HeaderStrictTransportSecurity, hstsHeaderValue)
 	}
 }
 
@@ -329,25 +360,43 @@ func (e *engine) setCookies(ctx *Context) {
 	}
 }
 
-// getContext method gets context from pool
+// getContext method gets context instance from the pool
 func (e *engine) getContext() *Context {
 	return e.ctxPool.Get().(*Context)
 }
 
-// getRequest method gets request from pool
+// getRequest method gets request instance from the pool
 func (e *engine) getRequest() *ahttp.Request {
 	return e.reqPool.Get().(*ahttp.Request)
 }
 
+// getReply method gets reply instance from the pool
+func (e *engine) getReply() *Reply {
+	return e.replyPool.Get().(*Reply)
+}
+
 // putContext method puts context back to pool
 func (e *engine) putContext(ctx *Context) {
-	// Try to close if `io.Closer` interface satisfies.
-	ess.CloseQuietly(ctx.Res)
+	// Close the writer and Put back to pool
+	if ctx.Res != nil {
+		if _, ok := ctx.Res.(*ahttp.GzipResponse); ok {
+			ahttp.PutGzipResponseWiriter(ctx.Res)
+		} else {
+			ahttp.PutResponseWriter(ctx.Res)
+		}
+	}
 
 	// clear and put `ahttp.Request` into pool
 	if ctx.Req != nil {
 		ctx.Req.Reset()
 		e.reqPool.Put(ctx.Req)
+	}
+
+	// clear and put `Reply` into pool
+	if ctx.reply != nil {
+		e.putBuffer(ctx.reply.body)
+		ctx.reply.Reset()
+		e.replyPool.Put(ctx.reply)
 	}
 
 	// clear and put `aah.Context` into pool
@@ -362,6 +411,9 @@ func (e *engine) getBuffer() *bytes.Buffer {
 
 // putBPool puts buffer into pool
 func (e *engine) putBuffer(b *bytes.Buffer) {
+	if b == nil {
+		return
+	}
 	b.Reset()
 	e.bufPool.Put(b)
 }
@@ -371,30 +423,35 @@ func (e *engine) putBuffer(b *bytes.Buffer) {
 //___________________________________
 
 func newEngine(cfg *config.Config) *engine {
-	gzipLevel := cfg.IntDefault("render.gzip.level", 1)
-	if !(gzipLevel >= 1 && gzipLevel <= 9) {
-		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", gzipLevel))
+	ahttp.GzipLevel = cfg.IntDefault("render.gzip.level", 5)
+	if !(ahttp.GzipLevel >= 1 && ahttp.GzipLevel <= 9) {
+		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel))
 	}
 
 	return &engine{
 		isRequestIDEnabled: cfg.BoolDefault("request.id.enable", true),
 		requestIDHeader:    cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
 		isGzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
-		gzipLevel:          gzipLevel,
 		ctxPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.global", 0),
+			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
 			func() interface{} {
 				return &Context{}
 			},
 		),
 		reqPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.global", 0),
+			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
 			func() interface{} {
 				return &ahttp.Request{}
 			},
 		),
+		replyPool: pool.NewPool(
+			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
+			func() interface{} {
+				return NewReply()
+			},
+		),
 		bufPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.buffer", 0),
+			cfg.IntDefault("runtime.pooling.buffer", defaultBufPoolSize),
 			func() interface{} {
 				return &bytes.Buffer{}
 			},

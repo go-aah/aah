@@ -16,20 +16,32 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
+// TestHandler ...
+type TestHandler struct {
+}
+
+func (th *TestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set(ahttp.HeaderContentType, "text/html; charset=utf-8")
+	_, _ = w.Write([]byte("TestHandler.ServeHTTP\n"))
+	_, _ = w.Write([]byte(r.Method + "--" + r.URL.Path + "\n"))
+}
+
 func TestMiddlewareToHandler(t *testing.T) {
 	mwStack = make([]MiddlewareFunc, 0)
 	mwStack = append(mwStack,
 		ToMiddleware(thirdPartyMiddleware3),
 		ToMiddleware(http.HandlerFunc(thirdPartyMiddleware2)),
-		ToMiddleware(ToMiddleware(thirdPartyMiddleware1)),
-		ToMiddleware(invaildHandlerType))
+		ToMiddleware(&TestHandler{}),
+		ToMiddleware(thirdPartyMiddleware1),
+		ToMiddleware(invaildHandlerType),
+	)
 
 	invalidateMwChain()
 
 	req := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
 	ctx := &Context{
 		Req: ahttp.ParseRequest(req, &ahttp.Request{}),
-		Res: ahttp.WrapResponseWriter(httptest.NewRecorder()),
+		Res: ahttp.GetResponseWriter(httptest.NewRecorder()),
 	}
 
 	// Execute the middleware
@@ -38,6 +50,7 @@ func TestMiddlewareToHandler(t *testing.T) {
 	w := ctx.Res.Unwrap().(*httptest.ResponseRecorder)
 	resp := w.Result()
 	body, _ := ioutil.ReadAll(resp.Body)
+	t.Log(string(body))
 
 	assert.Equal(t, http.StatusAccepted, resp.StatusCode)
 	assert.Equal(t, "text/html; charset=utf-8", resp.Header.Get("Content-Type"))

@@ -206,10 +206,10 @@ func TestReplyXML(t *testing.T) {
 		buf.String())
 }
 
-func TestReplyBytes(t *testing.T) {
+func TestReplyReadfrom(t *testing.T) {
 	buf, re1 := getBufferAndReply()
-	re1.Bytes(ahttp.ContentTypeXML.Raw(),
-		[]byte(`<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`))
+	re1.ContentType(ahttp.ContentTypeOctetStream.Raw()).
+		Binary([]byte(`<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`))
 
 	assert.Equal(t, http.StatusOK, re1.Code)
 
@@ -222,12 +222,9 @@ func TestReplyBytes(t *testing.T) {
 		buf.String())
 }
 
-func TestReplyAttachmentFile(t *testing.T) {
-	f1, _ := os.Open(getReplyFilepath("file1.txt"))
-	defer ess.CloseQuietly(f1)
-
+func TestReplyFileDownload(t *testing.T) {
 	buf, re1 := getBufferAndReply()
-	re1.File("sample.txt", f1)
+	re1.FileDownload(getReplyFilepath("file1.txt"), "sample.txt")
 	assert.Equal(t, http.StatusOK, re1.Code)
 
 	err := re1.Rdr.Render(buf)
@@ -238,18 +235,14 @@ Each incoming request passes through a pre-defined list of steps
 
 	buf.Reset()
 
-	f2, _ := os.Open(getReplyFilepath("file1.txt"))
-	defer ess.CloseQuietly(f2)
-
 	re2 := &Reply{Hdr: http.Header{}}
-	re2.FileInline("sample.txt", f2)
+	re2.FileInline(getReplyFilepath("file1.txt"), "sample.txt")
 
 	err = re2.Rdr.Render(buf)
 	assert.FailOnError(t, err, "")
 	assert.Equal(t, `
 Each incoming request passes through a pre-defined list of steps
 `, buf.String())
-
 }
 
 func TestReplyHTML(t *testing.T) {
@@ -299,6 +292,15 @@ func TestReplyHTML(t *testing.T) {
 	htmllf := relf.Rdr.(*HTML)
 	assert.Equal(t, "docs.html", htmllf.Layout)
 	assert.Equal(t, "Filename.html", htmllf.Filename)
+
+	// HTMLf
+	ref := NewReply()
+	ref.HTMLf("Filename1.html", nil)
+	assert.Equal(t, "text/html; charset=utf-8", ref.ContType)
+
+	htmlf := ref.Rdr.(*HTML)
+	assert.True(t, ess.IsStrEmpty(htmlf.Layout))
+	assert.Equal(t, "Filename1.html", htmlf.Filename)
 }
 
 func TestReplyRedirect(t *testing.T) {
@@ -306,13 +308,13 @@ func TestReplyRedirect(t *testing.T) {
 	redirect1.Redirect("/go-to-see.page")
 	assert.Equal(t, http.StatusFound, redirect1.Code)
 	assert.True(t, redirect1.redirect)
-	assert.Equal(t, "/go-to-see.page", redirect1.redirectURL)
+	assert.Equal(t, "/go-to-see.page", redirect1.path)
 
 	redirect2 := NewReply()
-	redirect2.Redirects("/go-to-see-gone-premanent.page", http.StatusMovedPermanently)
+	redirect2.RedirectSts("/go-to-see-gone-premanent.page", http.StatusMovedPermanently)
 	assert.Equal(t, http.StatusMovedPermanently, redirect2.Code)
 	assert.True(t, redirect2.redirect)
-	assert.Equal(t, "/go-to-see-gone-premanent.page", redirect2.redirectURL)
+	assert.Equal(t, "/go-to-see-gone-premanent.page", redirect2.path)
 }
 
 func TestReplyDone(t *testing.T) {

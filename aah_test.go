@@ -6,9 +6,13 @@ package aah
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -26,6 +30,7 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, "aahframework", AppName())
+	assert.Equal(t, "aah framework test config", AppDesc())
 	assert.Equal(t, "127.0.0.1", AppHTTPAddress())
 	assert.Equal(t, "80", AppHTTPPort())
 	assert.Equal(t, "2006-01-02", AppDateFormat())
@@ -41,6 +46,38 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.Equal(t, int64(33554432), appMultipartMaxMemory)
 	assert.True(t, ess.IsStrEmpty(appSSLCert))
 	assert.True(t, ess.IsStrEmpty(appSSLKey))
+
+	AppConfig().SetString("env.default", "dev")
+	profiles := AllAppProfiles()
+	assert.NotNil(t, profiles)
+	assert.True(t, len(profiles) == 1)
+	assert.Equal(t, "dev", profiles[0])
+
+	// App port no
+	AppConfig().SetString("server.port", "")
+	assert.Equal(t, "80", AppHTTPPort())
+	appIsSSLEnabled = true
+	assert.Equal(t, "443", AppHTTPPort())
+
+	// app packaged
+	assert.False(t, appIsPackaged)
+
+	// init auto cert
+	AppConfig().SetBool("server.ssl.enable", true)
+	AppConfig().SetBool("server.ssl.lets_encrypt.enable", true)
+	defer ess.DeleteFiles(filepath.Join(getTestdataPath(), "autocert"))
+	AppConfig().SetString("server.ssl.lets_encrypt.cache_dir", filepath.Join(getTestdataPath(), "autocert"))
+	err = initAppVariables()
+	assert.Nil(t, err)
+	assert.NotNil(t, appAutocertManager)
+
+	AppConfig().SetBool("server.ssl.enable", false)
+	err = initAppVariables()
+	assert.Equal(t, "let's encrypt enabled, however SSL 'server.ssl.enable' is not enabled for application", err.Error())
+
+	// revert values
+	AppConfig().SetString("server.port", appDefaultHTTPPort)
+	AppConfig().SetBool("server.ssl.lets_encrypt.enable", false)
 
 	// config error scenario
 
@@ -72,7 +109,8 @@ func TestAahInitAppVariables(t *testing.T) {
 	// ssl cert required if enabled
 	AppConfig().SetBool("server.ssl.enable", true)
 	err = initAppVariables()
-	assert.Equal(t, "HTTP SSL is enabled, so 'server.ssl.cert' & 'server.ssl.key' value is required", err.Error())
+	assert.True(t, (!appIsLetsEncrypt && strings.Contains(err.Error(), "server.ssl.cert")))
+	assert.True(t, (!appIsLetsEncrypt && strings.Contains(err.Error(), "server.ssl.key")))
 	AppConfig().SetBool("server.ssl.enable", false)
 
 	// multipart size parsing error
@@ -80,6 +118,25 @@ func TestAahInitAppVariables(t *testing.T) {
 	err = initAppVariables()
 	assert.Equal(t, "'request.multipart_size' value is not a valid size unit", err.Error())
 	AppConfig().SetString("request.multipart_size", "12mb")
+
+	SetAppPackaged(true)
+	assert.True(t, appIsPackaged)
+
+	// cleanup
+	appConfig = nil
+	SetAppPackaged(false)
+}
+
+func TestAahInitPath(t *testing.T) {
+	err := initPath("github.com/jeevatkm/testapp")
+	assert.NotNil(t, err)
+	assert.Equal(t, "aah application does not exists: github.com/jeevatkm/testapp", err.Error())
+	assert.True(t, !ess.IsStrEmpty(goSrcDir))
+	assert.True(t, !ess.IsStrEmpty(goPath))
+
+	// cleanup
+	appImportPath, appBaseDir, goPath, goSrcDir = "", "", "", ""
+	appIsPackaged = false
 }
 
 func TestAahRecover(t *testing.T) {
@@ -90,4 +147,55 @@ func TestAahRecover(t *testing.T) {
 	assert.Nil(t, err)
 
 	panic("this is recover test")
+}
+
+func TestAahLogDir(t *testing.T) {
+	logsDir := filepath.Join(getTestdataPath(), "logs")
+	logFile := filepath.Join(logsDir, "test.log")
+	defer ess.DeleteFiles(logsDir)
+
+	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
+	err := initConfig(cfgDir)
+	assert.Nil(t, err)
+
+	err = initLogs(logsDir, AppConfig())
+	assert.Nil(t, err)
+
+	AppConfig().SetString("log.receiver", "file")
+	AppConfig().SetString("log.file", logFile)
+	err = initLogs(logsDir, AppConfig())
+	assert.Nil(t, err)
+	assert.True(t, ess.IsFileExists(logFile))
+
+	cfg, _ := config.ParseString("")
+	logger, _ := log.New(cfg)
+	log.SetDefaultLogger(logger)
+}
+
+func TestWritePID(t *testing.T) {
+	pidfile := filepath.Join(getTestdataPath(), "test-app.pid")
+	defer ess.DeleteFiles(pidfile)
+
+	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
+	err := initConfig(cfgDir)
+	assert.Nil(t, err)
+
+	writePID("test-app", getTestdataPath())
+	assert.True(t, ess.IsFileExists(pidfile))
+}
+
+func TestAahBuildInfo(t *testing.T) {
+	assert.Nil(t, AppBuildInfo())
+
+	buildTime := time.Now().Format(time.RFC3339)
+	SetAppBuildInfo(&BuildInfo{
+		BinaryName: "testapp",
+		Date:       buildTime,
+		Version:    "1.0.0",
+	})
+
+	assert.NotNil(t, AppBuildInfo())
+	assert.Equal(t, "testapp", AppBuildInfo().BinaryName)
+	assert.Equal(t, buildTime, AppBuildInfo().Date)
+	assert.Equal(t, "1.0.0", AppBuildInfo().Version)
 }

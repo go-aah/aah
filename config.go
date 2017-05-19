@@ -6,7 +6,6 @@ package aah
 
 import (
 	"fmt"
-	"html/template"
 	"path/filepath"
 
 	"aahframework.org/config.v0"
@@ -50,10 +49,10 @@ func initConfig(cfgDir string) error {
 //___________________________________
 
 // tmplConfig method provides access to application config on templates.
-func tmplConfig(key string) template.HTML {
+func tmplConfig(key string) interface{} {
 	if value, found := AppConfig().Get(key); found {
-		return template.HTML(template.HTMLEscapeString(fmt.Sprintf("%v", value)))
+		return sanatizeValue(value)
 	}
-	log.Errorf("app config key not found: %v", key)
-	return template.HTML("")
+	log.Warnf("app config key not found: %v", key)
+	return ""
 }

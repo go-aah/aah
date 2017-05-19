@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"os"
+	"path/filepath"
 
 	"aahframework.org/essentials.v0"
 )
@@ -42,14 +44,10 @@ type (
 		Data interface{}
 	}
 
-	// Bytes renders the bytes into response.
-	Bytes struct {
-		Data []byte
-	}
-
-	// File renders given ReadCloser into response and closes the file.
-	File struct {
-		Data io.ReadCloser
+	// Binary renders given path or io.Reader into response and closes the file.
+	Binary struct {
+		Path   string
+		Reader io.Reader
 	}
 
 	// HTML renders the given HTML into response with given model data.
@@ -65,7 +63,7 @@ type (
 // Plain Text Render methods
 //___________________________________
 
-// Render method writes Text to HTTP response.
+// Render method writes Text into HTTP response.
 func (t *Text) Render(w io.Writer) error {
 	if len(t.Values) > 0 {
 		fmt.Fprintf(w, t.Format, t.Values...)
@@ -80,7 +78,7 @@ func (t *Text) Render(w io.Writer) error {
 // JSON Render methods
 //___________________________________
 
-// Render method writes JSON to HTTP response.
+// Render method writes JSON into HTTP response.
 func (j *JSON) Render(w io.Writer) error {
 	var (
 		bytes []byte
@@ -120,7 +118,7 @@ func (j *JSON) Render(w io.Writer) error {
 // XML Render methods
 //___________________________________
 
-// Render method writes XML to HTTP response.
+// Render method writes XML into HTTP response.
 func (x *XML) Render(w io.Writer) error {
 	var (
 		bytes []byte
@@ -145,23 +143,37 @@ func (x *XML) Render(w io.Writer) error {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Bytes Render methods
+// File and Reader Render methods
 //___________________________________
 
-// Render method writes XML to HTTP response.
-func (b *Bytes) Render(w io.Writer) error {
-	_, err := w.Write(b.Data)
-	return err
-}
+// Render method writes File into HTTP response.
+func (f *Binary) Render(w io.Writer) error {
+	if f.Reader != nil {
+		defer ess.CloseQuietly(f.Reader)
+		_, err := io.Copy(w, f.Reader)
+		return err
+	}
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// File Render methods
-//___________________________________
+	if !filepath.IsAbs(f.Path) {
+		f.Path = filepath.Join(AppBaseDir(), "static", f.Path)
+	}
 
-// Render method writes File to HTTP response.
-func (f *File) Render(w io.Writer) error {
-	defer ess.CloseQuietly(f.Data)
-	_, err := io.Copy(w, f.Data)
+	file, err := os.Open(f.Path)
+	if err != nil {
+		return err
+	}
+	defer ess.CloseQuietly(file)
+
+	fi, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	if fi.IsDir() {
+		return fmt.Errorf("'%s' is a directory", f.Path)
+	}
+
+	_, err = io.Copy(w, file)
 	return err
 }
 
@@ -169,7 +181,7 @@ func (f *File) Render(w io.Writer) error {
 // HTML Render methods
 //___________________________________
 
-// Render method renders the HTML template into given writer.
+// Render method renders the HTML template into HTTP response.
 func (h *HTML) Render(w io.Writer) error {
 	if h.Template == nil {
 		return errors.New("template is nil")
