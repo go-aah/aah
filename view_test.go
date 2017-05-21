@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"aahframework.org/ahttp.v0"
@@ -96,12 +95,8 @@ func TestViewStore(t *testing.T) {
 	assert.False(t, found)
 }
 
-var testEng = sync.Mutex{}
-
 func TestViewResolveView(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
-	testEng.Lock()
-	defer testEng.Unlock()
 	appCfg, _ := config.ParseString("")
 	e := newEngine(appCfg)
 
@@ -131,7 +126,7 @@ func TestViewResolveView(t *testing.T) {
 	assert.Equal(t, "http", htmlRdr.ViewArgs["Scheme"])
 	assert.Equal(t, "localhost:8080", htmlRdr.ViewArgs["Host"])
 	assert.Equal(t, "/index.html", htmlRdr.ViewArgs["RequestPath"])
-	assert.Equal(t, "0.5", htmlRdr.ViewArgs["AahVersion"])
+	assert.Equal(t, Version, htmlRdr.ViewArgs["AahVersion"])
 	assert.Equal(t, "aah framework", htmlRdr.ViewArgs["MyName"])
 
 	// cleanup

@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -13,16 +14,27 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
 
+var pathSeparator = filepath.Separator
+
 // serveStatic method static file/directory delivery.
 func (e *engine) serveStatic(ctx *Context) error {
 	// TODO static assets Dynamic minify for JS and CSS for non-dev profile
-	dir, file := filepath.Split(getFilepath(ctx))
+	targetPath, err := getFilepath(ctx)
+	if err != nil {
+		log.Error(err)
+		ctx.Res.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(ctx.Res, "500 Internal Server Error")
+		return nil
+	}
+
+	dir, file := filepath.Split(targetPath)
 	log.Tracef("Dir: %s, File: %s", dir, file)
 
 	ctx.Reply().gzip = checkGzipRequired(file)
@@ -138,14 +150,19 @@ func checkGzipRequired(file string) bool {
 	}
 }
 
-func getFilepath(ctx *Context) string {
+func getFilepath(ctx *Context) (string, error) {
 	var file string
 	if ctx.route.IsDir() {
-		file = filepath.Join(AppBaseDir(), ctx.route.Dir, ctx.Req.PathValue("filepath"))
+		dirPath := ctx.Req.PathValue("filepath")
+		if pathSeparator != '/' && strings.ContainsRune(dirPath, pathSeparator) ||
+			strings.Contains(dirPath, "\x00") {
+			return "", errors.New("ahttp: invalid character in dir path")
+		}
+		file = filepath.Join(AppBaseDir(), ctx.route.Dir, path.Clean(dirPath))
 	} else {
 		file = filepath.Join(AppBaseDir(), "static", ctx.route.File)
 	}
-	return filepath.FromSlash(file)
+	return filepath.FromSlash(file), nil
 }
 
 // Sort interface for Directory list

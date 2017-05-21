@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"aahframework.org/ahttp.v0"
-	ess "aahframework.org/essentials.v0"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -46,8 +46,6 @@ func TestParamTemplateFuncs(t *testing.T) {
 
 func TestParamParse(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
-	testEng.Lock()
-	defer testEng.Unlock()
 
 	r1 := httptest.NewRequest("GET", "http://localhost:8080/index.html?lang=en-CA", nil)
 	ctx1 := &Context{

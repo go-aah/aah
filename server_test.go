@@ -31,8 +31,6 @@ func TestServerStart1(t *testing.T) {
 
 func TestServerStart2(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
-	testEng.Lock()
-	defer testEng.Unlock()
 
 	// App Config
 	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
@@ -67,6 +65,6 @@ func TestServerStart2(t *testing.T) {
 		Date:       buildTime,
 		Version:    "1.0.0",
 	})
-	AppConfig().SetString("server.port", "8080")
-	go Start()
+	AppConfig().SetString("server.port", "80")
+	Start()
 }

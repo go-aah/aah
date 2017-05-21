@@ -169,12 +169,12 @@ func TestContextNil(t *testing.T) {
 func TestContextEmbeddedAndController(t *testing.T) {
 	addToCRegistry()
 
-	assertEmbeddedIndexes(t, Level1{}, [][]int{{0}})
-	assertEmbeddedIndexes(t, Level2{}, [][]int{{0, 0}})
-	assertEmbeddedIndexes(t, Level3{}, [][]int{{0, 0, 0}})
-	assertEmbeddedIndexes(t, Level4{}, [][]int{{0, 0, 0, 0}})
-	assertEmbeddedIndexes(t, Path1{}, [][]int{{1}})
-	assertEmbeddedIndexes(t, Path2{}, [][]int{{0, 0}, {1, 1}, {2, 0, 0, 0, 0}})
+	testEmbeddedIndexes(t, Level1{}, [][]int{{0}})
+	testEmbeddedIndexes(t, Level2{}, [][]int{{0, 0}})
+	testEmbeddedIndexes(t, Level3{}, [][]int{{0, 0, 0}})
+	testEmbeddedIndexes(t, Level4{}, [][]int{{0, 0, 0, 0}})
+	testEmbeddedIndexes(t, Path1{}, [][]int{{1}})
+	testEmbeddedIndexes(t, Path2{}, [][]int{{0, 0}, {1, 1}, {2, 0, 0, 0, 0}})
 }
 
 func TestContextSetURL(t *testing.T) {
@@ -234,7 +234,7 @@ func TestContextSetMethod(t *testing.T) {
 	assert.Equal(t, "GET", ctx.Req.Method)
 }
 
-func assertEmbeddedIndexes(t *testing.T, c interface{}, expected [][]int) {
+func testEmbeddedIndexes(t *testing.T, c interface{}, expected [][]int) {
 	actual := findEmbeddedContext(reflect.TypeOf(c))
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("Indexes do not match. expected %v actual %v", expected, actual)

@@ -150,7 +150,7 @@ func TestAahRecover(t *testing.T) {
 }
 
 func TestAahLogDir(t *testing.T) {
-	logsDir := filepath.Join(getTestdataPath(), "logs")
+	logsDir := filepath.Join(getTestdataPath(), appLogsDir())
 	logFile := filepath.Join(logsDir, "test.log")
 	defer ess.DeleteFiles(logsDir)
 
