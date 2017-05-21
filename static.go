@@ -19,25 +19,23 @@ import (
 	"aahframework.org/log.v0"
 )
 
+const dirStatic = "static"
+
 // serveStatic method static file/directory delivery.
 func (e *engine) serveStatic(ctx *Context) error {
 	// TODO static assets Dynamic minify for JS and CSS for non-dev profile
-	dir, file := filepath.Split(getFilepath(ctx))
-	log.Tracef("Dir: %s, File: %s", dir, file)
 
-	ctx.Reply().gzip = checkGzipRequired(file)
-	e.wrapGzipWriter(ctx)
-	e.writeHeaders(ctx)
+	// Determine route is file or directory as per user defined
+	// static route config (refer to https://docs.aahframework.org/static-files.html#section-static).
+	//   httpDir -> value is from routes config
+	//   filePath -> value is from request
+	httpDir, filePath := getHTTPDirAndFilePath(ctx)
+	log.Tracef("Dir: %s, Filepath: %s", httpDir, filePath)
 
 	res, req := ctx.Res, ctx.Req
-	fs := ahttp.Dir(dir, ctx.route.ListDir)
-	f, err := fs.Open(file)
+	f, err := httpDir.Open(filePath)
 	if err != nil {
-		if err == ahttp.ErrDirListNotAllowed {
-			log.Warnf("directory listing not allowed: %s", req.Path)
-			res.WriteHeader(http.StatusForbidden)
-			fmt.Fprintf(res, "403 Directory listing not allowed")
-		} else if os.IsNotExist(err) {
+		if os.IsNotExist(err) {
 			log.Errorf("file not found: %s", req.Path)
 			return errFileNotFound
 		} else if os.IsPermission(err) {
@@ -48,20 +46,36 @@ func (e *engine) serveStatic(ctx *Context) error {
 			res.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(res, "500 Internal Server Error")
 		}
-
 		return nil
 	}
 
 	defer ess.CloseQuietly(f)
-
 	fi, err := f.Stat()
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
-		_, _ = res.Write([]byte("500 Internal Server Error"))
+		fmt.Fprintf(res, "500 Internal Server Error")
 		return nil
 	}
 
-	if fi.IsDir() {
+	// Gzip
+	ctx.Reply().gzip = checkGzipRequired(filePath)
+	e.wrapGzipWriter(ctx)
+	e.writeHeaders(ctx)
+
+	// Serve file
+	if fi.Mode().IsRegular() {
+		// 'OnPreReply' server extension point
+		publishOnPreReplyEvent(ctx)
+
+		http.ServeContent(ctx.Res, ctx.Req.Raw, path.Base(filePath), fi.ModTime(), f)
+
+		// 'OnAfterReply' server extension point
+		publishOnAfterReplyEvent(ctx)
+		return nil
+	}
+
+	// Serve directory
+	if fi.Mode().IsDir() && ctx.route.ListDir {
 		// redirect if the directory name doesn't end in a slash
 		if req.Path[len(req.Path)-1] != '/' {
 			log.Debugf("redirecting to dir: %s", req.Path+"/")
@@ -79,13 +93,11 @@ func (e *engine) serveStatic(ctx *Context) error {
 		return nil
 	}
 
-	// 'OnPreReply' server extension point
-	publishOnPreReplyEvent(ctx)
+	// Flow reached here it means directory listing is not allowed
+	log.Warnf("directory listing not allowed: %s", req.Path)
+	res.WriteHeader(http.StatusForbidden)
+	fmt.Fprintf(res, "403 Directory listing not allowed")
 
-	http.ServeContent(res, req.Raw, file, fi.ModTime(), f)
-
-	// 'OnAfterReply' server extension point
-	publishOnAfterReplyEvent(ctx)
 	return nil
 }
 
@@ -138,14 +150,13 @@ func checkGzipRequired(file string) bool {
 	}
 }
 
-func getFilepath(ctx *Context) string {
-	var file string
-	if ctx.route.IsDir() {
-		file = filepath.Join(AppBaseDir(), ctx.route.Dir, ctx.Req.PathValue("filepath"))
-	} else {
-		file = filepath.Join(AppBaseDir(), "static", ctx.route.File)
+// getHTTPDirAndFilePath method returns the `http.Dir` and requested file path.
+// Note: `ctx.route.*` values come from application routes configuration.
+func getHTTPDirAndFilePath(ctx *Context) (http.Dir, string) {
+	if ctx.route.IsFile() { // this is configured value from routes.conf
+		return http.Dir(filepath.Join(AppBaseDir(), dirStatic)), ctx.route.File
 	}
-	return filepath.FromSlash(file)
+	return http.Dir(filepath.Join(AppBaseDir(), ctx.route.Dir)), ctx.Req.PathValue("filepath")
 }
 
 // Sort interface for Directory list
