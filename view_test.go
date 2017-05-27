@@ -55,17 +55,17 @@ func TestViewInitExternalEngine(t *testing.T) {
 	appCfg, _ := config.ParseString("")
 	viewDir := filepath.Join(getTestdataPath(), appViewsDir())
 
-	assert.False(t, isExternalTmplEngine)
+	assert.False(t, appIsExternalTmplEngine)
 
 	appViewEngine = &view.GoViewEngine{}
 	err := initViewEngine(viewDir, appCfg)
 	assert.Nil(t, err)
 
-	assert.True(t, isExternalTmplEngine)
+	assert.True(t, appIsExternalTmplEngine)
 
 	// cleanup
 	appViewEngine = nil
-	isExternalTmplEngine = false
+	appIsExternalTmplEngine = false
 }
 
 func TestViewAddTemplateFunc(t *testing.T) {

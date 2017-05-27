@@ -18,12 +18,13 @@ import (
 )
 
 var (
-	appViewEngine            view.Enginer
-	appViewExt               string
-	appDefaultTmplLayout     string
-	appViewFileCaseSensitive bool
-	isExternalTmplEngine     bool
-	viewNotFoundTemplate     = template.Must(template.New("not_found").Parse(`
+	appViewEngine             view.Enginer
+	appViewExt                string
+	appDefaultTmplLayout      string
+	appIsDefaultLayoutEnabled bool
+	appViewFileCaseSensitive  bool
+	appIsExternalTmplEngine   bool
+	viewNotFoundTemplate      = template.Must(template.New("not_found").Parse(`
 		<strong>View not found: {{ .ViewNotFound }}</strong>
 	`))
 )
@@ -65,10 +66,11 @@ func initViewEngine(viewDir string, appCfg *config.Config) error {
 	appViewExt = appCfg.StringDefault("view.ext", ".html")
 	appDefaultTmplLayout = "master" + appViewExt
 	appViewFileCaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
+	appIsDefaultLayoutEnabled = appCfg.BoolDefault("view.default_layout", true)
 
 	// initialize if external View Engine is not registered.
 	if appViewEngine == nil {
-		isExternalTmplEngine = false
+		appIsExternalTmplEngine = false
 		viewEngineName := appCfg.StringDefault("view.engine", "go")
 		viewEngine, found := view.GetEngine(viewEngineName)
 		if !found {
@@ -79,7 +81,7 @@ func initViewEngine(viewDir string, appCfg *config.Config) error {
 		return appViewEngine.Init(appCfg, viewDir)
 	}
 
-	isExternalTmplEngine = true
+	appIsExternalTmplEngine = true
 	return nil
 }
 
@@ -97,7 +99,7 @@ func (e *engine) resolveView(ctx *Context) {
 
 		htmlRdr := reply.Rdr.(*HTML)
 
-		if ess.IsStrEmpty(htmlRdr.Layout) {
+		if ess.IsStrEmpty(htmlRdr.Layout) && appIsDefaultLayoutEnabled {
 			htmlRdr.Layout = appDefaultTmplLayout
 		}
 
