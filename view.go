@@ -19,7 +19,7 @@ import (
 )
 
 // Version no. of aah framework view library
-const Version = "0.2.1"
+const Version = "0.3"
 
 var (
 	// TemplateFuncMap aah framework Go template function map.

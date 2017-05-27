@@ -42,7 +42,9 @@ func TestViewAppPages(t *testing.T) {
 }
 
 func TestViewUserPages(t *testing.T) {
-	cfg, _ := config.ParseString(`view { }`)
+	cfg, _ := config.ParseString(`view {
+		delimiters = "{{.}}"
+	}`)
 	ge := loadGoViewEngine(t, cfg)
 
 	data := map[string]interface{}{
@@ -69,6 +71,31 @@ func TestViewUserPages(t *testing.T) {
 	tmpl, err = ge.Get("master.html", "pages_user", "not_exists.html")
 	assert.NotNil(t, err)
 	assert.Nil(t, tmpl)
+}
+
+func TestViewUserPagesNoLayout(t *testing.T) {
+	cfg, _ := config.ParseString(`view {
+		delimiters = "{{.}}"
+		default_layout = false
+	}`)
+	ge := loadGoViewEngine(t, cfg)
+
+	data := map[string]interface{}{
+		"GreetName": "aah framework",
+		"PageName":  "user home page",
+	}
+
+	tmpl, err := ge.Get("", "pages_user", "index-nolayout.html")
+	assert.Nil(t, err)
+	assert.NotNil(t, tmpl)
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, data)
+	assert.FailNowOnError(t, err, "")
+
+	htmlStr := buf.String()
+	t.Logf("HTML String: %s", htmlStr)
+	assert.True(t, strings.Contains(htmlStr, "aah framework user home page - no layout"))
 }
 
 func TestViewBaseDirNotExists(t *testing.T) {

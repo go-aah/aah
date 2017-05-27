@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 
@@ -16,12 +17,15 @@ import (
 	"aahframework.org/log.v0"
 )
 
+const noLayout = "nolayout"
+
 // GoViewEngine implements the partial inheritance support with Go templates.
 type GoViewEngine struct {
-	cfg           *config.Config
-	baseDir       string
-	layouts       map[string]*Templates
-	caseSensitive bool
+	cfg                    *config.Config
+	baseDir                string
+	layouts                map[string]*Templates
+	caseSensitive          bool
+	isDefaultLayoutEnabled bool
 }
 
 // Init method initialize a template engine with given aah application config
@@ -40,6 +44,7 @@ func (ge *GoViewEngine) Init(appCfg *config.Config, baseDir string) error {
 	ge.baseDir = baseDir
 	ge.layouts = make(map[string]*Templates)
 	ge.caseSensitive = ge.cfg.BoolDefault("view.case_sensitive", false)
+	ge.isDefaultLayoutEnabled = ge.cfg.BoolDefault("view.default_layout", true)
 
 	layoutsBaseDir := filepath.Join(ge.baseDir, "layouts")
 	if !ess.IsFileExists(layoutsBaseDir) {
@@ -67,6 +72,10 @@ func (ge *GoViewEngine) Init(appCfg *config.Config, baseDir string) error {
 
 // Get method returns the template based given name if found, otherwise nil.
 func (ge *GoViewEngine) Get(layout, path, tmplName string) (*template.Template, error) {
+	if ess.IsStrEmpty(layout) {
+		layout = noLayout
+	}
+
 	if l, found := ge.layouts[layout]; found {
 		key := TemplateKey(filepath.Join(path, tmplName))
 		if ge.caseSensitive {
@@ -115,17 +124,7 @@ func (ge *GoViewEngine) processTemplates(layouts, pageDirs []string, filePattern
 				tmplKey := TemplateKey(tmplFile)
 				log.Tracef("Template Key: %s", tmplKey)
 
-				tmpl := template.New(tmplKey).Funcs(TemplateFuncMap)
-
-				// Set custom delimiters from aah.conf
-				if ge.cfg.IsExists("view.delimiters") {
-					delimiters := strings.Split(ge.cfg.StringDefault("view.delimiters", "{{.}}"), ".")
-					if len(delimiters) == 2 {
-						tmpl.Delims(delimiters[0], delimiters[1])
-					} else {
-						log.Error("goviewengine: config 'view.delimiters' value is not valid")
-					}
-				}
+				tmpl := ge.createTemplate(tmplKey)
 
 				log.Tracef("Parsing Templates[%s]: %s", tmplKey, files)
 				if _, err = tmpl.ParseFiles(files...); err != nil {
@@ -136,9 +135,26 @@ func (ge *GoViewEngine) processTemplates(layouts, pageDirs []string, filePattern
 
 				lTemplate.Template[tmplKey] = tmpl
 				lTemplate.TemplateLower[strings.ToLower(tmplKey)] = tmpl
+
+				if !ge.isDefaultLayoutEnabled {
+					ntmpl := ge.createTemplate(tmplKey)
+					log.Tracef("Parsing Template for nolayout [%s]: %s", tmplKey, tmplFile)
+					tfile, _ := ioutil.ReadFile(tmplFile)
+					if _, err = ntmpl.Parse(string(tfile)); err != nil {
+						log.Error(err)
+						errorOccurred = true
+						continue
+					}
+					lTemplate.Template[tmplKey] = ntmpl
+					lTemplate.TemplateLower[strings.ToLower(tmplKey)] = ntmpl
+				}
 			}
 		}
 		ge.layouts[strings.ToLower(filepath.Base(layout))] = lTemplate
+
+		if !ge.isDefaultLayoutEnabled {
+			ge.layouts[noLayout] = lTemplate
+		}
 	}
 
 	if errorOccurred {
@@ -146,6 +162,21 @@ func (ge *GoViewEngine) processTemplates(layouts, pageDirs []string, filePattern
 	}
 
 	return nil
+}
+
+func (ge *GoViewEngine) createTemplate(key string) *template.Template {
+	tmpl := template.New(key).Funcs(TemplateFuncMap)
+
+	// Set custom delimiters from aah.conf
+	if ge.cfg.IsExists("view.delimiters") {
+		delimiters := strings.Split(ge.cfg.StringDefault("view.delimiters", "{{.}}"), ".")
+		if len(delimiters) == 2 {
+			tmpl.Delims(delimiters[0], delimiters[1])
+		} else {
+			log.Error("goviewengine: config 'view.delimiters' value is not valid")
+		}
+	}
+	return tmpl
 }
 
 func init() {
