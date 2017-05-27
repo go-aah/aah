@@ -135,8 +135,9 @@ func actualType(v interface{}) reflect.Type {
 // createRegistryKey method creates the controller registry key.
 func createRegistryKey(cType reflect.Type) string {
 	namespace := cType.PkgPath()
-	idx := strings.Index(namespace, "controllers")
-	namespace = namespace[idx+11:]
+	if idx := strings.Index(namespace, "controllers"); idx > -1 {
+		namespace = namespace[idx+11:]
+	}
 
 	if ess.IsStrEmpty(namespace) {
 		return strings.ToLower(cType.Name())

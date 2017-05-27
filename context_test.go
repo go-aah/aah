@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"aahframework.org/ahttp.v0"
@@ -111,7 +112,8 @@ func TestContextSetTarget(t *testing.T) {
 
 	err1 := ctx.setTarget(&router.Route{Controller: "Level3", Action: "Testing"})
 	assert.Nil(t, err1)
-	assert.Equal(t, "Level3", ctx.controller)
+	assert.Equal(t, "Level3", ctx.controller.Name())
+	assert.True(t, strings.HasPrefix(ctx.controller.Namespace, "ahframework.org/aah.v0"))
 	assert.NotNil(t, ctx.action)
 	assert.Equal(t, "Testing", ctx.action.Name)
 	assert.NotNil(t, ctx.action.Parameters)

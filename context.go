@@ -39,7 +39,7 @@ type (
 		// response.
 		Res ahttp.ResponseWriter
 
-		controller string
+		controller *controllerInfo
 		action     *MethodInfo
 		target     interface{}
 		domain     *router.Domain
@@ -185,7 +185,7 @@ func (ctx *Context) SetMethod(method string) {
 func (ctx *Context) Reset() {
 	ctx.Req = nil
 	ctx.Res = nil
-	ctx.controller = ""
+	ctx.controller = nil
 	ctx.action = nil
 	ctx.target = nil
 	ctx.domain = nil
@@ -209,7 +209,7 @@ func (ctx *Context) setTarget(route *router.Route) error {
 		return errTargetNotFound
 	}
 
-	ctx.controller = controller.Name()
+	ctx.controller = controller
 	ctx.action = controller.FindMethod(route.Action)
 	if ctx.action == nil {
 		return errTargetNotFound

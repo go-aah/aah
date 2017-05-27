@@ -149,23 +149,38 @@ func defaultContentType() *ahttp.ContentType {
 }
 
 func findViewTemplate(ctx *Context) {
-	controllerName := ctx.controller
-	if strings.HasSuffix(controllerName, controllerNameSuffix) {
-		controllerName = controllerName[:len(controllerName)-controllerNameSuffixLen]
-	}
-
-	tmplPath := filepath.Join("pages", controllerName)
-	tmplName := ctx.action.Name + appViewExt
 	htmlRdr := ctx.Reply().Rdr.(*HTML)
-	if !ess.IsStrEmpty(htmlRdr.Filename) {
-		tmplName = htmlRdr.Filename
+	var tmplPath, tmplName string
+
+	// If user not provided the template info, auto resolve by convention
+	if ess.IsStrEmpty(htmlRdr.Filename) {
+		tmplName = ctx.action.Name + appViewExt
+		tmplPath = ctx.controller.Name()
+
+		if strings.HasSuffix(tmplPath, controllerNameSuffix) {
+			tmplPath = tmplPath[:len(tmplPath)-controllerNameSuffixLen]
+		}
+
+		if !ess.IsStrEmpty(ctx.controller.Namespace) {
+			tmplPath = filepath.Join(ctx.controller.Namespace, tmplPath)
+		}
+	} else { // user provided template info via `Reply.HTMLf("/admin/index.html", data)`
+		tmplName = filepath.Base(htmlRdr.Filename)
+		tmplPath = filepath.Dir(htmlRdr.Filename)
+
+		if strings.HasPrefix(htmlRdr.Filename, "/") {
+			tmplPath = strings.TrimLeft(tmplPath, "/")
+		} else {
+			tmplPath = filepath.Join(ctx.controller.Namespace, tmplPath)
+		}
 	}
+	tmplPath = filepath.Join("pages", tmplPath)
 
 	log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
 	var err error
 	if htmlRdr.Template, err = appViewEngine.Get(htmlRdr.Layout, tmplPath, tmplName); err != nil {
 		if err == view.ErrTemplateNotFound {
-			tmplFile := filepath.Join("views", "pages", controllerName, tmplName)
+			tmplFile := filepath.Join("views", tmplPath, tmplName)
 			if !appViewFileCaseSensitive {
 				tmplFile = strings.ToLower(tmplFile)
 			}

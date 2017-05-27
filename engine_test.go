@@ -193,6 +193,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Equal(t, "Found", resp5.Status)
 	assert.Equal(t, "http://localhost:8080/testdata/", resp5.Header.Get(ahttp.HeaderLocation))
 
+	// Directory Listing
 	r6 := httptest.NewRequest("GET", "http://localhost:8080/testdata/", nil)
 	r6.Header.Add(e.requestIDHeader, "D9391509-595B-4B92-BED7-F6A9BE0DFCF2")
 	r6.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
@@ -205,6 +206,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.True(t, strings.Contains(body6Str, "Listing of /testdata/"))
 	assert.True(t, strings.Contains(body6Str, "config/"))
 
+	// Custom Headers
 	r7 := httptest.NewRequest("GET", "http://localhost:8080/credits", nil)
 	r7.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
 	w7 := httptest.NewRecorder()
@@ -221,6 +223,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	w8 := httptest.NewRecorder()
 	e.ServeHTTP(w8, r8)
 
+	// Method Not Allowed 405 response
 	resp8 := w8.Result()
 	reader8, _ := gzip.NewReader(resp8.Body)
 	body8, _ := ioutil.ReadAll(reader8)

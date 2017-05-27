@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -71,4 +72,11 @@ func isNoGzipStatusCode(code int) bool {
 		}
 	}
 	return false
+}
+
+func resolveControllerName(ctx *Context) string {
+	if ess.IsStrEmpty(ctx.controller.Namespace) {
+		return ctx.controller.Name()
+	}
+	return path.Join(ctx.controller.Namespace, ctx.controller.Name())
 }
