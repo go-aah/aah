@@ -48,7 +48,7 @@ func TestViewCommonTemplateInit(t *testing.T) {
 	cfg, _ := config.ParseString(`view { }`)
 
 	err := c.Init(cfg, filepath.Join(getTestdataPath(), "common-not-exists"))
-	assert.True(t, strings.HasPrefix(err.Error(), "commontemplate: base dir is not exists"))
+	assert.Nil(t, err)
 }
 
 func getTestdataPath() string {

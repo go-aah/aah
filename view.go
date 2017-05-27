@@ -111,7 +111,7 @@ func TemplateKey(path string) string {
 func (c *CommonTemplate) Init(cfg *config.Config, baseDir string) error {
 	commonBaseDir := filepath.Join(baseDir, "common")
 	if !ess.IsFileExists(commonBaseDir) {
-		return fmt.Errorf("commontemplate: base dir is not exists: %s", commonBaseDir)
+		return nil
 	}
 
 	c.bufPool = pool.NewPool(
