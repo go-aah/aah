@@ -48,6 +48,16 @@ func AddViewEngine(name string, engine view.Enginer) error {
 	return view.AddEngine(name, engine)
 }
 
+// SetMinifier method sets the given minifier func into aah framework.
+func SetMinifier(fn MinifierFunc) {
+	if minifier == nil {
+		minifier = fn
+	} else {
+		fi := ess.GetFunctionInfo(minifier)
+		log.Warnf("Minifier is already set: %v", fi.QualifiedName)
+	}
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________

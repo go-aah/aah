@@ -5,7 +5,9 @@
 package aah
 
 import (
+	"fmt"
 	"html/template"
+	"io"
 	"net/http/httptest"
 	"path/filepath"
 	"reflect"
@@ -157,7 +159,7 @@ func TestViewResolveViewNotFound(t *testing.T) {
 	type AppController struct{}
 	ctx := &Context{
 		Req:        ahttp.ParseRequest(req, &ahttp.Request{}),
-		controller: &controllerInfo{Type: reflect.TypeOf(AppController{})},
+		controller: &controllerInfo{Type: reflect.TypeOf(AppController{}), Namespace: "site"},
 		action: &MethodInfo{
 			Name:       "Index",
 			Parameters: []*ParameterInfo{},
@@ -204,4 +206,18 @@ func TestViewDefaultContentType(t *testing.T) {
 
 	// cleanup
 	appConfig = nil
+}
+
+func TestViewSetMinifier(t *testing.T) {
+	testMinifier := func(contentType string, w io.Writer, r io.Reader) error {
+		fmt.Println("called minifier func")
+		return nil
+	}
+
+	assert.Nil(t, minifier)
+	SetMinifier(testMinifier)
+	assert.NotNil(t, minifier)
+
+	SetMinifier(testMinifier)
+	assert.NotNil(t, minifier)
 }

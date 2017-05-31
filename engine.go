@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
@@ -33,11 +34,15 @@ const (
 )
 
 var (
+	minifier          MinifierFunc
 	errFileNotFound   = errors.New("file not found")
 	noGzipStatusCodes = []int{http.StatusNotModified, http.StatusNoContent}
 )
 
 type (
+	// MinifierFunc is to minify the HTML buffer and write the response into writer.
+	MinifierFunc func(contentType string, w io.Writer, r io.Reader) error
+
 	// routeStatus is feadback of handleRoute method
 	routeStatus uint8
 
@@ -278,7 +283,6 @@ func (e *engine) writeReply(ctx *Context) {
 	// Gzip
 	if !isNoGzipStatusCode(reply.Code) && reply.body.Len() != 0 {
 		e.wrapGzipWriter(ctx)
-		// TODO minify implementation for non-dev
 	}
 
 	// 'OnPreReply' server extension point
@@ -294,7 +298,13 @@ func (e *engine) writeReply(ctx *Context) {
 	ctx.Res.WriteHeader(reply.Code)
 
 	// Write response buffer on the wire
-	_, _ = reply.body.WriteTo(ctx.Res)
+	if minifier == nil ||
+		isNoGzipStatusCode(reply.Code) ||
+		!ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
+		_, _ = reply.body.WriteTo(ctx.Res)
+	} else if err := minifier(reply.ContType, ctx.Res, reply.body); err != nil {
+		log.Errorf("Minifier error: %v", err)
+	}
 
 	// 'OnAfterReply' server extension point
 	publishOnAfterReplyEvent(ctx)
