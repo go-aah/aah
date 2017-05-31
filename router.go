@@ -23,8 +23,12 @@ import (
 	"aahframework.org/log.v0"
 )
 
-// Version no. of aah framework router library
-const Version = "0.6"
+const (
+	// Version no. of aah framework router library
+	Version = "0.7"
+
+	wildcardSubdomainPrefix = "*."
+)
 
 var (
 	// HTTPMethodActionMap is default Controller Action name for corresponding
@@ -150,8 +154,35 @@ func (r *Router) Load() (err error) {
 // FindDomain returns domain routes configuration based on http request
 // otherwise nil.
 func (r *Router) FindDomain(req *ahttp.Request) *Domain {
-	if domain, found := r.Domains[strings.ToLower(req.Host)]; found {
+	host := strings.ToLower(req.Host)
+
+	// Extact match of host value
+	// for e.g.: sample.com:8080, www.sample.com:8080, admin.sample.com:8080
+	if domain, found := r.Domains[host]; found {
 		return domain
+	}
+
+	// Wildcard match of host value
+	// for e.g.: router.conf value is `*.sample.com:8080` it matches
+	// {subdomain}.sample.com
+	if idx := strings.IndexByte(host, '.'); idx > 0 {
+		if domain, found := r.Domains[host[idx:]]; found {
+			return domain
+		}
+	}
+
+	return nil
+}
+
+// RootDomain method returns the root domain registered in the routes.conf.
+// For e.g.: sample.com, admin.sample.com, *.sample.com.
+// Root Domain is `sample.com`.
+func (r *Router) RootDomain() *Domain {
+	for _, d := range r.Domains {
+		if d.IsSubDomain {
+			continue
+		}
+		return d
 	}
 	return nil
 }
@@ -210,6 +241,11 @@ func (r *Router) processRoutesConfig() (err error) {
 		if !found {
 			err = fmt.Errorf("'%v.host' key is missing", key)
 			return
+		}
+
+		// wildcard subdomain's
+		if strings.HasPrefix(host, wildcardSubdomainPrefix) {
+			host = host[1:]
 		}
 
 		// Router takes the port-no in the order they found-
