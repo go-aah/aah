@@ -68,6 +68,7 @@ func TestFileLoggerRotation(t *testing.T) {
   }
   `
 	testFileLogger(t, fileConfigStrJSON, 1000)
+
 	cleaupFiles("*.log")
 }
 
@@ -156,4 +157,5 @@ func testFileLogger(t *testing.T, cfgStr string, loop int) {
 		logger.Errorf("Yes, yes, yes - %v", "finally an error")
 	}
 
+	assert.NotNil(t, logger.ToGoLogger())
 }

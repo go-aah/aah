@@ -91,3 +91,8 @@ func (c *ConsoleReceiver) Log(entry *Entry) {
 		_, _ = c.out.Write(resetColor)
 	}
 }
+
+// Writer method returns the current log writer.
+func (c *ConsoleReceiver) Writer() io.Writer {
+	return c.out
+}
