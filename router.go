@@ -166,7 +166,7 @@ func (r *Router) FindDomain(req *ahttp.Request) *Domain {
 	// for e.g.: router.conf value is `*.sample.com:8080` it matches
 	// {subdomain}.sample.com
 	if idx := strings.IndexByte(host, '.'); idx > 0 {
-		if domain, found := r.Domains[host[idx:]]; found {
+		if domain, found := r.Domains[wildcardSubdomainPrefix+host[idx+1:]]; found {
 			return domain
 		}
 	}
@@ -241,11 +241,6 @@ func (r *Router) processRoutesConfig() (err error) {
 		if !found {
 			err = fmt.Errorf("'%v.host' key is missing", key)
 			return
-		}
-
-		// wildcard subdomain's
-		if strings.HasPrefix(host, wildcardSubdomainPrefix) {
-			host = host[1:]
 		}
 
 		// Router takes the port-no in the order they found-

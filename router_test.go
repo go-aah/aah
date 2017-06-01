@@ -104,7 +104,7 @@ func TestRouterWildcardSubdomain(t *testing.T) {
 	reqWildcardUsername1 := createHTTPRequest("username1.localhost:8080", "/")
 	reqWildcardUsername1.Method = ahttp.MethodGet
 	domain = router.FindDomain(reqWildcardUsername1)
-	assert.Equal(t, ".localhost", domain.Host)
+	assert.Equal(t, "*.localhost", domain.Host)
 	assert.Equal(t, "8080", domain.Port)
 
 	route1, _, rts1 := domain.Lookup(reqWildcardUsername1)
@@ -116,7 +116,7 @@ func TestRouterWildcardSubdomain(t *testing.T) {
 	reqWildcardUsername2 := createHTTPRequest("username2.localhost:8080", "/")
 	reqWildcardUsername2.Method = ahttp.MethodGet
 	domain = router.FindDomain(reqWildcardUsername2)
-	assert.Equal(t, ".localhost", domain.Host)
+	assert.Equal(t, "*.localhost", domain.Host)
 	assert.Equal(t, "8080", domain.Port)
 
 	route2, _, rts2 := domain.Lookup(reqWildcardUsername2)
