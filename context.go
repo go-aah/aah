@@ -98,6 +98,17 @@ func (ctx *Context) Msgl(locale *ahttp.Locale, key string, args ...interface{}) 
 	return AppI18n().Lookup(locale, key, args...)
 }
 
+// Subdomain method returns the subdomain from the incoming request if available
+// as per routes.conf. Otherwise empty string.
+func (ctx *Context) Subdomain() string {
+	if ctx.domain.IsSubDomain {
+		if idx := strings.IndexByte(ctx.Req.Host, '.'); idx > 0 {
+			return ctx.Req.Host[:idx]
+		}
+	}
+	return ""
+}
+
 // Session method always returns `session.Session` object. Use `Session.IsNew`
 // to identify whether sesison is newly created or restored from the request
 // which was already created.

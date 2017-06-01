@@ -141,6 +141,16 @@ func TestContextSession(t *testing.T) {
 	assert.NotNil(t, s1.ID)
 }
 
+func TestContextSubdomain(t *testing.T) {
+	testSubdomainValue(t, "username1.sample.com", "username1", true)
+
+	testSubdomainValue(t, "username2.sample.com", "username2", true)
+
+	testSubdomainValue(t, "admin.username1.sample.com", "admin", true)
+
+	testSubdomainValue(t, "sample.com", "", false)
+}
+
 func TestContextAbort(t *testing.T) {
 	ctx := &Context{}
 
@@ -272,6 +282,15 @@ func addToCRegistry() {
 	AddController((*Level4)(nil), nil)
 	AddController((*Path1)(nil), nil)
 	AddController((*Path2)(nil), nil)
+}
+
+func testSubdomainValue(t *testing.T, host, subdomain string, isSubdomain bool) {
+	ctx := &Context{
+		Req:    &ahttp.Request{Host: host},
+		domain: &router.Domain{IsSubDomain: isSubdomain},
+	}
+
+	assert.Equal(t, subdomain, ctx.Subdomain())
 }
 
 func getAahRequest(method, target, al string) *ahttp.Request {

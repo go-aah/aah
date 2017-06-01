@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	continuePipeline routeStatus = iota
-	notContinuePipeline
+	flowCont flowResult = iota
+	flowStop
 )
 
 const (
@@ -43,8 +43,9 @@ type (
 	// MinifierFunc is to minify the HTML buffer and write the response into writer.
 	MinifierFunc func(contentType string, w io.Writer, r io.Reader) error
 
-	// routeStatus is feadback of handleRoute method
-	routeStatus uint8
+	// flowResult is result of engine activities flow.
+	// For e.g.: route, authentication, authorization, etc.
+	flowResult uint8
 
 	// Engine is the aah framework application server handler for request and response.
 	// Implements `http.Handler` interface.
@@ -81,7 +82,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	publishOnRequestEvent(ctx)
 
 	// Handling route
-	if e.handleRoute(ctx) == notContinuePipeline {
+	if e.handleRoute(ctx) == flowStop {
 		return
 	}
 
@@ -165,27 +166,27 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 //  - adds the pathParams into context if present
 //
 // Returns status as-
-//  - continuePipeline
-//  - notContinuePipeline
-func (e *engine) handleRoute(ctx *Context) routeStatus {
+//  - flowCont
+//  - flowStop
+func (e *engine) handleRoute(ctx *Context) flowResult {
 	domain := AppRouter().FindDomain(ctx.Req)
 	if domain == nil {
 		ctx.Reply().NotFound().Text("404 Not Found")
 		e.writeReply(ctx)
-		return notContinuePipeline
+		return flowStop
 	}
 
 	route, pathParams, rts := domain.Lookup(ctx.Req)
 	if route == nil { // route not found
 		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
 			e.writeReply(ctx)
-			return notContinuePipeline
+			return flowStop
 		}
 
 		ctx.route = domain.NotFoundRoute
 		handleRouteNotFound(ctx, domain, domain.NotFoundRoute)
 		e.writeReply(ctx)
-		return notContinuePipeline
+		return flowStop
 	}
 
 	ctx.route = route
@@ -205,17 +206,17 @@ func (e *engine) handleRoute(ctx *Context) routeStatus {
 			handleRouteNotFound(ctx, domain, route)
 			e.writeReply(ctx)
 		}
-		return notContinuePipeline
+		return flowStop
 	}
 
 	// No controller or action found for the route
 	if err := ctx.setTarget(route); err == errTargetNotFound {
 		handleRouteNotFound(ctx, domain, route)
 		e.writeReply(ctx)
-		return notContinuePipeline
+		return flowStop
 	}
 
-	return continuePipeline
+	return flowCont
 }
 
 // loadSession method loads session from request for `stateful` session.
