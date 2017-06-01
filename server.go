@@ -73,6 +73,7 @@ func Start() {
 		ReadTimeout:    appHTTPReadTimeout,
 		WriteTimeout:   appHTTPWriteTimeout,
 		MaxHeaderBytes: appHTTPMaxHdrBytes,
+		ErrorLog:       log.ToGoLogger(),
 	}
 
 	aahServer.SetKeepAlivesEnabled(AppConfig().BoolDefault("server.keep_alive", true))
