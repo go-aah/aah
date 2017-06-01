@@ -5,21 +5,34 @@
 package aah
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
+	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
 
-const dirStatic = "static"
+const (
+	dirStatic = "static"
+	sniffLen  = 512
+)
+
+var (
+	staticDfltCacheHdr    string
+	staticMimeCacheHdrMap = make(map[string]string)
+	errSeeker             = errors.New("static: seeker can't seek")
+)
 
 // serveStatic method static file/directory delivery.
 func (e *engine) serveStatic(ctx *Context) error {
@@ -64,6 +77,12 @@ func (e *engine) serveStatic(ctx *Context) error {
 
 	// Serve file
 	if fi.Mode().IsRegular() {
+		// Write `Cache-Control` header based on `cache.static.*`
+		if contentType, err := detectStaticContentType(filePath, f); err == nil {
+			ctx.Res.Header().Set(ahttp.HeaderContentType, contentType)
+			ctx.Res.Header().Set(ahttp.HeaderCacheControl, cacheHeader(contentType))
+		}
+
 		// 'OnPreReply' server extension point
 		publishOnPreReplyEvent(ctx)
 
@@ -79,7 +98,7 @@ func (e *engine) serveStatic(ctx *Context) error {
 		// redirect if the directory name doesn't end in a slash
 		if req.Path[len(req.Path)-1] != '/' {
 			log.Debugf("redirecting to dir: %s", req.Path+"/")
-			http.Redirect(res, req.Raw, path.Base(req.Path)+"/", http.StatusFound)
+			http.Redirect(res, req.Raw, path.Base(req.Path)+"/", http.StatusMovedPermanently)
 			return nil
 		}
 
@@ -159,7 +178,58 @@ func getHTTPDirAndFilePath(ctx *Context) (http.Dir, string) {
 	return http.Dir(filepath.Join(AppBaseDir(), ctx.route.Dir)), ctx.Req.PathValue("filepath")
 }
 
+// detectStaticContentType method to identify the static file content-type.
+func detectStaticContentType(file string, content io.ReadSeeker) (string, error) {
+	ctype := mime.TypeByExtension(filepath.Ext(file))
+	if ctype == "" {
+		// read a chunk to decide between utf-8 text and binary
+		var buf [sniffLen]byte
+		n, _ := io.ReadFull(content, buf[:])
+		ctype = http.DetectContentType(buf[:n])
+
+		// rewind to output whole file
+		if _, err := content.Seek(0, io.SeekStart); err != nil {
+			return "", errSeeker
+		}
+	}
+	return ctype, nil
+}
+
+func cacheHeader(contentType string) string {
+	if idx := strings.IndexByte(contentType, ';'); idx > 0 {
+		contentType = contentType[:idx]
+	}
+
+	if hdrValue, found := staticMimeCacheHdrMap[contentType]; found {
+		return hdrValue
+	}
+	return staticDfltCacheHdr
+}
+
 // Sort interface for Directory list
 func (s byName) Len() int           { return len(s) }
 func (s byName) Less(i, j int) bool { return s[i].Name() < s[j].Name() }
 func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+
+// parseStaticMimeCacheMap method parses the static file cache configuration
+// `cache.static.*`.
+func parseStaticMimeCacheMap(e *Event) {
+	cfg := AppConfig()
+	staticDfltCacheHdr = cfg.StringDefault("cache.static.default_cache_control", "max-age=31536000, public")
+	keyPrefix := "cache.static.mime_types"
+
+	for _, k := range cfg.KeysByPath(keyPrefix) {
+		mimes := strings.Split(cfg.StringDefault(keyPrefix+"."+k+".mime", ""), ",")
+		for _, m := range mimes {
+			if ess.IsStrEmpty(m) {
+				continue
+			}
+			hdr := cfg.StringDefault(keyPrefix+"."+k+".cache_control", staticDfltCacheHdr)
+			staticMimeCacheHdrMap[strings.TrimSpace(strings.ToLower(m))] = hdr
+		}
+	}
+}
+
+func init() {
+	OnStart(parseStaticMimeCacheMap)
+}
