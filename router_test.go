@@ -88,6 +88,44 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	assert.Equal(t, "localhost", domain.key())
 }
 
+func TestRouterWildcardSubdomain(t *testing.T) {
+	router, err := createRouter("routes.conf")
+	assert.FailNowOnError(t, err, "")
+
+	reqCancelBooking := createHTTPRequest("localhost:8080", "/hotels/12345/cancel")
+	reqCancelBooking.Method = ahttp.MethodPost
+	domain := router.FindDomain(reqCancelBooking)
+	assert.Equal(t, "localhost", domain.Host)
+
+	rootDomain := router.RootDomain()
+	assert.Equal(t, "localhost", rootDomain.Host)
+	assert.Equal(t, "8080", rootDomain.Port)
+
+	reqWildcardUsername1 := createHTTPRequest("username1.localhost:8080", "/")
+	reqWildcardUsername1.Method = ahttp.MethodGet
+	domain = router.FindDomain(reqWildcardUsername1)
+	assert.Equal(t, "*.localhost", domain.Host)
+	assert.Equal(t, "8080", domain.Port)
+
+	route1, _, rts1 := domain.Lookup(reqWildcardUsername1)
+	assert.False(t, rts1)
+	assert.Equal(t, "index", route1.Name)
+	assert.Equal(t, "wildcard/AppController", route1.Controller)
+	assert.Equal(t, "/", route1.Path)
+
+	reqWildcardUsername2 := createHTTPRequest("username2.localhost:8080", "/")
+	reqWildcardUsername2.Method = ahttp.MethodGet
+	domain = router.FindDomain(reqWildcardUsername2)
+	assert.Equal(t, "*.localhost", domain.Host)
+	assert.Equal(t, "8080", domain.Port)
+
+	route2, _, rts2 := domain.Lookup(reqWildcardUsername2)
+	assert.False(t, rts2)
+	assert.Equal(t, "index", route2.Name)
+	assert.Equal(t, "wildcard/AppController", route2.Controller)
+	assert.Equal(t, "/", route2.Path)
+}
+
 func TestRouterStaticLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
@@ -226,7 +264,7 @@ func TestRouterDomainAddresses(t *testing.T) {
 	assert.FailNowOnError(t, err, "")
 
 	addresses := router.DomainAddresses()
-	assert.Equal(t, "localhost:8080", addresses[0])
+	assert.True(t, len(addresses) == 2)
 }
 
 func TestRouterRegisteredActions(t *testing.T) {

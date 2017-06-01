@@ -3,13 +3,14 @@
 // license that can be found in the LICENSE file.
 //
 // Updated for aah framework purpose.
-// From upstream updated as of last commit date Feb 06, 2016 git#a7a8c64.
+// From upstream updated as of last commit date Mar 24, 2017 git#6f3f391.
 
 package router
 
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -521,6 +522,44 @@ func TestTreeInvalidNodeType(t *testing.T) {
 
 	_, _, err = tree.findCaseInsensitive("/test", true)
 	assert.Equal(t, panicMsg, err.Error())
+}
+
+func TestTreeWildcardConflictEx(t *testing.T) {
+	conflicts := [...]struct {
+		route        string
+		segPath      string
+		existPath    string
+		existSegPath string
+	}{
+		{"/who/are/foo", "/foo", `/who/are/\*you`, `/\*you`},
+		{"/who/are/foo/", "/foo/", `/who/are/\*you`, `/\*you`},
+		{"/who/are/foo/bar", "/foo/bar", `/who/are/\*you`, `/\*you`},
+		{"/conxxx", "xxx", `/con:tact`, `:tact`},
+		{"/conooo/xxx", "ooo", `/con:tact`, `:tact`},
+	}
+
+	for _, conflict := range conflicts {
+		// I have to re-create a 'tree', because the 'tree' will be
+		// in an inconsistent state when the loop recovers from the
+		// panic which threw by 'addRoute' function.
+		tree := &node{}
+		routes := [...]string{
+			"/con:tact",
+			"/who/are/*you",
+			"/who/foo/hello",
+		}
+
+		for _, route := range routes {
+			_ = tree.add(route, "adding route")
+		}
+
+		err := tree.add(conflict.route, "conflict.route")
+		fmt.Println(err)
+
+		if !regexp.MustCompile(fmt.Sprintf("'%s' in new path .* conflicts with existing wildcard '%s' in existing prefix '%s'", conflict.segPath, conflict.existSegPath, conflict.existPath)).MatchString(err.Error()) {
+			t.Fatalf("invalid wildcard conflict error (%v)", err.Error())
+		}
+	}
 }
 
 func checkRequests(t *testing.T, tree *node, requests testRequests) {

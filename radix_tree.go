@@ -5,7 +5,7 @@
 // in the LICENSE file at https://raw.githubusercontent.com/julienschmidt/httprouter/master/LICENSE.
 //
 // Customized and improved for aah framework purpose.
-// From upstream updated as of last commit date Dec 03, 2016 git#d35c3c3.
+// From upstream updated as of last commit date Mar 24, 2016 git#6f3f391.
 
 package router
 
@@ -147,7 +147,12 @@ func (n *node) add(path string, value interface{}) error {
 						continue walk
 					} else {
 						// Wildcard conflict
-						pathSeg := strings.SplitN(path, SlashString, 2)[0]
+						var pathSeg string
+						if n.nType == catchAll {
+							pathSeg = path
+						} else {
+							pathSeg = strings.SplitN(path, "/", 2)[0]
+						}
 						prefix := fullPath[:strings.Index(fullPath, pathSeg)] + n.path
 
 						return fmt.Errorf("'%s' in new path '%s' conflicts with existing "+
