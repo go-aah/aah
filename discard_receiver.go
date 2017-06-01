@@ -4,7 +4,12 @@
 
 package log
 
-import "aahframework.org/config.v0"
+import (
+	"io"
+	"io/ioutil"
+
+	"aahframework.org/config.v0"
+)
 
 var _ Receiver = &DiscardReceiver{}
 
@@ -30,4 +35,9 @@ func (d *DiscardReceiver) IsCallerInfo() bool {
 
 // Log method writes the buf to
 func (d *DiscardReceiver) Log(_ *Entry) {
+}
+
+// Writer method returns the current log writer.
+func (d *DiscardReceiver) Writer() io.Writer {
+	return ioutil.Discard
 }

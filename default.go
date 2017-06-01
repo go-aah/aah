@@ -6,6 +6,8 @@ package log
 
 import (
 	"fmt"
+	"io"
+	slog "log"
 	"os"
 
 	"aahframework.org/config.v0"
@@ -121,6 +123,16 @@ func Panicf(format string, v ...interface{}) {
 func Panicln(format string, v ...interface{}) {
 	std.output(levelPanic, 3, &format, v...)
 	panic(fmt.Sprintf(format, v...))
+}
+
+// Writer method returns the writer of default logger.
+func Writer() io.Writer {
+	return std.receiver.Writer()
+}
+
+// ToGoLogger method wraps the current log writer into Go Logger instance.
+func ToGoLogger() *slog.Logger {
+	return std.ToGoLogger()
 }
 
 // SetDefaultLogger method sets the given logger instance as default logger.

@@ -72,10 +72,16 @@ func TestMisc(t *testing.T) {
 	discard.Log(&Entry{})
 	_ = discard.SetPattern("nothing")
 	assert.False(t, discard.IsCallerInfo())
+	assert.NotNil(t, discard.Writer())
 
 	// util
 	assert.Nil(t, getReceiverByName("SMTP"))
 	assert.Equal(t, "", formatTime(time.Time{}))
+
+	stdLogger := ToGoLogger()
+	assert.NotNil(t, stdLogger)
+	assert.NotNil(t, Writer())
+	stdLogger.Print("This is aah logger binds go logger")
 }
 
 func testPanic(logger *Logger, method, msg string) {

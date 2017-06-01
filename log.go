@@ -24,6 +24,8 @@ package log
 import (
 	"errors"
 	"fmt"
+	"io"
+	slog "log"
 	"os"
 	"strings"
 	"sync"
@@ -65,7 +67,7 @@ const (
 
 var (
 	// Version no. of aahframework.org/log library
-	Version = "0.3.2"
+	Version = "0.4"
 
 	// FmtFlags is the list of log format flags supported by aah/log library
 	// Usage of flag order is up to format composition.
@@ -113,6 +115,7 @@ type (
 		Init(cfg *config.Config) error
 		SetPattern(pattern string) error
 		IsCallerInfo() bool
+		Writer() io.Writer
 		Log(e *Entry)
 	}
 
@@ -201,6 +204,11 @@ func (l *Logger) SetReceiver(receiver Receiver) error {
 
 	l.receiver = receiver
 	return l.receiver.Init(l.cfg)
+}
+
+// ToGoLogger method wraps the current log writer into Go Logger instance.
+func (l *Logger) ToGoLogger() *slog.Logger {
+	return slog.New(l.receiver.Writer(), "", slog.LstdFlags)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

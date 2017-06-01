@@ -121,4 +121,5 @@ func testConsoleLogger(t *testing.T, cfgStr string) {
 	logger.Error("Yes, yes, yes - finally an error")
 	logger.Errorf("Yes, yes, yes - %v", "finally an error")
 
+	assert.NotNil(t, logger.ToGoLogger())
 }

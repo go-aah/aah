@@ -111,6 +111,11 @@ func (f *FileReceiver) Log(entry *Entry) {
 	f.stats.lines++
 }
 
+// Writer method returns the current log writer.
+func (f *FileReceiver) Writer() io.Writer {
+	return f.out
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // FileReceiver Unexported methods
 //___________________________________
