@@ -262,24 +262,9 @@ func (e *engine) writeReply(ctx *Context) {
 	// resolving view template
 	e.resolveView(ctx)
 
-	// Render and detect the errors earlier, framework can write error info
-	// without messing with response.
-	// HTTP Body
-	reply.body = e.getBuffer()
-	if reply.Rdr != nil {
-		if jsonp, ok := reply.Rdr.(*JSON); ok && ctx.Req.IsJSONP() && jsonp.IsJSONP {
-			if ess.IsStrEmpty(jsonp.Callback) {
-				jsonp.Callback = ctx.Req.QueryValue("callback")
-			}
-		}
-
-		if err := reply.Rdr.Render(reply.body); err != nil {
-			log.Error("Render response body error: ", err)
-			reply.InternalServerError()
-			reply.body.Reset()
-			reply.body.WriteString("500 Internal Server Error\n")
-		}
-	}
+	// Render it and detect the errors earlier. So that framework can write
+	// error info without messing with response on the wire.
+	e.doRender(ctx)
 
 	// Gzip
 	if !isNoGzipStatusCode(reply.Code) && reply.body.Len() != 0 {
@@ -299,7 +284,7 @@ func (e *engine) writeReply(ctx *Context) {
 	ctx.Res.WriteHeader(reply.Code)
 
 	// Write response buffer on the wire
-	if minifier == nil ||
+	if minifier == nil || !appIsProfileProd ||
 		isNoGzipStatusCode(reply.Code) ||
 		!ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
 		_, _ = reply.body.WriteTo(ctx.Res)

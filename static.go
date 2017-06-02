@@ -77,10 +77,14 @@ func (e *engine) serveStatic(ctx *Context) error {
 
 	// Serve file
 	if fi.Mode().IsRegular() {
-		// Write `Cache-Control` header based on `cache.static.*`
+		// `Cache-Control` header based on `cache.static.*`
 		if contentType, err := detectStaticContentType(filePath, f); err == nil {
 			ctx.Res.Header().Set(ahttp.HeaderContentType, contentType)
-			ctx.Res.Header().Set(ahttp.HeaderCacheControl, cacheHeader(contentType))
+
+			// apply cache header if environment profile is `prod`
+			if appIsProfileProd {
+				ctx.Res.Header().Set(ahttp.HeaderCacheControl, cacheHeader(contentType))
+			}
 		}
 
 		// 'OnPreReply' server extension point
