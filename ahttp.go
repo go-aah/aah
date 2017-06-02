@@ -13,15 +13,15 @@ const Version = "0.7"
 
 // HTTP Method names
 const (
-	MethodGet     = "GET"
-	MethodHead    = "HEAD"
-	MethodOptions = "OPTIONS"
-	MethodPost    = "POST"
-	MethodPut     = "PUT"
-	MethodPatch   = "PATCH"
-	MethodDelete  = "DELETE"
-	MethodConnect = "CONNECT"
-	MethodTrace   = "TRACE"
+	MethodGet     = http.MethodGet
+	MethodHead    = http.MethodHead
+	MethodOptions = http.MethodOptions
+	MethodPost    = http.MethodPost
+	MethodPut     = http.MethodPut
+	MethodPatch   = http.MethodPatch
+	MethodDelete  = http.MethodDelete
+	MethodConnect = http.MethodConnect
+	MethodTrace   = http.MethodTrace
 )
 
 // TimeFormat is the time format to use when generating times in HTTP
