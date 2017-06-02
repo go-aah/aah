@@ -9,7 +9,7 @@ package ahttp
 import "net/http"
 
 // Version no. of aah framework ahttp library
-const Version = "0.6"
+const Version = "0.7"
 
 // HTTP Method names
 const (

@@ -100,7 +100,7 @@ type (
 // instance from Go HTTP request.
 func ParseRequest(r *http.Request, req *Request) *Request {
 	req.Schema = identifyScheme(r)
-	req.Host = r.Host
+	req.Host = host(r)
 	req.Method = r.Method
 	req.Path = r.URL.Path
 	req.Header = r.Header
@@ -301,6 +301,13 @@ func clientIP(req *http.Request) string {
 	}
 
 	return ""
+}
+
+func host(r *http.Request) string {
+	if ess.IsStrEmpty(r.URL.Host) {
+		return r.Host
+	}
+	return r.URL.Host
 }
 
 func getReferer(hdr http.Header) string {

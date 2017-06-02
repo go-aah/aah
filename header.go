@@ -122,6 +122,7 @@ func NegotiateContentType(req *http.Request) *ContentType {
 	// 2) From Accept header
 	spec := ParseAccept(req, HeaderAccept).MostQualified()
 	if spec == nil {
+		// if parsed spec is nil return content type as HTML.
 		return ContentTypeHTML
 	}
 
