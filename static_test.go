@@ -84,41 +84,41 @@ func TestParseStaticCacheMap(t *testing.T) {
 }
 
 func TestStaticDetectContentType(t *testing.T) {
-	v, _ := detectStaticContentType("image1.svg", nil)
+	v, _ := detectFileContentType("image1.svg", nil)
 	assert.Equal(t, "image/svg+xml", v)
 
-	v, _ = detectStaticContentType("image2.png", nil)
+	v, _ = detectFileContentType("image2.png", nil)
 	assert.Equal(t, "image/png", v)
 
-	v, _ = detectStaticContentType("image3.jpg", nil)
+	v, _ = detectFileContentType("image3.jpg", nil)
 	assert.Equal(t, "image/jpeg", v)
 
-	v, _ = detectStaticContentType("image4.jpeg", nil)
+	v, _ = detectFileContentType("image4.jpeg", nil)
 	assert.Equal(t, "image/jpeg", v)
 
-	v, _ = detectStaticContentType("file.pdf", nil)
+	v, _ = detectFileContentType("file.pdf", nil)
 	assert.Equal(t, "application/pdf", v)
 
-	v, _ = detectStaticContentType("file.js", nil)
+	v, _ = detectFileContentType("file.js", nil)
 	assert.Equal(t, "application/javascript", v)
 
-	v, _ = detectStaticContentType("file.txt", nil)
+	v, _ = detectFileContentType("file.txt", nil)
 	assert.Equal(t, "text/plain; charset=utf-8", v)
 
-	v, _ = detectStaticContentType("file.html", nil)
+	v, _ = detectFileContentType("file.html", nil)
 	assert.Equal(t, "text/html; charset=utf-8", v)
 
-	v, _ = detectStaticContentType("file.xml", nil)
+	v, _ = detectFileContentType("file.xml", nil)
 	assert.Equal(t, "application/xml", v)
 
-	v, _ = detectStaticContentType("file.json", nil)
+	v, _ = detectFileContentType("file.json", nil)
 	assert.Equal(t, "application/json", v)
 
-	v, _ = detectStaticContentType("file.css", nil)
+	v, _ = detectFileContentType("file.css", nil)
 	assert.Equal(t, "text/css; charset=utf-8", v)
 
 	content, _ := ioutil.ReadFile(filepath.Join(getTestdataPath(), "test-image.noext"))
-	v, _ = detectStaticContentType("test-image.noext", bytes.NewReader(content))
+	v, _ = detectFileContentType("test-image.noext", bytes.NewReader(content))
 	assert.Equal(t, "image/png", v)
 }
 

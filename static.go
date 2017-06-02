@@ -78,7 +78,7 @@ func (e *engine) serveStatic(ctx *Context) error {
 	// Serve file
 	if fi.Mode().IsRegular() {
 		// `Cache-Control` header based on `cache.static.*`
-		if contentType, err := detectStaticContentType(filePath, f); err == nil {
+		if contentType, err := detectFileContentType(filePath, f); err == nil {
 			ctx.Res.Header().Set(ahttp.HeaderContentType, contentType)
 
 			// apply cache header if environment profile is `prod`
@@ -182,8 +182,8 @@ func getHTTPDirAndFilePath(ctx *Context) (http.Dir, string) {
 	return http.Dir(filepath.Join(AppBaseDir(), ctx.route.Dir)), ctx.Req.PathValue("filepath")
 }
 
-// detectStaticContentType method to identify the static file content-type.
-func detectStaticContentType(file string, content io.ReadSeeker) (string, error) {
+// detectFileContentType method to identify the static file content-type.
+func detectFileContentType(file string, content io.ReadSeeker) (string, error) {
 	ctype := mime.TypeByExtension(filepath.Ext(file))
 	if ctype == "" {
 		// read a chunk to decide between utf-8 text and binary
