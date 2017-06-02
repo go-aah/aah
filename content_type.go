@@ -28,9 +28,27 @@ var (
 		},
 	}
 
+	// ContentTypeJSONText JSON text content type.
+	ContentTypeJSONText = &ContentType{
+		Mime: "text/json",
+		Exts: []string{".json"},
+		Params: map[string]string{
+			"charset": "utf-8",
+		},
+	}
+
 	// ContentTypeXML XML content type.
 	ContentTypeXML = &ContentType{
 		Mime: "application/xml",
+		Exts: []string{".xml"},
+		Params: map[string]string{
+			"charset": "utf-8",
+		},
+	}
+
+	// ContentTypeXMLText XML text content type.
+	ContentTypeXMLText = &ContentType{
+		Mime: "text/xml",
 		Exts: []string{".xml"},
 		Params: map[string]string{
 			"charset": "utf-8",

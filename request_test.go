@@ -55,7 +55,7 @@ func TestHTTPParseRequest(t *testing.T) {
 	req.Header.Add(HeaderAccept, "application/json;charset=utf-8")
 	req.Header.Add(HeaderReferer, "http://localhost:8080/home.html")
 	req.Header.Add(HeaderAcceptLanguage, "en-gb;leve=1;q=0.8, da, en;level=2;q=0.7, en-us;q=gg")
-	req.URL, _ = url.Parse("http://localhost:8080/welcome1.html?_ref=true")
+	req.URL, _ = url.Parse("/welcome1.html?_ref=true")
 
 	aahReq := ParseRequest(req, &Request{})
 
