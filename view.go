@@ -53,8 +53,7 @@ func SetMinifier(fn MinifierFunc) {
 	if minifier == nil {
 		minifier = fn
 	} else {
-		fi := ess.GetFunctionInfo(minifier)
-		log.Warnf("Minifier is already set: %v", fi.QualifiedName)
+		log.Warnf("Minifier is already set: %v", funcName(minifier))
 	}
 }
 
@@ -172,21 +171,25 @@ func findViewTemplate(ctx *Context) {
 		if strings.HasSuffix(tmplPath, controllerNameSuffix) {
 			tmplPath = tmplPath[:len(tmplPath)-controllerNameSuffixLen]
 		}
-
-		if !ess.IsStrEmpty(ctx.controller.Namespace) {
-			tmplPath = filepath.Join(ctx.controller.Namespace, tmplPath)
-		}
-	} else { // user provided template info via `Reply.HTMLf("/admin/index.html", data)`
+	} else {
+		// user provided view info like layout, filename
+		// scenario's:
+		//  1. filename and filename with relative path
+		//  2. filename with root page path
 		tmplName = filepath.Base(htmlRdr.Filename)
 		tmplPath = filepath.Dir(htmlRdr.Filename)
 
 		if strings.HasPrefix(htmlRdr.Filename, "/") {
 			tmplPath = strings.TrimLeft(tmplPath, "/")
 		} else {
-			tmplPath = filepath.Join(ctx.controller.Namespace, tmplPath)
+			cName := ctx.controller.Name()
+			if strings.HasSuffix(cName, controllerNameSuffix) {
+				cName = cName[:len(cName)-controllerNameSuffixLen]
+			}
+			tmplPath = filepath.Join(cName, tmplPath)
 		}
 	}
-	tmplPath = filepath.Join("pages", tmplPath)
+	tmplPath = filepath.Join("pages", ctx.controller.Namespace, tmplPath)
 
 	log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
 	var err error

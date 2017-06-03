@@ -65,6 +65,12 @@ func Start() {
 	log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
 	log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
 
+	for event := range AppEventStore().subscribers {
+		for _, c := range AppEventStore().subscribers[event] {
+			log.Debugf("Callback: %s, subscribed to event: %s", funcName(c.Callback), event)
+		}
+	}
+
 	// Publish `OnStart` event
 	AppEventStore().sortAndPublishSync(&Event{Name: EventOnStart})
 

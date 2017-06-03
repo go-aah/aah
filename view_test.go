@@ -144,8 +144,8 @@ func TestViewResolveView(t *testing.T) {
 	ctx.Reply().HTMLf("user/index.html", Data{})
 	e.resolveView(ctx)
 	htmlRdr = ctx.Reply().Rdr.(*HTML)
-	assert.Equal(t, "master.html", htmlRdr.Layout)
 	assert.Equal(t, "user/index.html", htmlRdr.Filename)
+	assert.Equal(t, "views/pages/app/user/index.html", htmlRdr.ViewArgs["ViewNotFound"])
 
 	// cleanup
 	appViewEngine = nil

@@ -256,7 +256,7 @@ func (r *Reply) HTMLlf(layout, filename string, data Data) *Reply {
 		Filename: filename,
 		ViewArgs: data,
 	}
-	r.ContentType(ahttp.ContentTypeHTML.Raw())
+	r.ContentType(ahttp.ContentTypeHTML.String())
 	return r
 }
 
