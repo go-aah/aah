@@ -246,9 +246,17 @@ func (e *engine) executeMiddlewares(ctx *Context) {
 func (e *engine) writeReply(ctx *Context) {
 	reply := ctx.Reply()
 
-	if reply.done { // Response already written on the wire, don't go forward.
+	// Response already written on the wire, don't go forward.
+	// refer `ctx.Abort()` method.
+	if reply.done {
 		return
 	}
+
+	// HTTP headers
+	e.writeHeaders(ctx)
+
+	// Set Cookies
+	e.setCookies(ctx)
 
 	if reply.redirect { // handle redirects
 		log.Debugf("Redirecting to '%s' with status '%d'", reply.path, reply.Code)
@@ -273,12 +281,6 @@ func (e *engine) writeReply(ctx *Context) {
 
 	// 'OnPreReply' server extension point
 	publishOnPreReplyEvent(ctx)
-
-	// HTTP headers
-	e.writeHeaders(ctx)
-
-	// Set Cookies
-	e.setCookies(ctx)
 
 	// HTTP status
 	ctx.Res.WriteHeader(reply.Code)
