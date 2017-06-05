@@ -24,6 +24,7 @@ var (
 	appIsDefaultLayoutEnabled bool
 	appViewFileCaseSensitive  bool
 	appIsExternalTmplEngine   bool
+	appThemeName              string
 	viewNotFoundTemplate      = template.Must(template.New("not_found").Parse(`
 		<strong>View not found: {{ .ViewNotFound }}</strong>
 	`))
@@ -76,6 +77,8 @@ func initViewEngine(viewDir string, appCfg *config.Config) error {
 	appDefaultTmplLayout = "master" + appViewExt
 	appViewFileCaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
 	appIsDefaultLayoutEnabled = appCfg.BoolDefault("view.default_layout", true)
+
+	appThemeName = appCfg.StringDefault("view.theme_name", "")
 
 	// initialize if external View Engine is not registered.
 	if appViewEngine == nil {
@@ -189,7 +192,8 @@ func findViewTemplate(ctx *Context) {
 			tmplPath = filepath.Join(cName, tmplPath)
 		}
 	}
-	tmplPath = filepath.Join("pages", ctx.controller.Namespace, tmplPath)
+	// # views/pages/frontend/default/app/index.html
+	tmplPath = filepath.Join("pages", ctx.controller.Namespace, appThemeName, tmplPath)
 
 	log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
 	var err error
