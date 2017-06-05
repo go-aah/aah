@@ -21,7 +21,6 @@ var (
 	appViewEngine             view.Enginer
 	appViewExt                string
 	appDefaultTmplLayout      string
-	appThemeName              string
 	appIsDefaultLayoutEnabled bool
 	appViewFileCaseSensitive  bool
 	appIsExternalTmplEngine   bool
@@ -75,7 +74,6 @@ func initViewEngine(viewDir string, appCfg *config.Config) error {
 	// application config values
 	appViewExt = appCfg.StringDefault("view.ext", ".html")
 	appDefaultTmplLayout = "master" + appViewExt
-	appThemeName = appCfg.StringDefault("view.theme_name", "")
 	appViewFileCaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
 	appIsDefaultLayoutEnabled = appCfg.BoolDefault("view.default_layout", true)
 
@@ -171,7 +169,7 @@ func findViewTemplate(ctx *Context) {
 		tmplPath = tmplControllerName(ctx)
 
 		// # views/pages/<namespace-subpackage>/<theme_name>/app/index.html
-		tmplPath = filepath.Join(ctx.controller.Namespace, appThemeName, tmplPath)
+		tmplPath = filepath.Join(ctx.controller.Namespace, htmlRdr.Theme, tmplPath)
 	} else {
 		// User provided view info like layout, filename.
 		// Taking full-control of view rendering.
@@ -185,7 +183,7 @@ func findViewTemplate(ctx *Context) {
 			tmplPath = strings.TrimLeft(tmplPath, "/")
 		} else {
 			// # views/pages/<namespace-subpackage>/<theme_name>/app/index.html
-			tmplPath = filepath.Join(ctx.controller.Namespace, appThemeName, tmplControllerName(ctx), tmplPath)
+			tmplPath = filepath.Join(ctx.controller.Namespace, htmlRdr.Theme, tmplControllerName(ctx), tmplPath)
 		}
 	}
 

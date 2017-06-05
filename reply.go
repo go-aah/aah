@@ -220,17 +220,19 @@ func (r *Reply) FileInline(file, targetName string) *Reply {
 // HTML method renders given data with auto mapped template name and layout
 // by framework. Also it sets HTTP 'Content-Type' as 'text/html; charset=utf-8'.
 // By default aah framework renders the template based on
-// 1) path 'Controller.Action',
-// 2) view extension 'view.ext' and
-// 3) case sensitive 'view.case_sensitive' from aah.conf
-// 4) default layout is 'master.html'
+// 1) path 'Namespace/Sub-package' of Controller,
+// 2) path 'Controller.Action',
+// 3) view extension 'view.ext' and
+// 4) case sensitive 'view.case_sensitive' from aah.conf
+// 5) default layout is 'master.html'
 //    E.g.:
+//      Namespace/Sub-package: frontend
 //      Controller: App
 //      Action: Login
 //      view.ext: html
 //
-//      template => /views/pages/app/login.html
-//               => /views/pages/App/Login.html
+//      template => /views/pages/frontend/app/login.html
+//               => /views/pages/frontend/App/Login.html
 //
 func (r *Reply) HTML(data Data) *Reply {
 	return r.HTMLlf("", "", data)
@@ -248,11 +250,26 @@ func (r *Reply) HTMLf(filename string, data Data) *Reply {
 	return r.HTMLlf("", filename, data)
 }
 
+// HTMLtf method renders based on given theme, filename and data. Refer `Reply.HTML(...)`
+// method.
+// 	Eg.: views/pages/<namespace-subpackage>/<theme>/<controller>/<filename>.html
+func (r *Reply) HTMLtf(theme, filename string, data Data) *Reply {
+	return r.HTMLltf("", theme, filename, data)
+}
+
 // HTMLlf method renders based on given layout, filename and data. Refer `Reply.HTML(...)`
 // method.
 func (r *Reply) HTMLlf(layout, filename string, data Data) *Reply {
+	return r.HTMLltf(layout, "", filename, data)
+}
+
+// HTMLltf method renders based on given layout, theme, filename and data. Refer `Reply.HTML(...)`
+// method.
+// 	Eg.: views/pages/<namespace-subpackage>/<theme>/<controller>/<filename>.html
+func (r *Reply) HTMLltf(layout, theme, filename string, data Data) *Reply {
 	r.Rdr = &HTML{
 		Layout:   layout,
+		Theme:    theme,
 		Filename: filename,
 		ViewArgs: data,
 	}
