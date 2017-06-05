@@ -147,7 +147,24 @@ func TestViewResolveView(t *testing.T) {
 	assert.Equal(t, "user/index.html", htmlRdr.Filename)
 	assert.Equal(t, "views/pages/app/user/index.html", htmlRdr.ViewArgs["ViewNotFound"])
 
+	// Theme name option
+	appThemeName = "default1"
+	ctx.controller = &controllerInfo{Type: reflect.TypeOf(AppController{}), Namespace: "frontend"}
+	ctx.Reply().HTMLf("index.html", Data{})
+	e.resolveView(ctx)
+	htmlRdr = ctx.Reply().Rdr.(*HTML)
+	assert.Equal(t, "index.html", htmlRdr.Filename)
+	assert.Equal(t, "views/pages/frontend/default1/app/index.html", htmlRdr.ViewArgs["ViewNotFound"])
+
+	// Theme name option
+	ctx.Reply().HTMLf("/index.html", Data{})
+	e.resolveView(ctx)
+	htmlRdr = ctx.Reply().Rdr.(*HTML)
+	assert.Equal(t, "/index.html", htmlRdr.Filename)
+	assert.Equal(t, "views/pages/index.html", htmlRdr.ViewArgs["ViewNotFound"])
+
 	// cleanup
+	appThemeName = ""
 	appViewEngine = nil
 }
 

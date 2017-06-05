@@ -21,10 +21,10 @@ var (
 	appViewEngine             view.Enginer
 	appViewExt                string
 	appDefaultTmplLayout      string
+	appThemeName              string
 	appIsDefaultLayoutEnabled bool
 	appViewFileCaseSensitive  bool
 	appIsExternalTmplEngine   bool
-	appThemeName              string
 	viewNotFoundTemplate      = template.Must(template.New("not_found").Parse(`
 		<strong>View not found: {{ .ViewNotFound }}</strong>
 	`))
@@ -75,10 +75,9 @@ func initViewEngine(viewDir string, appCfg *config.Config) error {
 	// application config values
 	appViewExt = appCfg.StringDefault("view.ext", ".html")
 	appDefaultTmplLayout = "master" + appViewExt
+	appThemeName = appCfg.StringDefault("view.theme_name", "")
 	appViewFileCaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
 	appIsDefaultLayoutEnabled = appCfg.BoolDefault("view.default_layout", true)
-
-	appThemeName = appCfg.StringDefault("view.theme_name", "")
 
 	// initialize if external View Engine is not registered.
 	if appViewEngine == nil {
@@ -169,15 +168,15 @@ func findViewTemplate(ctx *Context) {
 	// If user not provided the template info, auto resolve by convention
 	if ess.IsStrEmpty(htmlRdr.Filename) {
 		tmplName = ctx.action.Name + appViewExt
-		tmplPath = ctx.controller.Name()
+		tmplPath = tmplControllerName(ctx)
 
-		if strings.HasSuffix(tmplPath, controllerNameSuffix) {
-			tmplPath = tmplPath[:len(tmplPath)-controllerNameSuffixLen]
-		}
+		// # views/pages/<namespace-subpackage>/<theme_name>/app/index.html
+		tmplPath = filepath.Join(ctx.controller.Namespace, appThemeName, tmplPath)
 	} else {
-		// user provided view info like layout, filename
-		// scenario's:
-		//  1. filename and filename with relative path
+		// User provided view info like layout, filename.
+		// Taking full-control of view rendering.
+		// Scenario's:
+		//  1. filename with relative path
 		//  2. filename with root page path
 		tmplName = filepath.Base(htmlRdr.Filename)
 		tmplPath = filepath.Dir(htmlRdr.Filename)
@@ -185,15 +184,12 @@ func findViewTemplate(ctx *Context) {
 		if strings.HasPrefix(htmlRdr.Filename, "/") {
 			tmplPath = strings.TrimLeft(tmplPath, "/")
 		} else {
-			cName := ctx.controller.Name()
-			if strings.HasSuffix(cName, controllerNameSuffix) {
-				cName = cName[:len(cName)-controllerNameSuffixLen]
-			}
-			tmplPath = filepath.Join(cName, tmplPath)
+			// # views/pages/<namespace-subpackage>/<theme_name>/app/index.html
+			tmplPath = filepath.Join(ctx.controller.Namespace, appThemeName, tmplControllerName(ctx), tmplPath)
 		}
 	}
-	// # views/pages/frontend/default/app/index.html
-	tmplPath = filepath.Join("pages", ctx.controller.Namespace, appThemeName, tmplPath)
+
+	tmplPath = filepath.Join("pages", tmplPath)
 
 	log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
 	var err error
@@ -223,6 +219,15 @@ func sanatizeValue(value interface{}) interface{} {
 	default:
 		return v
 	}
+}
+
+func tmplControllerName(ctx *Context) string {
+	cName := ctx.controller.Name()
+
+	if strings.HasSuffix(cName, controllerNameSuffix) {
+		cName = cName[:len(cName)-controllerNameSuffixLen]
+	}
+	return cName
 }
 
 func init() {
