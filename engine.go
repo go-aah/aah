@@ -223,9 +223,6 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 func (e *engine) loadSession(ctx *Context) {
 	if AppSessionManager().IsStateful() {
 		ctx.session = AppSessionManager().GetSession(ctx.Req.Raw)
-		if ctx.session != nil {
-			ctx.AddViewArg(keySessionValues, ctx.session)
-		}
 	}
 }
 
@@ -352,6 +349,9 @@ func (e *engine) setCookies(ctx *Context) {
 	}
 
 	if AppSessionManager().IsStateful() && ctx.session != nil {
+		// Pass it to view args before saving cookie
+		session := *ctx.session
+		ctx.AddViewArg(keySessionValues, &session)
 		if err := AppSessionManager().SaveSession(ctx.Res, ctx.session); err != nil {
 			log.Error(err)
 		}

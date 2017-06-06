@@ -115,7 +115,6 @@ func (ctx *Context) Subdomain() string {
 func (ctx *Context) Session() *session.Session {
 	if ctx.session == nil {
 		ctx.session = AppSessionManager().NewSession()
-		ctx.AddViewArg(keySessionValues, ctx.session)
 	}
 	return ctx.session
 }
