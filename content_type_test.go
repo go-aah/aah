@@ -67,7 +67,6 @@ func TestHTTPNegotiateContentType(t *testing.T) {
 	req = createRawHTTPRequest(HeaderAccept, "application/json; version")
 	spec = ParseAccept(req, HeaderAccept).MostQualified()
 	assert.Equal(t, "", spec.GetParam("version", "1"))
-
 }
 
 func TestHTTPParseContentType(t *testing.T) {

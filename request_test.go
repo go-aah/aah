@@ -6,6 +6,7 @@ package ahttp
 
 import (
 	"crypto/tls"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -121,7 +122,7 @@ func TestHTTPRequestParams(t *testing.T) {
 	form.Add("username", "welcome")
 	form.Add("email", "welcome@welcome.com")
 	req2, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", strings.NewReader(form.Encode()))
-	req2.Header.Add(HeaderContentType, ContentTypeForm.Raw())
+	req2.Header.Add(HeaderContentType, ContentTypeForm.String())
 	_ = req2.ParseForm()
 
 	aahReq2 := ParseRequest(req2, &Request{})
@@ -133,6 +134,17 @@ func TestHTTPRequestParams(t *testing.T) {
 	assert.Equal(t, "Test1", params2.FormArrayValue("names")[0])
 	assert.Equal(t, "Test 2 value", params2.FormArrayValue("names")[1])
 	assert.True(t, len(params2.FormArrayValue("not-exists")) == 0)
+
+	// File value
+	req3, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", nil)
+	req3.Header.Add(HeaderContentType, ContentTypeMultipartForm.String())
+	aahReq3 := ParseRequest(req3, &Request{})
+	aahReq3.Params.File = make(map[string][]*multipart.FileHeader)
+	aahReq3.Params.File["testfile.txt"] = []*multipart.FileHeader{&multipart.FileHeader{Filename: "testfile.txt"}}
+	f, fh, err := aahReq3.FormFile("testfile.txt")
+	assert.Nil(t, f)
+	assert.Equal(t, "testfile.txt", fh.Filename)
+	assert.Equal(t, "open : no such file or directory", err.Error())
 }
 
 func TestHTTPRequestCookies(t *testing.T) {

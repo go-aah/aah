@@ -15,6 +15,8 @@ import (
 	"aahframework.org/essentials.v0"
 )
 
+const vendorTreePrefix = "vnd."
+
 // HTTP Header names
 const (
 	HeaderAccept                          = "Accept"
@@ -100,10 +102,10 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// HTTP header methods
+// Global HTTP header methods
 //___________________________________
 
-// NegotiateContentType negotiates the response `Content-Type` from the given HTTP
+// NegotiateContentType method negotiates the response `Content-Type` from the given HTTP
 // `Accept` header. The resolve order is- 1) URL extension 2) Accept header
 // Most quailfied one based quality factor otherwise default is HTML.
 func NegotiateContentType(req *http.Request) *ContentType {
@@ -126,6 +128,22 @@ func NegotiateContentType(req *http.Request) *ContentType {
 		return ContentTypeHTML
 	}
 
+	// 3) Accept Header Vendor Types
+	// RFC4288 https://tools.ietf.org/html/rfc4288#section-3.2
+	if parts, yes := isVendorType(spec.Value); yes {
+		subparts := strings.Split(parts[1], "+")
+		if strings.Contains(subparts[0], "-v") {
+			verparts := strings.Split(subparts[0], "-v")
+			spec.Params["vendor"] = strings.TrimPrefix(verparts[0], vendorTreePrefix)
+			spec.Params["version"] = verparts[1]
+		} else {
+			spec.Params["vendor"] = strings.TrimPrefix(subparts[0], vendorTreePrefix)
+		}
+
+		// Rewrite the Content-Type
+		spec.Value = parts[0] + "/" + subparts[1]
+	}
+
 	exts, _ := mime.ExtensionsByType(spec.Value)
 
 	return &ContentType{
@@ -135,7 +153,7 @@ func NegotiateContentType(req *http.Request) *ContentType {
 	}
 }
 
-// NegotiateLocale negotiates the `Accept-Language` from the given HTTP
+// NegotiateLocale method negotiates the `Accept-Language` from the given HTTP
 // request. Most quailfied one based on quality factor.
 func NegotiateLocale(req *http.Request) *Locale {
 	return ToLocale(ParseAccept(req, HeaderAcceptLanguage).MostQualified())
@@ -147,7 +165,7 @@ func NegotiateEncoding(req *http.Request) *AcceptSpec {
 	return ParseAcceptEncoding(req).MostQualified()
 }
 
-// ParseContentType resolves the request `Content-Type` from the given HTTP
+// ParseContentType method resolves the request `Content-Type` from the given HTTP
 // request via header `Content-Type`. Partial implementation of
 // https://tools.ietf.org/html/rfc1521#section-4 i.e. parsing only
 // type, subtype, parameters based on RFC.
@@ -179,7 +197,7 @@ func ParseContentType(req *http.Request) *ContentType {
 	}
 }
 
-// ParseAcceptEncoding parses the HTTP `Accept-Encoding` header from `http.Request`
+// ParseAcceptEncoding method parses the HTTP `Accept-Encoding` header from `http.Request`
 // as per RFC7231 https://tools.ietf.org/html/rfc7231#section-5.3.4. It returns
 // `AcceptSpecs`.
 func ParseAcceptEncoding(req *http.Request) AcceptSpecs {
@@ -208,9 +226,10 @@ func ParseAccept(req *http.Request, hdrKey string) AcceptSpecs {
 		parts := strings.Split(hv, ";")
 		if len(parts) == 1 {
 			specs = append(specs, AcceptSpec{
-				Raw:   hv,
-				Value: parts[0],
-				Q:     float32(1.0),
+				Raw:    hv,
+				Value:  parts[0],
+				Q:      float32(1.0),
+				Params: make(map[string]string),
 			})
 			continue
 		}
@@ -250,7 +269,7 @@ func ParseAccept(req *http.Request, hdrKey string) AcceptSpecs {
 	return specs
 }
 
-// ToLocale creates a locale instance from `AcceptSpec`
+// ToLocale method creates a locale instance from `AcceptSpec`
 func ToLocale(a *AcceptSpec) *Locale {
 	if a == nil {
 		return nil
@@ -293,20 +312,20 @@ func (l *Locale) String() string {
 // AcceptSpecs methods
 //___________________________________
 
-// GetParam returns the Accept* header param value otherwise returns default
+// GetParam method returns the Accept* header param value otherwise returns default
 // value.
 // 	For e.g.:
 // 		Accept: application/json; version=2
 //
 // 		Method returns `2` for key `version`
 func (a AcceptSpec) GetParam(key string, defaultValue string) string {
-	if v, ok := a.Params[key]; ok {
+	if v, found := a.Params[key]; found {
 		return v
 	}
 	return defaultValue
 }
 
-// MostQualified returns the most quailfied accept spec, since `AcceptSpec` is
+// MostQualified method returns the most quailfied accept spec, since `AcceptSpec` is
 // sorted by quaity factor. First position is the most quailfied otherwise `nil`.
 func (specs AcceptSpecs) MostQualified() *AcceptSpec {
 	if len(specs) > 0 {
@@ -319,3 +338,15 @@ func (specs AcceptSpecs) MostQualified() *AcceptSpec {
 func (specs AcceptSpecs) Len() int           { return len(specs) }
 func (specs AcceptSpecs) Swap(i, j int)      { specs[i], specs[j] = specs[j], specs[i] }
 func (specs AcceptSpecs) Less(i, j int) bool { return specs[i].Q > specs[j].Q }
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
+
+// isVendorType method check the mime type is vendor type as per
+// RFC4288 https://tools.ietf.org/html/rfc4288#section-3.2 - Vendor Tree
+// i.e. `vnd.` prefix.
+func isVendorType(mime string) ([]string, bool) {
+	parts := strings.Split(mime, "/")
+	return parts, strings.HasPrefix(parts[1], vendorTreePrefix)
+}

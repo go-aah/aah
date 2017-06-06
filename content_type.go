@@ -92,14 +92,15 @@ type (
 // Content-Type methods
 //___________________________________
 
-// IsEqual method compare give Content-Type string wth instance.
+// IsEqual method compares give Content-Type string with current instance.
 //    E.g.:
 //      contentType.IsEqual("application/json")
 func (c *ContentType) IsEqual(contentType string) bool {
 	return strings.HasPrefix(c.Raw(), strings.ToLower(contentType))
 }
 
-// Charset returns charset of content-type otherwise `defaultCharset` is returned
+// Charset method returns charset of content-type
+// otherwise `defaultCharset` is returned
 // 	For e.g.:
 // 		Content-Type: application/json; charset=utf-8
 //
@@ -111,14 +112,36 @@ func (c *ContentType) Charset(defaultCharset string) string {
 	return defaultCharset
 }
 
-// Version returns Accept header version paramater value if present otherwise
-// empty string
+// Version method returns Accept header version paramater value if present
+// otherwise empty string
 // 	For e.g.:
 // 		Accept: application/json; version=2
+// 		Accept: application/vnd.mycompany.myapp.customer-v2+json
 //
 // 		Method returns `2`
 func (c *ContentType) Version() string {
-	if v, ok := c.Params["version"]; ok {
+	return c.GetParam("version")
+}
+
+// Vendor method returns Accept header vendor info if present
+// otherwise empty string
+// 	For e.g.:
+// 		Accept: application/vnd.mycompany.myapp.customer-v2+json
+//
+// 		Method returns `mycompany.myapp.customer`
+func (c *ContentType) Vendor() string {
+	return c.GetParam("vendor")
+}
+
+// GetParam method returns the media type paramater of Accept Content-Type header
+// otherwise returns empty string
+// value.
+// 	For e.g.:
+// 		Accept: application/json; version=2
+//
+// 		Method returns `2` for key `version`
+func (c *ContentType) GetParam(key string) string {
+	if v, found := c.Params[key]; found {
 		return v
 	}
 	return ""

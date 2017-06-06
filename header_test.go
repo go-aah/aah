@@ -116,6 +116,32 @@ func TestHTTPNegotiateEncoding(t *testing.T) {
 	assert.False(t, isGzipAccepted(&Request{}, req4))
 }
 
+func TestHTTPAcceptHeaderVendorType(t *testing.T) {
+	req := createRawHTTPRequest(HeaderAccept, "application/vnd.mycompany.myapp.customer-v2.2+json")
+	ctype := NegotiateContentType(req)
+	assert.Equal(t, "application/json", ctype.Mime)
+	assert.Equal(t, "mycompany.myapp.customer", ctype.Vendor())
+	assert.Equal(t, "2.2", ctype.Version())
+
+	req = createRawHTTPRequest(HeaderAccept, "application/vnd.mycompany.myapp.customer+json")
+	ctype = NegotiateContentType(req)
+	assert.Equal(t, "application/json", ctype.Mime)
+	assert.Equal(t, "mycompany.myapp.customer", ctype.Vendor())
+	assert.Equal(t, "", ctype.Version())
+
+	req = createRawHTTPRequest(HeaderAccept, "application/vnd.api+json")
+	ctype = NegotiateContentType(req)
+	assert.Equal(t, "application/json", ctype.Mime)
+	assert.Equal(t, "api", ctype.Vendor())
+	assert.Equal(t, "", ctype.Version())
+
+	req = createRawHTTPRequest(HeaderAccept, "application/json")
+	ctype = NegotiateContentType(req)
+	assert.Equal(t, "application/json", ctype.Mime)
+	assert.Equal(t, "", ctype.Vendor())
+	assert.Equal(t, "", ctype.Version())
+}
+
 func createRawHTTPRequest(hdrKey, value string) *http.Request {
 	hdr := http.Header{}
 	hdr.Set(hdrKey, value)
