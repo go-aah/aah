@@ -27,7 +27,7 @@ type (
 		//  - `X-Forwarded-Proto` is not empty return value as is
 		//  - `http.Request.TLS` is not nil value is `https`
 		//  - `http.Request.TLS` is nil value is `http`
-		Schema string
+		Scheme string
 
 		// Host value of the HTTP 'Host' header (e.g. 'example.com:8080').
 		Host string
@@ -99,7 +99,7 @@ type (
 // ParseRequest method populates the given aah framework `ahttp.Request`
 // instance from Go HTTP request.
 func ParseRequest(r *http.Request, req *Request) *Request {
-	req.Schema = identifyScheme(r)
+	req.Scheme = identifyScheme(r)
 	req.Host = host(r)
 	req.Method = r.Method
 	req.Path = r.URL.Path
@@ -177,7 +177,7 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
 
 // Reset method resets request instance for reuse.
 func (r *Request) Reset() {
-	r.Schema = ""
+	r.Scheme = ""
 	r.Host = ""
 	r.Method = ""
 	r.Path = ""
