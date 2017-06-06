@@ -250,26 +250,11 @@ func (r *Reply) HTMLf(filename string, data Data) *Reply {
 	return r.HTMLlf("", filename, data)
 }
 
-// HTMLtf method renders based on given theme, filename and data. Refer `Reply.HTML(...)`
-// method.
-// 	Eg.: views/pages/<namespace-subpackage>/<theme>/<controller>/<filename>.html
-func (r *Reply) HTMLtf(theme, filename string, data Data) *Reply {
-	return r.HTMLltf("", theme, filename, data)
-}
-
 // HTMLlf method renders based on given layout, filename and data. Refer `Reply.HTML(...)`
 // method.
 func (r *Reply) HTMLlf(layout, filename string, data Data) *Reply {
-	return r.HTMLltf(layout, "", filename, data)
-}
-
-// HTMLltf method renders based on given layout, theme, filename and data. Refer `Reply.HTML(...)`
-// method.
-// 	Eg.: views/pages/<namespace-subpackage>/<theme>/<controller>/<filename>.html
-func (r *Reply) HTMLltf(layout, theme, filename string, data Data) *Reply {
 	r.Rdr = &HTML{
 		Layout:   layout,
-		Theme:    theme,
 		Filename: filename,
 		ViewArgs: data,
 	}

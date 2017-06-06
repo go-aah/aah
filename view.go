@@ -166,10 +166,7 @@ func findViewTemplate(ctx *Context) {
 	// If user not provided the template info, auto resolve by convention
 	if ess.IsStrEmpty(htmlRdr.Filename) {
 		tmplName = ctx.action.Name + appViewExt
-		tmplPath = tmplControllerName(ctx)
-
-		// # views/pages/<namespace-subpackage>/<theme_name>/app/index.html
-		tmplPath = filepath.Join(ctx.controller.Namespace, htmlRdr.Theme, tmplPath)
+		tmplPath = filepath.Join(ctx.controller.Namespace, tmplControllerName(ctx))
 	} else {
 		// User provided view info like layout, filename.
 		// Taking full-control of view rendering.
@@ -182,8 +179,7 @@ func findViewTemplate(ctx *Context) {
 		if strings.HasPrefix(htmlRdr.Filename, "/") {
 			tmplPath = strings.TrimLeft(tmplPath, "/")
 		} else {
-			// # views/pages/<namespace-subpackage>/<theme_name>/app/index.html
-			tmplPath = filepath.Join(ctx.controller.Namespace, htmlRdr.Theme, tmplControllerName(ctx), tmplPath)
+			tmplPath = filepath.Join(ctx.controller.Namespace, tmplControllerName(ctx), tmplPath)
 		}
 	}
 

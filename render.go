@@ -55,7 +55,6 @@ type (
 	HTML struct {
 		Template *template.Template
 		Layout   string
-		Theme    string
 		Filename string
 		ViewArgs Data
 	}
