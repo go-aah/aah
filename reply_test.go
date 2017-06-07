@@ -110,7 +110,7 @@ func TestReplyJSON(t *testing.T) {
 	re1.Header(ahttp.HeaderContentType, "")
 	assert.False(t, re1.IsContentTypeSet())
 
-	re1.HeaderAppend(ahttp.HeaderContentType, ahttp.ContentTypePlainText.Raw())
+	re1.HeaderAppend(ahttp.HeaderContentType, "application/json")
 	assert.True(t, re1.IsContentTypeSet())
 
 	err := re1.Rdr.Render(buf)
@@ -133,6 +133,7 @@ func TestReplyJSON(t *testing.T) {
 
 func TestReplyJSONP(t *testing.T) {
 	buf, re1 := getBufferAndReply()
+	re1.body = buf
 	appConfig = getReplyRenderCfg()
 
 	data := struct {
@@ -151,22 +152,23 @@ func TestReplyJSONP(t *testing.T) {
 	re1.HeaderAppend("X-Request-Type", "JSONP")
 	re1.Header("X-Request-Type", "")
 
-	err := re1.Rdr.Render(buf)
+	err := re1.Rdr.Render(re1.body)
 	assert.FailOnError(t, err, "")
 	assert.Equal(t, `mycallback({
     "Name": "John",
     "Age": 28,
     "Address": "this is my street"
-});`, buf.String())
+});`, re1.body.String())
+	assert.NotNil(t, re1.Body())
 
-	buf.Reset()
+	re1.body.Reset()
 
 	appConfig.SetBool("render.pretty", false)
 
-	err = re1.Rdr.Render(buf)
+	err = re1.Rdr.Render(re1.body)
 	assert.FailOnError(t, err, "")
 	assert.Equal(t, `mycallback({"Name":"John","Age":28,"Address":"this is my street"});`,
-		buf.String())
+		re1.body.String())
 }
 
 func TestReplyXML(t *testing.T) {
