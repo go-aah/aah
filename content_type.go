@@ -11,72 +11,31 @@ import (
 
 var (
 	// ContentTypeHTML HTML content type.
-	ContentTypeHTML = &ContentType{
-		Mime: "text/html",
-		Exts: []string{".html", ".htm"},
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
+	ContentTypeHTML = parseMediaType("text/html; charset=utf-8")
 
 	// ContentTypeJSON JSON content type.
-	ContentTypeJSON = &ContentType{
-		Mime: "application/json",
-		Exts: []string{".json"},
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
+	ContentTypeJSON = parseMediaType("application/json; charset=utf-8")
 
 	// ContentTypeJSONText JSON text content type.
-	ContentTypeJSONText = &ContentType{
-		Mime: "text/json",
-		Exts: []string{".json"},
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
+	ContentTypeJSONText = parseMediaType("text/json; charset=utf-8")
 
 	// ContentTypeXML XML content type.
-	ContentTypeXML = &ContentType{
-		Mime: "application/xml",
-		Exts: []string{".xml"},
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
+	ContentTypeXML = parseMediaType("application/xml; charset=utf-8")
 
 	// ContentTypeXMLText XML text content type.
-	ContentTypeXMLText = &ContentType{
-		Mime: "text/xml",
-		Exts: []string{".xml"},
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
+	ContentTypeXMLText = parseMediaType("text/xml; charset=utf-8")
 
 	// ContentTypeMultipartForm form data and File.
-	ContentTypeMultipartForm = &ContentType{
-		Mime: "multipart/form-data",
-	}
+	ContentTypeMultipartForm = parseMediaType("multipart/form-data")
 
 	// ContentTypeForm form data type.
-	ContentTypeForm = &ContentType{
-		Mime: "application/x-www-form-urlencoded",
-	}
+	ContentTypeForm = parseMediaType("application/x-www-form-urlencoded")
 
 	// ContentTypePlainText content type.
-	ContentTypePlainText = &ContentType{
-		Mime: "text/plain",
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
+	ContentTypePlainText = parseMediaType("text/plain; charset=utf-8")
 
 	// ContentTypeOctetStream content type for bytes.
-	ContentTypeOctetStream = &ContentType{
-		Mime: "application/octet-stream",
-	}
+	ContentTypeOctetStream = parseMediaType("application/octet-stream")
 )
 
 type (
@@ -92,14 +51,15 @@ type (
 // Content-Type methods
 //___________________________________
 
-// IsEqual method compare give Content-Type string wth instance.
+// IsEqual method compares give Content-Type string with current instance.
 //    E.g.:
 //      contentType.IsEqual("application/json")
 func (c *ContentType) IsEqual(contentType string) bool {
 	return strings.HasPrefix(c.Raw(), strings.ToLower(contentType))
 }
 
-// Charset returns charset of content-type otherwise `defaultCharset` is returned
+// Charset method returns charset of content-type
+// otherwise `defaultCharset` is returned
 // 	For e.g.:
 // 		Content-Type: application/json; charset=utf-8
 //
@@ -111,14 +71,36 @@ func (c *ContentType) Charset(defaultCharset string) string {
 	return defaultCharset
 }
 
-// Version returns Accept header version paramater value if present otherwise
-// empty string
+// Version method returns Accept header version paramater value if present
+// otherwise empty string
 // 	For e.g.:
 // 		Accept: application/json; version=2
+// 		Accept: application/vnd.mycompany.myapp.customer-v2+json
 //
 // 		Method returns `2`
 func (c *ContentType) Version() string {
-	if v, ok := c.Params["version"]; ok {
+	return c.GetParam("version")
+}
+
+// Vendor method returns Accept header vendor info if present
+// otherwise empty string
+// 	For e.g.:
+// 		Accept: application/vnd.mycompany.myapp.customer-v2+json
+//
+// 		Method returns `mycompany.myapp.customer`
+func (c *ContentType) Vendor() string {
+	return c.GetParam("vendor")
+}
+
+// GetParam method returns the media type paramater of Accept Content-Type header
+// otherwise returns empty string
+// value.
+// 	For e.g.:
+// 		Accept: application/json; version=2
+//
+// 		Method returns `2` for key `version`
+func (c *ContentType) GetParam(key string) string {
+	if v, found := c.Params[key]; found {
 		return v
 	}
 	return ""
