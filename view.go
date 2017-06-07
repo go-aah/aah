@@ -124,7 +124,7 @@ func (e *engine) resolveView(ctx *Context) {
 		}
 
 		// ViewArgs values from framework
-		htmlRdr.ViewArgs["Scheme"] = ctx.Req.Schema
+		htmlRdr.ViewArgs["Scheme"] = ctx.Req.Scheme
 		htmlRdr.ViewArgs["Host"] = ctx.Req.Host
 		htmlRdr.ViewArgs["HTTPMethod"] = ctx.Req.Method
 		htmlRdr.ViewArgs["RequestPath"] = ctx.Req.Path

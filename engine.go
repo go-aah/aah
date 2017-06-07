@@ -276,6 +276,11 @@ func (e *engine) writeReply(ctx *Context) {
 		e.wrapGzipWriter(ctx)
 	}
 
+	// ContentType, if it's not set then auto detect later in the writer
+	if ctx.Reply().IsContentTypeSet() {
+		ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
+	}
+
 	// 'OnPreReply' server extension point
 	publishOnPreReplyEvent(ctx)
 
@@ -301,9 +306,9 @@ func (e *engine) negotiateContentType(ctx *Context) {
 	if !ctx.Reply().IsContentTypeSet() {
 		if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
 			ctx.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
-			ctx.Reply().ContentType(ctx.Req.AcceptContentType.Raw())
+			ctx.Reply().ContentType(ctx.Req.AcceptContentType.String())
 		} else if ct := defaultContentType(); ct != nil { // as per 'render.default' in aah.conf
-			ctx.Reply().ContentType(ct.Raw())
+			ctx.Reply().ContentType(ct.String())
 		}
 	}
 }
@@ -325,11 +330,6 @@ func (e *engine) writeHeaders(ctx *Context) {
 		for _, vv := range v {
 			ctx.Res.Header().Add(k, vv)
 		}
-	}
-
-	// ContentType, if it's not set then auto detect later in the writer
-	if ctx.Reply().IsContentTypeSet() {
-		ctx.Res.Header().Set(ahttp.HeaderContentType, ctx.Reply().ContType)
 	}
 
 	ctx.Res.Header().Set(ahttp.HeaderServer, aahServerName)
