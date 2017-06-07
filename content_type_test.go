@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"testing"
 
+	"aahframework.org/essentials.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -34,7 +35,7 @@ func TestHTTPNegotiateContentType(t *testing.T) {
 	contentType = NegotiateContentType(req4)
 	assert.Equal(t, "text/html; charset=utf-8", contentType.String())
 	assert.True(t, contentType.IsEqual("text/html"))
-	assert.Equal(t, ".html", contentType.Exts[0])
+	assert.True(t, ess.IsSliceContainsString(contentType.Exts, ".html"))
 	assert.Equal(t, "", contentType.Version())
 
 	req := createRawHTTPRequest(HeaderAccept, "application/json")
@@ -46,8 +47,8 @@ func TestHTTPNegotiateContentType(t *testing.T) {
 	req = createRawHTTPRequest(HeaderAccept, "application/json")
 	req.URL, _ = url.Parse("http://localhost:8080/testpath.html")
 	contentType = NegotiateContentType(req)
-	assert.Equal(t, "text/html; charset=utf-8", contentType.Mime)
-	assert.Equal(t, ".html", contentType.Exts[0])
+	assert.Equal(t, "text/html", contentType.Mime)
+	assert.True(t, ess.IsSliceContainsString(contentType.Exts, ".html"))
 
 	req = createRawHTTPRequest(HeaderAccept, "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
 	contentType = NegotiateContentType(req)
@@ -92,11 +93,11 @@ func TestHTTPParseContentType(t *testing.T) {
 	contentType = ParseContentType(req4)
 	assert.Equal(t, "text/html", contentType.Mime)
 	assert.Equal(t, "text/html; charset=utf-8", contentType.String())
-	assert.Equal(t, ".html", contentType.Exts[0])
+	assert.True(t, ess.IsSliceContainsString(contentType.Exts, ".html"))
 
 	req5 := createRawHTTPRequest(HeaderContentType, "text/html;charset")
 	contentType = ParseContentType(req5)
-	assert.Equal(t, "text/html", contentType.Mime)
-	assert.Equal(t, "text/html; charset=", contentType.String())
-	assert.Equal(t, "", contentType.Charset("iso-8859-1"))
+	assert.Equal(t, "", contentType.Mime)
+	assert.Equal(t, "", contentType.String())
+	assert.Equal(t, "iso-8859-1", contentType.Charset("iso-8859-1"))
 }

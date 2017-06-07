@@ -11,72 +11,31 @@ import (
 
 var (
 	// ContentTypeHTML HTML content type.
-	ContentTypeHTML = &ContentType{
-		Mime: "text/html",
-		Exts: []string{".html", ".htm"},
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
+	ContentTypeHTML = parseMediaType("text/html; charset=utf-8")
 
 	// ContentTypeJSON JSON content type.
-	ContentTypeJSON = &ContentType{
-		Mime: "application/json",
-		Exts: []string{".json"},
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
+	ContentTypeJSON = parseMediaType("application/json; charset=utf-8")
 
 	// ContentTypeJSONText JSON text content type.
-	ContentTypeJSONText = &ContentType{
-		Mime: "text/json",
-		Exts: []string{".json"},
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
+	ContentTypeJSONText = parseMediaType("text/json; charset=utf-8")
 
 	// ContentTypeXML XML content type.
-	ContentTypeXML = &ContentType{
-		Mime: "application/xml",
-		Exts: []string{".xml"},
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
+	ContentTypeXML = parseMediaType("application/xml; charset=utf-8")
 
 	// ContentTypeXMLText XML text content type.
-	ContentTypeXMLText = &ContentType{
-		Mime: "text/xml",
-		Exts: []string{".xml"},
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
+	ContentTypeXMLText = parseMediaType("text/xml; charset=utf-8")
 
 	// ContentTypeMultipartForm form data and File.
-	ContentTypeMultipartForm = &ContentType{
-		Mime: "multipart/form-data",
-	}
+	ContentTypeMultipartForm = parseMediaType("multipart/form-data")
 
 	// ContentTypeForm form data type.
-	ContentTypeForm = &ContentType{
-		Mime: "application/x-www-form-urlencoded",
-	}
+	ContentTypeForm = parseMediaType("application/x-www-form-urlencoded")
 
 	// ContentTypePlainText content type.
-	ContentTypePlainText = &ContentType{
-		Mime: "text/plain",
-		Params: map[string]string{
-			"charset": "utf-8",
-		},
-	}
+	ContentTypePlainText = parseMediaType("text/plain; charset=utf-8")
 
 	// ContentTypeOctetStream content type for bytes.
-	ContentTypeOctetStream = &ContentType{
-		Mime: "application/octet-stream",
-	}
+	ContentTypeOctetStream = parseMediaType("application/octet-stream")
 )
 
 type (

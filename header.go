@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 )
 
 const vendorTreePrefix = "vnd."
@@ -113,12 +114,7 @@ func NegotiateContentType(req *http.Request) *ContentType {
 	ext := filepath.Ext(req.URL.Path)
 	switch ext {
 	case ".html", ".htm", ".json", ".js", ".xml", ".txt":
-		mimeType := mime.TypeByExtension(ext)
-		return &ContentType{
-			Mime:   mimeType,
-			Exts:   []string{ext},
-			Params: make(map[string]string),
-		}
+		return parseMediaType(mime.TypeByExtension(ext))
 	}
 
 	// 2) From Accept header
@@ -165,39 +161,17 @@ func NegotiateEncoding(req *http.Request) *AcceptSpec {
 	return ParseAcceptEncoding(req).MostQualified()
 }
 
-// ParseContentType method resolves the request `Content-Type` from the given HTTP
-// request via header `Content-Type`. Partial implementation of
-// https://tools.ietf.org/html/rfc1521#section-4 i.e. parsing only
-// type, subtype, parameters based on RFC.
+// ParseContentType method parses the request header `Content-Type` as per RFC1521.
 func ParseContentType(req *http.Request) *ContentType {
 	contentType := req.Header.Get(HeaderContentType)
-
 	if ess.IsStrEmpty(contentType) {
 		return ContentTypeHTML
 	}
 
-	values := strings.Split(strings.ToLower(contentType), ";")
-	ctype := values[0]
-	params := map[string]string{}
-	for _, v := range values[1:] {
-		pv := strings.Split(v, "=")
-		if len(pv) == 2 {
-			params[strings.TrimSpace(pv[0])] = strings.TrimSpace(pv[1])
-		} else {
-			params[strings.TrimSpace(pv[0])] = ""
-		}
-	}
-
-	exts, _ := mime.ExtensionsByType(ctype)
-
-	return &ContentType{
-		Mime:   ctype,
-		Exts:   exts,
-		Params: params,
-	}
+	return parseMediaType(contentType)
 }
 
-// ParseAcceptEncoding method parses the HTTP `Accept-Encoding` header from `http.Request`
+// ParseAcceptEncoding method parses the request HTTP header `Accept-Encoding`
 // as per RFC7231 https://tools.ietf.org/html/rfc7231#section-5.3.4. It returns
 // `AcceptSpecs`.
 func ParseAcceptEncoding(req *http.Request) AcceptSpecs {
@@ -349,4 +323,22 @@ func (specs AcceptSpecs) Less(i, j int) bool { return specs[i].Q > specs[j].Q }
 func isVendorType(mime string) ([]string, bool) {
 	parts := strings.Split(mime, "/")
 	return parts, strings.HasPrefix(parts[1], vendorTreePrefix)
+}
+
+// parseMediaType method parses a media type value and any optional
+// parameters, per RFC 1521. the values in Content-Type and
+// Content-Disposition headers (RFC 2183).
+func parseMediaType(value string) *ContentType {
+	ctype, params, err := mime.ParseMediaType(value)
+	if err != nil {
+		log.Errorf("%v for value: %v", err, value)
+	}
+
+	exts, _ := mime.ExtensionsByType(ctype)
+
+	return &ContentType{
+		Mime:   ctype,
+		Exts:   exts,
+		Params: params,
+	}
 }
