@@ -5,6 +5,9 @@
 package aah
 
 import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -19,6 +22,7 @@ import (
 func TestStaticDirectoryListing(t *testing.T) {
 	appCfg, _ := config.ParseString("")
 	e := newEngine(appCfg)
+	appIsProfileProd = true
 
 	testStaticServe(t, e, "http://localhost:8080/static/css/aah\x00.css", "static", "css/aah\x00.css", "", "500 Internal Server Error", false)
 
@@ -26,11 +30,12 @@ func TestStaticDirectoryListing(t *testing.T) {
 
 	testStaticServe(t, e, "http://localhost:8080/static", "static", "", "", "403 Directory listing not allowed", false)
 
-	testStaticServe(t, e, "http://localhost:8080/static", "static", "", "", `<a href="/static/">Found</a>`, true)
+	testStaticServe(t, e, "http://localhost:8080/static", "static", "", "", `<a href="/static/">Moved Permanently</a>`, true)
 
 	testStaticServe(t, e, "http://localhost:8080/static/", "static", "", "", `<title>Listing of /static/</title>`, true)
 
 	testStaticServe(t, e, "http://localhost:8080/robots.txt", "", "", "test.txt", "This is file content of test.txt", false)
+	appIsProfileProd = false
 }
 
 func TestStaticMisc(t *testing.T) {
@@ -51,6 +56,72 @@ func TestStaticMisc(t *testing.T) {
 	assert.Equal(t, "Error reading directory", w1.Body.String())
 }
 
+func TestParseStaticCacheMap(t *testing.T) {
+	appConfig, _ = config.ParseString(`
+		cache {
+		  static {
+		    default_cache_control = "public, max-age=31536000"
+
+				mime_types {
+		      css_js {
+		        mime = "text/css, application/javascript"
+		        cache_control = "public, max-age=2628000, must-revalidate, proxy-revalidate"
+		      }
+
+		      images {
+		        mime = "image/jpeg, image/png, image/gif, image/svg+xml, image/x-icon"
+		        cache_control = "public, max-age=2628000, must-revalidate, proxy-revalidate"
+		      }
+		    }
+		  }
+		}
+	`)
+
+	parseStaticMimeCacheMap(&Event{})
+	assert.Equal(t, "public, max-age=2628000, must-revalidate, proxy-revalidate", cacheHeader("image/png"))
+	assert.Equal(t, "public, max-age=31536000", cacheHeader("application/x-font-ttf"))
+	appConfig = nil
+}
+
+func TestStaticDetectContentType(t *testing.T) {
+	v, _ := detectFileContentType("image1.svg", nil)
+	assert.Equal(t, "image/svg+xml", v)
+
+	v, _ = detectFileContentType("image2.png", nil)
+	assert.Equal(t, "image/png", v)
+
+	v, _ = detectFileContentType("image3.jpg", nil)
+	assert.Equal(t, "image/jpeg", v)
+
+	v, _ = detectFileContentType("image4.jpeg", nil)
+	assert.Equal(t, "image/jpeg", v)
+
+	v, _ = detectFileContentType("file.pdf", nil)
+	assert.Equal(t, "application/pdf", v)
+
+	v, _ = detectFileContentType("file.js", nil)
+	assert.Equal(t, "application/javascript", v)
+
+	v, _ = detectFileContentType("file.txt", nil)
+	assert.Equal(t, "text/plain; charset=utf-8", v)
+
+	v, _ = detectFileContentType("file.html", nil)
+	assert.Equal(t, "text/html; charset=utf-8", v)
+
+	v, _ = detectFileContentType("file.xml", nil)
+	assert.Equal(t, "application/xml", v)
+
+	v, _ = detectFileContentType("file.json", nil)
+	assert.Equal(t, "application/json", v)
+
+	v, _ = detectFileContentType("file.css", nil)
+	assert.Equal(t, "text/css; charset=utf-8", v)
+
+	content, _ := ioutil.ReadFile(filepath.Join(getTestdataPath(), "test-image.noext"))
+	v, _ = detectFileContentType("test-image.noext", bytes.NewReader(content))
+	assert.Equal(t, "image/png", v)
+}
+
 func testStaticServe(t *testing.T, e *engine, reqURL, dir, filePath, file, result string, listDir bool) {
 	r := httptest.NewRequest("GET", reqURL, nil)
 	w := httptest.NewRecorder()
@@ -63,5 +134,9 @@ func testStaticServe(t *testing.T, e *engine, reqURL, dir, filePath, file, resul
 	err := e.serveStatic(ctx)
 	appBaseDir = ""
 	assert.Nil(t, err)
+	if !strings.Contains(w.Body.String(), result) {
+		fmt.Println(w.Body.String(), result)
+	}
+
 	assert.True(t, strings.Contains(w.Body.String(), result))
 }

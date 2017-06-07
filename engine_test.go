@@ -144,7 +144,7 @@ func TestEngineServeHTTP(t *testing.T) {
 
 	resp1 := w1.Result()
 	assert.Equal(t, 404, resp1.StatusCode)
-	assert.Equal(t, "Not Found", resp1.Status)
+	assert.True(t, strings.Contains(resp1.Status, "Not Found"))
 	assert.Equal(t, "aah-go-server", resp1.Header.Get(ahttp.HeaderServer))
 
 	// Request 2
@@ -157,7 +157,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	gr2, _ := gzip.NewReader(resp2.Body)
 	body2, _ := ioutil.ReadAll(gr2)
 	assert.Equal(t, 200, resp2.StatusCode)
-	assert.Equal(t, "OK", resp2.Status)
+	assert.True(t, strings.Contains(resp2.Status, "OK"))
 	assert.Equal(t, "GetInvolved action", string(body2))
 	assert.Equal(t, "test engine middleware", resp2.Header.Get("X-Custom-Name"))
 
@@ -169,7 +169,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	resp3 := w3.Result()
 	body3, _ := ioutil.ReadAll(resp3.Body)
 	assert.Equal(t, 500, resp3.StatusCode)
-	assert.Equal(t, "Internal Server Error", resp3.Status)
+	assert.True(t, strings.Contains(resp3.Status, "Internal Server Error"))
 	assert.True(t, strings.Contains(string(body3), "Internal Server Error"))
 
 	// Request 4 static
@@ -179,7 +179,7 @@ func TestEngineServeHTTP(t *testing.T) {
 
 	resp4 := w4.Result()
 	assert.Equal(t, 404, resp4.StatusCode)
-	assert.Equal(t, "Not Found", resp4.Status)
+	assert.True(t, strings.Contains(resp4.Status, "Not Found"))
 
 	// Request 5 RedirectTrailingSlash - 302 status
 	wd, _ := os.Getwd()
@@ -190,9 +190,10 @@ func TestEngineServeHTTP(t *testing.T) {
 
 	resp5 := w5.Result()
 	assert.Equal(t, 302, resp5.StatusCode)
-	assert.Equal(t, "Found", resp5.Status)
+	assert.True(t, strings.Contains(resp5.Status, "Found"))
 	assert.Equal(t, "http://localhost:8080/testdata/", resp5.Header.Get(ahttp.HeaderLocation))
 
+	// Directory Listing
 	r6 := httptest.NewRequest("GET", "http://localhost:8080/testdata/", nil)
 	r6.Header.Add(e.requestIDHeader, "D9391509-595B-4B92-BED7-F6A9BE0DFCF2")
 	r6.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
@@ -205,6 +206,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.True(t, strings.Contains(body6Str, "Listing of /testdata/"))
 	assert.True(t, strings.Contains(body6Str, "config/"))
 
+	// Custom Headers
 	r7 := httptest.NewRequest("GET", "http://localhost:8080/credits", nil)
 	r7.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
 	w7 := httptest.NewRecorder()
@@ -221,6 +223,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	w8 := httptest.NewRecorder()
 	e.ServeHTTP(w8, r8)
 
+	// Method Not Allowed 405 response
 	resp8 := w8.Result()
 	reader8, _ := gzip.NewReader(resp8.Body)
 	body8, _ := ioutil.ReadAll(reader8)

@@ -47,6 +47,7 @@ func TestParamTemplateFuncs(t *testing.T) {
 func TestParamParse(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
 
+	// Request Query String
 	r1 := httptest.NewRequest("GET", "http://localhost:8080/index.html?lang=en-CA", nil)
 	ctx1 := &Context{
 		Req:      ahttp.ParseRequest(r1, &ahttp.Request{}),
@@ -61,4 +62,20 @@ func TestParamParse(t *testing.T) {
 	assert.Equal(t, "en", ctx1.Req.Locale.Language)
 	assert.Equal(t, "CA", ctx1.Req.Locale.Region)
 	assert.Equal(t, "en-CA", ctx1.Req.Locale.String())
+
+	// Request Form Values
+	form := url.Values{}
+	form.Add("names", "Test1")
+	form.Add("names", "Test 2 value")
+	form.Add("username", "welcome")
+	form.Add("email", "welcome@welcome.com")
+	r2, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", strings.NewReader(form.Encode()))
+	r2.Header.Add(ahttp.HeaderContentType, ahttp.ContentTypeForm.String())
+	ctx2 := &Context{
+		Req:      ahttp.ParseRequest(r2, &ahttp.Request{}),
+		viewArgs: make(map[string]interface{}),
+	}
+
+	e.parseRequestParams(ctx2)
+	assert.NotNil(t, ctx2.Req.Params.Form)
 }

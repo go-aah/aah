@@ -9,7 +9,7 @@ import (
 	"net/http"
 
 	"aahframework.org/ahttp.v0"
-	ess "aahframework.org/essentials.v0"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
 
@@ -30,13 +30,13 @@ func (e *engine) parseRequestParams(ctx *Context) {
 
 	if ctx.Req.Method != ahttp.MethodGet {
 		contentType := ctx.Req.ContentType.Mime
-		log.Debugf("request content type: %s", contentType)
+		log.Debugf("Request content type: %s", contentType)
 
 		// TODO add support for content-type restriction and return 415 status for that
 		// TODO HTML sanitizer for Form and Multipart Form
 
 		switch contentType {
-		case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeXML.Mime:
+		case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeXML.Mime, ahttp.ContentTypeXMLText.Mime:
 			if payloadBytes, err := ioutil.ReadAll(req.Body); err == nil {
 				ctx.Req.Payload = payloadBytes
 			} else {

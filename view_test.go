@@ -5,9 +5,12 @@
 package aah
 
 import (
+	"fmt"
 	"html/template"
+	"io"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -54,17 +57,17 @@ func TestViewInitExternalEngine(t *testing.T) {
 	appCfg, _ := config.ParseString("")
 	viewDir := filepath.Join(getTestdataPath(), appViewsDir())
 
-	assert.False(t, isExternalTmplEngine)
+	assert.False(t, appIsExternalTmplEngine)
 
 	appViewEngine = &view.GoViewEngine{}
 	err := initViewEngine(viewDir, appCfg)
 	assert.Nil(t, err)
 
-	assert.True(t, isExternalTmplEngine)
+	assert.True(t, appIsExternalTmplEngine)
 
 	// cleanup
 	appViewEngine = nil
-	isExternalTmplEngine = false
+	appIsExternalTmplEngine = false
 }
 
 func TestViewAddTemplateFunc(t *testing.T) {
@@ -108,7 +111,8 @@ func TestViewResolveView(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://localhost:8080/index.html", nil)
 	ctx := e.prepareContext(httptest.NewRecorder(), req)
 
-	ctx.controller = "AppController"
+	type AppController struct{}
+	ctx.controller = &controllerInfo{Type: reflect.TypeOf(AppController{})}
 	ctx.action = &MethodInfo{
 		Name:       "Index",
 		Parameters: []*ParameterInfo{},
@@ -129,6 +133,28 @@ func TestViewResolveView(t *testing.T) {
 	assert.Equal(t, Version, htmlRdr.ViewArgs["AahVersion"])
 	assert.Equal(t, "aah framework", htmlRdr.ViewArgs["MyName"])
 
+	// User provided template file
+	ctx.Reply().HTMLf("/admin/index.html", Data{})
+	e.resolveView(ctx)
+	htmlRdr = ctx.Reply().Rdr.(*HTML)
+	assert.Equal(t, "/admin/index.html", htmlRdr.Filename)
+	assert.Equal(t, "views/pages/admin/index.html", htmlRdr.ViewArgs["ViewNotFound"])
+
+	// User provided template file with controller context
+	ctx.Reply().HTMLf("user/index.html", Data{})
+	e.resolveView(ctx)
+	htmlRdr = ctx.Reply().Rdr.(*HTML)
+	assert.Equal(t, "user/index.html", htmlRdr.Filename)
+	assert.Equal(t, "views/pages/app/user/index.html", htmlRdr.ViewArgs["ViewNotFound"])
+
+	// Namespace/Sub-package
+	ctx.controller = &controllerInfo{Type: reflect.TypeOf(AppController{}), Namespace: "frontend"}
+	ctx.Reply().HTMLf("index.html", Data{})
+	e.resolveView(ctx)
+	htmlRdr = ctx.Reply().Rdr.(*HTML)
+	assert.Equal(t, "index.html", htmlRdr.Filename)
+	assert.Equal(t, "views/pages/frontend/app/index.html", htmlRdr.ViewArgs["ViewNotFound"])
+
 	// cleanup
 	appViewEngine = nil
 }
@@ -138,9 +164,10 @@ func TestViewResolveViewNotFound(t *testing.T) {
 	appViewEngine = &view.GoViewEngine{}
 
 	req := httptest.NewRequest("GET", "http://localhost:8080/index.html", nil)
+	type AppController struct{}
 	ctx := &Context{
 		Req:        ahttp.ParseRequest(req, &ahttp.Request{}),
-		controller: "AppController",
+		controller: &controllerInfo{Type: reflect.TypeOf(AppController{}), Namespace: "site"},
 		action: &MethodInfo{
 			Name:       "Index",
 			Parameters: []*ParameterInfo{},
@@ -160,7 +187,7 @@ func TestViewResolveViewNotFound(t *testing.T) {
 	appViewEngine = nil
 }
 
-func TestViewDefaultContextType(t *testing.T) {
+func TestViewDefaultContentType(t *testing.T) {
 	appConfig, _ = config.ParseString("")
 	assert.Nil(t, defaultContentType())
 
@@ -187,4 +214,18 @@ func TestViewDefaultContextType(t *testing.T) {
 
 	// cleanup
 	appConfig = nil
+}
+
+func TestViewSetMinifier(t *testing.T) {
+	testMinifier := func(contentType string, w io.Writer, r io.Reader) error {
+		fmt.Println("called minifier func")
+		return nil
+	}
+
+	assert.Nil(t, minifier)
+	SetMinifier(testMinifier)
+	assert.NotNil(t, minifier)
+
+	SetMinifier(testMinifier)
+	assert.NotNil(t, minifier)
 }

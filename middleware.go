@@ -100,6 +100,7 @@ func (mw *Middleware) Next(ctx *Context) {
 // Finally<ActionName>) from controller.
 func interceptorMiddleware(ctx *Context, m *Middleware) {
 	target := reflect.ValueOf(ctx.target)
+	controller := resolveControllerName(ctx)
 
 	// Finally action and method
 	defer func() {
@@ -108,12 +109,12 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 		}
 
 		if finallyActionMethod := target.MethodByName(incpFinallyActionName + ctx.action.Name); finallyActionMethod.IsValid() {
-			log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpFinallyActionName+ctx.action.Name)
+			log.Debugf("Calling interceptor: %s.%s", controller, incpFinallyActionName+ctx.action.Name)
 			finallyActionMethod.Call(emptyArg)
 		}
 
 		if finallyAction := target.MethodByName(incpFinallyActionName); finallyAction.IsValid() {
-			log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpFinallyActionName)
+			log.Debugf("Calling interceptor: %s.%s", controller, incpFinallyActionName)
 			finallyAction.Call(emptyArg)
 		}
 	}()
@@ -126,11 +127,11 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 			}
 
 			if panicActionMethod := target.MethodByName(incpPanicActionName + ctx.action.Name); panicActionMethod.IsValid() {
-				log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpPanicActionName+ctx.action.Name)
+				log.Debugf("Calling interceptor: %s.%s", controller, incpPanicActionName+ctx.action.Name)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicActionMethod.Call(rv)
 			} else if panicAction := target.MethodByName(incpPanicActionName); panicAction.IsValid() {
-				log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpPanicActionName)
+				log.Debugf("Calling interceptor: %s.%s", controller, incpPanicActionName)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicAction.Call(rv)
 			} else { // propagate it
@@ -141,14 +142,14 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 
 	// Before action
 	if beforeAction := target.MethodByName(incpBeforeActionName); beforeAction.IsValid() {
-		log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpBeforeActionName)
+		log.Debugf("Calling interceptor: %s.%s", controller, incpBeforeActionName)
 		beforeAction.Call(emptyArg)
 	}
 
 	// Before action method
 	if !ctx.abort {
 		if beforeActionMethod := target.MethodByName(incpBeforeActionName + ctx.action.Name); beforeActionMethod.IsValid() {
-			log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpBeforeActionName+ctx.action.Name)
+			log.Debugf("Calling interceptor: %s.%s", controller, incpBeforeActionName+ctx.action.Name)
 			beforeActionMethod.Call(emptyArg)
 		}
 	}
@@ -158,7 +159,7 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 	// After action method
 	if !ctx.abort {
 		if afterActionMethod := target.MethodByName(incpAfterActionName + ctx.action.Name); afterActionMethod.IsValid() {
-			log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpAfterActionName+ctx.action.Name)
+			log.Debugf("Calling interceptor: %s.%s", controller, incpAfterActionName+ctx.action.Name)
 			afterActionMethod.Call(emptyArg)
 		}
 	}
@@ -166,7 +167,7 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 	// After action
 	if !ctx.abort {
 		if afterAction := target.MethodByName(incpAfterActionName); afterAction.IsValid() {
-			log.Debugf("Calling interceptor: %s.%s", ctx.controller, incpAfterActionName)
+			log.Debugf("Calling interceptor: %s.%s", controller, incpAfterActionName)
 			afterAction.Call(emptyArg)
 		}
 	}
@@ -189,7 +190,7 @@ func actionMiddleware(ctx *Context, m *Middleware) {
 
 	// TODO Auto Binder for arguments
 
-	log.Debugf("Calling controller: %s.%s", ctx.controller, ctx.action.Name)
+	log.Debugf("Calling controller: %s.%s", resolveControllerName(ctx), ctx.action.Name)
 	if action.Type().IsVariadic() {
 		action.CallSlice(actionArgs)
 	} else {

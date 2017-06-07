@@ -265,13 +265,11 @@ func (es *EventStore) Subscribe(event string, ec EventCallback) {
 	defer es.mu.Unlock()
 	if es.IsEventExists(event) {
 		es.subscribers[event] = append(es.subscribers[event], ec)
-		log.Debugf("Callback: %s, subscribed to event: %s", funcName(ec.Callback), event)
 		return
 	}
 
 	es.subscribers[event] = EventCallbacks{}
 	es.subscribers[event] = append(es.subscribers[event], ec)
-	log.Debugf("Callback: %s, subscribed to event: %s", funcName(ec.Callback), event)
 }
 
 // Unsubscribe method is to unsubscribe any callback from event store by event.

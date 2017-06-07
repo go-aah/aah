@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"aahframework.org/ahttp.v0"
@@ -111,7 +112,8 @@ func TestContextSetTarget(t *testing.T) {
 
 	err1 := ctx.setTarget(&router.Route{Controller: "Level3", Action: "Testing"})
 	assert.Nil(t, err1)
-	assert.Equal(t, "Level3", ctx.controller)
+	assert.Equal(t, "Level3", ctx.controller.Name())
+	assert.True(t, strings.HasPrefix(ctx.controller.Namespace, "ahframework.org/aah.v0"))
 	assert.NotNil(t, ctx.action)
 	assert.Equal(t, "Testing", ctx.action.Name)
 	assert.NotNil(t, ctx.action.Parameters)
@@ -137,6 +139,16 @@ func TestContextSession(t *testing.T) {
 	assert.NotNil(t, s1)
 	assert.True(t, s1.IsNew)
 	assert.NotNil(t, s1.ID)
+}
+
+func TestContextSubdomain(t *testing.T) {
+	testSubdomainValue(t, "username1.sample.com", "username1", true)
+
+	testSubdomainValue(t, "username2.sample.com", "username2", true)
+
+	testSubdomainValue(t, "admin.username1.sample.com", "admin", true)
+
+	testSubdomainValue(t, "sample.com", "", false)
 }
 
 func TestContextAbort(t *testing.T) {
@@ -270,6 +282,15 @@ func addToCRegistry() {
 	AddController((*Level4)(nil), nil)
 	AddController((*Path1)(nil), nil)
 	AddController((*Path2)(nil), nil)
+}
+
+func testSubdomainValue(t *testing.T, host, subdomain string, isSubdomain bool) {
+	ctx := &Context{
+		Req:    &ahttp.Request{Host: host},
+		domain: &router.Domain{IsSubDomain: isSubdomain},
+	}
+
+	assert.Equal(t, subdomain, ctx.Subdomain())
 }
 
 func getAahRequest(method, target, al string) *ahttp.Request {

@@ -39,7 +39,7 @@ type (
 		// response.
 		Res ahttp.ResponseWriter
 
-		controller string
+		controller *controllerInfo
 		action     *MethodInfo
 		target     interface{}
 		domain     *router.Domain
@@ -98,13 +98,23 @@ func (ctx *Context) Msgl(locale *ahttp.Locale, key string, args ...interface{}) 
 	return AppI18n().Lookup(locale, key, args...)
 }
 
+// Subdomain method returns the subdomain from the incoming request if available
+// as per routes.conf. Otherwise empty string.
+func (ctx *Context) Subdomain() string {
+	if ctx.domain.IsSubDomain {
+		if idx := strings.IndexByte(ctx.Req.Host, '.'); idx > 0 {
+			return ctx.Req.Host[:idx]
+		}
+	}
+	return ""
+}
+
 // Session method always returns `session.Session` object. Use `Session.IsNew`
 // to identify whether sesison is newly created or restored from the request
 // which was already created.
 func (ctx *Context) Session() *session.Session {
 	if ctx.session == nil {
 		ctx.session = AppSessionManager().NewSession()
-		ctx.AddViewArg(keySessionValues, ctx.session)
 	}
 	return ctx.session
 }
@@ -185,7 +195,7 @@ func (ctx *Context) SetMethod(method string) {
 func (ctx *Context) Reset() {
 	ctx.Req = nil
 	ctx.Res = nil
-	ctx.controller = ""
+	ctx.controller = nil
 	ctx.action = nil
 	ctx.target = nil
 	ctx.domain = nil
@@ -209,7 +219,7 @@ func (ctx *Context) setTarget(route *router.Route) error {
 		return errTargetNotFound
 	}
 
-	ctx.controller = controller.Name()
+	ctx.controller = controller
 	ctx.action = controller.FindMethod(route.Action)
 	if ctx.action == nil {
 		return errTargetNotFound

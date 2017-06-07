@@ -9,12 +9,24 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
+)
+
+var (
+	charsetMap = map[string]string{
+		"text/html":        "charset=utf-8",
+		"application/json": "charset=utf-8",
+		"application/xml":  "charset=utf-8",
+		"text/json":        "charset=utf-8",
+		"text/xml":         "charset=utf-8",
+		"text/plain":       "charset=utf-8",
+	}
 )
 
 func getWorkingDir() string {
@@ -71,4 +83,15 @@ func isNoGzipStatusCode(code int) bool {
 		}
 	}
 	return false
+}
+
+func resolveControllerName(ctx *Context) string {
+	if ess.IsStrEmpty(ctx.controller.Namespace) {
+		return ctx.controller.Name()
+	}
+	return path.Join(ctx.controller.Namespace, ctx.controller.Name())
+}
+
+func isCharsetExists(value string) bool {
+	return strings.Contains(value, "charset")
 }

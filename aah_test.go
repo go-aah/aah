@@ -5,6 +5,8 @@
 package aah
 
 import (
+	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -198,4 +200,16 @@ func TestAahBuildInfo(t *testing.T) {
 	assert.Equal(t, "testapp", AppBuildInfo().BinaryName)
 	assert.Equal(t, buildTime, AppBuildInfo().Date)
 	assert.Equal(t, "1.0.0", AppBuildInfo().Version)
+}
+
+func TestAahConfigValidation(t *testing.T) {
+	err := checkSSLConfigValues(true, false, "/path/to/cert.pem", "/path/to/cert.key")
+	assert.Equal(t, "SSL cert file not found: /path/to/cert.pem", err.Error())
+	fmt.Println(err)
+
+	certPath := filepath.Join(getTestdataPath(), "cert.pem")
+	defer ess.DeleteFiles(certPath)
+	_ = ioutil.WriteFile(certPath, []byte("cert.pem file"), 0755)
+	err = checkSSLConfigValues(true, false, certPath, "/path/to/cert.key")
+	assert.Equal(t, "SSL key file not found: /path/to/cert.key", err.Error())
 }

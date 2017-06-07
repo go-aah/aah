@@ -77,14 +77,15 @@ func findReverseURLDomain(host, routeName string) (*router.Domain, int) {
 	idx := strings.IndexByte(routeName, '.')
 	if idx > 0 {
 		subDomain := routeName[:idx]
+
+		// Returning current subdomain
 		if strings.HasPrefix(host, subDomain) {
-			log.Tracef("Returning current subdomain: %s.", subDomain)
 			return AppRouter().Domains[host], idx
 		}
 
+		// Returning requested subdomain
 		for k, v := range AppRouter().Domains {
 			if strings.HasPrefix(k, subDomain) && v.IsSubDomain {
-				log.Tracef("Returning requested subdomain: %s.", subDomain)
 				return v, idx
 			}
 		}
@@ -92,17 +93,7 @@ func findReverseURLDomain(host, routeName string) (*router.Domain, int) {
 
 	// return root domain
 	log.Trace("Returning root domain")
-	return findRootDomain(), idx
-}
-
-func findRootDomain() *router.Domain {
-	for _, v := range AppRouter().Domains {
-		if v.IsSubDomain {
-			continue
-		}
-		return v
-	}
-	return nil
+	return AppRouter().RootDomain(), idx
 }
 
 func createReverseURL(host, routeName string, margs map[string]interface{}, args ...interface{}) string {

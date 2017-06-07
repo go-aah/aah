@@ -21,7 +21,7 @@ import (
 )
 
 // Version no. of aah framework
-const Version = "0.5.1"
+const Version = "0.6"
 
 // aah application variables
 var (
@@ -38,6 +38,7 @@ var (
 	appSSLKey             string
 	appIsSSLEnabled       bool
 	appIsLetsEncrypt      bool
+	appIsProfileProd      bool
 	appMultipartMaxMemory int64
 	appPID                int
 	appInitialized        bool
@@ -161,6 +162,7 @@ func SetAppProfile(profile string) error {
 	}
 
 	appProfile = profile
+	appIsProfileProd = appProfile == "prod"
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
@@ -20,8 +21,8 @@ import (
 )
 
 const (
-	continuePipeline routeStatus = iota
-	notContinuePipeline
+	flowCont flowResult = iota
+	flowStop
 )
 
 const (
@@ -33,13 +34,18 @@ const (
 )
 
 var (
+	minifier          MinifierFunc
 	errFileNotFound   = errors.New("file not found")
 	noGzipStatusCodes = []int{http.StatusNotModified, http.StatusNoContent}
 )
 
 type (
-	// routeStatus is feadback of handleRoute method
-	routeStatus uint8
+	// MinifierFunc is to minify the HTML buffer and write the response into writer.
+	MinifierFunc func(contentType string, w io.Writer, r io.Reader) error
+
+	// flowResult is result of engine activities flow.
+	// For e.g.: route, authentication, authorization, etc.
+	flowResult uint8
 
 	// Engine is the aah framework application server handler for request and response.
 	// Implements `http.Handler` interface.
@@ -76,7 +82,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	publishOnRequestEvent(ctx)
 
 	// Handling route
-	if e.handleRoute(ctx) == notContinuePipeline {
+	if e.handleRoute(ctx) == flowStop {
 		return
 	}
 
@@ -160,27 +166,27 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 //  - adds the pathParams into context if present
 //
 // Returns status as-
-//  - continuePipeline
-//  - notContinuePipeline
-func (e *engine) handleRoute(ctx *Context) routeStatus {
+//  - flowCont
+//  - flowStop
+func (e *engine) handleRoute(ctx *Context) flowResult {
 	domain := AppRouter().FindDomain(ctx.Req)
 	if domain == nil {
 		ctx.Reply().NotFound().Text("404 Not Found")
 		e.writeReply(ctx)
-		return notContinuePipeline
+		return flowStop
 	}
 
 	route, pathParams, rts := domain.Lookup(ctx.Req)
 	if route == nil { // route not found
 		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
 			e.writeReply(ctx)
-			return notContinuePipeline
+			return flowStop
 		}
 
 		ctx.route = domain.NotFoundRoute
 		handleRouteNotFound(ctx, domain, domain.NotFoundRoute)
 		e.writeReply(ctx)
-		return notContinuePipeline
+		return flowStop
 	}
 
 	ctx.route = route
@@ -200,26 +206,23 @@ func (e *engine) handleRoute(ctx *Context) routeStatus {
 			handleRouteNotFound(ctx, domain, route)
 			e.writeReply(ctx)
 		}
-		return notContinuePipeline
+		return flowStop
 	}
 
 	// No controller or action found for the route
 	if err := ctx.setTarget(route); err == errTargetNotFound {
 		handleRouteNotFound(ctx, domain, route)
 		e.writeReply(ctx)
-		return notContinuePipeline
+		return flowStop
 	}
 
-	return continuePipeline
+	return flowCont
 }
 
 // loadSession method loads session from request for `stateful` session.
 func (e *engine) loadSession(ctx *Context) {
 	if AppSessionManager().IsStateful() {
 		ctx.session = AppSessionManager().GetSession(ctx.Req.Raw)
-		if ctx.session != nil {
-			ctx.AddViewArg(keySessionValues, ctx.session)
-		}
 	}
 }
 
@@ -240,9 +243,17 @@ func (e *engine) executeMiddlewares(ctx *Context) {
 func (e *engine) writeReply(ctx *Context) {
 	reply := ctx.Reply()
 
-	if reply.done { // Response already written on the wire, don't go forward.
+	// Response already written on the wire, don't go forward.
+	// refer `ctx.Abort()` method.
+	if reply.done {
 		return
 	}
+
+	// HTTP headers
+	e.writeHeaders(ctx)
+
+	// Set Cookies
+	e.setCookies(ctx)
 
 	if reply.redirect { // handle redirects
 		log.Debugf("Redirecting to '%s' with status '%d'", reply.path, reply.Code)
@@ -256,45 +267,34 @@ func (e *engine) writeReply(ctx *Context) {
 	// resolving view template
 	e.resolveView(ctx)
 
-	// Render and detect the errors earlier, framework can write error info
-	// without messing with response.
-	// HTTP Body
-	reply.body = e.getBuffer()
-	if reply.Rdr != nil {
-		if jsonp, ok := reply.Rdr.(*JSON); ok && ctx.Req.IsJSONP() && jsonp.IsJSONP {
-			if ess.IsStrEmpty(jsonp.Callback) {
-				jsonp.Callback = ctx.Req.QueryValue("callback")
-			}
-		}
-
-		if err := reply.Rdr.Render(reply.body); err != nil {
-			log.Error("Render response body error: ", err)
-			reply.InternalServerError()
-			reply.body.Reset()
-			reply.body.WriteString("500 Internal Server Error\n")
-		}
-	}
+	// Render it and detect the errors earlier. So that framework can write
+	// error info without messing with response on the wire.
+	e.doRender(ctx)
 
 	// Gzip
 	if !isNoGzipStatusCode(reply.Code) && reply.body.Len() != 0 {
 		e.wrapGzipWriter(ctx)
-		// TODO minify implementation for non-dev
+	}
+
+	// ContentType, if it's not set then auto detect later in the writer
+	if ctx.Reply().IsContentTypeSet() {
+		ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
 	}
 
 	// 'OnPreReply' server extension point
 	publishOnPreReplyEvent(ctx)
 
-	// HTTP headers
-	e.writeHeaders(ctx)
-
-	// Set Cookies
-	e.setCookies(ctx)
-
 	// HTTP status
 	ctx.Res.WriteHeader(reply.Code)
 
 	// Write response buffer on the wire
-	_, _ = reply.body.WriteTo(ctx.Res)
+	if minifier == nil || !appIsProfileProd ||
+		isNoGzipStatusCode(reply.Code) ||
+		!ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
+		_, _ = reply.body.WriteTo(ctx.Res)
+	} else if err := minifier(reply.ContType, ctx.Res, reply.body); err != nil {
+		log.Errorf("Minifier error: %v", err)
+	}
 
 	// 'OnAfterReply' server extension point
 	publishOnAfterReplyEvent(ctx)
@@ -306,9 +306,9 @@ func (e *engine) negotiateContentType(ctx *Context) {
 	if !ctx.Reply().IsContentTypeSet() {
 		if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
 			ctx.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
-			ctx.Reply().ContentType(ctx.Req.AcceptContentType.Raw())
+			ctx.Reply().ContentType(ctx.Req.AcceptContentType.String())
 		} else if ct := defaultContentType(); ct != nil { // as per 'render.default' in aah.conf
-			ctx.Reply().ContentType(ct.Raw())
+			ctx.Reply().ContentType(ct.String())
 		}
 	}
 }
@@ -332,11 +332,6 @@ func (e *engine) writeHeaders(ctx *Context) {
 		}
 	}
 
-	// ContentType, if it's not set then auto detect later in the writer
-	if ctx.Reply().IsContentTypeSet() {
-		ctx.Res.Header().Set(ahttp.HeaderContentType, ctx.Reply().ContType)
-	}
-
 	ctx.Res.Header().Set(ahttp.HeaderServer, aahServerName)
 
 	// Set the HSTS if SSL is enabled on aah server
@@ -354,6 +349,9 @@ func (e *engine) setCookies(ctx *Context) {
 	}
 
 	if AppSessionManager().IsStateful() && ctx.session != nil {
+		// Pass it to view args before saving cookie
+		session := *ctx.session
+		ctx.AddViewArg(keySessionValues, &session)
 		if err := AppSessionManager().SaveSession(ctx.Res, ctx.session); err != nil {
 			log.Error(err)
 		}

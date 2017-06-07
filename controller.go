@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"path"
 	"reflect"
 	"strings"
 
@@ -70,10 +71,10 @@ func AddController(c interface{}, methods []*MethodInfo) {
 		methodMapping[strings.ToLower(method.Name)] = method
 	}
 
-	key := createRegistryKey(cType)
+	key, namespace := createRegistryKeyAndNamespace(cType)
 	cRegistry[key] = &controllerInfo{
 		Type:            cType,
-		Namespace:       ess.StripExt(key),
+		Namespace:       namespace,
 		Methods:         methodMapping,
 		EmbeddedIndexes: findEmbeddedContext(cType),
 	}
@@ -132,15 +133,16 @@ func actualType(v interface{}) reflect.Type {
 	return vt
 }
 
-// createRegistryKey method creates the controller registry key.
-func createRegistryKey(cType reflect.Type) string {
+// createRegistryKeyAndNamespace method creates the controller registry key.
+func createRegistryKeyAndNamespace(cType reflect.Type) (string, string) {
 	namespace := cType.PkgPath()
-	idx := strings.Index(namespace, "controllers")
-	namespace = namespace[idx+11:]
-
-	if ess.IsStrEmpty(namespace) {
-		return strings.ToLower(cType.Name())
+	if idx := strings.Index(namespace, "controllers"); idx > -1 {
+		namespace = namespace[idx+11:]
 	}
 
-	return strings.ToLower(namespace[1:] + "." + cType.Name())
+	if ess.IsStrEmpty(namespace) {
+		return strings.ToLower(cType.Name()), ""
+	}
+
+	return strings.ToLower(path.Join(namespace[1:], cType.Name())), namespace[1:]
 }

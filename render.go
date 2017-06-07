@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 
 	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 )
 
 type (
@@ -192,4 +193,25 @@ func (h *HTML) Render(w io.Writer) error {
 	}
 
 	return h.Template.ExecuteTemplate(w, h.Layout, h.ViewArgs)
+}
+
+// doRender method renders and detects the errors earlier. Writes the
+// error info if any.
+func (e *engine) doRender(ctx *Context) {
+	if ctx.Reply().Rdr != nil {
+		reply := ctx.Reply()
+		reply.body = e.getBuffer()
+		if jsonp, ok := reply.Rdr.(*JSON); ok && jsonp.IsJSONP {
+			if ess.IsStrEmpty(jsonp.Callback) {
+				jsonp.Callback = ctx.Req.QueryValue("callback")
+			}
+		}
+
+		if err := reply.Rdr.Render(reply.body); err != nil {
+			log.Error("Render response body error: ", err)
+			reply.InternalServerError()
+			reply.body.Reset()
+			reply.body.WriteString("500 Internal Server Error\n")
+		}
+	}
 }
