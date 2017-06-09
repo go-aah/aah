@@ -24,7 +24,7 @@ const (
 //      Format: "2006-01-02 15:04:05.000",
 //    }
 type FlagPart struct {
-	Flag   FmtFlag
+	Flag   fmtFlag
 	Name   string
 	Format string
 }

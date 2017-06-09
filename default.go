@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	slog "log"
-	"os"
 
 	"aahframework.org/config.v0"
 )
@@ -92,19 +91,19 @@ func Println(format string, v ...interface{}) {
 // Fatal logs message as `FATAL` and call to os.Exit(1).
 func Fatal(v ...interface{}) {
 	std.output(levelFatal, 3, nil, v...)
-	os.Exit(1)
+	exit(1)
 }
 
 // Fatalf logs message as `FATAL` and call to os.Exit(1).
 func Fatalf(format string, v ...interface{}) {
 	std.output(levelFatal, 3, &format, v...)
-	os.Exit(1)
+	exit(1)
 }
 
 // Fatalln logs message as `FATAL` and call to os.Exit(1).
 func Fatalln(format string, v ...interface{}) {
 	std.output(levelFatal, 3, &format, v...)
-	os.Exit(1)
+	exit(1)
 }
 
 // Panic logs message as `PANIC` and call to panic().
@@ -148,6 +147,40 @@ func SetLevel(level string) error {
 // SetPattern method sets the log format pattern for default logger.
 func SetPattern(pattern string) error {
 	return std.SetPattern(pattern)
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Logger level and assertion methods
+//___________________________________
+
+// Level method returns currently enabled logging level.
+func Level() string {
+	return std.Level()
+}
+
+// IsLevelInfo method returns true if log level is INFO otherwise false.
+func IsLevelInfo() bool {
+	return std.IsLevelInfo()
+}
+
+// IsLevelError method returns true if log level is ERROR otherwise false.
+func IsLevelError() bool {
+	return std.IsLevelError()
+}
+
+// IsLevelWarn method returns true if log level is WARN otherwise false.
+func IsLevelWarn() bool {
+	return std.IsLevelWarn()
+}
+
+// IsLevelDebug method returns true if log level is DEBUG otherwise false.
+func IsLevelDebug() bool {
+	return std.IsLevelDebug()
+}
+
+// IsLevelTrace method returns true if log level is TRACE otherwise false.
+func IsLevelTrace() bool {
+	return std.IsLevelTrace()
 }
 
 func init() {

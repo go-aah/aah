@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	levelNameToLevel = map[string]Level{
+	levelNameToLevel = map[string]level{
 		"FATAL": levelFatal,
 		"PANIC": levelPanic,
 		"ERROR": LevelError,
@@ -21,7 +21,7 @@ var (
 		"TRACE": LevelTrace,
 	}
 
-	levelToLevelName = map[Level]string{
+	levelToLevelName = map[level]string{
 		levelFatal: "FATAL",
 		levelPanic: "PANIC",
 		LevelError: "ERROR",
@@ -36,7 +36,7 @@ var (
 // Unexported methods
 //___________________________________
 
-func levelByName(name string) Level {
+func levelByName(name string) level {
 	if level, ok := levelNameToLevel[strings.ToUpper(name)]; ok {
 		return level
 	}
@@ -44,7 +44,7 @@ func levelByName(name string) Level {
 	return LevelUnknown
 }
 
-func fmtFlagByName(name string) FmtFlag {
+func fmtFlagByName(name string) fmtFlag {
 	if flag, ok := FmtFlags[name]; ok {
 		return flag
 	}
@@ -52,7 +52,7 @@ func fmtFlagByName(name string) FmtFlag {
 	return FmtFlagUnknown
 }
 
-func isFmtFlagExists(flags *[]FlagPart, flag FmtFlag) bool {
+func isFmtFlagExists(flags *[]FlagPart, flag fmtFlag) bool {
 	for _, f := range *flags {
 		if f.Flag == flag {
 			return true
@@ -78,12 +78,16 @@ func isCallerInfo(flags *[]FlagPart) bool {
 }
 
 func getReceiverByName(name string) Receiver {
-	if name == "FILE" {
+	switch name {
+	case "FILE":
 		return &FileReceiver{}
-	} else if name == "CONSOLE" {
+	case "CONSOLE":
 		return &ConsoleReceiver{}
+	case "DISCARD":
+		return &DiscardReceiver{}
+	default:
+		return nil
 	}
-	return nil
 }
 
 func formatTime(t time.Time) string {

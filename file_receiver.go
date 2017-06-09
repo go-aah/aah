@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"aahframework.org/config.v0"
@@ -25,6 +26,7 @@ type FileReceiver struct {
 	flags        *[]FlagPart
 	isCallerInfo bool
 	stats        *receiverStats
+	mu           *sync.Mutex
 	isClosed     bool
 	rotatePolicy string
 	openDay      int
@@ -53,7 +55,7 @@ func (f *FileReceiver) Init(cfg *config.Config) error {
 	f.rotatePolicy = cfg.StringDefault("log.rotate.policy", "daily")
 	switch f.rotatePolicy {
 	case "daily":
-		f.openDay = time.Now().Day()
+		f.openDay = f.getDay()
 	case "lines":
 		f.maxLines = int64(cfg.IntDefault("log.rotate.lines", 0))
 	case "size":
@@ -63,6 +65,8 @@ func (f *FileReceiver) Init(cfg *config.Config) error {
 		}
 		f.maxSize = maxSize
 	}
+
+	f.mu = &sync.Mutex{}
 
 	return nil
 }
@@ -78,9 +82,7 @@ func (f *FileReceiver) SetPattern(pattern string) error {
 		f.isCallerInfo = isCallerInfo(f.flags)
 	}
 	f.isUTC = isFmtFlagExists(f.flags, FmtFlagUTCTime)
-	if f.isUTC {
-		f.openDay = time.Now().UTC().Day()
-	}
+	f.openDay = f.getDay()
 	return nil
 }
 
@@ -92,9 +94,16 @@ func (f *FileReceiver) IsCallerInfo() bool {
 
 // Log method logs the given entry values into file.
 func (f *FileReceiver) Log(entry *Entry) {
+	f.mu.Lock()
 	if f.isRotate() {
 		_ = f.rotateFile()
+
+		// reset rotation values
+		f.openDay = f.getDay()
+		f.stats.lines = 0
+		f.stats.bytes = 0
 	}
+	f.mu.Unlock()
 
 	msg := applyFormatter(f.formatter, f.flags, entry)
 	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
@@ -102,9 +111,6 @@ func (f *FileReceiver) Log(entry *Entry) {
 	}
 
 	size, _ := f.out.Write(msg)
-	if size == 0 {
-		return
-	}
 
 	// calculate receiver stats
 	f.stats.bytes += int64(size)
@@ -123,16 +129,14 @@ func (f *FileReceiver) Writer() io.Writer {
 func (f *FileReceiver) isRotate() bool {
 	switch f.rotatePolicy {
 	case "daily":
-		if f.isUTC {
-			return time.Now().UTC().Day() != f.openDay
-		}
-		return time.Now().Day() != f.openDay
+		return f.openDay != f.getDay()
 	case "lines":
 		return f.maxLines != 0 && f.stats.lines >= f.maxLines
 	case "size":
 		return f.maxSize != 0 && f.stats.bytes >= f.maxSize
+	default:
+		return false
 	}
-	return false
 }
 
 func (f *FileReceiver) rotateFile() error {
@@ -190,4 +194,11 @@ func (f *FileReceiver) backupFileName() string {
 		t = t.UTC()
 	}
 	return filepath.Join(dir, fmt.Sprintf("%s-%s%s", baseName, t.Format(BackupTimeFormat), ext))
+}
+
+func (f *FileReceiver) getDay() int {
+	if f.isUTC {
+		return time.Now().UTC().Day()
+	}
+	return time.Now().Day()
 }

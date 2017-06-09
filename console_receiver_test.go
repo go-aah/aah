@@ -5,6 +5,7 @@
 package log
 
 import (
+	"os"
 	"testing"
 
 	"aahframework.org/config.v0"
@@ -120,6 +121,12 @@ func testConsoleLogger(t *testing.T, cfgStr string) {
 
 	logger.Error("Yes, yes, yes - finally an error")
 	logger.Errorf("Yes, yes, yes - %v", "finally an error")
+
+	exit = func(code int) {}
+	logger.Fatal("Yes, yes, yes - finally an error")
+	logger.Fatalf("Yes, yes, yes - %v", "finally an error")
+	logger.Fatalln("Yes, yes, yes - %v", "finally an error")
+	exit = os.Exit
 
 	assert.NotNil(t, logger.ToGoLogger())
 }

@@ -34,15 +34,17 @@ import (
 	"aahframework.org/config.v0"
 )
 
-// Level type definition
-type Level uint8
+type (
+	// FmtFlag type definition
+	fmtFlag uint8
 
-// FmtFlag type definition
-type FmtFlag uint8
+	// Level type definition
+	level uint8
+)
 
 // Log Level definition
 const (
-	levelFatal Level = iota
+	levelFatal level = iota
 	levelPanic
 	LevelError
 	LevelWarn
@@ -54,7 +56,7 @@ const (
 
 // Format flags used to define log message format for each log entry
 const (
-	FmtFlagLevel FmtFlag = iota
+	FmtFlagLevel fmtFlag = iota
 	FmtFlagTime
 	FmtFlagUTCTime
 	FmtFlagLongfile
@@ -67,7 +69,7 @@ const (
 
 var (
 	// Version no. of aahframework.org/log library
-	Version = "0.4"
+	Version = "0.5"
 
 	// FmtFlags is the list of log format flags supported by aah/log library
 	// Usage of flag order is up to format composition.
@@ -79,7 +81,7 @@ var (
 	//    line      - outputs file line number: L23
 	//    message   - outputs given message along supplied arguments if they present
 	//    custom    - outputs string as-is into log entry
-	FmtFlags = map[string]FmtFlag{
+	FmtFlags = map[string]fmtFlag{
 		"level":     FmtFlagLevel,
 		"time":      FmtFlagTime,
 		"utctime":   FmtFlagUTCTime,
@@ -106,6 +108,9 @@ var (
 	flagValueSeparator = ":"
 	defaultFormat      = "%v"
 	filePermission     = os.FileMode(0755)
+
+	// abstract it, can be unit tested
+	exit = os.Exit
 )
 
 type (
@@ -125,7 +130,7 @@ type (
 	Logger struct {
 		cfg      *config.Config
 		m        *sync.Mutex
-		level    Level
+		level    level
 		receiver Receiver
 	}
 )
@@ -288,19 +293,19 @@ func (l *Logger) Println(format string, v ...interface{}) {
 // Fatal logs message as `FATAL` and call to os.Exit(1).
 func (l *Logger) Fatal(v ...interface{}) {
 	l.output(levelFatal, 3, nil, v...)
-	os.Exit(1)
+	exit(1)
 }
 
 // Fatalf logs message as `FATAL` and call to os.Exit(1).
 func (l *Logger) Fatalf(format string, v ...interface{}) {
 	l.output(levelFatal, 3, &format, v...)
-	os.Exit(1)
+	exit(1)
 }
 
 // Fatalln logs message as `FATAL` and call to os.Exit(1).
 func (l *Logger) Fatalln(format string, v ...interface{}) {
 	l.output(levelFatal, 3, &format, v...)
-	os.Exit(1)
+	exit(1)
 }
 
 // Panic logs message as `PANIC` and call to panic().
@@ -322,12 +327,41 @@ func (l *Logger) Panicln(format string, v ...interface{}) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Logger level methods
+//___________________________________
+
+// IsLevelInfo method returns true if log level is INFO otherwise false.
+func (l *Logger) IsLevelInfo() bool {
+	return l.level == LevelInfo
+}
+
+// IsLevelError method returns true if log level is ERROR otherwise false.
+func (l *Logger) IsLevelError() bool {
+	return l.level == LevelError
+}
+
+// IsLevelWarn method returns true if log level is WARN otherwise false.
+func (l *Logger) IsLevelWarn() bool {
+	return l.level == LevelWarn
+}
+
+// IsLevelDebug method returns true if log level is DEBUG otherwise false.
+func (l *Logger) IsLevelDebug() bool {
+	return l.level == LevelDebug
+}
+
+// IsLevelTrace method returns true if log level is TRACE otherwise false.
+func (l *Logger) IsLevelTrace() bool {
+	return l.level == LevelTrace
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
 
 // output method checks the level, formats the arguments and call to configured
 // Log receivers.
-func (l *Logger) output(level Level, calldepth int, format *string, v ...interface{}) {
+func (l *Logger) output(level level, calldepth int, format *string, v ...interface{}) {
 	if level > l.level {
 		return
 	}

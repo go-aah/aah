@@ -19,7 +19,7 @@ var (
 // Entry represents a log entry and contains the timestamp when the entry
 // was created, level, etc.
 type Entry struct {
-	Level   Level     `json:"level,omitempty"`
+	Level   level     `json:"level,omitempty"`
 	Time    time.Time `json:"timestamp,omitempty"`
 	Message string    `json:"message,omitempty"`
 	File    string    `json:"file,omitempty"`

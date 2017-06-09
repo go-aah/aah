@@ -67,7 +67,7 @@ func TestMisc(t *testing.T) {
 	assert.Equal(t, "log: config is nil", err.Error())
 
 	// Discard
-	discard := DiscardReceiver{}
+	discard := getReceiverByName("DISCARD")
 	_ = discard.Init(nil)
 	discard.Log(&Entry{})
 	_ = discard.SetPattern("nothing")
