@@ -34,13 +34,8 @@ import (
 	"aahframework.org/config.v0"
 )
 
-type (
-	// FmtFlag type definition
-	fmtFlag uint8
-
-	// Level type definition
-	level uint8
-)
+// Level type definition
+type level uint8
 
 // Log Level definition
 const (
@@ -54,52 +49,9 @@ const (
 	LevelUnknown
 )
 
-// Format flags used to define log message format for each log entry
-const (
-	FmtFlagLevel fmtFlag = iota
-	FmtFlagTime
-	FmtFlagUTCTime
-	FmtFlagLongfile
-	FmtFlagShortfile
-	FmtFlagLine
-	FmtFlagMessage
-	FmtFlagCustom
-	FmtFlagUnknown
-)
-
 var (
 	// Version no. of aahframework.org/log library
 	Version = "0.5"
-
-	// FmtFlags is the list of log format flags supported by aah/log library
-	// Usage of flag order is up to format composition.
-	//    level     - outputs INFO, DEBUG, ERROR, so on
-	//    time      - outputs local time as per format supplied
-	//    utctime   - outputs UTC time as per format supplied
-	//    longfile  - outputs full file name: /a/b/c/d.go
-	//    shortfile - outputs final file name element: d.go
-	//    line      - outputs file line number: L23
-	//    message   - outputs given message along supplied arguments if they present
-	//    custom    - outputs string as-is into log entry
-	FmtFlags = map[string]fmtFlag{
-		"level":     FmtFlagLevel,
-		"time":      FmtFlagTime,
-		"utctime":   FmtFlagUTCTime,
-		"longfile":  FmtFlagLongfile,
-		"shortfile": FmtFlagShortfile,
-		"line":      FmtFlagLine,
-		"message":   FmtFlagMessage,
-		"custom":    FmtFlagCustom,
-	}
-
-	// DefaultPattern is default log entry pattern in aah/log. Only applicable to
-	// text formatter.
-	// For e.g:
-	//    2006-01-02 15:04:05.000 INFO  This is my message
-	DefaultPattern = "%time:2006-01-02 15:04:05.000 %level:-5 %message"
-
-	// BackupTimeFormat is used for timestamp with filename on rotation
-	BackupTimeFormat = "2006-01-02-15-04-05.000"
 
 	// ErrLogReceiverIsNil returned when suppiled receiver is nil.
 	ErrLogReceiverIsNil = errors.New("log: receiver is nil")

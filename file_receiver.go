@@ -16,7 +16,12 @@ import (
 	"aahframework.org/essentials.v0"
 )
 
-var _ Receiver = &FileReceiver{}
+var (
+	// backupTimeFormat is used for timestamp with filename on rotation
+	backupTimeFormat = "2006-01-02-15-04-05.000"
+
+	_ Receiver = &FileReceiver{}
+)
 
 // FileReceiver writes the log entry into file.
 type FileReceiver struct {
@@ -193,7 +198,7 @@ func (f *FileReceiver) backupFileName() string {
 	if f.isUTC {
 		t = t.UTC()
 	}
-	return filepath.Join(dir, fmt.Sprintf("%s-%s%s", baseName, t.Format(BackupTimeFormat), ext))
+	return filepath.Join(dir, fmt.Sprintf("%s-%s%s", baseName, t.Format(backupTimeFormat), ext))
 }
 
 func (f *FileReceiver) getDay() int {
