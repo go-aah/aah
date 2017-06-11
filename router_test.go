@@ -15,6 +15,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -435,6 +436,7 @@ func TestRouterNamespaceConfig(t *testing.T) {
 }
 
 func createRouter(filename string) (*Router, error) {
+	_ = log.SetLevel("TRACE")
 	wd, _ := os.Getwd()
 	appCfg, _ := config.ParseString(`routes {
 			localhost {

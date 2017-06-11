@@ -293,13 +293,16 @@ func (r *Router) processRoutesConfig() (err error) {
 		// add domain routes
 		key := domain.key()
 		log.Debugf("Domain: %s, routes found: %d", key, len(domain.routes))
-		for _, dr := range domain.routes {
-			parentInfo := ""
-			if !ess.IsStrEmpty(dr.ParentName) {
-				parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
+		if log.IsLevelTrace() {
+			// don't spend time here, process only if log level is trace
+			for _, dr := range domain.routes {
+				parentInfo := ""
+				if !ess.IsStrEmpty(dr.ParentName) {
+					parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
+				}
+				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v",
+					dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action)
 			}
-			log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v",
-				dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action)
 		}
 
 		r.Domains[key] = domain
