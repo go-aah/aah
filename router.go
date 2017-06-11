@@ -25,7 +25,7 @@ import (
 
 const (
 	// Version no. of aah framework router library
-	Version = "0.7"
+	Version = "0.8"
 
 	wildcardSubdomainPrefix = "*."
 )
