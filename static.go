@@ -24,8 +24,9 @@ import (
 )
 
 const (
-	dirStatic = "static"
-	sniffLen  = 512
+	dirStatic       = "static"
+	sniffLen        = 512
+	noCacheHdrValue = "no-cache, no-store, must-revalidate"
 )
 
 var (
@@ -84,6 +85,9 @@ func (e *engine) serveStatic(ctx *Context) error {
 			// apply cache header if environment profile is `prod`
 			if appIsProfileProd {
 				ctx.Res.Header().Set(ahttp.HeaderCacheControl, cacheHeader(contentType))
+			} else { // for hot-reload
+				ctx.Res.Header().Set(ahttp.HeaderExpires, "0")
+				ctx.Res.Header().Set(ahttp.HeaderCacheControl, noCacheHdrValue)
 			}
 		}
 

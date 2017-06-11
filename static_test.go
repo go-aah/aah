@@ -22,18 +22,18 @@ import (
 func TestStaticDirectoryListing(t *testing.T) {
 	appCfg, _ := config.ParseString("")
 	e := newEngine(appCfg)
-	appIsProfileProd = true
 
 	testStaticServe(t, e, "http://localhost:8080/static/css/aah\x00.css", "static", "css/aah\x00.css", "", "500 Internal Server Error", false)
 
-	testStaticServe(t, e, "http://localhost:8080/static/test.txt", "static", "test.txt", "", "This is file content of test.txt", false)
+	testStaticServe(t, e, "http://localhost:8080/static/", "static", "", "", `<title>Listing of /static/</title>`, true)
 
 	testStaticServe(t, e, "http://localhost:8080/static", "static", "", "", "403 Directory listing not allowed", false)
 
 	testStaticServe(t, e, "http://localhost:8080/static", "static", "", "", `<a href="/static/">Moved Permanently</a>`, true)
 
-	testStaticServe(t, e, "http://localhost:8080/static/", "static", "", "", `<title>Listing of /static/</title>`, true)
+	testStaticServe(t, e, "http://localhost:8080/static/test.txt", "static", "test.txt", "", "This is file content of test.txt", false)
 
+	appIsProfileProd = true
 	testStaticServe(t, e, "http://localhost:8080/robots.txt", "", "", "test.txt", "This is file content of test.txt", false)
 	appIsProfileProd = false
 }
