@@ -123,9 +123,9 @@ func testConsoleLogger(t *testing.T, cfgStr string) {
 	logger.Errorf("Yes, yes, yes - %v", "finally an error")
 
 	exit = func(code int) {}
-	logger.Fatal("Yes, yes, yes - finally an error")
-	logger.Fatalf("Yes, yes, yes - %v", "finally an error")
-	logger.Fatalln("Yes, yes, yes - %v", "finally an error")
+	logger.Fatal("Yes, yes, yes - at last fatal")
+	logger.Fatalf("Yes, yes, yes - %v", "at last fatal")
+	logger.Fatalln("Yes, yes, yes - %v", "at last fatal")
 	exit = os.Exit
 
 	assert.NotNil(t, logger.ToGoLogger())

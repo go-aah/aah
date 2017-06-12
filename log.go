@@ -333,4 +333,7 @@ func (l *Logger) output(level level, calldepth int, format *string, v ...interfa
 	}
 
 	l.receiver.Log(entry)
+
+	// Execute logger hooks
+	go executeHooks(*entry)
 }
