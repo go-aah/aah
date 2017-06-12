@@ -7,6 +7,7 @@ package aah
 import (
 	"net/http"
 	"reflect"
+	"time"
 
 	"aahframework.org/log.v0-unstable"
 )
@@ -102,6 +103,7 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 	target := reflect.ValueOf(ctx.target)
 	controller := resolveControllerName(ctx)
 
+	startTime := time.Now()
 	// Finally action and method
 	defer func() {
 		if ctx.abort {
@@ -117,6 +119,8 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 			log.Debugf("Calling interceptor: %s.%s", controller, incpFinallyActionName)
 			finallyAction.Call(emptyArg)
 		}
+
+		log.Debugf("Request took %v", time.Now().Sub(startTime))
 	}()
 
 	// Panic action and method
