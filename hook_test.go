@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	config "aahframework.org/config.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/test.v0/assert"
 )
 
