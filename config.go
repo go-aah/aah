@@ -19,7 +19,7 @@ import (
 )
 
 // Version no. of aahframework.org/config library
-var Version = "0.4.1"
+var Version = "0.4.2"
 
 var errKeyNotFound = errors.New("config: not found")
 
@@ -365,8 +365,8 @@ func (c *Config) Merge(source *Config) error {
 
 // IsExists returns true if given is exists in the config otherwise returns false
 func (c *Config) IsExists(key string) bool {
-	_, f := c.get(c.prepareKey(key))
-	return f
+	_, found := c.Get(key)
+	return found
 }
 
 // ToJSON method returns the configuration values as JSON string.

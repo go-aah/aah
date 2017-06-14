@@ -348,7 +348,6 @@ func TestLoadFiles(t *testing.T) {
 	assert.Equal(t, float32(1000.5), cfg.Float32Default("subsection.sub_float", 0.0))
 	assert.Equal(t, float32(222.2), cfg.Float32Default("float32", 0.0))
 	assert.Equal(t, true, cfg.BoolDefault("falsevalue", false))
-	// assert.Equal(t, false, cfg.BoolDefault("truevalue", true)) // TODO check why result is different
 
 	// fail cases
 	_, err = LoadFiles(join(testdataPath, "not_exists.cfg"))
