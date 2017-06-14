@@ -6,6 +6,7 @@ package ess
 
 import (
 	"io/ioutil"
+	"strings"
 	"testing"
 
 	"aahframework.org/test.v0/assert"
@@ -39,4 +40,12 @@ func TestArchiveZip(t *testing.T) {
 	err := Zip(zipName, join(testdataPath, "dirpaths"))
 	assert.Nil(t, err)
 	assert.True(t, IsFileExists(zipName))
+
+	err = Zip(zipName, join(testdataPath, "dirpaths1"))
+	assert.NotNil(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "source does not exists:"))
+
+	err = Zip(zipName, join(testdataPath, "dirpaths"))
+	assert.NotNil(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "destination archive already exists:"))
 }
