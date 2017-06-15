@@ -35,10 +35,9 @@ const (
 )
 
 var (
-	minifier                       MinifierFunc
-	errFileNotFound                = errors.New("file not found")
-	noGzipStatusCodes              = []int{http.StatusNotModified, http.StatusNoContent}
-	defaultRequestAccessLogPattern = "%clientip %reqid %reqtime %restime %resstatus %ressize %reqmeth    od %requrl"
+	minifier          MinifierFunc
+	errFileNotFound   = errors.New("file not found")
+	noGzipStatusCodes = []int{http.StatusNotModified, http.StatusNoContent}
 )
 
 type (
@@ -55,11 +54,11 @@ type (
 		isRequestIDEnabled bool
 		requestIDHeader    string
 		isGzipEnabled      bool
+		isAccessLogEnabled bool
 		ctxPool            *pool.Pool
 		reqPool            *pool.Pool
 		replyPool          *pool.Pool
 		bufPool            *pool.Pool
-		cfg                *config.Config
 	}
 
 	byName []os.FileInfo
@@ -71,22 +70,12 @@ type (
 
 // ServeHTTP method implementation of http.Handler interface.
 func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	now := time.Now()
-
-	var ral requestAccessLog
-
-	ralChan := newRequestAccessLogChan()
-
-	isAccessLogEnabled := e.cfg.BoolDefault("request.access_log.enable", false)
-
-	if isAccessLogEnabled {
-		ral = requestAccessLog{
-			startTime: now,
-		}
-	}
+	// Capture the startTime earlier.
+	// This value is as accurate as could be.
+	startTime := time.Now()
 
 	ctx := e.prepareContext(w, r)
+	ctx.values[appStartTimeKey] = startTime
 	defer e.putContext(ctx)
 
 	// Recovery handling, capture every possible panic(s)
@@ -119,16 +108,6 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Write Reply on the wire
 	e.writeReply(ctx)
-
-	if isAccessLogEnabled {
-
-		ral.ctx = ctx
-		ral.requestID = ctx.Req.Header.Get(e.requestIDHeader)
-		ral.logPattern = e.cfg.StringDefault("request.access_log.pattern", defaultRequestAccessLogPattern)
-		ral.elapsedTime = time.Now().Sub(ral.startTime)
-
-		ralChan <- ral
-	}
 }
 
 // handleRecovery method handles application panics and recovers from it.
@@ -177,6 +156,7 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 	ctx.Res = ahttp.GetResponseWriter(w)
 	ctx.reply = e.getReply()
 	ctx.viewArgs = make(map[string]interface{})
+	ctx.values = make(map[string]interface{})
 
 	return ctx
 }
@@ -325,6 +305,26 @@ func (e *engine) writeReply(ctx *Context) {
 
 	// 'OnAfterReply' server extension point
 	publishOnAfterReplyEvent(ctx)
+
+	// Send data to access log channel
+	if e.isAccessLogEnabled {
+		startTime := ctx.values[appStartTimeKey].(time.Time)
+
+		// All the bytes have been written on the wire
+		// so calculate elapsed time
+		elapsedDuration := time.Since(startTime)
+		ral := &requestAccessLog{
+			StartTime:       startTime,
+			ElapsedDuration: elapsedDuration,
+			RequestID:       ctx.Req.Header.Get(e.requestIDHeader),
+			Request:         *ctx.Req,
+			ResStatus:       ctx.Res.Status(),
+			ResBytes:        ctx.Res.BytesWritten(),
+			ResHdr:          ctx.Res.Header(),
+		}
+
+		appAccessLogChan <- ral
+	}
 }
 
 // negotiateContentType method tries to identify if reply.ContType is empty.
@@ -458,6 +458,7 @@ func newEngine(cfg *config.Config) *engine {
 		isRequestIDEnabled: cfg.BoolDefault("request.id.enable", true),
 		requestIDHeader:    cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
 		isGzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
+		isAccessLogEnabled: cfg.BoolDefault("request.access_log.enable", false),
 		ctxPool: pool.NewPool(
 			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
 			func() interface{} {
@@ -482,6 +483,5 @@ func newEngine(cfg *config.Config) *engine {
 				return &bytes.Buffer{}
 			},
 		),
-		cfg: cfg,
 	}
 }

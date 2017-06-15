@@ -8,9 +8,14 @@ package aah
 
 import (
 	"bytes"
-	"strconv"
+	"fmt"
+	"net/http"
+	"path/filepath"
+	"sync"
 	"time"
 
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0-unstable"
 	"aahframework.org/log.v0"
 )
@@ -43,120 +48,140 @@ var (
 		"reshdr":    fmtFlagResponseHeader,
 		"restime":   fmtFlagResponseTime,
 	}
+
+	defaultRequestAccessLogPattern = "%clientip %reqid %reqtime %restime %resstatus %ressize %reqmethod %requrl"
+	appStartTimeKey                = "appReqStartTime"
+	appAccessLogBufPool            *sync.Pool
+	appAccessLog                   *log.Logger
+	appAccessLogFmtFlags           []ess.FmtFlagPart
+	appAccessLogChan               chan *requestAccessLog
 )
 
 type (
-
 	//requestAccessLog contains data about the current request
 	requestAccessLog struct {
-		startTime   time.Time
-		ctx         *Context
-		requestID   string
-		logPattern  string
-		elapsedTime time.Duration
+		StartTime       time.Time
+		ElapsedDuration time.Duration
+		RequestID       string
+		Request         ahttp.Request
+		ResStatus       int
+		ResBytes        int
+		ResHdr          http.Header
 	}
-
-	requestAccessLogChan chan requestAccessLog
 )
 
-func newRequestAccessLogChan() requestAccessLogChan {
-	c := make(chan requestAccessLog)
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
 
-	go listenForLogEntry(c)
-	return c
+func initRequestAccessLog(logsDir string, appCfg *config.Config) error {
+	// log file configuration
+	cfg, _ := config.ParseString("")
+	file := appCfg.StringDefault("request.access_log.file", "")
+	if ess.IsStrEmpty(file) {
+		cfg.SetString("log.file", filepath.Join(logsDir, getBinaryFileName()+"-access.log"))
+	} else if !filepath.IsAbs(file) {
+		cfg.SetString("log.file", filepath.Join(logsDir, file))
+	} else {
+		cfg.SetString("log.file", file)
+	}
+
+	cfg.SetString("log.pattern", "%message")
+
+	var err error
+
+	// initialize request access log file
+	appAccessLog, err = log.New(cfg)
+	if err != nil {
+		return err
+	}
+
+	// parse request access log pattern
+	pattern := appCfg.StringDefault("request.access_log.pattern", defaultRequestAccessLogPattern)
+	appAccessLogFmtFlags, err = ess.ParseFmtFlag(pattern, accessLogFmtFlags)
+	if err != nil {
+		return err
+	}
+
+	// initialize request access log channel
+	appAccessLogChan = make(chan *requestAccessLog, cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize))
+	appAccessLogBufPool = &sync.Pool{New: func() interface{} { return &bytes.Buffer{} }}
+
+	// start the listener
+	go listenForAccessLog()
+
+	return nil
 }
 
-func listenForLogEntry(c requestAccessLogChan) {
-
+func listenForAccessLog() {
 	for {
-
-		select {
-
-		case ral := <-c:
-
-			flagParts, err := ess.ParseFmtFlag(ral.logPattern, accessLogFmtFlags)
-			if err != nil {
-				return
-			}
-			log.Debug(string(requestAccessLogFormatter(flagParts, ral)))
-		default:
-			//Nothing
-		}
+		info := <-appAccessLogChan
+		appAccessLog.Print(requestAccessLogFormatter(info))
 	}
 }
 
-func requestAccessLogFormatter(flags []ess.FmtFlagPart, ral requestAccessLog) []byte {
+func requestAccessLogFormatter(ral *requestAccessLog) []byte {
+	buf := getBuffer()
+	defer putBuffer(buf)
 
-	var buf bytes.Buffer
-
-	for _, part := range flags {
+	for _, part := range appAccessLogFmtFlags {
 		switch part.Flag {
 		case fmtFlagClientIP:
-			buf.WriteString(ral.ctx.Req.Raw.RemoteAddr)
-			buf.WriteString(" | ")
+			buf.WriteString(ral.Request.ClientIP)
 		case fmtFlagRequestTime:
-
-			buf.WriteString(ral.startTime.String())
-
-			buf.WriteString(" | ")
+			if ess.IsStrEmpty(part.Format) {
+				buf.WriteString(ral.StartTime.Format(time.RFC3339))
+			} else {
+				buf.WriteString(ral.StartTime.Format(part.Format))
+			}
 		case fmtFlagRequestURL:
-			buf.WriteString(ral.ctx.Req.Raw.RequestURI)
-
-			buf.WriteString(" | ")
+			buf.WriteString(ral.Request.Path)
 		case fmtFlagRequestMethod:
-			buf.WriteString(ral.ctx.Req.Method)
-
-			buf.WriteString(" | ")
+			buf.WriteString(ral.Request.Method)
 		case fmtFlagRequestID:
-			rid := "-"
-
-			if x := ral.requestID; x != "" {
-				rid = x
+			if ess.IsStrEmpty(ral.RequestID) {
+				buf.WriteByte('-')
+			} else {
+				buf.WriteString(ral.RequestID)
 			}
-			buf.WriteString(rid)
-
-			buf.WriteString(" | ")
 		case fmtFlagRequestHeader:
-			hdr := "-"
-			if part.Format != "" {
-				hdr = ral.ctx.Req.Header.Get(part.Format)
+			hdr := ral.Request.Header.Get(part.Format)
+			if ess.IsStrEmpty(hdr) {
+				buf.WriteByte('-')
+			} else {
+				buf.WriteString(hdr)
 			}
-
-			buf.WriteString(hdr)
-
-			buf.WriteString(" | ")
-
 		case fmtFlagQueryString:
-			queryStr := "-"
-
-			if x := ral.ctx.Req.Raw.URL.String(); x != "" {
-				queryStr = x
+			queryStr := ral.Request.Raw.URL.Query().Encode()
+			if ess.IsStrEmpty(queryStr) {
+				buf.WriteByte('-')
+			} else {
+				buf.WriteString(queryStr)
 			}
-			buf.WriteString(queryStr)
-
-			buf.WriteString(" | ")
 		case fmtFlagResponseStatus:
-			buf.WriteString(strconv.Itoa(ral.ctx.Res.Status()))
-
-			buf.WriteString(" | ")
+			buf.WriteString(fmt.Sprintf(part.Format, ral.ResStatus))
 		case fmtFlagResponseSize:
-			buf.WriteString(strconv.Itoa(ral.ctx.Res.BytesWritten()))
-
-			buf.WriteString(" | ")
+			buf.WriteString(fmt.Sprintf(part.Format, ral.ResBytes))
 		case fmtFlagResponseHeader:
-
-			hdr := "-"
-			if part.Format != "" {
-				hdr = ral.ctx.Res.Header().Get(part.Format)
+			hdr := ral.ResHdr.Get(part.Format)
+			if ess.IsStrEmpty(hdr) {
+				buf.WriteByte('-')
+			} else {
+				buf.WriteString(hdr)
 			}
-			buf.WriteString(hdr)
-
-			buf.WriteString(" | ")
 		case fmtFlagResponseTime:
-			buf.WriteString(ral.elapsedTime.String())
-
-			buf.WriteString(" | ")
+			buf.WriteString(fmt.Sprintf("%10v", ral.ElapsedDuration))
 		}
+		buf.WriteByte(' ')
 	}
 	return buf.Bytes()
+}
+
+func getBuffer() *bytes.Buffer {
+	return appAccessLogBufPool.Get().(*bytes.Buffer)
+}
+
+func putBuffer(buf *bytes.Buffer) {
+	buf.Reset()
+	appAccessLogBufPool.Put(buf)
 }
