@@ -182,6 +182,11 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
 	return r.Params.FormFile(key)
 }
 
+//Unwrap returns the underlying http.Request
+func (r *Request) Unwrap() *http.Request {
+	return r.Raw
+}
+
 // Reset method resets request instance for reuse.
 func (r *Request) Reset() {
 	r.Scheme = ""

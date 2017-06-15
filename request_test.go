@@ -60,6 +60,7 @@ func TestHTTPParseRequest(t *testing.T) {
 
 	aahReq := ParseRequest(req, &Request{})
 
+	assert.Equal(t, req, aahReq.Unwrap())
 	assert.Equal(t, "127.0.0.1:8080", aahReq.Host)
 	assert.Equal(t, MethodGet, aahReq.Method)
 	assert.Equal(t, "/welcome1.html", aahReq.Path)
