@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
@@ -34,9 +35,10 @@ const (
 )
 
 var (
-	minifier          MinifierFunc
-	errFileNotFound   = errors.New("file not found")
-	noGzipStatusCodes = []int{http.StatusNotModified, http.StatusNoContent}
+	minifier                       MinifierFunc
+	errFileNotFound                = errors.New("file not found")
+	noGzipStatusCodes              = []int{http.StatusNotModified, http.StatusNoContent}
+	defaultRequestAccessLogPattern = "%clientip %reqid %reqtime %restime %resstatus %ressize %reqmeth    od %requrl"
 )
 
 type (
@@ -57,6 +59,7 @@ type (
 		reqPool            *pool.Pool
 		replyPool          *pool.Pool
 		bufPool            *pool.Pool
+		cfg                *config.Config
 	}
 
 	byName []os.FileInfo
@@ -68,6 +71,21 @@ type (
 
 // ServeHTTP method implementation of http.Handler interface.
 func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	now := time.Now()
+
+	var ral requestAccessLog
+
+	ralChan := newRequestAccessLogChan()
+
+	isAccessLogEnabled := e.cfg.BoolDefault("request.access_log.enable", false)
+
+	if isAccessLogEnabled {
+		ral = requestAccessLog{
+			startTime: now,
+		}
+	}
+
 	ctx := e.prepareContext(w, r)
 	defer e.putContext(ctx)
 
@@ -82,6 +100,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	publishOnRequestEvent(ctx)
 
 	// Handling route
+
 	if e.handleRoute(ctx) == flowStop {
 		return
 	}
@@ -100,6 +119,16 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Write Reply on the wire
 	e.writeReply(ctx)
+
+	if isAccessLogEnabled {
+
+		ral.ctx = ctx
+		ral.requestID = ctx.Req.Header.Get(e.requestIDHeader)
+		ral.logPattern = e.cfg.StringDefault("request.access_log.pattern", defaultRequestAccessLogPattern)
+		ral.elapsedTime = time.Now().Sub(ral.startTime)
+
+		ralChan <- ral
+	}
 }
 
 // handleRecovery method handles application panics and recovers from it.
@@ -133,9 +162,7 @@ func (e *engine) handleRecovery(ctx *Context) {
 // It won't set new request id header already present.
 func (e *engine) setRequestID(ctx *Context) {
 	if ess.IsStrEmpty(ctx.Req.Header.Get(e.requestIDHeader)) {
-		guid := ess.NewGUID()
-		log.Debugf("Request ID: %v", guid)
-		ctx.Req.Header.Set(e.requestIDHeader, guid)
+		ctx.Req.Header.Set(e.requestIDHeader, ess.NewGUID())
 	} else {
 		log.Debugf("Request already has ID: %v", ctx.Req.Header.Get(e.requestIDHeader))
 	}
@@ -422,6 +449,7 @@ func (e *engine) putBuffer(b *bytes.Buffer) {
 
 func newEngine(cfg *config.Config) *engine {
 	ahttp.GzipLevel = cfg.IntDefault("render.gzip.level", 5)
+
 	if !(ahttp.GzipLevel >= 1 && ahttp.GzipLevel <= 9) {
 		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel))
 	}
@@ -454,5 +482,6 @@ func newEngine(cfg *config.Config) *engine {
 				return &bytes.Buffer{}
 			},
 		),
+		cfg: cfg,
 	}
 }
