@@ -129,7 +129,9 @@ func requestAccessLogFormatter(ral *requestAccessLog) []byte {
 		case fmtFlagClientIP:
 			buf.WriteString(ral.Request.ClientIP)
 		case fmtFlagRequestTime:
-			if ess.IsStrEmpty(part.Format) {
+			//there are two options here for the pattern we have to handle ;
+			//%reqtime or %reqtime:
+			if ess.IsStrEmpty(part.Format) || part.Format == "%v" {
 				buf.WriteString(ral.StartTime.Format(time.RFC3339))
 			} else {
 				buf.WriteString(ral.StartTime.Format(part.Format))
