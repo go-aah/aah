@@ -137,7 +137,7 @@ func requestAccessLogFormatter(ral *requestAccessLog) []byte {
 				buf.WriteString(ral.StartTime.Format(part.Format))
 			}
 		case fmtFlagRequestURL:
-			buf.WriteString(ral.Request.Path)
+			buf.WriteString(ral.Request.Raw.RequestURI)
 		case fmtFlagRequestMethod:
 			buf.WriteString(ral.Request.Method)
 		case fmtFlagRequestID:
@@ -147,7 +147,7 @@ func requestAccessLogFormatter(ral *requestAccessLog) []byte {
 				buf.WriteString(ral.RequestID)
 			}
 		case fmtFlagRequestHeader:
-			hdr := ral.Request.Header.Get(part.Format)
+			hdr := ral.Request.Header.Get(http.CanonicalHeaderKey(part.Format))
 			if ess.IsStrEmpty(hdr) {
 				buf.WriteByte('-')
 			} else {
