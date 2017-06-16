@@ -86,7 +86,9 @@ func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
 
 	cfg, err := config.ParseString(`
 	i18n {
-		        url_param_name = "language"
+		        param_name {
+				query = "language"
+			}
 		}
 	`)
 	appConfig = cfg
