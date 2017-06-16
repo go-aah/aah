@@ -1,9 +1,3 @@
-// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
-// license that can be found in the LICENSE file.
-
-// Package aah is A scalable, performant, rapid development Web framework for Go
-// https://aahframework.org
 package aah
 
 import (
@@ -116,11 +110,11 @@ func initRequestAccessLog(logsDir string, appCfg *config.Config) error {
 func listenForAccessLog() {
 	for {
 		info := <-appAccessLogChan
-		appAccessLog.Print(string(requestAccessLogFormatter(info)))
+		appAccessLog.Print(requestAccessLogFormatter(info))
 	}
 }
 
-func requestAccessLogFormatter(ral *requestAccessLog) []byte {
+func requestAccessLogFormatter(ral *requestAccessLog) string {
 	buf := getBuffer()
 	defer putBuffer(buf)
 
@@ -137,7 +131,7 @@ func requestAccessLogFormatter(ral *requestAccessLog) []byte {
 				buf.WriteString(ral.StartTime.Format(part.Format))
 			}
 		case fmtFlagRequestURL:
-			buf.WriteString(ral.Request.Raw.RequestURI)
+			buf.WriteString(ral.Request.Path)
 		case fmtFlagRequestMethod:
 			buf.WriteString(ral.Request.Method)
 		case fmtFlagRequestID:
@@ -176,7 +170,7 @@ func requestAccessLogFormatter(ral *requestAccessLog) []byte {
 		}
 		buf.WriteByte(' ')
 	}
-	return buf.Bytes()
+	return buf.String()
 }
 
 func getBuffer() *bytes.Buffer {
