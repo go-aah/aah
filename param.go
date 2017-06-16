@@ -68,8 +68,10 @@ func (e *engine) parseRequestParams(ctx *Context) {
 		}(req)
 	}
 
-	// i18n option override by Query parameter `lang`
-	if lang := ctx.Req.QueryValue(keyOverrideLocale); !ess.IsStrEmpty(lang) {
+	// i18n option via the config value "i18n.url_param_name".
+	// If that value is missing, we default to the `lang` query parameter
+	queryParam := AppConfig().StringDefault("i18n.url_param_name", keyOverrideLocale)
+	if lang := ctx.Req.QueryValue(queryParam); !ess.IsStrEmpty(lang) {
 		ctx.Req.Locale = ahttp.NewLocale(lang)
 	}
 
