@@ -1,3 +1,7 @@
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
+// go-aah/aah source code and usage is governed by a MIT style
+// license that can be found in the LICENSE file.
+
 package aah
 
 import (
@@ -66,39 +70,30 @@ func TestRequestAccessLogFormatter(t *testing.T) {
 }
 
 func TestRequestAccessLogFormatterInvalidPattern(t *testing.T) {
-
-	var err error
-	_, err = ess.ParseFmtFlag("%oops", accessLogFmtFlags)
+	_, err := ess.ParseFmtFlag("%oops", accessLogFmtFlags)
 
 	assert.NotNil(t, err)
 }
 
 func testFormatter(t *testing.T, ral *requestAccessLog, pattern, expected string) {
-
 	var err error
 	appAccessLogFmtFlags, err = ess.ParseFmtFlag(pattern, accessLogFmtFlags)
 
 	assert.Nil(t, err)
-
-	got := string(requestAccessLogFormatter(ral))
-
-	assert.Equal(t, expected, got)
+	assert.Equal(t, expected, requestAccessLogFormatter(ral))
 }
 
 func TestInitRequestAccessLog(t *testing.T) {
-
 	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
 	_ = initConfig(cfgDir)
 
 	err := initRequestAccessLog(appLogsDir(), AppConfig())
 
 	assert.Nil(t, err)
-
 	assert.NotNil(t, appAccessLog)
 }
 
 func TestEngineRequestAccessLog(t *testing.T) {
-
 	// App Config
 	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
 	err := initConfig(cfgDir)
