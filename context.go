@@ -47,6 +47,7 @@ type (
 		session    *session.Session
 		reply      *Reply
 		viewArgs   map[string]interface{}
+		values     map[string]interface{}
 		abort      bool
 		decorated  bool
 	}
@@ -203,6 +204,7 @@ func (ctx *Context) Reset() {
 	ctx.session = nil
 	ctx.reply = nil
 	ctx.viewArgs = nil
+	ctx.values = nil
 	ctx.abort = false
 	ctx.decorated = false
 }

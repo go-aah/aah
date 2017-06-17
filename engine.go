@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
@@ -53,6 +54,7 @@ type (
 		isRequestIDEnabled bool
 		requestIDHeader    string
 		isGzipEnabled      bool
+		isAccessLogEnabled bool
 		ctxPool            *pool.Pool
 		reqPool            *pool.Pool
 		replyPool          *pool.Pool
@@ -68,7 +70,12 @@ type (
 
 // ServeHTTP method implementation of http.Handler interface.
 func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Capture the startTime earlier.
+	// This value is as accurate as could be.
+	startTime := time.Now()
+
 	ctx := e.prepareContext(w, r)
+	ctx.values[appStartTimeKey] = startTime
 	defer e.putContext(ctx)
 
 	// Recovery handling, capture every possible panic(s)
@@ -82,6 +89,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	publishOnRequestEvent(ctx)
 
 	// Handling route
+
 	if e.handleRoute(ctx) == flowStop {
 		return
 	}
@@ -133,9 +141,7 @@ func (e *engine) handleRecovery(ctx *Context) {
 // It won't set new request id header already present.
 func (e *engine) setRequestID(ctx *Context) {
 	if ess.IsStrEmpty(ctx.Req.Header.Get(e.requestIDHeader)) {
-		guid := ess.NewGUID()
-		log.Debugf("Request ID: %v", guid)
-		ctx.Req.Header.Set(e.requestIDHeader, guid)
+		ctx.Req.Header.Set(e.requestIDHeader, ess.NewGUID())
 	} else {
 		log.Debugf("Request already has ID: %v", ctx.Req.Header.Get(e.requestIDHeader))
 	}
@@ -150,6 +156,7 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 	ctx.Res = ahttp.GetResponseWriter(w)
 	ctx.reply = e.getReply()
 	ctx.viewArgs = make(map[string]interface{})
+	ctx.values = make(map[string]interface{})
 
 	return ctx
 }
@@ -298,6 +305,26 @@ func (e *engine) writeReply(ctx *Context) {
 
 	// 'OnAfterReply' server extension point
 	publishOnAfterReplyEvent(ctx)
+
+	// Send data to access log channel
+	if e.isAccessLogEnabled {
+		startTime := ctx.values[appStartTimeKey].(time.Time)
+
+		// All the bytes have been written on the wire
+		// so calculate elapsed time
+		elapsedDuration := time.Since(startTime)
+		ral := &requestAccessLog{
+			StartTime:       startTime,
+			ElapsedDuration: elapsedDuration,
+			RequestID:       ctx.Req.Header.Get(e.requestIDHeader),
+			Request:         *ctx.Req,
+			ResStatus:       ctx.Res.Status(),
+			ResBytes:        ctx.Res.BytesWritten(),
+			ResHdr:          ctx.Res.Header(),
+		}
+
+		appAccessLogChan <- ral
+	}
 }
 
 // negotiateContentType method tries to identify if reply.ContType is empty.
@@ -422,6 +449,7 @@ func (e *engine) putBuffer(b *bytes.Buffer) {
 
 func newEngine(cfg *config.Config) *engine {
 	ahttp.GzipLevel = cfg.IntDefault("render.gzip.level", 5)
+
 	if !(ahttp.GzipLevel >= 1 && ahttp.GzipLevel <= 9) {
 		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel))
 	}
@@ -430,6 +458,7 @@ func newEngine(cfg *config.Config) *engine {
 		isRequestIDEnabled: cfg.BoolDefault("request.id.enable", true),
 		requestIDHeader:    cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
 		isGzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
+		isAccessLogEnabled: cfg.BoolDefault("request.access_log.enable", false),
 		ctxPool: pool.NewPool(
 			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
 			func() interface{} {
