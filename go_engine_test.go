@@ -11,10 +11,12 @@ import (
 	"testing"
 
 	"aahframework.org/config.v0"
+	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
 )
 
 func TestViewAppPages(t *testing.T) {
+	_ = log.SetLevel("trace")
 	cfg, _ := config.ParseString(`view { }`)
 	ge := loadGoViewEngine(t, cfg)
 

@@ -127,7 +127,7 @@ func (ge *GoViewEngine) processTemplates(layouts, pageDirs []string, filePattern
 				tmplKey := TemplateKey(tmplFile)
 				tmpl := ge.createTemplate(tmplKey)
 
-				log.Tracef("Parsing Templates[%s]: %s", tmplKey, files)
+				log.Tracef("Parsing Templates[%s]: %s", tmplKey, ge.trimAppBaseDir(files...))
 				if _, err = tmpl.ParseFiles(files...); err != nil {
 					errs = append(errs, err)
 					continue
@@ -138,7 +138,7 @@ func (ge *GoViewEngine) processTemplates(layouts, pageDirs []string, filePattern
 
 				if !ge.isDefaultLayoutEnabled {
 					ntmpl := ge.createTemplate(tmplKey)
-					log.Tracef("Parsing Template for nolayout [%s]: %s", tmplKey, tmplFile)
+					log.Tracef("Parsing Template for nolayout [%s]: %s", tmplKey, ge.trimAppBaseDir(tmplFile))
 					tfile, _ := ioutil.ReadFile(tmplFile)
 					if _, err = ntmpl.Parse(string(tfile)); err != nil {
 						errs = append(errs, err)
@@ -179,6 +179,14 @@ func (ge *GoViewEngine) createTemplate(key string) *template.Template {
 		}
 	}
 	return tmpl
+}
+
+func (ge *GoViewEngine) trimAppBaseDir(files ...string) string {
+	var fs []string
+	for _, f := range files {
+		fs = append(fs, f[strings.Index(f, "views"):])
+	}
+	return strings.Join(fs, ", ")
 }
 
 func init() {
