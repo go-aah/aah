@@ -95,3 +95,14 @@ func resolveControllerName(ctx *Context) string {
 func isCharsetExists(value string) bool {
 	return strings.Contains(value, "charset")
 }
+
+// this method is candidate for essentials library
+// move it when you get a time
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if !ess.IsStrEmpty(v) {
+			return v
+		}
+	}
+	return ""
+}

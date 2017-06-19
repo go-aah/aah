@@ -85,13 +85,14 @@ func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
 
 	cfg, err := config.ParseString(`
-	i18n {
-		        param_name {
+		i18n {
+			param_name {
 				query = "language"
 			}
 		}
 	`)
 	appConfig = cfg
+	paramInitialize(&Event{})
 
 	assert.Nil(t, err)
 

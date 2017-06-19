@@ -14,12 +14,17 @@ import (
 )
 
 const (
-	keyRequestParams  = "RequestParams"
-	keyOverrideLocale = "lang"
+	keyRequestParams    = "_RequestParams"
+	keyOverrideI18nName = "lang"
+)
+
+var (
+	keyQueryParamName = keyOverrideI18nName
+	keyPathParamName  = keyOverrideI18nName
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Params method
+// Params Unexported method
 //___________________________________
 
 // parseRequestParams method parses the incoming HTTP request to collects request
@@ -68,11 +73,14 @@ func (e *engine) parseRequestParams(ctx *Context) {
 		}(req)
 	}
 
-	// i18n option via the config value "i18n.url_param_name".
-	// If that value is missing, we default to the `lang` query parameter
-	queryParam := AppConfig().StringDefault("i18n.param_name.query", keyOverrideLocale)
-	if lang := ctx.Req.QueryValue(queryParam); !ess.IsStrEmpty(lang) {
-		ctx.Req.Locale = ahttp.NewLocale(lang)
+	// i18n locale HTTP header `Accept-Language` value override via
+	// Path Variable and URL Query Param (config i18n { param_name { ... } }).
+	// Note: Query parameter takes precedence of all.
+	// Default parameter name is `lang`
+	pathValue := ctx.Req.PathValue(keyPathParamName)
+	queryValue := ctx.Req.QueryValue(keyQueryParamName)
+	if locale := firstNonEmpty(queryValue, pathValue); !ess.IsStrEmpty(locale) {
+		ctx.Req.Locale = ahttp.NewLocale(locale)
 	}
 
 	// All the request parameters made available to templates via funcs.
@@ -99,4 +107,13 @@ func tmplFormParam(viewArgs map[string]interface{}, key string) interface{} {
 func tmplQueryParam(viewArgs map[string]interface{}, key string) interface{} {
 	params := viewArgs[keyRequestParams].(*ahttp.Params)
 	return sanatizeValue(params.QueryValue(key))
+}
+
+func paramInitialize(e *Event) {
+	keyPathParamName = AppConfig().StringDefault("i18n.param_name.path", keyOverrideI18nName)
+	keyQueryParamName = AppConfig().StringDefault("i18n.param_name.query", keyOverrideI18nName)
+}
+
+func init() {
+	OnStart(paramInitialize)
 }
