@@ -36,6 +36,7 @@ const (
 
 var (
 	minifier          MinifierFunc
+	bufPool           *pool.Pool
 	errFileNotFound   = errors.New("file not found")
 	noGzipStatusCodes = []int{http.StatusNotModified, http.StatusNoContent}
 )
@@ -58,7 +59,6 @@ type (
 		ctxPool            *pool.Pool
 		reqPool            *pool.Pool
 		replyPool          *pool.Pool
-		bufPool            *pool.Pool
 	}
 
 	byName []os.FileInfo
@@ -75,7 +75,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	ctx := e.prepareContext(w, r)
-	ctx.values[appStartTimeKey] = startTime
+	ctx.values[appReqStartTimeKey] = startTime
 	defer e.putContext(ctx)
 
 	// Recovery handling, capture every possible panic(s)
@@ -117,8 +117,8 @@ func (e *engine) handleRecovery(ctx *Context) {
 		log.Errorf("Internal Server Error on %s", ctx.Req.Path)
 
 		st := aruntime.NewStacktrace(r, AppConfig())
-		buf := e.getBuffer()
-		defer e.putBuffer(buf)
+		buf := getBuffer()
+		defer putBuffer(buf)
 
 		st.Print(buf)
 		log.Error(buf.String())
@@ -308,7 +308,7 @@ func (e *engine) writeReply(ctx *Context) {
 
 	// Send data to access log channel
 	if e.isAccessLogEnabled {
-		startTime := ctx.values[appStartTimeKey].(time.Time)
+		startTime := ctx.values[appReqStartTimeKey].(time.Time)
 
 		// All the bytes have been written on the wire
 		// so calculate elapsed time
@@ -316,7 +316,6 @@ func (e *engine) writeReply(ctx *Context) {
 		ral := &requestAccessLog{
 			StartTime:       startTime,
 			ElapsedDuration: elapsedDuration,
-			RequestID:       ctx.Req.Header.Get(e.requestIDHeader),
 			Request:         *ctx.Req,
 			ResStatus:       ctx.Res.Status(),
 			ResBytes:        ctx.Res.BytesWritten(),
@@ -419,7 +418,7 @@ func (e *engine) putContext(ctx *Context) {
 
 	// clear and put `Reply` into pool
 	if ctx.reply != nil {
-		e.putBuffer(ctx.reply.body)
+		putBuffer(ctx.reply.body)
 		ctx.reply.Reset()
 		e.replyPool.Put(ctx.reply)
 	}
@@ -429,29 +428,23 @@ func (e *engine) putContext(ctx *Context) {
 	e.ctxPool.Put(ctx)
 }
 
-// getBuffer method gets buffer from pool
-func (e *engine) getBuffer() *bytes.Buffer {
-	return e.bufPool.Get().(*bytes.Buffer)
-}
-
-// putBPool puts buffer into pool
-func (e *engine) putBuffer(b *bytes.Buffer) {
-	if b == nil {
-		return
-	}
-	b.Reset()
-	e.bufPool.Put(b)
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
 
 func newEngine(cfg *config.Config) *engine {
 	ahttp.GzipLevel = cfg.IntDefault("render.gzip.level", 5)
-
 	if !(ahttp.GzipLevel >= 1 && ahttp.GzipLevel <= 9) {
 		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel))
+	}
+
+	if bufPool == nil {
+		bufPool = pool.NewPool(
+			cfg.IntDefault("runtime.pooling.buffer", defaultBufPoolSize),
+			func() interface{} {
+				return &bytes.Buffer{}
+			},
+		)
 	}
 
 	return &engine{
@@ -477,11 +470,19 @@ func newEngine(cfg *config.Config) *engine {
 				return NewReply()
 			},
 		),
-		bufPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.buffer", defaultBufPoolSize),
-			func() interface{} {
-				return &bytes.Buffer{}
-			},
-		),
 	}
+}
+
+// getBuffer method gets buffer from pool
+func getBuffer() *bytes.Buffer {
+	return bufPool.Get().(*bytes.Buffer)
+}
+
+// putBPool puts buffer into pool
+func putBuffer(b *bytes.Buffer) {
+	if b == nil {
+		return
+	}
+	b.Reset()
+	bufPool.Put(b)
 }

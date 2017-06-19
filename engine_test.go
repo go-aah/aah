@@ -78,7 +78,6 @@ func TestEngineNew(t *testing.T) {
 	assert.True(t, e.isRequestIDEnabled)
 	assert.True(t, e.isGzipEnabled)
 	assert.NotNil(t, e.ctxPool)
-	assert.NotNil(t, e.bufPool)
 	assert.NotNil(t, e.reqPool)
 
 	req := e.getRequest()
@@ -89,9 +88,9 @@ func TestEngineNew(t *testing.T) {
 	assert.NotNil(t, ctx.Req)
 	e.putContext(ctx)
 
-	buf := e.getBuffer()
+	buf := getBuffer()
 	assert.NotNil(t, buf)
-	e.putBuffer(buf)
+	putBuffer(buf)
 }
 
 func TestEngineServeHTTP(t *testing.T) {

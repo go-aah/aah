@@ -5,11 +5,10 @@
 package aah
 
 import (
-	"bytes"
 	"fmt"
 	"net/http"
 	"path/filepath"
-	"sync"
+	"strings"
 	"time"
 
 	"aahframework.org/ahttp.v0"
@@ -47,12 +46,12 @@ var (
 		"restime":   fmtFlagResponseTime,
 	}
 
-	defaultRequestAccessLogPattern = "%clientip %reqid %reqtime %restime %resstatus %ressize %reqmethod %requrl"
-	appStartTimeKey                = "appReqStartTime"
-	appAccessLogBufPool            *sync.Pool
-	appAccessLog                   *log.Logger
-	appAccessLogFmtFlags           []ess.FmtFlagPart
-	appAccessLogChan               chan *requestAccessLog
+	appDefaultAccessLogPattern = "%clientip %reqid %reqtime %restime %resstatus %ressize %reqmethod %requrl"
+	appReqStartTimeKey         = "appReqStartTimeKey"
+	appReqIDHdrKey             = ahttp.HeaderXRequestID
+	appAccessLog               *log.Logger
+	appAccessLogFmtFlags       []ess.FmtFlagPart
+	appAccessLogChan           chan *requestAccessLog
 )
 
 type (
@@ -60,13 +59,49 @@ type (
 	requestAccessLog struct {
 		StartTime       time.Time
 		ElapsedDuration time.Duration
-		RequestID       string
 		Request         ahttp.Request
 		ResStatus       int
 		ResBytes        int
 		ResHdr          http.Header
 	}
 )
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// requestAccessLog methods
+//___________________________________
+
+// FmtRequestTime method returns the formatted request time. There are three
+// possibilities to handle, `%reqtime`, `%reqtime:` and `%reqtime:<format>`.
+func (al *requestAccessLog) FmtRequestTime(format string) string {
+	if format == "%v" || ess.IsStrEmpty(format) {
+		return al.StartTime.Format(time.RFC3339)
+	}
+	return al.StartTime.Format(format)
+}
+
+func (al *requestAccessLog) GetRequestHdr(hdrKey string) string {
+	hdrValues := al.Request.Header[http.CanonicalHeaderKey(hdrKey)]
+	if len(hdrValues) == 0 {
+		return "-"
+	}
+	return strings.Join(hdrValues, ", ")
+}
+
+func (al *requestAccessLog) GetResponseHdr(hdrKey string) string {
+	hdrValues := al.ResHdr[http.CanonicalHeaderKey(hdrKey)]
+	if len(hdrValues) == 0 {
+		return "-"
+	}
+	return strings.Join(hdrValues, ", ")
+}
+
+func (al *requestAccessLog) GetQueryString() string {
+	queryStr := al.Request.Raw.URL.Query().Encode()
+	if ess.IsStrEmpty(queryStr) {
+		return "-"
+	}
+	return queryStr
+}
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
@@ -95,26 +130,26 @@ func initRequestAccessLog(logsDir string, appCfg *config.Config) error {
 	}
 
 	// parse request access log pattern
-	pattern := appCfg.StringDefault("request.access_log.pattern", defaultRequestAccessLogPattern)
+	pattern := appCfg.StringDefault("request.access_log.pattern", appDefaultAccessLogPattern)
 	appAccessLogFmtFlags, err = ess.ParseFmtFlag(pattern, accessLogFmtFlags)
 	if err != nil {
 		return err
 	}
 
 	// initialize request access log channel
-	appAccessLogChan = make(chan *requestAccessLog, cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize))
-	appAccessLogBufPool = &sync.Pool{New: func() interface{} { return &bytes.Buffer{} }}
+	if appAccessLogChan == nil {
+		appAccessLogChan = make(chan *requestAccessLog, cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize))
+		go listenForAccessLog()
+	}
 
-	// start the listener
-	go listenForAccessLog()
+	appReqIDHdrKey = cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID)
 
 	return nil
 }
 
 func listenForAccessLog() {
 	for {
-		info := <-appAccessLogChan
-		appAccessLog.Print(requestAccessLogFormatter(info))
+		appAccessLog.Print(requestAccessLogFormatter(<-appAccessLogChan))
 	}
 }
 
@@ -127,61 +162,27 @@ func requestAccessLogFormatter(ral *requestAccessLog) string {
 		case fmtFlagClientIP:
 			buf.WriteString(ral.Request.ClientIP)
 		case fmtFlagRequestTime:
-			//there are two options here for the pattern we have to handle ;
-			//%reqtime or %reqtime:
-			if ess.IsStrEmpty(part.Format) || part.Format == "%v" {
-				buf.WriteString(ral.StartTime.Format(time.RFC3339))
-			} else {
-				buf.WriteString(ral.StartTime.Format(part.Format))
-			}
+			buf.WriteString(ral.FmtRequestTime(part.Format))
 		case fmtFlagRequestURL:
 			buf.WriteString(ral.Request.Path)
 		case fmtFlagRequestMethod:
 			buf.WriteString(ral.Request.Method)
 		case fmtFlagRequestID:
-			if ess.IsStrEmpty(ral.RequestID) {
-				buf.WriteByte('-')
-			} else {
-				buf.WriteString(ral.RequestID)
-			}
+			buf.WriteString(ral.GetRequestHdr(appReqIDHdrKey))
 		case fmtFlagRequestHeader:
-			hdr := ral.Request.Header.Get(http.CanonicalHeaderKey(part.Format))
-			if ess.IsStrEmpty(hdr) {
-				buf.WriteByte('-')
-			} else {
-				buf.WriteString(hdr)
-			}
+			buf.WriteString(ral.GetRequestHdr(part.Format))
 		case fmtFlagQueryString:
-			queryStr := ral.Request.Raw.URL.Query().Encode()
-			if ess.IsStrEmpty(queryStr) {
-				buf.WriteByte('-')
-			} else {
-				buf.WriteString(queryStr)
-			}
+			buf.WriteString(ral.GetQueryString())
 		case fmtFlagResponseStatus:
 			buf.WriteString(fmt.Sprintf(part.Format, ral.ResStatus))
 		case fmtFlagResponseSize:
 			buf.WriteString(fmt.Sprintf(part.Format, ral.ResBytes))
 		case fmtFlagResponseHeader:
-			hdr := ral.ResHdr.Get(part.Format)
-			if ess.IsStrEmpty(hdr) {
-				buf.WriteByte('-')
-			} else {
-				buf.WriteString(hdr)
-			}
+			buf.WriteString(ral.GetResponseHdr(part.Format))
 		case fmtFlagResponseTime:
-			buf.WriteString(fmt.Sprintf("%10v", ral.ElapsedDuration))
+			buf.WriteString(fmt.Sprintf(part.Format, ral.ElapsedDuration.Nanoseconds()))
 		}
 		buf.WriteByte(' ')
 	}
-	return buf.String()
-}
-
-func getBuffer() *bytes.Buffer {
-	return appAccessLogBufPool.Get().(*bytes.Buffer)
-}
-
-func putBuffer(buf *bytes.Buffer) {
-	buf.Reset()
-	appAccessLogBufPool.Put(buf)
+	return strings.TrimSpace(buf.String())
 }

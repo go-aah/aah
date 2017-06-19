@@ -200,7 +200,7 @@ func (h *HTML) Render(w io.Writer) error {
 func (e *engine) doRender(ctx *Context) {
 	if ctx.Reply().Rdr != nil {
 		reply := ctx.Reply()
-		reply.body = e.getBuffer()
+		reply.body = getBuffer()
 		if jsonp, ok := reply.Rdr.(*JSON); ok && jsonp.IsJSONP {
 			if ess.IsStrEmpty(jsonp.Callback) {
 				jsonp.Callback = ctx.Req.QueryValue("callback")

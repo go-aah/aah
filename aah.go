@@ -49,6 +49,7 @@ var (
 	appDefaultHTTPPort       = "8080"
 	appDefaultDateFormat     = "2006-01-02"
 	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
+	appLogFatal              = log.Fatal
 
 	goPath   string
 	goSrcDir string
@@ -231,7 +232,7 @@ func appLogsDir() string {
 
 func logAsFatal(err error) {
 	if err != nil {
-		log.Fatal(err)
+		appLogFatal(err)
 	}
 }
 
