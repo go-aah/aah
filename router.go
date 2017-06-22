@@ -57,7 +57,6 @@ type (
 		configPath string
 		config     *config.Config
 		appCfg     *config.Config
-		// isConfigLoad bool
 	}
 
 	// Domain is used to hold domain related routes and it's route configuration
@@ -82,6 +81,7 @@ type (
 		Controller string
 		Action     string
 		ParentName string
+		Auth       string
 
 		// static route fields in-addition to above
 		IsStatic bool
@@ -98,6 +98,12 @@ type (
 
 	// PathParams is a PathParam-slice, as returned by the route tree.
 	PathParams []PathParam
+
+	parentRouteInfo struct {
+		ParentName string
+		PrefixPath string
+		Auth       string
+	}
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -300,8 +306,8 @@ func (r *Router) processRoutesConfig() (err error) {
 				if !ess.IsStrEmpty(dr.ParentName) {
 					parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
 				}
-				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v",
-					dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action)
+				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v, Auth: %v",
+					dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action, dr.Auth)
 			}
 		}
 
@@ -343,7 +349,7 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 		return nil
 	}
 
-	routes, err := parseRoutesSection(routesCfg, "", "")
+	routes, err := parseRoutesSection(routesCfg, &parentRouteInfo{})
 	if err != nil {
 		return err
 	}
@@ -630,7 +636,7 @@ func addRegisteredAction(methods map[string]map[string]uint8, route *Route) {
 	}
 }
 
-func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (routes []*Route, err error) {
+func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes []*Route, err error) {
 	for _, routeName := range cfg.Keys() {
 		// getting 'path'
 		routePath, found := cfg.String(routeName + ".path")
@@ -645,7 +651,7 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 			return
 		}
 
-		routePath = path.Join(prefixPath, routePath)
+		routePath = path.Join(routeInfo.PrefixPath, routePath)
 
 		// check child routes exists
 		notToSkip := true
@@ -674,6 +680,9 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 			return
 		}
 
+		// getting route authentication scheme name
+		routeAuth := cfg.StringDefault(routeName+".auth", routeInfo.Auth)
+
 		if notToSkip {
 			for _, m := range strings.Split(routeMethod, ",") {
 				routes = append(routes, &Route{
@@ -682,14 +691,19 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 					Method:     strings.TrimSpace(m),
 					Controller: routeController,
 					Action:     routeAction,
-					ParentName: parentName,
+					ParentName: routeInfo.ParentName,
+					Auth:       routeAuth,
 				})
 			}
 		}
 
 		// loading child routes
 		if childRoutes, found := cfg.GetSubConfig(routeName + ".routes"); found {
-			croutes, er := parseRoutesSection(childRoutes, routeName, routePath)
+			croutes, er := parseRoutesSection(childRoutes, &parentRouteInfo{
+				ParentName: routeName,
+				PrefixPath: routePath,
+				Auth:       routeAuth,
+			})
 			if er != nil {
 				err = er
 				return

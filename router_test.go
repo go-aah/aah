@@ -426,8 +426,10 @@ func TestRouterNamespaceConfig(t *testing.T) {
 	assert.Equal(t, 4, len(routes))
 	assert.Equal(t, "/v1/users", routes["create_user"].Path)
 	assert.Equal(t, "POST", routes["create_user"].Method)
+	assert.Equal(t, "form", routes["create_user"].Auth)
 	assert.Equal(t, "/v1/users/:id/settings", routes["disable_user"].Path)
 	assert.Equal(t, "GET", routes["disable_user"].Method)
+	assert.Equal(t, "form", routes["disable_user"].Auth)
 
 	router = New(filepath.Join(wd, "testdata", "routes-namespace-action-error.conf"), appCfg)
 	err = router.Load()
