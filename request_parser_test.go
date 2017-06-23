@@ -32,7 +32,7 @@ func TestJSONRequestParseer(t *testing.T) {
 	assertParserParsesCorrectly(t, p)
 }
 
-func TestJSONRequestParseerInvalidReader(t *testing.T) {
+func TestJSONRequestParserInvalidReader(t *testing.T) {
 	p := &project{}
 	parser := &JSONRequestParser{}
 	r := strings.NewReader("oops")
