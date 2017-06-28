@@ -96,6 +96,7 @@ func testSessionStoreSave(t *testing.T, cfgStr string) {
 	assert.Equal(t, float64(364534.4637), resultSession.GetFloat64("my-key-6"))
 	assert.Equal(t, int64(65454523452), resultSession.GetInt64("my-key-7"))
 	assert.Equal(t, true, resultSession.GetBool("my-key-5"))
+	t.Log(resultSession.String())
 }
 
 func TestSessionNewCookie(t *testing.T) {
