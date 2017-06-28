@@ -211,7 +211,7 @@ func (m *Manager) NewSession() *Session {
 func (m *Manager) GetSession(r *http.Request) *Session {
 	cookie, err := r.Cookie(m.Options.Name)
 	if err == http.ErrNoCookie {
-		log.Debug("aah application session is not created yet or unavailable")
+		log.Debug("aah application session is not yet created or unavailable")
 		return nil
 	}
 
