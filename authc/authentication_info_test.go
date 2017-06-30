@@ -18,7 +18,7 @@ func TestAuthcAuthenticationInfo(t *testing.T) {
 	a1.AddPrincipal(p1, p2)
 	assert.False(t, a1.IsLocked)
 	assert.False(t, a1.IsExpired)
-	assert.Equal(t, "Principals[Realm: , Principal: user@sample.com, IsPrimary: true Realm: , Principal: userid, IsPrimary: false], Credential: *******, IsLocked: false, IsExpired: false", a1.String())
+	assert.Equal(t, "AuthenticationInfo:: Principals[Realm: , Principal: user@sample.com, IsPrimary: true Realm: , Principal: userid, IsPrimary: false], Credential: *******, IsLocked: false, IsExpired: false", a1.String())
 
 	p := a1.PrimaryPrincipal()
 	assert.NotNil(t, p)
