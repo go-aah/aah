@@ -2,7 +2,7 @@
 // go-aah/security source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package crypto
+package acrypto
 
 import "golang.org/x/crypto/bcrypt"
 

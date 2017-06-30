@@ -5,9 +5,14 @@
 package authz
 
 import (
+	"errors"
+
 	"aahframework.org/config.v0"
 	"aahframework.org/security.v0-unstable/authc"
 )
+
+// ErrAuthorizerIsNil error is return when authorizer is nil in the auth scheme.
+var ErrAuthorizerIsNil = errors.New("security: authorizer is nil")
 
 // Authorizer interface is gets implemented by user application to provide Subject's
 // (aka 'application user') access control information.

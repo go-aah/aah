@@ -93,7 +93,7 @@ func (a *AuthenticationInfo) Merge(oa *AuthenticationInfo) *AuthenticationInfo {
 
 // String method is stringer interface implementation.
 func (a *AuthenticationInfo) String() string {
-	return fmt.Sprintf("Principals%s, Credential: *******, IsLocked: %v, IsExpired: %v",
+	return fmt.Sprintf("AuthenticationInfo:: Principals%s, Credential: *******, IsLocked: %v, IsExpired: %v",
 		a.principals, a.IsLocked, a.IsExpired)
 }
 
