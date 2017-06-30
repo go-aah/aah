@@ -7,19 +7,14 @@ package crypto
 import (
 	"testing"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"aahframework.org/test.v0/assert"
 )
 
 func TestBcryptHashing(t *testing.T) {
-	hashPassword, _ := BcryptGeneratePassword("welcome@123", 10)
-	result := BcryptComparePassword([]byte(hashPassword), []byte("welcome@123"))
+	bcryptEncoder := BcryptEncoder{}
+	hashPassword, _ := bcrypt.GenerateFromPassword([]byte("welcome@123"), 10)
+	result := bcryptEncoder.Compare(hashPassword, []byte("welcome@123"))
 	assert.True(t, result)
-
-	hashPassword, _ = BcryptGeneratePassword("welcome@123", 3)
-	result = BcryptComparePassword([]byte(hashPassword), []byte("welcome@123"))
-	assert.True(t, result)
-
-	hashPassword, _ = BcryptGeneratePassword("welcome@123", 10)
-	result = BcryptComparePassword([]byte(hashPassword), []byte("welcome@1234"))
-	assert.False(t, result)
 }
