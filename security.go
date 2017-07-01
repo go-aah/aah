@@ -2,52 +2,125 @@
 // go-aah/security source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-// Package security houses all the application security implementation (Session,
-// Basic Auth, Token Auth, CORS, CSRF, Security Headers, etc.) by aah framework.
+// Package security houses all the application security implementation (Form Auth,
+// Basic Auth, Token Auth, Session, CORS, CSRF, Security Headers, etc.) by aah framework.
 package security
 
 import (
+	"encoding/gob"
+	"errors"
 	"fmt"
+	"strings"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/security.v0/session"
+	"aahframework.org/security.v0-unstable/authc"
+	"aahframework.org/security.v0-unstable/scheme"
+	"aahframework.org/security.v0-unstable/session"
 )
 
-// Version is aah framework security library version no.
-const Version = "0.5"
+// Version is security library version no. of aah framework
+const Version = "0.6"
 
-// Security is holds the security management implementation.
-type Security struct {
-	SessionManager *session.Manager
-	configPath     string
-	config         *config.Config
-	appCfg         *config.Config
+// ErrAuthSchemeIsNil returned when given auth scheme instance is nil.
+var ErrAuthSchemeIsNil = errors.New("security: auth scheme is nil")
+
+type (
+	// Manager holds aah security management and its implementation.
+	Manager struct {
+		SessionManager *session.Manager
+		appCfg         *config.Config
+		authSchemes    map[string]scheme.Schemer
+	}
+)
+
+// New method creates the security manager initial values and returns it.
+func New() *Manager {
+	return &Manager{
+		authSchemes: make(map[string]scheme.Schemer),
+	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Security methods
 //___________________________________
 
-// New method initialize the application security configuration `security { ... }`.
+// Init method initialize the application security configuration `security { ... }`.
 // Which is mainly Session, CORS, CSRF, Security Headers, etc.
-func New(configPath string, appCfg *config.Config) (*Security, error) {
-	if !ess.IsFileExists(configPath) {
-		return nil, fmt.Errorf("security: configuration does not exists: %v", configPath)
+func (m *Manager) Init(appCfg *config.Config) error {
+	m.appCfg = appCfg
+
+	// Initialize Auth Schemes
+	keyPrefixAuthScheme := "security.auth_schemes"
+	for _, keyAuthScheme := range m.appCfg.KeysByPath(keyPrefixAuthScheme) {
+		schemeName := m.appCfg.StringDefault(keyPrefixAuthScheme+"."+keyAuthScheme+".scheme", "")
+		if ess.IsStrEmpty(schemeName) {
+			return fmt.Errorf("security: '%v' is required", keyPrefixAuthScheme+"."+keyAuthScheme+".scheme")
+		}
+
+		authScheme := m.GetAuthScheme(keyAuthScheme)
+		if authScheme == nil {
+			authScheme = createAuthScheme(schemeName)
+			if authScheme == nil {
+				return fmt.Errorf("security: auth scheme '%v' not available", schemeName)
+			}
+			_ = m.AddAuthScheme(keyAuthScheme, authScheme)
+		}
+
+		// Initialize the auth scheme
+		if err := authScheme.Init(m.appCfg, keyAuthScheme); err != nil {
+			return err
+		}
 	}
 
+	// Initialize session manager
 	var err error
-	s := &Security{configPath: configPath, appCfg: appCfg}
-	if s.config, err = config.LoadFile(s.configPath); err != nil {
-		return nil, err
+	if m.SessionManager, err = session.NewManager(m.appCfg); err != nil {
+		return err
+	}
+	_ = m
+	return nil
+}
+
+// GetAuthScheme ...
+func (m *Manager) GetAuthScheme(name string) scheme.Schemer {
+	if authScheme, found := m.authSchemes[name]; found {
+		return authScheme
+	}
+	return nil
+}
+
+// AddAuthScheme method adds the given name and auth scheme to view schemes.
+func (m *Manager) AddAuthScheme(name string, authScheme scheme.Schemer) error {
+	if authScheme == nil {
+		return ErrAuthSchemeIsNil
 	}
 
-	isSessionConfigExists := s.config.IsExists("security.session")
-	log.Debugf("Session config exists: %v", isSessionConfigExists)
-	if s.SessionManager, err = session.NewManager(s.config); err != nil {
-		return nil, err
+	if _, found := m.authSchemes[name]; found {
+		return fmt.Errorf("security: auth scheme name '%v' is already added", name)
 	}
 
-	return s, nil
+	m.authSchemes[name] = authScheme
+
+	return nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
+
+func createAuthScheme(authType string) scheme.Schemer {
+	switch strings.ToLower(authType) {
+	case "form":
+		return &scheme.FormAuth{}
+	case "basic":
+	case "api":
+	}
+	return nil
+}
+
+func init() {
+	gob.Register(&authc.AuthenticationInfo{})
+	gob.Register(&authc.Principal{})
+	gob.Register(make([]authc.Principal, 0))
 }
