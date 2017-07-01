@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	keyRequestParams    = "_RequestParams"
+	keyRequestParams    = "_aahRequestParams"
 	keyOverrideI18nName = "lang"
 )
 
