@@ -272,10 +272,12 @@ func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
 
 	if !m.IsCookieStore() {
 		// Encode session object send it to store
-		if encoded, err := m.Encode(m.Options.Name, s); err == nil {
-			if err = m.store.Save(s.ID, encoded); err != nil {
-				return err
-			}
+		encoded, err := m.Encode(m.Options.Name, s)
+		if err != nil {
+			return err
+		}
+		if err = m.store.Save(s.ID, encoded); err != nil {
+			return err
 		}
 	}
 

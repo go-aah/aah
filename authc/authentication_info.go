@@ -25,8 +25,7 @@ type (
 		Credential []byte
 		IsLocked   bool
 		IsExpired  bool
-
-		principals []*Principal
+		Principals []*Principal
 	}
 
 	// Principal struct holds the principal associated with a corresponding Subject.
@@ -49,7 +48,7 @@ type (
 // expried information.
 func NewAuthenticationInfo() *AuthenticationInfo {
 	return &AuthenticationInfo{
-		principals: make([]*Principal, 0),
+		Principals: make([]*Principal, 0),
 	}
 }
 
@@ -57,18 +56,12 @@ func NewAuthenticationInfo() *AuthenticationInfo {
 // AuthenticationInfo methods
 //___________________________________
 
-// AddPrincipal method adds the given `Principal` instance into `AuthenticationInfo`.
-func (a *AuthenticationInfo) AddPrincipal(principals ...*Principal) *AuthenticationInfo {
-	a.principals = append(a.principals, principals...)
-	return a
-}
-
 // PrimaryPrincipal method returns the primary Principal instance if principal
 // object has `IsPrimary` as true otherwise nil.
 //
 // Typically one principal is required for the subject aka user.
 func (a *AuthenticationInfo) PrimaryPrincipal() *Principal {
-	for _, p := range a.principals {
+	for _, p := range a.Principals {
 		if p.IsPrimary {
 			return p
 		}
@@ -76,16 +69,11 @@ func (a *AuthenticationInfo) PrimaryPrincipal() *Principal {
 	return nil
 }
 
-// AllPrincipals method returns all the principals available from `AuthenticationInfo`.
-func (a *AuthenticationInfo) AllPrincipals() []*Principal {
-	return a.principals
-}
-
 // Merge method merges the given authentication information into existing
 // `AuthenticationInfo` instance. IsExpired and IsLocked values considered as latest
 // from the given object.
 func (a *AuthenticationInfo) Merge(oa *AuthenticationInfo) *AuthenticationInfo {
-	a.AddPrincipal(oa.principals...)
+	a.Principals = append(a.Principals, oa.Principals...)
 	a.IsExpired = oa.IsExpired
 	a.IsLocked = oa.IsLocked
 	return a
@@ -94,7 +82,7 @@ func (a *AuthenticationInfo) Merge(oa *AuthenticationInfo) *AuthenticationInfo {
 // String method is stringer interface implementation.
 func (a *AuthenticationInfo) String() string {
 	return fmt.Sprintf("AuthenticationInfo:: Principals%s, Credential: *******, IsLocked: %v, IsExpired: %v",
-		a.principals, a.IsLocked, a.IsExpired)
+		a.Principals, a.IsLocked, a.IsExpired)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
