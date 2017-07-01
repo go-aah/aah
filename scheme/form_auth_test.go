@@ -26,7 +26,7 @@ func (tfa *testFormAuthentication) Init(cfg *config.Config) error {
 
 func (tfa *testFormAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) *authc.AuthenticationInfo {
 	authcInfo := authc.NewAuthenticationInfo()
-	authcInfo.AddPrincipal(&authc.Principal{Realm: "database", Value: "jeeva", IsPrimary: true})
+	authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "jeeva", IsPrimary: true})
 	authcInfo.Credential = []byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6") // welcome123
 	return authcInfo
 }
