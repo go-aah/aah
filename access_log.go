@@ -180,7 +180,7 @@ func requestAccessLogFormatter(ral *requestAccessLog) string {
 		case fmtFlagResponseHeader:
 			buf.WriteString(ral.GetResponseHdr(part.Format))
 		case fmtFlagResponseTime:
-			buf.WriteString(fmt.Sprintf(part.Format, ral.ElapsedDuration.Nanoseconds()))
+			buf.WriteString(fmt.Sprintf("%.4f", ral.ElapsedDuration.Seconds()*1e3))
 		}
 		buf.WriteByte(' ')
 	}
