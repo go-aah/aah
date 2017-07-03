@@ -7,7 +7,7 @@ package aah
 import (
 	"fmt"
 
-	ahttp "aahframework.org/ahttp.v0"
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
