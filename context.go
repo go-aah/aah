@@ -14,7 +14,8 @@ import (
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0-unstable"
 	"aahframework.org/router.v0"
-	"aahframework.org/security.v0/session"
+	"aahframework.org/security.v0-unstable"
+	"aahframework.org/security.v0-unstable/session"
 )
 
 var (
@@ -44,7 +45,7 @@ type (
 		target     interface{}
 		domain     *router.Domain
 		route      *router.Route
-		session    *session.Session
+		subject    *security.Subject
 		reply      *Reply
 		viewArgs   map[string]interface{}
 		values     map[string]interface{}
@@ -110,14 +111,19 @@ func (ctx *Context) Subdomain() string {
 	return ""
 }
 
+// Subject method the subject (aka application user) of current request.
+func (ctx *Context) Subject() *security.Subject {
+	return ctx.subject
+}
+
 // Session method always returns `session.Session` object. Use `Session.IsNew`
 // to identify whether sesison is newly created or restored from the request
 // which was already created.
 func (ctx *Context) Session() *session.Session {
-	if ctx.session == nil {
-		ctx.session = AppSessionManager().NewSession()
+	if ctx.subject.Session == nil {
+		ctx.subject.Session = AppSessionManager().NewSession()
 	}
-	return ctx.session
+	return ctx.subject.Session
 }
 
 // Abort method sets the abort to true. It means framework will not proceed with
@@ -201,7 +207,7 @@ func (ctx *Context) Reset() {
 	ctx.target = nil
 	ctx.domain = nil
 	ctx.route = nil
-	ctx.session = nil
+	ctx.subject = nil
 	ctx.reply = nil
 	ctx.viewArgs = nil
 	ctx.values = nil

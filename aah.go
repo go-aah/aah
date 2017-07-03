@@ -201,7 +201,7 @@ func Init(importPath string) {
 		logAsFatal(initLogs(appLogsDir(), AppConfig()))
 		logAsFatal(initI18n(appI18nDir()))
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
-		logAsFatal(initSecurity(appConfigDir(), AppConfig()))
+		logAsFatal(initSecurity(AppConfig()))
 		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
 		if AppConfig().BoolDefault("request.access_log.enable", false) {
 			logAsFatal(initRequestAccessLog(appLogsDir(), AppConfig()))

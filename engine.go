@@ -19,6 +19,7 @@ import (
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0-unstable"
 	"aahframework.org/pool.v0"
+	"aahframework.org/security.v0-unstable"
 )
 
 const (
@@ -59,6 +60,7 @@ type (
 		ctxPool            *pool.Pool
 		reqPool            *pool.Pool
 		replyPool          *pool.Pool
+		subPool            *pool.Pool
 	}
 
 	byName []os.FileInfo
@@ -96,6 +98,11 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Load session
 	e.loadSession(ctx)
+
+	// Authentication and Authorization
+	if e.handleAuthcAndAuthz(ctx) == flowStop {
+		return
+	}
 
 	// Parsing request params
 	e.parseRequestParams(ctx)
@@ -155,6 +162,7 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 	ctx.Req = ahttp.ParseRequest(req, r)
 	ctx.Res = ahttp.GetResponseWriter(w)
 	ctx.reply = e.getReply()
+	ctx.subject = e.getSubject()
 	ctx.viewArgs = make(map[string]interface{})
 	ctx.values = make(map[string]interface{})
 
@@ -199,6 +207,11 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 	ctx.route = route
 	ctx.domain = domain
 
+	// security form auth case
+	if isFormAuthLoginRoute(ctx) {
+		return flowCont
+	}
+
 	// Path parameters
 	if pathParams.Len() > 0 {
 		ctx.Req.Params.Path = make(map[string]string, pathParams.Len())
@@ -229,7 +242,7 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 // loadSession method loads session from request for `stateful` session.
 func (e *engine) loadSession(ctx *Context) {
 	if AppSessionManager().IsStateful() {
-		ctx.session = AppSessionManager().GetSession(ctx.Req.Raw)
+		ctx.subject.Session = AppSessionManager().GetSession(ctx.Req.Raw)
 	}
 }
 
@@ -374,11 +387,11 @@ func (e *engine) setCookies(ctx *Context) {
 		http.SetCookie(ctx.Res, c)
 	}
 
-	if AppSessionManager().IsStateful() && ctx.session != nil {
+	if AppSessionManager().IsStateful() && ctx.subject.Session != nil {
 		// Pass it to view args before saving cookie
-		session := *ctx.session
+		session := *ctx.subject.Session
 		ctx.AddViewArg(keySessionValues, &session)
-		if err := AppSessionManager().SaveSession(ctx.Res, ctx.session); err != nil {
+		if err := AppSessionManager().SaveSession(ctx.Res, ctx.subject.Session); err != nil {
 			log.Error(err)
 		}
 	}
@@ -389,14 +402,19 @@ func (e *engine) getContext() *Context {
 	return e.ctxPool.Get().(*Context)
 }
 
-// getRequest method gets request instance from the pool
+// getRequest method gets request instance from the pool.
 func (e *engine) getRequest() *ahttp.Request {
 	return e.reqPool.Get().(*ahttp.Request)
 }
 
-// getReply method gets reply instance from the pool
+// getReply method gets reply instance from the pool.
 func (e *engine) getReply() *Reply {
 	return e.replyPool.Get().(*Reply)
+}
+
+// getSubject method gets subject instance from the pool.
+func (e *engine) getSubject() *security.Subject {
+	return e.subPool.Get().(*security.Subject)
 }
 
 // putContext method puts context back to pool
@@ -410,7 +428,7 @@ func (e *engine) putContext(ctx *Context) {
 		}
 	}
 
-	// clear and put `ahttp.Request` into pool
+	// clear and put `ahttp.Request` back to pool
 	if ctx.Req != nil {
 		ctx.Req.Reset()
 		e.reqPool.Put(ctx.Req)
@@ -423,7 +441,13 @@ func (e *engine) putContext(ctx *Context) {
 		e.replyPool.Put(ctx.reply)
 	}
 
-	// clear and put `aah.Context` into pool
+	// clear and put `Subject` back to pool
+	if ctx.subject != nil {
+		ctx.subject.Reset()
+		e.subPool.Put(ctx.subject)
+	}
+
+	// clear and put `aah.Context` back to pool
 	ctx.Reset()
 	e.ctxPool.Put(ctx)
 }
@@ -441,9 +465,7 @@ func newEngine(cfg *config.Config) *engine {
 	if bufPool == nil {
 		bufPool = pool.NewPool(
 			cfg.IntDefault("runtime.pooling.buffer", defaultBufPoolSize),
-			func() interface{} {
-				return &bytes.Buffer{}
-			},
+			func() interface{} { return &bytes.Buffer{} },
 		)
 	}
 
@@ -454,21 +476,19 @@ func newEngine(cfg *config.Config) *engine {
 		isAccessLogEnabled: cfg.BoolDefault("request.access_log.enable", false),
 		ctxPool: pool.NewPool(
 			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
-			func() interface{} {
-				return &Context{}
-			},
+			func() interface{} { return &Context{} },
 		),
 		reqPool: pool.NewPool(
 			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
-			func() interface{} {
-				return &ahttp.Request{}
-			},
+			func() interface{} { return &ahttp.Request{} },
 		),
 		replyPool: pool.NewPool(
 			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
-			func() interface{} {
-				return NewReply()
-			},
+			func() interface{} { return NewReply() },
+		),
+		subPool: pool.NewPool(
+			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
+			func() interface{} { return &security.Subject{} },
 		),
 	}
 }
