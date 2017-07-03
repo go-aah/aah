@@ -45,7 +45,8 @@ func TestRequestAccessLogFormatter(t *testing.T) {
 	// Testing for the default access log pattern first
 	expectedDefaultFormat := fmt.Sprintf("%s %s %v %v %d %d %s %s",
 		"[::1]", "5946ed129bf23409520736de", ral.StartTime.Format(time.RFC3339),
-		ral.ElapsedDuration.Nanoseconds(), ral.ResStatus, ral.ResBytes, ral.Request.Method, ral.Request.Path)
+		fmt.Sprintf("%.4f", ral.ElapsedDuration.Seconds()*1e3), ral.ResStatus,
+		ral.ResBytes, ral.Request.Method, ral.Request.Path)
 
 	testFormatter(t, ral, appDefaultAccessLogPattern, expectedDefaultFormat)
 
@@ -63,7 +64,7 @@ func TestRequestAccessLogFormatter(t *testing.T) {
 	allAvailablePatterns := "%clientip %reqid %reqtime %restime %resstatus %ressize %reqmethod %requrl %reqhdr:accept %querystr %reshdr"
 	expectedForAllAvailablePatterns := fmt.Sprintf("%s %s %s %v %d %d %s %s %s %s %s",
 		ral.Request.ClientIP, ral.Request.Header.Get(ahttp.HeaderXRequestID),
-		ral.StartTime.Format(time.RFC3339), ral.ElapsedDuration.Nanoseconds(),
+		ral.StartTime.Format(time.RFC3339), fmt.Sprintf("%.4f", ral.ElapsedDuration.Seconds()*1e3),
 		ral.ResStatus, ral.ResBytes, ral.Request.Method,
 		ral.Request.Path, "text/html", "me=human", "-")
 
@@ -102,7 +103,7 @@ func TestEngineRequestAccessLog(t *testing.T) {
 	assert.NotNil(t, AppRouter())
 
 	// Security
-	err = initSecurity(cfgDir, AppConfig())
+	err = initSecurity(AppConfig())
 	assert.Nil(t, err)
 	assert.True(t, AppSessionManager().IsStateful())
 
