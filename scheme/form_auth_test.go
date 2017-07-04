@@ -25,9 +25,19 @@ func (tfa *testFormAuthentication) Init(cfg *config.Config) error {
 }
 
 func (tfa *testFormAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) *authc.AuthenticationInfo {
+	if authcToken == nil {
+		return authc.NewAuthenticationInfo()
+	}
+
 	authcInfo := authc.NewAuthenticationInfo()
-	authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "jeeva", IsPrimary: true})
-	authcInfo.Credential = []byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6") // welcome123
+	if authcToken.Identity == "jeeva" {
+		authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "jeeva", IsPrimary: true})
+		authcInfo.Credential = []byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6") // welcome123
+	} else if authcToken.Identity == "john" {
+		authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "john", IsPrimary: true})
+		authcInfo.Credential = []byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6") // welcome123
+		authcInfo.IsLocked = true
+	}
 	return authcInfo
 }
 
@@ -102,6 +112,14 @@ func TestSchemeFormAuth(t *testing.T) {
 
 	// Incorrect Credentials
 	authcToken.Credential = "welcome@123"
+	authcInfo, err = formAuth.DoAuthenticate(authcToken)
+	assert.NotNil(t, err)
+	assert.Nil(t, authcInfo)
+	assert.True(t, err == authc.ErrAuthenticationFailed)
+
+	// Correct Credentials but account is locked
+	authcToken.Credential = "welcome123"
+	authcToken.Identity = "john"
 	authcInfo, err = formAuth.DoAuthenticate(authcToken)
 	assert.NotNil(t, err)
 	assert.Nil(t, authcInfo)

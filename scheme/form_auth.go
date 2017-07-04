@@ -70,13 +70,18 @@ func (f *FormAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 
 	// Compare passwords
 	isPasswordOk := f.passwordEncoder.Compare(authcInfo.Credential, []byte(authcToken.Credential))
-	if isPasswordOk && !authcInfo.IsLocked && !authcInfo.IsExpired {
-		// Success, return authentication info
-		return authcInfo, nil
+	if !isPasswordOk {
+		log.Error("Subject credentials do not match")
+		return nil, authc.ErrAuthenticationFailed
 	}
 
-	// Failed, return error
-	return nil, authc.ErrAuthenticationFailed
+	if authcInfo.IsLocked || authcInfo.IsExpired {
+		log.Error("Subject account is locked or expired")
+		return nil, authc.ErrAuthenticationFailed
+	}
+
+	// Success, return authentication info
+	return authcInfo, nil
 }
 
 // ExtractAuthenticationToken method extracts the authentication token information
