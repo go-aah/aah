@@ -5,6 +5,8 @@
 package scheme
 
 import (
+	"strings"
+
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/security.v0-unstable/authc"
@@ -23,3 +25,19 @@ type (
 		ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken
 	}
 )
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Global methods
+//___________________________________
+
+// New method creates the auth scheme instance for given type.
+func New(authSchemeType string) Schemer {
+	switch strings.ToLower(authSchemeType) {
+	case "form":
+		return &FormAuth{}
+	case "basic":
+		return &BasicAuth{}
+	case "api":
+	}
+	return nil
+}

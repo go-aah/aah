@@ -8,15 +8,19 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/log.v0"
+	"aahframework.org/security.v0-unstable/acrypto"
 	"aahframework.org/security.v0-unstable/authc"
 	"aahframework.org/security.v0-unstable/authz"
 )
 
 // BaseAuth struct hold base implementation of aah framework's authentication schemes.
 type BaseAuth struct {
-	authenticator authc.Authenticator
-	authorizer    authz.Authorizer
-	appCfg        *config.Config
+	authenticator   authc.Authenticator
+	authorizer      authz.Authorizer
+	appCfg          *config.Config
+	scheme          string
+	keyPrefix       string
+	passwordEncoder acrypto.PasswordEncoder
 }
 
 // Init method typically implemented by extending struct.

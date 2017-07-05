@@ -22,10 +22,6 @@ type FormAuth struct {
 	IsAlwaysToDefaultTarget bool
 	FieldIdentity           string
 	FieldCredential         string
-
-	scheme          string
-	keyPrefix       string
-	passwordEncoder acrypto.PasswordEncoder
 }
 
 // Init method initializes the Form authentication scheme from `security.auth_schemes`.
@@ -57,15 +53,19 @@ func (f *FormAuth) Scheme() string {
 
 // DoAuthenticate method calls the registered `Authenticator` with authentication token.
 func (f *FormAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
+	log.Info(authcToken)
 	if f.authenticator == nil {
 		log.Warn("FormAuth: authenticator is nil")
 		return nil, authc.ErrAuthenticatorIsNil
 	}
 
-	log.Info(authcToken)
-
 	// Getting authentication information
 	authcInfo := f.authenticator.GetAuthenticationInfo(authcToken)
+	if authcInfo == nil {
+		log.Error("Subject not found")
+		return nil, authc.ErrAuthenticationFailed
+	}
+
 	log.Info(authcInfo)
 
 	// Compare passwords
@@ -76,7 +76,7 @@ func (f *FormAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 	}
 
 	if authcInfo.IsLocked || authcInfo.IsExpired {
-		log.Error("Subject account is locked or expired")
+		log.Error("Subject is locked or expired")
 		return nil, authc.ErrAuthenticationFailed
 	}
 

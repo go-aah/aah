@@ -29,16 +29,19 @@ func (tfa *testFormAuthentication) GetAuthenticationInfo(authcToken *authc.Authe
 		return authc.NewAuthenticationInfo()
 	}
 
-	authcInfo := authc.NewAuthenticationInfo()
 	if authcToken.Identity == "jeeva" {
+		authcInfo := authc.NewAuthenticationInfo()
 		authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "jeeva", IsPrimary: true})
 		authcInfo.Credential = []byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6") // welcome123
+		return authcInfo
 	} else if authcToken.Identity == "john" {
+		authcInfo := authc.NewAuthenticationInfo()
 		authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "john", IsPrimary: true})
 		authcInfo.Credential = []byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6") // welcome123
 		authcInfo.IsLocked = true
+		return authcInfo
 	}
-	return authcInfo
+	return nil
 }
 
 func (tfa *testFormAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {
@@ -123,5 +126,10 @@ func TestSchemeFormAuth(t *testing.T) {
 	authcInfo, err = formAuth.DoAuthenticate(authcToken)
 	assert.NotNil(t, err)
 	assert.Nil(t, authcInfo)
+	assert.True(t, err == authc.ErrAuthenticationFailed)
+
+	authcToken.Identity = "newuser"
+	authcInfo, err = formAuth.DoAuthenticate(authcToken)
+	assert.NotNil(t, err)
 	assert.True(t, err == authc.ErrAuthenticationFailed)
 }
