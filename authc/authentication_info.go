@@ -79,6 +79,14 @@ func (a *AuthenticationInfo) Merge(oa *AuthenticationInfo) *AuthenticationInfo {
 	return a
 }
 
+// Reset method reset the instance for repurpose.
+func (a *AuthenticationInfo) Reset() {
+	a.Credential = nil
+	a.Principals = make([]*Principal, 0)
+	a.IsExpired = false
+	a.IsLocked = false
+}
+
 // String method is stringer interface implementation.
 func (a *AuthenticationInfo) String() string {
 	return fmt.Sprintf("AuthenticationInfo:: Principals%s, Credential: *******, IsLocked: %v, IsExpired: %v",

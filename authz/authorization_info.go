@@ -132,6 +132,12 @@ func (a *AuthorizationInfo) IsPermittedAllp(permissions ...*Permission) bool {
 	return true
 }
 
+// Reset method resets the instance values for repurpose.
+func (a *AuthorizationInfo) Reset() {
+	a.roles = make(parts, 0)
+	a.permissions = make([]*Permission, 0)
+}
+
 // String method is stringer interface implementation.
 func (a *AuthorizationInfo) String() string {
 	var str string

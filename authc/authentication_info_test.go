@@ -28,6 +28,8 @@ func TestAuthcAuthenticationInfo(t *testing.T) {
 
 	assert.NotNil(t, a1.Principals)
 	assert.True(t, len(a1.Principals) == 2)
+
+	a1.Reset()
 }
 
 func TestAuthcAuthenticationInfoMerge(t *testing.T) {
