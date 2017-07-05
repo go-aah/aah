@@ -32,11 +32,10 @@ func TestSecuritySubject(t *testing.T) {
 	sessionManager, err := session.NewManager(cfg)
 	assert.FailNowOnError(t, err, "unexpected")
 
-	sub := Subject{
-		AuthenticationInfo: authcInfo,
-		AuthorizationInfo:  authzInfo,
-		Session:            sessionManager.NewSession(),
-	}
+	sub := NewSubject()
+	sub.AuthenticationInfo = authcInfo
+	sub.AuthorizationInfo = authzInfo
+	sub.Session = sessionManager.NewSession()
 	sub.Session.IsAuthenticated = true
 
 	// AuthenticationInfo
@@ -73,4 +72,6 @@ func TestSecuritySubject(t *testing.T) {
 
 	str = sub.String()
 	assert.Equal(t, "<nil>, <nil>, <nil>", str)
+
+	ReleaseSubject(sub)
 }

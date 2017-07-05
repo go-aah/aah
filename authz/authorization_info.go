@@ -22,20 +22,6 @@ type AuthorizationInfo struct {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
-//___________________________________
-
-// NewAuthorizationInfo method creates an `AuthorizationInfo` instance with zero
-// values. Use the returned instance to add roles and permissions for the Subject
-// (aka User).
-func NewAuthorizationInfo() *AuthorizationInfo {
-	return &AuthorizationInfo{
-		roles:       make(parts, 0),
-		permissions: make([]*Permission, 0),
-	}
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // AuthorizationInfo methods
 //___________________________________
 

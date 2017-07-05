@@ -10,11 +10,12 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"strings"
+	"sync"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/security.v0-unstable/authc"
+	"aahframework.org/security.v0-unstable/authz"
 	"aahframework.org/security.v0-unstable/scheme"
 	"aahframework.org/security.v0-unstable/session"
 )
@@ -22,8 +23,12 @@ import (
 // Version is security library version no. of aah framework
 const Version = "0.6"
 
-// ErrAuthSchemeIsNil returned when given auth scheme instance is nil.
-var ErrAuthSchemeIsNil = errors.New("security: auth scheme is nil")
+var (
+	// ErrAuthSchemeIsNil returned when given auth scheme instance is nil.
+	ErrAuthSchemeIsNil = errors.New("security: auth scheme is nil")
+
+	subjectPool = &sync.Pool{New: func() interface{} { return &Subject{} }}
+)
 
 type (
 	// Manager holds aah security management and its implementation.
@@ -60,7 +65,7 @@ func (m *Manager) Init(appCfg *config.Config) error {
 
 		authScheme := m.GetAuthScheme(keyAuthScheme)
 		if authScheme == nil {
-			authScheme = createAuthScheme(schemeName)
+			authScheme = scheme.New(schemeName)
 			if authScheme == nil {
 				return fmt.Errorf("security: auth scheme '%v' not available", schemeName)
 			}
@@ -105,19 +110,24 @@ func (m *Manager) AddAuthScheme(name string, authScheme scheme.Schemer) error {
 	return nil
 }
 
+// NewSubject method gets the subject from pool.
+func NewSubject() *Subject {
+	return subjectPool.Get().(*Subject)
+}
+
+// ReleaseSubject method puts authenticatio info, authorization info and subject
+// back to pool.
+func ReleaseSubject(s *Subject) {
+	authc.ReleaseAuthenticationInfo(s.AuthenticationInfo)
+	authz.ReleaseAuthorizationInfo(s.AuthorizationInfo)
+
+	s.Reset()
+	subjectPool.Put(s)
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
-
-func createAuthScheme(authType string) scheme.Schemer {
-	switch strings.ToLower(authType) {
-	case "form":
-		return &scheme.FormAuth{}
-	case "basic":
-	case "api":
-	}
-	return nil
-}
 
 func init() {
 	gob.Register(&authc.AuthenticationInfo{})

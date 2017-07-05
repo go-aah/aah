@@ -38,19 +38,6 @@ func TestSecurityInit(t *testing.T) {
 
 	authScheme = sec.GetAuthScheme("no_auth")
 	assert.Nil(t, authScheme)
-
-	// Create auth scheme
-	authScheme = createAuthScheme("form")
-	assert.NotNil(t, authScheme)
-
-	authScheme = createAuthScheme("basic")
-	assert.Nil(t, authScheme)
-
-	authScheme = createAuthScheme("api")
-	assert.Nil(t, authScheme)
-
-	authScheme = createAuthScheme("unknown")
-	assert.Nil(t, authScheme)
 }
 
 func TestSecurityInitError(t *testing.T) {

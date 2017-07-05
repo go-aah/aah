@@ -40,19 +40,6 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
-//___________________________________
-
-// NewAuthenticationInfo method creates an `AuthenticationInfo` instance with zero
-// values. Then using this instance you fill-in user credential, principals, locked,
-// expried information.
-func NewAuthenticationInfo() *AuthenticationInfo {
-	return &AuthenticationInfo{
-		Principals: make([]*Principal, 0),
-	}
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // AuthenticationInfo methods
 //___________________________________
 

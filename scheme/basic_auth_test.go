@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	ahttp "aahframework.org/ahttp.v0"
-	config "aahframework.org/config.v0"
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/security.v0-unstable/authc"
 	"aahframework.org/security.v0-unstable/authz"
 	"aahframework.org/test.v0/assert"
