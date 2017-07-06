@@ -118,7 +118,10 @@ func (tba *testBasicAuthentication) GetAuthenticationInfo(authcToken *authc.Auth
 }
 
 func (tba *testBasicAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {
-	return authz.NewAuthorizationInfo()
+	if authcInfo.PrimaryPrincipal().Value == "test1" {
+		return authz.NewAuthorizationInfo()
+	}
+	return nil
 }
 
 func TestSchemeBasicAuthCustom(t *testing.T) {
@@ -175,6 +178,12 @@ func TestSchemeBasicAuthCustom(t *testing.T) {
 	assert.Equal(t, "test1", authcInfo.PrimaryPrincipal().Value)
 
 	// Authorization
+	authzInfo = basicAuth.DoAuthorizationInfo(authcInfo)
+	assert.NotNil(t, authzInfo)
+	assert.False(t, authzInfo.HasRole("manager"))
+	assert.False(t, authzInfo.IsPermitted("newsletter:read"))
+
+	authcInfo.Principals[0].Value = "john"
 	authzInfo = basicAuth.DoAuthorizationInfo(authcInfo)
 	assert.NotNil(t, authzInfo)
 	assert.False(t, authzInfo.HasRole("manager"))

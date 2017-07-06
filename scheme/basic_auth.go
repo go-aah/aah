@@ -133,7 +133,12 @@ func (b *BasicAuth) DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *au
 		return authz.NewAuthorizationInfo()
 	}
 
-	return b.authorizer.GetAuthorizationInfo(authcInfo)
+	authzInfo := b.authorizer.GetAuthorizationInfo(authcInfo)
+	if authzInfo == nil {
+		authzInfo = authz.NewAuthorizationInfo()
+	}
+
+	return authzInfo
 }
 
 // ExtractAuthenticationToken method extracts the authentication token information

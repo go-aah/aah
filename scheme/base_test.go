@@ -42,10 +42,10 @@ func TestSchemeBaseAuth(t *testing.T) {
 	assert.NotNil(t, authcInfo)
 
 	authzInfo := baseAuth.DoAuthorizationInfo(nil)
-	assert.Nil(t, authzInfo)
+	assert.NotNil(t, authzInfo)
 
 	authzInfo = baseAuth.DoAuthorizationInfo(authcInfo)
-	assert.Nil(t, authzInfo)
+	assert.NotNil(t, authzInfo)
 	assert.Nil(t, baseAuth.Init(cfg))
 	assert.Equal(t, "unknown", baseAuth.Scheme())
 

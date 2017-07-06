@@ -65,6 +65,9 @@ func (b *BaseAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 // DoAuthorizationInfo method calls registered `Authorizer` with authentication information.
 func (b *BaseAuth) DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {
 	authzInfo := b.authorizer.GetAuthorizationInfo(authcInfo)
+	if authzInfo == nil {
+		authzInfo = authz.NewAuthorizationInfo()
+	}
 	log.Info(authzInfo)
 	return authzInfo
 }

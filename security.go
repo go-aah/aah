@@ -118,12 +118,14 @@ func NewSubject() *Subject {
 // ReleaseSubject method puts authenticatio info, authorization info and subject
 // back to pool.
 func ReleaseSubject(s *Subject) {
-	authc.ReleaseAuthenticationInfo(s.AuthenticationInfo)
-	authz.ReleaseAuthorizationInfo(s.AuthorizationInfo)
-	session.ReleaseSession(s.Session)
+	if s != nil {
+		authc.ReleaseAuthenticationInfo(s.AuthenticationInfo)
+		authz.ReleaseAuthorizationInfo(s.AuthorizationInfo)
+		session.ReleaseSession(s.Session)
 
-	s.Reset()
-	subjectPool.Put(s)
+		s.Reset()
+		subjectPool.Put(s)
+	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
