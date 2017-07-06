@@ -57,6 +57,7 @@ func TestSessionEncodeAndDecodeNoSignEnc(t *testing.T) {
 	err = m.Decode(m.Options.Name, encodedStr, &resultSession)
 	assert.Nil(t, err)
 	assertSessionValue(t, &resultSession)
+	ReleaseSession(&resultSession)
 }
 
 func TestSessionEncodeAndDecodeWithSignEnc(t *testing.T) {
@@ -87,6 +88,7 @@ func TestSessionEncodeAndDecodeWithSignEnc(t *testing.T) {
 	err = m.Decode(m.Options.Name, encodedStr, &resultSession)
 	assert.Nil(t, err)
 	assertSessionValue(t, &resultSession)
+	ReleaseSession(&resultSession)
 }
 
 func TestSessionRegisterStore(t *testing.T) {

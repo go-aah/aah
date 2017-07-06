@@ -54,7 +54,7 @@ var (
 
 	registerStores = make(map[string]Storer)
 
-	sPool = sync.Pool{New: func() interface{} { return &Session{} }}
+	sessionPool = sync.Pool{New: func() interface{} { return &Session{Values: make(map[string]interface{})} }}
 )
 
 type (
@@ -197,9 +197,8 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 
 // NewSession method creates a new session for the request.
 func (m *Manager) NewSession() *Session {
-	s := getSessionObj()
+	s := sessionPool.Get().(*Session)
 	s.ID = ess.RandomString(m.idLength)
-	s.Values = make(map[string]interface{})
 	s.IsNew = true
 	t := time.Now()
 	s.CreatedTime = &t
@@ -250,7 +249,6 @@ func (m *Manager) GetSession(r *http.Request) *Session {
 // SaveSession method saves the given session into store.
 // Add writes the cookie into response.
 func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
-	defer putSessionObj(s)
 	if s.maxAge == -1 {
 		return m.DeleteSession(w, s)
 	}
@@ -441,4 +439,12 @@ func (m *Manager) IsStateful() bool {
 // IsCookieStore method returns true if session store is cookie otherwise false.
 func (m *Manager) IsCookieStore() bool {
 	return m.storeName == "cookie"
+}
+
+// ReleaseSession method puts session object back to pool.
+func ReleaseSession(s *Session) {
+	if s != nil {
+		s.Reset()
+		sessionPool.Put(s)
+	}
 }

@@ -154,22 +154,12 @@ func (s *Session) String() string {
 // Unexported methods
 //___________________________________
 
-func (s *Session) reset() {
+// Reset method resets the instance values for repurpose.
+func (s *Session) Reset() {
 	s.ID = ""
-	s.Values = nil
+	s.Values = make(map[string]interface{})
 	s.IsNew = false
 	s.CreatedTime = nil
 	s.IsAuthenticated = false
 	s.maxAge = 0
-}
-
-func getSessionObj() *Session {
-	return sPool.Get().(*Session)
-}
-
-func putSessionObj(s *Session) {
-	if s != nil {
-		s.reset()
-		sPool.Put(s)
-	}
 }
