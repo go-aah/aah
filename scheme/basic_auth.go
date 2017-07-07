@@ -98,7 +98,7 @@ func (b *BasicAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*auth
 		}
 	} else {
 		if b.authenticator == nil {
-			log.Warn("BasicAuth: authenticator is nil")
+			log.Warnf("%v: authenticator is nil", b.scheme)
 			return nil, authc.ErrAuthenticatorIsNil
 		}
 
@@ -129,7 +129,7 @@ func (b *BasicAuth) DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *au
 	}
 
 	if b.authorizer == nil {
-		log.Warn("BasicAuth: authorizer is nil")
+		log.Warnf("%v: authorizer is nil", b.scheme)
 		return authz.NewAuthorizationInfo()
 	}
 

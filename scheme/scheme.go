@@ -38,6 +38,7 @@ func New(authSchemeType string) Schemer {
 	case "basic":
 		return &BasicAuth{}
 	case "api":
+		return &APIAuth{}
 	}
 	return nil
 }

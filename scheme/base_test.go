@@ -37,7 +37,13 @@ func TestSchemeBaseAuth(t *testing.T) {
 	assert.Nil(t, baseAuth.SetAuthenticator(testFormAuth))
 	assert.Nil(t, baseAuth.SetAuthorizer(testFormAuth))
 
-	authcInfo, err := baseAuth.DoAuthenticate(nil)
+	authcToken := &authc.AuthenticationToken{}
+	authcInfo, err := baseAuth.DoAuthenticate(authcToken)
+	assert.NotNil(t, err)
+	assert.True(t, err == authc.ErrAuthenticationFailed)
+	assert.Nil(t, authcInfo)
+
+	authcInfo, err = baseAuth.DoAuthenticate(nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, authcInfo)
 
@@ -49,6 +55,6 @@ func TestSchemeBaseAuth(t *testing.T) {
 	assert.Nil(t, baseAuth.Init(cfg))
 	assert.Equal(t, "unknown", baseAuth.Scheme())
 
-	authcToken := baseAuth.ExtractAuthenticationToken(nil)
+	authcToken = baseAuth.ExtractAuthenticationToken(nil)
 	assert.Nil(t, authcToken)
 }

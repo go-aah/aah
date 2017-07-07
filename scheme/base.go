@@ -7,6 +7,7 @@ package scheme
 import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/security.v0-unstable/acrypto"
 	"aahframework.org/security.v0-unstable/authc"
@@ -29,10 +30,12 @@ func (b *BaseAuth) Init(cfg *config.Config) error {
 	return nil
 }
 
-// Scheme  method typically implemented by extending struct.
+// Scheme method return authentication scheme name.
 func (b *BaseAuth) Scheme() string {
-	log.Trace("BaseAuth Scheme called")
-	return "unknown"
+	if ess.IsStrEmpty(b.scheme) {
+		return "unknown"
+	}
+	return b.scheme
 }
 
 // SetAuthenticator method assigns the given `Authenticator` instance to
@@ -59,7 +62,22 @@ func (b *BaseAuth) SetAuthorizer(authorizer authz.Authorizer) error {
 
 // DoAuthenticate method calls the registered `Authenticator` with authentication token.
 func (b *BaseAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
-	return b.authenticator.GetAuthenticationInfo(authcToken), nil
+	log.Info(authcToken)
+
+	if b.authenticator == nil {
+		log.Warnf("%v: authenticator is nil", b.scheme)
+		return nil, authc.ErrAuthenticatorIsNil
+	}
+
+	authcInfo := b.authenticator.GetAuthenticationInfo(authcToken)
+	if authcInfo == nil {
+		log.Error("Subject not found")
+		return nil, authc.ErrAuthenticationFailed
+	}
+
+	log.Info(authcInfo)
+
+	return authcInfo, nil
 }
 
 // DoAuthorizationInfo method calls registered `Authorizer` with authentication information.

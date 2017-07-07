@@ -46,16 +46,11 @@ func (f *FormAuth) Init(cfg *config.Config, keyName string) error {
 	return err
 }
 
-// Scheme method return authentication scheme name.
-func (f *FormAuth) Scheme() string {
-	return f.scheme
-}
-
 // DoAuthenticate method calls the registered `Authenticator` with authentication token.
 func (f *FormAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
 	log.Info(authcToken)
 	if f.authenticator == nil {
-		log.Warn("FormAuth: authenticator is nil")
+		log.Warnf("%v: authenticator is nil", f.scheme)
 		return nil, authc.ErrAuthenticatorIsNil
 	}
 

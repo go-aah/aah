@@ -133,6 +133,13 @@ func TestSchemeBasicAuthCustom(t *testing.T) {
         scheme = "basic"
 
         realm_name = "Authentication Required"
+
+				# Authenticator is used to validate the subject (aka User)
+        authenticator = "security/BasicAuthentication"
+
+        # Authorizer is used to get Subject authorization information,
+        # such as Roles and Permissions
+        authorizer = "security/BasicAuthorization"
       }
     }
   }
