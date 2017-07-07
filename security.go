@@ -110,8 +110,8 @@ func (m *Manager) AddAuthScheme(name string, authScheme scheme.Schemer) error {
 	return nil
 }
 
-// NewSubject method gets the subject from pool.
-func NewSubject() *Subject {
+// AcquireSubject method gets the subject from pool.
+func AcquireSubject() *Subject {
 	return subjectPool.Get().(*Subject)
 }
 

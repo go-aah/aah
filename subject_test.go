@@ -32,7 +32,7 @@ func TestSecuritySubject(t *testing.T) {
 	sessionManager, err := session.NewManager(cfg)
 	assert.FailNowOnError(t, err, "unexpected")
 
-	sub := NewSubject()
+	sub := AcquireSubject()
 	sub.AuthenticationInfo = authcInfo
 	sub.AuthorizationInfo = authzInfo
 	sub.Session = sessionManager.NewSession()
