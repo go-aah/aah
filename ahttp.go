@@ -6,7 +6,10 @@
 // Like parse HTTP headers, ResponseWriter, content type, etc.
 package ahttp
 
-import "net/http"
+import (
+	"io"
+	"net/http"
+)
 
 // Version no. of aah framework ahttp library
 const Version = "0.9"
@@ -38,3 +41,48 @@ type (
 		Region   string
 	}
 )
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Global methods
+//___________________________________
+
+// AcquireRequest method populates the given aah framework `ahttp.Request`
+// instance from Go HTTP request.
+func AcquireRequest(r *http.Request) *Request {
+	req := requestPool.Get().(*Request)
+	return ParseRequest(r, req)
+}
+
+// ReleaseRequest method resets the instance value and puts back to pool.
+func ReleaseRequest(r *Request) {
+	if r != nil {
+		r.Reset()
+		requestPool.Put(r)
+	}
+}
+
+// AcquireResponseWriter method wraps given writer and returns the aah response writer.
+func AcquireResponseWriter(w http.ResponseWriter) ResponseWriter {
+	rw := responsePool.Get().(*Response)
+	rw.w = w
+	return rw
+}
+
+// ReleaseResponseWriter method puts response writer back to pool.
+func ReleaseResponseWriter(aw ResponseWriter) {
+	if aw != nil {
+		if gw, ok := aw.(*GzipResponse); ok {
+			releaseGzipResponse(gw)
+		} else {
+			releaseResponse(aw.(*Response))
+		}
+	}
+}
+
+// WrapGzipWriter wraps `ahttp.ResponseWriter` with Gzip writer.
+func WrapGzipWriter(w io.Writer) ResponseWriter {
+	gr := grPool.Get().(*GzipResponse)
+	gr.gw = acquireGzipWriter(w)
+	gr.r = w.(*Response)
+	return gr
+}

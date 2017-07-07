@@ -42,11 +42,7 @@ type (
 )
 
 var (
-	rPool = sync.Pool{
-		New: func() interface{} {
-			return &Response{}
-		},
-	}
+	responsePool = &sync.Pool{New: func() interface{} { return &Response{} }}
 
 	// interface compliance
 	_ http.CloseNotifier = &Response{}
@@ -61,22 +57,18 @@ var (
 // Global methods
 //___________________________________
 
+// TODO for old method cleanup
+
 // GetResponseWriter method wraps given writer and returns the aah response writer.
 func GetResponseWriter(w http.ResponseWriter) ResponseWriter {
-	rw := rPool.Get().(*Response)
+	rw := responsePool.Get().(*Response)
 	rw.w = w
 	return rw
 }
 
 // PutResponseWriter method puts response writer back to pool.
 func PutResponseWriter(aw ResponseWriter) {
-	r := aw.(*Response)
-	_ = r.Close()
-	r.w = nil
-	r.status = 0
-	r.bytesWritten = 0
-	r.wroteStatus = false
-	rPool.Put(r)
+	releaseResponse(aw.(*Response))
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -162,6 +154,14 @@ func (r *Response) Push(target string, opts *http.PushOptions) error {
 	return nil
 }
 
+// Reset method resets the instance value for repurpose.
+func (r *Response) Reset() {
+	r.w = nil
+	r.status = 0
+	r.bytesWritten = 0
+	r.wroteStatus = false
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Response Unexported methods
 //___________________________________
@@ -170,4 +170,11 @@ func (r *Response) setContentTypeIfNotSet(b []byte) {
 	if _, found := r.Header()[HeaderContentType]; !found {
 		r.Header().Set(HeaderContentType, http.DetectContentType(b))
 	}
+}
+
+// releaseResponse method puts response back to pool.
+func releaseResponse(r *Response) {
+	_ = r.Close()
+	r.Reset()
+	responsePool.Put(r)
 }

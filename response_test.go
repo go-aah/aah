@@ -35,8 +35,8 @@ func TestHTTPResponseWriter(t *testing.T) {
 
 func TestHTTPNoStatusWritten(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		writer := GetResponseWriter(w)
-		defer PutResponseWriter(writer)
+		writer := AcquireResponseWriter(w)
+		defer ReleaseResponseWriter(writer)
 
 		_, _ = writer.Write([]byte("aah framework no status written"))
 		assert.Equal(t, 31, writer.BytesWritten())
@@ -62,7 +62,7 @@ func TestHTTPMultipleStatusWritten(t *testing.T) {
 
 func TestHTTPHijackCall(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		writer := GetResponseWriter(w)
+		writer := AcquireResponseWriter(w)
 
 		con, rw, err := writer.(http.Hijacker).Hijack()
 		assert.FailOnError(t, err, "")

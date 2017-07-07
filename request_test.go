@@ -58,7 +58,7 @@ func TestHTTPParseRequest(t *testing.T) {
 	req.Header.Add(HeaderAcceptLanguage, "en-gb;leve=1;q=0.8, da, en;level=2;q=0.7, en-us;q=gg")
 	req.URL, _ = url.Parse("/welcome1.html?_ref=true")
 
-	aahReq := ParseRequest(req, &Request{})
+	aahReq := AcquireRequest(req)
 
 	assert.Equal(t, req, aahReq.Unwrap())
 	assert.Equal(t, "127.0.0.1:8080", aahReq.Host)
@@ -98,6 +98,7 @@ func TestHTTPParseRequest(t *testing.T) {
 	assert.Nil(t, aahReq.Raw)
 	assert.True(t, len(aahReq.UserAgent) == 0)
 	assert.True(t, len(aahReq.ClientIP) == 0)
+	ReleaseRequest(aahReq)
 }
 
 func TestHTTPRequestParams(t *testing.T) {
@@ -106,7 +107,7 @@ func TestHTTPRequestParams(t *testing.T) {
 	req1.Method = MethodPost
 	req1.URL, _ = url.Parse("http://localhost:8080/welcome1.html?_ref=true&names=Test1&names=Test%202")
 
-	params1 := ParseRequest(req1, &Request{}).Params
+	params1 := AcquireRequest(req1).Params
 	params1.Path = make(map[string]string)
 	params1.Path["userId"] = "100001"
 	assert.Equal(t, "true", params1.QueryValue("_ref"))
@@ -126,7 +127,7 @@ func TestHTTPRequestParams(t *testing.T) {
 	req2.Header.Add(HeaderContentType, ContentTypeForm.String())
 	_ = req2.ParseForm()
 
-	aahReq2 := ParseRequest(req2, &Request{})
+	aahReq2 := AcquireRequest(req2)
 	aahReq2.Params.Form = req2.Form
 
 	params2 := aahReq2.Params
@@ -135,17 +136,19 @@ func TestHTTPRequestParams(t *testing.T) {
 	assert.Equal(t, "Test1", params2.FormArrayValue("names")[0])
 	assert.Equal(t, "Test 2 value", params2.FormArrayValue("names")[1])
 	assert.True(t, len(params2.FormArrayValue("not-exists")) == 0)
+	ReleaseRequest(aahReq2)
 
 	// File value
 	req3, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", nil)
 	req3.Header.Add(HeaderContentType, ContentTypeMultipartForm.String())
-	aahReq3 := ParseRequest(req3, &Request{})
+	aahReq3 := AcquireRequest(req3)
 	aahReq3.Params.File = make(map[string][]*multipart.FileHeader)
 	aahReq3.Params.File["testfile.txt"] = []*multipart.FileHeader{&multipart.FileHeader{Filename: "testfile.txt"}}
 	f, fh, err := aahReq3.FormFile("testfile.txt")
 	assert.Nil(t, f)
 	assert.Equal(t, "testfile.txt", fh.Filename)
 	assert.Equal(t, "open : no such file or directory", err.Error())
+	ReleaseRequest(aahReq3)
 }
 
 func TestHTTPRequestCookies(t *testing.T) {

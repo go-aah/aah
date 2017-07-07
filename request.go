@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"aahframework.org/essentials.v0"
 )
@@ -19,6 +20,8 @@ const (
 	jsonpReqParamKey = "callback"
 	ajaxHeaderValue  = "XMLHttpRequest"
 )
+
+var requestPool = &sync.Pool{New: func() interface{} { return &Request{} }}
 
 type (
 	// Request is extends `http.Request` for aah framework
