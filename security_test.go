@@ -33,7 +33,7 @@ func TestSecuritySessionStore(t *testing.T) {
 func TestSecuritySessionTemplateFuns(t *testing.T) {
 	viewArgs := make(map[string]interface{})
 
-	assert.Nil(t, viewArgs[keySessionValues])
+	assert.Nil(t, viewArgs[keySubjectValue])
 
 	bv1 := tmplSessionValue(viewArgs, "my-testvalue")
 	assert.Nil(t, bv1)
@@ -45,8 +45,8 @@ func TestSecuritySessionTemplateFuns(t *testing.T) {
 	session.Set("my-testvalue", 38458473684763)
 	session.SetFlash("my-flashvalue", "user not found")
 
-	viewArgs[keySessionValues] = session
-	assert.NotNil(t, viewArgs[keySessionValues])
+	viewArgs[keySubjectValue] = &security.Subject{Session: session}
+	assert.NotNil(t, viewArgs[keySubjectValue])
 
 	v1 := tmplSessionValue(viewArgs, "my-testvalue")
 	assert.Equal(t, 38458473684763, v1)
@@ -57,7 +57,7 @@ func TestSecuritySessionTemplateFuns(t *testing.T) {
 	v3 := tmplIsAuthenticated(viewArgs)
 	assert.False(t, v3)
 
-	delete(viewArgs, keySessionValues)
+	delete(viewArgs, keySubjectValue)
 	v4 := tmplIsAuthenticated(viewArgs)
 	assert.False(t, v4)
 }

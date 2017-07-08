@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	keySessionValues = "_aahSessionValues"
-	keyAuthcInfo     = "_aahAuthcInfo"
+	keyAuthcInfo    = "_aahAuthcInfo"
+	keySubjectValue = "_aahSubject"
 )
 
 var appSecurityManager = security.New()
@@ -62,7 +62,7 @@ func (e engine) handleAuthcAndAuthz(ctx *Context) flowResult {
 	authScheme := AppSecurityManager().GetAuthScheme(ctx.route.Auth)
 	if authScheme == nil {
 		// If auth scheme is nil then treat it as `anonymous`.
-		log.Infof("Route auth scheme is nil, treating as anonymous: %v", ctx.Req.Path)
+		log.Tracef("Route auth scheme is nil, treat it as anonymous: %v", ctx.Req.Path)
 		return flowCont
 	}
 
@@ -70,9 +70,9 @@ func (e engine) handleAuthcAndAuthz(ctx *Context) flowResult {
 	switch authScheme.Scheme() {
 	case "form":
 		return e.doFormAuthcAndAuthz(authScheme, ctx)
+	default:
+		return e.doAuthcAndAuthz(authScheme, ctx)
 	}
-
-	return flowCont
 }
 
 // doFormAuthcAndAuthz method does Form Authentication and Authorization.
@@ -106,8 +106,9 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 		return flowStop
 	}
 
+	publishOnPreAuthEvent(ctx)
+
 	// Do Authentication
-	// TODO publish pre auth server event
 	authcInfo, err := formAuth.DoAuthenticate(formAuth.ExtractAuthenticationToken(ctx.Req))
 	if err == authc.ErrAuthenticationFailed {
 		log.Infof("Authentication is failed, sending to login failure URL")
@@ -124,7 +125,7 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 	ctx.Subject().AuthenticationInfo.Credential = nil
 	ctx.Session().Set(keyAuthcInfo, ctx.Subject().AuthenticationInfo)
 
-	// TODO publish post auth server event
+	publishOnPostAuthEvent(ctx)
 
 	rt := ctx.Req.Raw.FormValue("_rt")
 	if formAuth.IsAlwaysToDefaultTarget || ess.IsStrEmpty(rt) {
@@ -136,6 +137,37 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 
 	e.writeReply(ctx)
 	return flowStop
+}
+
+// doAuthcAndAuthz method does Authentication and Authorization.
+func (e *engine) doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
+	publishOnPreAuthEvent(ctx)
+
+	// Do Authentication
+	authcInfo, err := ascheme.DoAuthenticate(ascheme.ExtractAuthenticationToken(ctx.Req))
+	if err == authc.ErrAuthenticationFailed {
+		log.Infof("Authentication is failed")
+		ctx.Reply().Unauthorized()
+
+		if ascheme.Scheme() == "basic" {
+			basicAuth := ascheme.(*scheme.BasicAuth)
+			ctx.Reply().Header(ahttp.HeaderWWWAuthenticate, `Basic realm="`+basicAuth.RealmName+`"`)
+		}
+		// TODO write response based on Content type
+		e.writeReply(ctx)
+		return flowStop
+	}
+
+	ctx.Subject().AuthenticationInfo = authcInfo
+	ctx.Subject().AuthorizationInfo = ascheme.DoAuthorizationInfo(authcInfo)
+	ctx.Session().IsAuthenticated = true
+
+	// Remove the credential
+	ctx.Subject().AuthenticationInfo.Credential = nil
+
+	publishOnPostAuthEvent(ctx)
+
+	return flowCont
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -171,9 +203,11 @@ func isFormAuthLoginRoute(ctx *Context) bool {
 // tmplSessionValue method returns session value for the given key. If session
 // object unavailable this method returns nil.
 func tmplSessionValue(viewArgs map[string]interface{}, key string) interface{} {
-	if sv, found := viewArgs[keySessionValues]; found {
-		value := sv.(*session.Session).Get(key)
-		return sanatizeValue(value)
+	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+		if sub.Session != nil {
+			value := sub.Session.Get(key)
+			return sanatizeValue(value)
+		}
 	}
 	return nil
 }
@@ -181,17 +215,28 @@ func tmplSessionValue(viewArgs map[string]interface{}, key string) interface{} {
 // tmplFlashValue method returns session value for the given key. If session
 // object unavailable this method returns nil.
 func tmplFlashValue(viewArgs map[string]interface{}, key string) interface{} {
-	if sv, found := viewArgs[keySessionValues]; found {
-		value := sv.(*session.Session).GetFlash(key)
-		return sanatizeValue(value)
+	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+		if sub.Session != nil {
+			value := sub.Session.GetFlash(key)
+			return sanatizeValue(value)
+		}
 	}
 	return nil
 }
 
 // tmplIsAuthenticated method returns the value of `Session.IsAuthenticated`.
 func tmplIsAuthenticated(viewArgs map[string]interface{}) interface{} {
-	if sv, found := viewArgs[keySessionValues]; found {
-		return sv.(*session.Session).IsAuthenticated
+	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+		if sub.Session != nil {
+			return sub.Session.IsAuthenticated
+		}
 	}
 	return false
+}
+
+func getSubjectFromViewArgs(viewArgs map[string]interface{}) *security.Subject {
+	if sv, found := viewArgs[keySubjectValue]; found {
+		return sv.(*security.Subject)
+	}
+	return nil
 }
