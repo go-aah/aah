@@ -57,24 +57,24 @@ func (e *Entry) Reset() {
 // Unexported methods
 //___________________________________
 
-// getEntry gets entry object from pool.
-func getEntry() *Entry {
+func acquireEntry() *Entry {
 	return entryPool.Get().(*Entry)
 }
 
-// putEntry reset the entry and puts it into Pool.
-func putEntry(e *Entry) {
-	e.Reset()
-	entryPool.Put(e)
+func releaseEntry(e *Entry) {
+	if e != nil {
+		e.Reset()
+		entryPool.Put(e)
+	}
 }
 
-// getBuffer gets buffer object from pool.
-func getBuffer() *bytes.Buffer {
+func acquireBuffer() *bytes.Buffer {
 	return bufPool.Get().(*bytes.Buffer)
 }
 
-// putBuffer reset the buffer and puts it into Pool.
-func putBuffer(buf *bytes.Buffer) {
-	buf.Reset()
-	bufPool.Put(buf)
+func releaseBuffer(buf *bytes.Buffer) {
+	if buf != nil {
+		buf.Reset()
+		bufPool.Put(buf)
+	}
 }

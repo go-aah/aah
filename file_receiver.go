@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
+	"aahframework.org/essentials.v0-unstable"
 )
 
 var (
@@ -28,7 +28,7 @@ type FileReceiver struct {
 	filename     string
 	out          io.Writer
 	formatter    string
-	flags        *[]FlagPart
+	flags        []ess.FmtFlagPart
 	isCallerInfo bool
 	stats        *receiverStats
 	mu           *sync.Mutex
@@ -78,7 +78,7 @@ func (f *FileReceiver) Init(cfg *config.Config) error {
 
 // SetPattern method initializes the logger format pattern.
 func (f *FileReceiver) SetPattern(pattern string) error {
-	flags, err := parseFlag(pattern)
+	flags, err := ess.ParseFmtFlag(pattern, FmtFlags)
 	if err != nil {
 		return err
 	}

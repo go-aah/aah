@@ -56,10 +56,7 @@ var (
 	// ErrLogReceiverIsNil returned when suppiled receiver is nil.
 	ErrLogReceiverIsNil = errors.New("log: receiver is nil")
 
-	flagSeparator      = "%"
-	flagValueSeparator = ":"
-	defaultFormat      = "%v"
-	filePermission     = os.FileMode(0755)
+	filePermission = os.FileMode(0755)
 
 	// abstract it, can be unit tested
 	exit = os.Exit
@@ -318,8 +315,8 @@ func (l *Logger) output(level level, calldepth int, format *string, v ...interfa
 		return
 	}
 
-	entry := getEntry()
-	defer putEntry(entry)
+	entry := acquireEntry()
+	defer releaseEntry(entry)
 	entry.Time = time.Now()
 	entry.Level = level
 	if format == nil {

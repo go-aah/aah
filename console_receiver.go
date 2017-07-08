@@ -11,6 +11,7 @@ import (
 	"runtime"
 
 	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0-unstable"
 )
 
 var (
@@ -34,7 +35,7 @@ var (
 type ConsoleReceiver struct {
 	out          io.Writer
 	formatter    string
-	flags        *[]FlagPart
+	flags        []ess.FmtFlagPart
 	isCallerInfo bool
 	isColor      bool
 }
@@ -58,7 +59,7 @@ func (c *ConsoleReceiver) Init(cfg *config.Config) error {
 
 // SetPattern method initializes the logger format pattern.
 func (c *ConsoleReceiver) SetPattern(pattern string) error {
-	flags, err := parseFlag(pattern)
+	flags, err := ess.ParseFmtFlag(pattern, FmtFlags)
 	if err != nil {
 		return err
 	}

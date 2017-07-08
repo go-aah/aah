@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"aahframework.org/essentials.v0-unstable"
 )
 
 var (
@@ -44,7 +46,7 @@ func levelByName(name string) level {
 	return LevelUnknown
 }
 
-func fmtFlagByName(name string) fmtFlag {
+func fmtFlagByName(name string) ess.FmtFlag {
 	if flag, ok := FmtFlags[name]; ok {
 		return flag
 	}
@@ -52,8 +54,8 @@ func fmtFlagByName(name string) fmtFlag {
 	return FmtFlagUnknown
 }
 
-func isFmtFlagExists(flags *[]FlagPart, flag fmtFlag) bool {
-	for _, f := range *flags {
+func isFmtFlagExists(flags []ess.FmtFlagPart, flag ess.FmtFlag) bool {
+	for _, f := range flags {
 		if f.Flag == flag {
 			return true
 		}
@@ -71,7 +73,7 @@ func fetchCallerInfo(calldepth int) (string, int) {
 }
 
 // isCallerInfo method to identify to fetch caller or not.
-func isCallerInfo(flags *[]FlagPart) bool {
+func isCallerInfo(flags []ess.FmtFlagPart) bool {
 	return (isFmtFlagExists(flags, FmtFlagShortfile) ||
 		isFmtFlagExists(flags, FmtFlagLongfile) ||
 		isFmtFlagExists(flags, FmtFlagLine))

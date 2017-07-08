@@ -113,7 +113,7 @@ func TestFileLoggerUnknownFormatFlag(t *testing.T) {
 	cfg, _ := config.ParseString(configStr)
 	logger, err := New(cfg)
 	assert.Nil(t, logger)
-	assert.Equal(t, "unrecognized log format flag: myfile", err.Error())
+	assert.Equal(t, "fmtflag: unknown flag 'myfile'", err.Error())
 }
 
 func TestFileLoggerIncorrectSizeValue(t *testing.T) {

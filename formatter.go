@@ -8,12 +8,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"strings"
+
+	"aahframework.org/essentials.v0-unstable"
 )
 
 // Format flags used to define log message format for each log entry
 const (
-	FmtFlagLevel fmtFlag = iota
+	FmtFlagLevel ess.FmtFlag = iota
 	FmtFlagTime
 	FmtFlagUTCTime
 	FmtFlagLongfile
@@ -38,13 +39,10 @@ type (
 	//      Format: "2006-01-02 15:04:05.000",
 	//    }
 	FlagPart struct {
-		Flag   fmtFlag
+		Flag   ess.FmtFlag
 		Name   string
 		Format string
 	}
-
-	// FmtFlag type definition
-	fmtFlag uint8
 )
 
 var (
@@ -64,7 +62,7 @@ var (
 	//    line      - outputs file line number: L23
 	//    message   - outputs given message along supplied arguments if they present
 	//    custom    - outputs string as-is into log entry
-	FmtFlags = map[string]fmtFlag{
+	FmtFlags = map[string]ess.FmtFlag{
 		"level":     FmtFlagLevel,
 		"time":      FmtFlagTime,
 		"utctime":   FmtFlagUTCTime,
@@ -83,11 +81,11 @@ var (
 // textFormatter formats the `Entry` object details as per log `pattern`
 // 	For e.g.:
 // 		2016-07-02 22:26:01.530 INFO formatter_test.go L29 - Yes, I would love to see
-func textFormatter(flags *[]FlagPart, entry *Entry) []byte {
-	buf := getBuffer()
-	defer putBuffer(buf)
+func textFormatter(flags []ess.FmtFlagPart, entry *Entry) []byte {
+	buf := acquireBuffer()
+	defer releaseBuffer(buf)
 
-	for _, part := range *flags {
+	for _, part := range flags {
 		switch part.Flag {
 		case FmtFlagLevel:
 			buf.WriteString(fmt.Sprintf(part.Format, levelToLevelName[entry.Level]))
@@ -101,7 +99,7 @@ func textFormatter(flags *[]FlagPart, entry *Entry) []byte {
 			}
 			buf.WriteString(fmt.Sprintf(part.Format, entry.File))
 		case FmtFlagLine:
-			buf.WriteString(fmt.Sprintf(part.Format, entry.Line))
+			buf.WriteString("L" + fmt.Sprintf(part.Format, entry.Line))
 		case FmtFlagMessage:
 			buf.WriteString(entry.Message)
 		case FmtFlagCustom:
@@ -127,47 +125,11 @@ func jsonFormatter(entry *Entry) ([]byte, error) {
 // Unexported methods
 //___________________________________
 
-func applyFormatter(formatter string, flags *[]FlagPart, entry *Entry) []byte {
+func applyFormatter(formatter string, flags []ess.FmtFlagPart, entry *Entry) []byte {
 	if formatter == textFmt {
 		return textFormatter(flags, entry)
 	}
 
 	lm, _ := jsonFormatter(entry)
 	return lm
-}
-
-// parseFlag it parses the log message formart into flag parts
-//  For e.g.:
-//    %time:2006-01-02 15:04:05.000 %level %custom:- %msg
-func parseFlag(format string) (*[]FlagPart, error) {
-	var flagParts []FlagPart
-	format = strings.TrimSpace(format)
-	formatFlags := strings.Split(format, flagSeparator)[1:]
-	for _, f := range formatFlags {
-		parts := strings.SplitN(strings.TrimSpace(f), flagValueSeparator, 2)
-		flag := fmtFlagByName(parts[0])
-		if flag == FmtFlagUnknown {
-			return nil, fmt.Errorf("unrecognized log format flag: %v", strings.TrimSpace(f))
-		}
-
-		part := FlagPart{Flag: flag, Name: parts[0]}
-		switch len(parts) {
-		case 2:
-			if flag == FmtFlagTime || flag == FmtFlagUTCTime ||
-				flag == FmtFlagCustom {
-				part.Format = parts[1]
-			} else {
-				part.Format = "%" + parts[1] + "v"
-			}
-		default:
-			part.Format = defaultFormat
-			if flag == FmtFlagLine {
-				part.Format = "L" + defaultFormat
-			}
-		}
-
-		flagParts = append(flagParts, part)
-	}
-
-	return &flagParts, nil
 }
