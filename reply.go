@@ -9,9 +9,15 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
+)
+
+var (
+	bufPool   = &sync.Pool{New: func() interface{} { return &bytes.Buffer{} }}
+	replyPool = &sync.Pool{New: func() interface{} { return NewReply() }}
 )
 
 // Reply gives you control and convenient way to write a response effectively.
@@ -361,7 +367,7 @@ func (r *Reply) Body() *bytes.Buffer {
 	return r.body
 }
 
-// Reset method resets the values into initialized state.
+// Reset method resets the instance values for repurpose.
 func (r *Reply) Reset() {
 	r.Code = http.StatusOK
 	r.ContType = ""
@@ -373,4 +379,31 @@ func (r *Reply) Reset() {
 	r.path = ""
 	r.done = false
 	r.gzip = true
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
+
+func acquireReply() *Reply {
+	return replyPool.Get().(*Reply)
+}
+
+func releaseReply(r *Reply) {
+	if r != nil {
+		releaseBuffer(r.body)
+		r.Reset()
+		replyPool.Put(r)
+	}
+}
+
+func acquireBuffer() *bytes.Buffer {
+	return bufPool.Get().(*bytes.Buffer)
+}
+
+func releaseBuffer(b *bytes.Buffer) {
+	if b != nil {
+		b.Reset()
+		bufPool.Put(b)
+	}
 }

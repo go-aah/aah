@@ -14,7 +14,7 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0-unstable"
-	"aahframework.org/view.v0"
+	"aahframework.org/view.v0-unstable"
 )
 
 var (
@@ -136,6 +136,7 @@ func (e *engine) resolveView(ctx *Context) {
 		htmlRdr.ViewArgs["AahVersion"] = Version
 		htmlRdr.ViewArgs["EnvProfile"] = AppProfile()
 		htmlRdr.ViewArgs["AppBuildInfo"] = AppBuildInfo()
+		htmlRdr.ViewArgs[keySubjectValue] = ctx.Subject()
 
 		// find view template by convention if not provided
 		findViewTemplate(ctx)

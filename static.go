@@ -35,6 +35,8 @@ var (
 	errSeeker             = errors.New("static: seeker can't seek")
 )
 
+type byName []os.FileInfo
+
 // serveStatic method static file/directory delivery.
 func (e *engine) serveStatic(ctx *Context) error {
 	// TODO static assets Dynamic minify for JS and CSS for non-dev profile

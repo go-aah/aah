@@ -209,8 +209,8 @@ func (ctx *Context) Reset() {
 	ctx.route = nil
 	ctx.subject = nil
 	ctx.reply = nil
-	ctx.viewArgs = nil
-	ctx.values = nil
+	ctx.viewArgs = make(map[string]interface{})
+	ctx.values = make(map[string]interface{})
 	ctx.abort = false
 	ctx.decorated = false
 }

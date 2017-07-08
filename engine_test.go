@@ -77,20 +77,18 @@ func TestEngineNew(t *testing.T) {
 	assert.Equal(t, "X-Test-Request-Id", e.requestIDHeader)
 	assert.True(t, e.isRequestIDEnabled)
 	assert.True(t, e.isGzipEnabled)
-	assert.NotNil(t, e.ctxPool)
-	assert.NotNil(t, e.reqPool)
 
-	req := e.getRequest()
-	ctx := e.getContext()
+	req := acquireRequest()
+	ctx := acquireContext()
 	ctx.Req = req
 	assert.NotNil(t, ctx)
 	assert.NotNil(t, req)
 	assert.NotNil(t, ctx.Req)
-	e.putContext(ctx)
+	releaseContext(ctx)
 
-	buf := getBuffer()
+	buf := acquireBuffer()
 	assert.NotNil(t, buf)
-	putBuffer(buf)
+	releaseBuffer(buf)
 }
 
 func TestEngineServeHTTP(t *testing.T) {

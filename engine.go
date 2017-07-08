@@ -5,12 +5,11 @@
 package aah
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+	"sync"
 	"time"
 
 	"aahframework.org/ahttp.v0"
@@ -18,7 +17,6 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0-unstable"
-	"aahframework.org/pool.v0"
 	"aahframework.org/security.v0-unstable"
 )
 
@@ -28,18 +26,18 @@ const (
 )
 
 const (
-	aahServerName         = "aah-go-server"
-	gzipContentEncoding   = "gzip"
-	hstsHeaderValue       = "max-age=31536000; includeSubDomains"
-	defaultGlobalPoolSize = 500
-	defaultBufPoolSize    = 200
+	aahServerName       = "aah-go-server"
+	gzipContentEncoding = "gzip"
+	hstsHeaderValue     = "max-age=31536000; includeSubDomains"
 )
 
 var (
+	errFileNotFound = errors.New("file not found")
+
 	minifier          MinifierFunc
-	bufPool           *pool.Pool
-	errFileNotFound   = errors.New("file not found")
 	noGzipStatusCodes = []int{http.StatusNotModified, http.StatusNoContent}
+	ctxPool           *sync.Pool
+	reqPool           *sync.Pool
 )
 
 type (
@@ -57,13 +55,7 @@ type (
 		requestIDHeader    string
 		isGzipEnabled      bool
 		isAccessLogEnabled bool
-		ctxPool            *pool.Pool
-		reqPool            *pool.Pool
-		replyPool          *pool.Pool
-		subPool            *pool.Pool
 	}
-
-	byName []os.FileInfo
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -78,7 +70,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx := e.prepareContext(w, r)
 	ctx.values[appReqStartTimeKey] = startTime
-	defer e.putContext(ctx)
+	defer releaseContext(ctx)
 
 	// Recovery handling, capture every possible panic(s)
 	defer e.handleRecovery(ctx)
@@ -124,8 +116,8 @@ func (e *engine) handleRecovery(ctx *Context) {
 		log.Errorf("Internal Server Error on %s", ctx.Req.Path)
 
 		st := aruntime.NewStacktrace(r, AppConfig())
-		buf := getBuffer()
-		defer putBuffer(buf)
+		buf := acquireBuffer()
+		defer releaseBuffer(buf)
 
 		st.Print(buf)
 		log.Error(buf.String())
@@ -158,14 +150,11 @@ func (e *engine) setRequestID(ctx *Context) {
 // prepareContext method gets controller, request from pool, set the targeted
 // controller, parses the request and returns the controller.
 func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Context {
-	ctx, r := e.getContext(), e.getRequest()
+	ctx, r := acquireContext(), acquireRequest()
 	ctx.Req = ahttp.ParseRequest(req, r)
 	ctx.Res = ahttp.GetResponseWriter(w)
-	ctx.reply = e.getReply()
-	ctx.subject = e.getSubject()
-	ctx.viewArgs = make(map[string]interface{})
-	ctx.values = make(map[string]interface{})
-
+	ctx.reply = acquireReply()
+	ctx.subject = security.AcquireSubject()
 	return ctx
 }
 
@@ -321,21 +310,20 @@ func (e *engine) writeReply(ctx *Context) {
 
 	// Send data to access log channel
 	if e.isAccessLogEnabled {
-		startTime := ctx.values[appReqStartTimeKey].(time.Time)
+		al := acquireAccessLog()
+		al.StartTime = ctx.values[appReqStartTimeKey].(time.Time)
 
 		// All the bytes have been written on the wire
 		// so calculate elapsed time
-		elapsedDuration := time.Since(startTime)
-		ral := &requestAccessLog{
-			StartTime:       startTime,
-			ElapsedDuration: elapsedDuration,
-			Request:         *ctx.Req,
-			ResStatus:       ctx.Res.Status(),
-			ResBytes:        ctx.Res.BytesWritten(),
-			ResHdr:          ctx.Res.Header(),
-		}
+		al.ElapsedDuration = time.Since(al.StartTime)
 
-		appAccessLogChan <- ral
+		req := *ctx.Req
+		al.Request = &req
+		al.ResStatus = ctx.Res.Status()
+		al.ResBytes = ctx.Res.BytesWritten()
+		al.ResHdr = ctx.Res.Header()
+
+		appAccessLogChan <- al
 	}
 }
 
@@ -388,68 +376,10 @@ func (e *engine) setCookies(ctx *Context) {
 	}
 
 	if AppSessionManager().IsStateful() && ctx.subject.Session != nil {
-		// Pass it to view args before saving cookie
-		session := *ctx.subject.Session
-		ctx.AddViewArg(keySessionValues, &session)
 		if err := AppSessionManager().SaveSession(ctx.Res, ctx.subject.Session); err != nil {
 			log.Error(err)
 		}
 	}
-}
-
-// getContext method gets context instance from the pool
-func (e *engine) getContext() *Context {
-	return e.ctxPool.Get().(*Context)
-}
-
-// getRequest method gets request instance from the pool.
-func (e *engine) getRequest() *ahttp.Request {
-	return e.reqPool.Get().(*ahttp.Request)
-}
-
-// getReply method gets reply instance from the pool.
-func (e *engine) getReply() *Reply {
-	return e.replyPool.Get().(*Reply)
-}
-
-// getSubject method gets subject instance from the pool.
-func (e *engine) getSubject() *security.Subject {
-	return e.subPool.Get().(*security.Subject)
-}
-
-// putContext method puts context back to pool
-func (e *engine) putContext(ctx *Context) {
-	// Close the writer and Put back to pool
-	if ctx.Res != nil {
-		if _, ok := ctx.Res.(*ahttp.GzipResponse); ok {
-			ahttp.PutGzipResponseWiriter(ctx.Res)
-		} else {
-			ahttp.PutResponseWriter(ctx.Res)
-		}
-	}
-
-	// clear and put `ahttp.Request` back to pool
-	if ctx.Req != nil {
-		ctx.Req.Reset()
-		e.reqPool.Put(ctx.Req)
-	}
-
-	// clear and put `Reply` into pool
-	if ctx.reply != nil {
-		putBuffer(ctx.reply.body)
-		ctx.reply.Reset()
-		e.replyPool.Put(ctx.reply)
-	}
-
-	// clear and put `Subject` back to pool
-	if ctx.subject != nil {
-		ctx.subject.Reset()
-		e.subPool.Put(ctx.subject)
-	}
-
-	// clear and put `aah.Context` back to pool
-	ctx.Reset()
-	e.ctxPool.Put(ctx)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -462,47 +392,52 @@ func newEngine(cfg *config.Config) *engine {
 		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel))
 	}
 
-	if bufPool == nil {
-		bufPool = pool.NewPool(
-			cfg.IntDefault("runtime.pooling.buffer", defaultBufPoolSize),
-			func() interface{} { return &bytes.Buffer{} },
-		)
-	}
-
 	return &engine{
 		isRequestIDEnabled: cfg.BoolDefault("request.id.enable", true),
 		requestIDHeader:    cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
 		isGzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
 		isAccessLogEnabled: cfg.BoolDefault("request.access_log.enable", false),
-		ctxPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
-			func() interface{} { return &Context{} },
-		),
-		reqPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
-			func() interface{} { return &ahttp.Request{} },
-		),
-		replyPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
-			func() interface{} { return NewReply() },
-		),
-		subPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
-			func() interface{} { return &security.Subject{} },
-		),
 	}
 }
 
-// getBuffer method gets buffer from pool
-func getBuffer() *bytes.Buffer {
-	return bufPool.Get().(*bytes.Buffer)
+func acquireContext() *Context {
+	return ctxPool.Get().(*Context)
 }
 
-// putBPool puts buffer into pool
-func putBuffer(b *bytes.Buffer) {
-	if b == nil {
-		return
+func acquireRequest() *ahttp.Request {
+	return reqPool.Get().(*ahttp.Request)
+}
+
+func releaseContext(ctx *Context) {
+	// Close the writer and Put back to pool
+	if ctx.Res != nil {
+		if _, ok := ctx.Res.(*ahttp.GzipResponse); ok {
+			ahttp.PutGzipResponseWiriter(ctx.Res)
+		} else {
+			ahttp.PutResponseWriter(ctx.Res)
+		}
 	}
-	b.Reset()
-	bufPool.Put(b)
+
+	// clear and put `ahttp.Request` back to pool
+	if ctx.Req != nil {
+		ctx.Req.Reset()
+		reqPool.Put(ctx.Req)
+	}
+
+	releaseReply(ctx.reply)
+	security.ReleaseSubject(ctx.subject)
+
+	ctx.Reset()
+	ctxPool.Put(ctx)
+}
+
+func init() {
+	ctxPool = &sync.Pool{New: func() interface{} {
+		return &Context{
+			viewArgs: make(map[string]interface{}),
+			values:   make(map[string]interface{}),
+		}
+	}}
+
+	reqPool = &sync.Pool{New: func() interface{} { return &ahttp.Request{} }}
 }
