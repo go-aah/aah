@@ -5,7 +5,6 @@
 package aah
 
 import (
-	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,68 +15,57 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0-unstable"
-	"aahframework.org/pool.v0"
 	"aahframework.org/test.v0/assert"
 )
 
-func TestRequestAccessLogFormatter(t *testing.T) {
-	startTime := time.Now()
-	req := httptest.NewRequest("GET", "/oops?me=human", nil)
-	req.Header = make(http.Header)
-
-	w := httptest.NewRecorder()
-
-	ral := &requestAccessLog{
-		StartTime:       startTime,
-		ElapsedDuration: time.Now().Add(2 * time.Second).Sub(startTime),
-		Request:         ahttp.Request{Raw: req, Header: req.Header, ClientIP: "[::1]"},
-		ResStatus:       200,
-		ResBytes:        63,
-		ResHdr:          w.HeaderMap,
-	}
+func TestAccessLogFormatter(t *testing.T) {
+	al := createTestAccessLog()
 
 	// Since we are not bootstrapping the framework's engine,
 	// We need to manually set this
-	ral.Request.Path = "/oops"
-	ral.Request.Header.Set(ahttp.HeaderXRequestID, "5946ed129bf23409520736de")
-	bufPool = pool.NewPool(2, func() interface{} { return &bytes.Buffer{} })
+	al.Request.Path = "/oops"
+	al.Request.Header.Set(ahttp.HeaderXRequestID, "5946ed129bf23409520736de")
 
 	// Testing for the default access log pattern first
-	expectedDefaultFormat := fmt.Sprintf("%s %s %v %v %d %d %s %s",
-		"[::1]", "5946ed129bf23409520736de", ral.StartTime.Format(time.RFC3339),
-		fmt.Sprintf("%.4f", ral.ElapsedDuration.Seconds()*1e3), ral.ResStatus,
-		ral.ResBytes, ral.Request.Method, ral.Request.Path)
+	expectedDefaultFormat := fmt.Sprintf("%s %v %v %d %d %s %s",
+		"[::1]", al.StartTime.Format(time.RFC3339),
+		fmt.Sprintf("%.4f", al.ElapsedDuration.Seconds()*1e3), al.ResStatus,
+		al.ResBytes, al.Request.Method, al.Request.Path)
 
-	testFormatter(t, ral, appDefaultAccessLogPattern, expectedDefaultFormat)
+	testFormatter(t, al, appDefaultAccessLogPattern, expectedDefaultFormat)
 
 	// Testing custom access log pattern
-	ral.ResHdr.Add("content-type", "application/json")
+	al = createTestAccessLog()
+	al.ResHdr.Add("content-type", "application/json")
 	pattern := "%reqtime:2016-05-16 %reqhdr %querystr %reshdr:content-type"
-	expected := fmt.Sprintf("%s %s %s %s", ral.StartTime.Format("2016-05-16"), "-", "me=human", ral.ResHdr.Get("Content-Type"))
+	expected := fmt.Sprintf("%s %s %s %s", al.StartTime.Format("2016-05-16"), "-", "me=human", al.ResHdr.Get("Content-Type"))
 
-	testFormatter(t, ral, pattern, expected)
+	testFormatter(t, al, pattern, expected)
 
 	// Testing all available access log pattern
-	ral.Request.Header = ral.Request.Raw.Header
-	ral.Request.Header.Add(ahttp.HeaderAccept, "text/html")
-	ral.Request.ClientIP = "127.0.0.1"
+	al = createTestAccessLog()
+	al.Request.Header = al.Request.Raw.Header
+	al.Request.Header.Add(ahttp.HeaderAccept, "text/html")
+	al.Request.Header.Set(ahttp.HeaderXRequestID, "5946ed129bf23409520736de")
+	al.Request.ClientIP = "127.0.0.1"
+	al.ResHdr.Add("content-type", "application/json")
 	allAvailablePatterns := "%clientip %reqid %reqtime %restime %resstatus %ressize %reqmethod %requrl %reqhdr:accept %querystr %reshdr"
 	expectedForAllAvailablePatterns := fmt.Sprintf("%s %s %s %v %d %d %s %s %s %s %s",
-		ral.Request.ClientIP, ral.Request.Header.Get(ahttp.HeaderXRequestID),
-		ral.StartTime.Format(time.RFC3339), fmt.Sprintf("%.4f", ral.ElapsedDuration.Seconds()*1e3),
-		ral.ResStatus, ral.ResBytes, ral.Request.Method,
-		ral.Request.Path, "text/html", "me=human", "-")
+		al.Request.ClientIP, al.Request.Header.Get(ahttp.HeaderXRequestID),
+		al.StartTime.Format(time.RFC3339), fmt.Sprintf("%.4f", al.ElapsedDuration.Seconds()*1e3),
+		al.ResStatus, al.ResBytes, al.Request.Method,
+		al.Request.Path, "text/html", "me=human", "-")
 
-	testFormatter(t, ral, allAvailablePatterns, expectedForAllAvailablePatterns)
+	testFormatter(t, al, allAvailablePatterns, expectedForAllAvailablePatterns)
 }
 
-func TestRequestAccessLogFormatterInvalidPattern(t *testing.T) {
+func TestAccessLogFormatterInvalidPattern(t *testing.T) {
 	_, err := ess.ParseFmtFlag("%oops", accessLogFmtFlags)
 
 	assert.NotNil(t, err)
 }
 
-func TestRequestAccessLogInitDefault(t *testing.T) {
+func TestAccessLogInitDefault(t *testing.T) {
 	testAccessInit(t, `
 		request {
 			access_log {
@@ -86,9 +74,31 @@ func TestRequestAccessLogInitDefault(t *testing.T) {
 		  }
 		}
 		`)
+
+	testAccessInit(t, `
+		request {
+			access_log {
+		    # Default value is false
+		    enable = true
+
+				file = "testdata/test-access.log"
+		  }
+		}
+		`)
+
+	testAccessInit(t, `
+		request {
+			access_log {
+		    # Default value is false
+		    enable = true
+
+				file = "/tmp/test-access.log"
+		  }
+		}
+		`)
 }
 
-func TestEngineRequestAccessLog(t *testing.T) {
+func TestEngineAccessLog(t *testing.T) {
 	// App Config
 	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
 	err := initConfig(cfgDir)
@@ -127,12 +137,12 @@ func TestEngineRequestAccessLog(t *testing.T) {
 	assert.True(t, e.isAccessLogEnabled)
 }
 
-func testFormatter(t *testing.T, ral *requestAccessLog, pattern, expected string) {
+func testFormatter(t *testing.T, al *accessLog, pattern, expected string) {
 	var err error
 	appAccessLogFmtFlags, err = ess.ParseFmtFlag(pattern, accessLogFmtFlags)
 
 	assert.Nil(t, err)
-	assert.Equal(t, expected, requestAccessLogFormatter(ral))
+	assert.Equal(t, expected, accessLogFormatter(al))
 }
 
 func testAccessInit(t *testing.T, cfgStr string) {
@@ -145,8 +155,26 @@ func testAccessInit(t *testing.T, cfgStr string) {
 
 	cfg, _ := config.ParseString(cfgStr)
 	logsDir := filepath.Join(getTestdataPath(), appLogsDir())
-	err := initRequestAccessLog(logsDir, cfg)
+	err := initAccessLog(logsDir, cfg)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, appAccessLog)
+}
+
+func createTestAccessLog() *accessLog {
+	startTime := time.Now()
+	req := httptest.NewRequest("GET", "/oops?me=human", nil)
+	req.Header = http.Header{}
+
+	w := httptest.NewRecorder()
+
+	al := acquireAccessLog()
+	al.StartTime = startTime
+	al.ElapsedDuration = time.Now().Add(2 * time.Second).Sub(startTime)
+	al.Request = &ahttp.Request{Raw: req, Header: req.Header, ClientIP: "[::1]"}
+	al.ResStatus = 200
+	al.ResBytes = 63
+	al.ResHdr = w.HeaderMap
+
+	return al
 }

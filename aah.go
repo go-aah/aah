@@ -204,7 +204,7 @@ func Init(importPath string) {
 		logAsFatal(initSecurity(AppConfig()))
 		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
 		if AppConfig().BoolDefault("request.access_log.enable", false) {
-			logAsFatal(initRequestAccessLog(appLogsDir(), AppConfig()))
+			logAsFatal(initAccessLog(appLogsDir(), AppConfig()))
 		}
 	}
 
