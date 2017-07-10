@@ -15,7 +15,7 @@ import (
 var appConfig *config.Config
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AppConfig method returns aah application configuration instance.

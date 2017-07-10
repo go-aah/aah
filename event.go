@@ -85,7 +85,7 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AppEventStore method returns aah application event store.
@@ -127,7 +127,7 @@ func UnsubscribeEventf(eventName string, ecf EventCallbackFunc) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods - Server events
+// Package methods - Server events
 //___________________________________
 
 // OnInit method is to subscribe to aah application `OnInit` event. `OnInit` event

@@ -22,7 +22,7 @@ import (
 var appRouter *router.Router
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AppRouter method returns aah application router instance.

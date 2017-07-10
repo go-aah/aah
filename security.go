@@ -25,7 +25,7 @@ const (
 var appSecurityManager = security.New()
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AppSecurityManager method returns the application security instance,
@@ -217,8 +217,7 @@ func tmplSessionValue(viewArgs map[string]interface{}, key string) interface{} {
 func tmplFlashValue(viewArgs map[string]interface{}, key string) interface{} {
 	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
 		if sub.Session != nil {
-			value := sub.Session.GetFlash(key)
-			return sanatizeValue(value)
+			return sanatizeValue(sub.Session.GetFlash(key))
 		}
 	}
 	return nil
