@@ -100,6 +100,11 @@ func (e *engine) serveStatic(ctx *Context) error {
 
 		// 'OnAfterReply' server extension point
 		publishOnAfterReplyEvent(ctx)
+
+		// Send data to access log channel
+		if e.isAccessLogEnabled {
+			sendToAccessLog(ctx)
+		}
 		return nil
 	}
 
@@ -119,6 +124,11 @@ func (e *engine) serveStatic(ctx *Context) error {
 
 		// 'OnAfterReply' server extension point
 		publishOnAfterReplyEvent(ctx)
+
+		// Send data to access log channel
+		if e.isAccessLogEnabled {
+			sendToAccessLog(ctx)
+		}
 		return nil
 	}
 

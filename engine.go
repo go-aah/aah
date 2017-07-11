@@ -310,20 +310,7 @@ func (e *engine) writeReply(ctx *Context) {
 
 	// Send data to access log channel
 	if e.isAccessLogEnabled {
-		al := acquireAccessLog()
-		al.StartTime = ctx.values[appReqStartTimeKey].(time.Time)
-
-		// All the bytes have been written on the wire
-		// so calculate elapsed time
-		al.ElapsedDuration = time.Since(al.StartTime)
-
-		req := *ctx.Req
-		al.Request = &req
-		al.ResStatus = ctx.Res.Status()
-		al.ResBytes = ctx.Res.BytesWritten()
-		al.ResHdr = ctx.Res.Header()
-
-		appAccessLogChan <- al
+		sendToAccessLog(ctx)
 	}
 }
 

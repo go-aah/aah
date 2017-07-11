@@ -164,6 +164,23 @@ func listenForAccessLog() {
 	}
 }
 
+func sendToAccessLog(ctx *Context) {
+	al := acquireAccessLog()
+	al.StartTime = ctx.values[appReqStartTimeKey].(time.Time)
+
+	// All the bytes have been written on the wire
+	// so calculate elapsed time
+	al.ElapsedDuration = time.Since(al.StartTime)
+
+	req := *ctx.Req
+	al.Request = &req
+	al.ResStatus = ctx.Res.Status()
+	al.ResBytes = ctx.Res.BytesWritten()
+	al.ResHdr = ctx.Res.Header()
+
+	appAccessLogChan <- al
+}
+
 func accessLogFormatter(al *accessLog) string {
 	defer releaseAccessLog(al)
 	buf := acquireBuffer()
