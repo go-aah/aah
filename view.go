@@ -136,7 +136,7 @@ func (e *engine) resolveView(ctx *Context) {
 		htmlRdr.ViewArgs["AahVersion"] = Version
 		htmlRdr.ViewArgs["EnvProfile"] = AppProfile()
 		htmlRdr.ViewArgs["AppBuildInfo"] = AppBuildInfo()
-		htmlRdr.ViewArgs[keySubjectValue] = ctx.Subject()
+		htmlRdr.ViewArgs[KeyViewArgSubject] = ctx.Subject()
 
 		// find view template by convention if not provided
 		findViewTemplate(ctx)
@@ -235,7 +235,12 @@ func init() {
 		"fparam":          tmplFormParam,
 		"qparam":          tmplQueryParam,
 		"session":         tmplSessionValue,
-		"isauthenticated": tmplIsAuthenticated,
 		"flash":           tmplFlashValue,
+		"isauthenticated": tmplIsAuthenticated,
+		"hasrole":         tmplHasRole,
+		"hasallroles":     tmplHasAllRoles,
+		"hasanyrole":      tmplHasAnyRole,
+		"ispermitted":     tmplIsPermitted,
+		"ispermittedall":  tmplIsPermittedAll,
 	})
 }

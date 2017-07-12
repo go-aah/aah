@@ -33,7 +33,7 @@ func TestSecuritySessionStore(t *testing.T) {
 func TestSecuritySessionTemplateFuns(t *testing.T) {
 	viewArgs := make(map[string]interface{})
 
-	assert.Nil(t, viewArgs[keySubjectValue])
+	assert.Nil(t, viewArgs[KeyViewArgSubject])
 
 	bv1 := tmplSessionValue(viewArgs, "my-testvalue")
 	assert.Nil(t, bv1)
@@ -45,8 +45,18 @@ func TestSecuritySessionTemplateFuns(t *testing.T) {
 	session.Set("my-testvalue", 38458473684763)
 	session.SetFlash("my-flashvalue", "user not found")
 
-	viewArgs[keySubjectValue] = &security.Subject{Session: session}
-	assert.NotNil(t, viewArgs[keySubjectValue])
+	assert.False(t, tmplHasRole(viewArgs, "role1"))
+	assert.False(t, tmplHasAllRoles(viewArgs, "role1", "role2", "role3"))
+	assert.False(t, tmplHasAnyRole(viewArgs, "role1", "role2", "role3"))
+	assert.False(t, tmplIsPermitted(viewArgs, "*"))
+	assert.False(t, tmplIsPermittedAll(viewArgs, "news:read,write", "manage:*"))
+
+	viewArgs[KeyViewArgSubject] = &security.Subject{
+		Session:            session,
+		AuthenticationInfo: authc.NewAuthenticationInfo(),
+		AuthorizationInfo:  authz.NewAuthorizationInfo(),
+	}
+	assert.NotNil(t, viewArgs[KeyViewArgSubject])
 
 	v1 := tmplSessionValue(viewArgs, "my-testvalue")
 	assert.Equal(t, 38458473684763, v1)
@@ -57,7 +67,13 @@ func TestSecuritySessionTemplateFuns(t *testing.T) {
 	v3 := tmplIsAuthenticated(viewArgs)
 	assert.False(t, v3)
 
-	delete(viewArgs, keySubjectValue)
+	assert.False(t, tmplHasRole(viewArgs, "role1"))
+	assert.False(t, tmplHasAllRoles(viewArgs, "role1", "role2", "role3"))
+	assert.False(t, tmplHasAnyRole(viewArgs, "role1", "role2", "role3"))
+	assert.False(t, tmplIsPermitted(viewArgs, "*"))
+	assert.False(t, tmplIsPermittedAll(viewArgs, "news:read,write", "manage:*"))
+
+	delete(viewArgs, KeyViewArgSubject)
 	v4 := tmplIsAuthenticated(viewArgs)
 	assert.False(t, v4)
 }
@@ -135,13 +151,13 @@ func TestSecurityHandleAuthcAndAuthz(t *testing.T) {
 	assert.Nil(t, err)
 	r3 := httptest.NewRequest("POST", "http://localhost:8080/login", nil)
 	ctx2.Req = ahttp.ParseRequest(r3, &ahttp.Request{})
-	ctx2.Session().Set(keyAuthcInfo, testGetAuthenticationInfo())
+	ctx2.Session().Set(KeyViewArgAuthcInfo, testGetAuthenticationInfo())
 	result4 := e.handleAuthcAndAuthz(ctx2)
 	assert.True(t, result4 == flowCont)
 
 	// form auth not authenticated and no credentials
 	ctx2.Session().IsAuthenticated = false
-	delete(ctx2.Session().Values, keyAuthcInfo)
+	delete(ctx2.Session().Values, KeyViewArgAuthcInfo)
 	result5 := e.handleAuthcAndAuthz(ctx2)
 	assert.True(t, result5 == flowStop)
 

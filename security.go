@@ -18,8 +18,11 @@ import (
 )
 
 const (
-	keyAuthcInfo    = "_aahAuthcInfo"
-	keySubjectValue = "_aahSubject"
+	// KeyViewArgAuthcInfo key name is used to store `AuthenticationInfo` instance into `ViewArgs`.
+	KeyViewArgAuthcInfo = "_aahAuthcInfo"
+
+	// KeyViewArgSubject key name is used to store `Subject` instance into `ViewArgs`.
+	KeyViewArgSubject = "_aahSubject"
 )
 
 var appSecurityManager = security.New()
@@ -82,8 +85,8 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 	// In Form authentication check session is already authentication if yes
 	// then continue the request flow immediately.
 	if ctx.Subject().IsAuthenticated() {
-		if ctx.Session().IsKeyExists(keyAuthcInfo) {
-			ctx.Subject().AuthenticationInfo = ctx.Session().Get(keyAuthcInfo).(*authc.AuthenticationInfo)
+		if ctx.Session().IsKeyExists(KeyViewArgAuthcInfo) {
+			ctx.Subject().AuthenticationInfo = ctx.Session().Get(KeyViewArgAuthcInfo).(*authc.AuthenticationInfo)
 
 			// TODO cache for AuthorizationInfo
 			ctx.Subject().AuthorizationInfo = formAuth.DoAuthorizationInfo(ctx.Subject().AuthenticationInfo)
@@ -123,7 +126,7 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 
 	// Remove the credential
 	ctx.Subject().AuthenticationInfo.Credential = nil
-	ctx.Session().Set(keyAuthcInfo, ctx.Subject().AuthenticationInfo)
+	ctx.Session().Set(KeyViewArgAuthcInfo, ctx.Subject().AuthenticationInfo)
 
 	publishOnPostAuthEvent(ctx)
 
@@ -224,7 +227,7 @@ func tmplFlashValue(viewArgs map[string]interface{}, key string) interface{} {
 }
 
 // tmplIsAuthenticated method returns the value of `Session.IsAuthenticated`.
-func tmplIsAuthenticated(viewArgs map[string]interface{}) interface{} {
+func tmplIsAuthenticated(viewArgs map[string]interface{}) bool {
 	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
 		if sub.Session != nil {
 			return sub.Session.IsAuthenticated
@@ -233,8 +236,48 @@ func tmplIsAuthenticated(viewArgs map[string]interface{}) interface{} {
 	return false
 }
 
+// tmplHasRole method returns the value of `Subject.HasRole`.
+func tmplHasRole(viewArgs map[string]interface{}, role string) bool {
+	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+		return sub.HasRole(role)
+	}
+	return false
+}
+
+// tmplHasAllRoles method returns the value of `Subject.HasAllRoles`.
+func tmplHasAllRoles(viewArgs map[string]interface{}, roles ...string) bool {
+	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+		return sub.HasAllRoles(roles...)
+	}
+	return false
+}
+
+// tmplHasAnyRole method returns the value of `Subject.HasAnyRole`.
+func tmplHasAnyRole(viewArgs map[string]interface{}, roles ...string) bool {
+	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+		return sub.HasAnyRole(roles...)
+	}
+	return false
+}
+
+// tmplIsPermitted method returns the value of `Subject.IsPermitted`.
+func tmplIsPermitted(viewArgs map[string]interface{}, permission string) bool {
+	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+		return sub.IsPermitted(permission)
+	}
+	return false
+}
+
+// tmplIsPermittedAll method returns the value of `Subject.IsPermittedAll`.
+func tmplIsPermittedAll(viewArgs map[string]interface{}, permissions ...string) bool {
+	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+		return sub.IsPermittedAll(permissions...)
+	}
+	return false
+}
+
 func getSubjectFromViewArgs(viewArgs map[string]interface{}) *security.Subject {
-	if sv, found := viewArgs[keySubjectValue]; found {
+	if sv, found := viewArgs[KeyViewArgSubject]; found {
 		return sv.(*security.Subject)
 	}
 	return nil
