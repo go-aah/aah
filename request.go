@@ -87,6 +87,8 @@ type (
 
 		// Raw an object of Go HTTP server, direct interaction with
 		// raw object is not encouraged.
+		//
+		// Raw field to be unexported on v1 release, use `Req.Unwarp()` instead.
 		Raw *http.Request
 	}
 
@@ -100,7 +102,7 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // ParseRequest method populates the given aah framework `ahttp.Request`
