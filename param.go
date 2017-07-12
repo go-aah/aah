@@ -14,7 +14,10 @@ import (
 )
 
 const (
-	keyRequestParams    = "_aahRequestParams"
+	// KeyViewArgRequestParams key name is used to store HTTP Request Params instance
+	// into `ViewArgs`.
+	KeyViewArgRequestParams = "_aahRequestParams"
+
 	keyOverrideI18nName = "lang"
 )
 
@@ -84,7 +87,7 @@ func (e *engine) parseRequestParams(ctx *Context) {
 	}
 
 	// All the request parameters made available to templates via funcs.
-	ctx.AddViewArg(keyRequestParams, ctx.Req.Params)
+	ctx.AddViewArg(KeyViewArgRequestParams, ctx.Req.Params)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -93,19 +96,19 @@ func (e *engine) parseRequestParams(ctx *Context) {
 
 // tmplPathParam method returns Request Path Param value for the given key.
 func tmplPathParam(viewArgs map[string]interface{}, key string) interface{} {
-	params := viewArgs[keyRequestParams].(*ahttp.Params)
+	params := viewArgs[KeyViewArgRequestParams].(*ahttp.Params)
 	return sanatizeValue(params.PathValue(key))
 }
 
 // tmplFormParam method returns Request Form value for the given key.
 func tmplFormParam(viewArgs map[string]interface{}, key string) interface{} {
-	params := viewArgs[keyRequestParams].(*ahttp.Params)
+	params := viewArgs[KeyViewArgRequestParams].(*ahttp.Params)
 	return sanatizeValue(params.FormValue(key))
 }
 
 // tmplQueryParam method returns Request Query String value for the given key.
 func tmplQueryParam(viewArgs map[string]interface{}, key string) interface{} {
-	params := viewArgs[keyRequestParams].(*ahttp.Params)
+	params := viewArgs[KeyViewArgRequestParams].(*ahttp.Params)
 	return sanatizeValue(params.QueryValue(key))
 }
 

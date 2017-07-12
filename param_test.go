@@ -33,7 +33,7 @@ func TestParamTemplateFuncs(t *testing.T) {
 	aahReq1.Params.Path["userId"] = "100001"
 
 	viewArgs := map[string]interface{}{}
-	viewArgs[keyRequestParams] = aahReq1.Params
+	viewArgs[KeyViewArgRequestParams] = aahReq1.Params
 
 	v1 := tmplQueryParam(viewArgs, "_ref")
 	assert.Equal(t, "true", v1)
