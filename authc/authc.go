@@ -38,7 +38,7 @@ type Authenticator interface {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // NewAuthenticationInfo method creates an `AuthenticationInfo` instance with zero

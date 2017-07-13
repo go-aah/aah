@@ -27,7 +27,7 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // New method creates the auth scheme instance for given type.

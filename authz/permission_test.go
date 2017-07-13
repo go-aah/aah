@@ -43,12 +43,14 @@ func TestAuthPermissionSimple(t *testing.T) {
 	p2, _ = NewPermission("something")
 	assert.True(t, p1.Implies(p2))
 	assert.True(t, p2.Implies(p1))
+	releasePermission(p1, p2)
 
 	// Case insensitive, different case
 	p1, _ = NewPermission("something")
 	p2, _ = NewPermission("SOMETHING")
 	assert.True(t, p1.Implies(p2))
 	assert.True(t, p2.Implies(p1))
+	releasePermission(p1, p2)
 
 	// Case insensitive, different word
 	p1, _ = NewPermission("something")
@@ -111,6 +113,7 @@ func TestAuthPermissionList(t *testing.T) {
 	assert.False(t, p2.Implies(p1))
 	assert.False(t, p3.Implies(p1))
 	assert.True(t, p2.Implies(p3))
+	releasePermission(p1, p2, p3)
 
 	// Check permissions with that contain the same list parts are equal.
 	p1, _ = NewPermission("one,two:three,four")

@@ -36,12 +36,12 @@ type Authorizer interface {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
-// NewAuthorizationInfo method creates an `AuthorizationInfo` instance with zero
-// values. Use the returned instance to add roles and permissions for the Subject
-// (aka User).
+// NewAuthorizationInfo method gets from pool or creates an `AuthorizationInfo`
+// instance with zero values. Use the returned instance to add roles and
+// permissions for the Subject (aka User).
 func NewAuthorizationInfo() *AuthorizationInfo {
 	return authzInfoPool.Get().(*AuthorizationInfo)
 }
@@ -49,7 +49,28 @@ func NewAuthorizationInfo() *AuthorizationInfo {
 // ReleaseAuthorizationInfo method resets and puts back to pool for repurpose.
 func ReleaseAuthorizationInfo(authzInfo *AuthorizationInfo) {
 	if authzInfo != nil {
+		releasePermission(authzInfo.permissions...)
 		authzInfo.Reset()
 		authzInfoPool.Put(authzInfo)
+	}
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
+
+// acquirePermission method gets from pool or creates an `Permission` instance
+// with zero values.
+func acquirePermission() *Permission {
+	return permissionPool.Get().(*Permission)
+}
+
+// releasePermission method resets and puts back to pool for repurpose.
+func releasePermission(permissions ...*Permission) {
+	for _, p := range permissions {
+		if p != nil {
+			p.Reset()
+			permissionPool.Put(p)
+		}
 	}
 }

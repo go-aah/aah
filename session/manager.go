@@ -98,7 +98,7 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AddStore method allows you to add user created session store
