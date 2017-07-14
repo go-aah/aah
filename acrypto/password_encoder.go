@@ -7,7 +7,7 @@ package acrypto
 import "fmt"
 
 // PasswordEncoder interface is used to encode and compare given hash and password
-// based chosen hashing type. Such as `bycrpt`, `sha1`, `sha256`, `sha512` and `md5`.
+// based chosen hashing type. Such as `bcrypt`, `sha1`, `sha256`, `sha512` and `md5`.
 type PasswordEncoder interface {
 	Compare(hash, password []byte) bool
 }

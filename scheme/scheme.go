@@ -16,12 +16,28 @@ import (
 type (
 	// Schemer interface is implemented by aah framework's authentication scheme.
 	Schemer interface {
+		// Init method gets called by framework during an application start.
 		Init(appCfg *config.Config, keyName string) error
+
+		// Scheme method returns the auth scheme name. For e.g.: form, basic, api.
 		Scheme() string
+
+		// SetAuthenticator method is used to set user provided Authentication implementation.
 		SetAuthenticator(authenticator authc.Authenticator) error
-		SetAuthorizer(authenticator authz.Authorizer) error
+
+		// SetAuthorizer method is used to set user provided Authorization implementation.
+		SetAuthorizer(authorizer authz.Authorizer) error
+
+		// DoAuthenticate method called by SecurityManager to get Subject authentication
+		// information.
 		DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error)
+
+		// DoAuthorizationInfo method called by SecurityManager to get Subject authorization
+		// information.
 		DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo
+
+		// ExtractAuthenticationToken method called by SecurityManager to extract idenity details
+		// from the HTTP request.
 		ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken
 	}
 )
