@@ -69,6 +69,7 @@ type (
 		MethodNotAllowed      bool
 		RedirectTrailingSlash bool
 		AutoOptions           bool
+		DefaultAuth           string
 		trees                 map[string]*node
 		routes                map[string]*Route
 	}
@@ -107,7 +108,7 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // New method returns the Router instance.
@@ -267,6 +268,7 @@ func (r *Router) processRoutesConfig() (err error) {
 			MethodNotAllowed:      domainCfg.BoolDefault("method_not_allowed", true),
 			RedirectTrailingSlash: domainCfg.BoolDefault("redirect_trailing_slash", true),
 			AutoOptions:           domainCfg.BoolDefault("auto_options", true),
+			DefaultAuth:           domainCfg.StringDefault("default_auth", ""),
 			trees:                 make(map[string]*node),
 			routes:                make(map[string]*Route),
 		}
@@ -349,7 +351,7 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 		return nil
 	}
 
-	routes, err := parseRoutesSection(routesCfg, &parentRouteInfo{})
+	routes, err := parseRoutesSection(routesCfg, &parentRouteInfo{Auth: domain.DefaultAuth})
 	if err != nil {
 		return err
 	}
