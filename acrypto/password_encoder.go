@@ -7,7 +7,14 @@ package acrypto
 import "fmt"
 
 // PasswordEncoder interface is used to encode and compare given hash and password
-// based chosen hashing type. Such as `bcrypt`, `sha1`, `sha256`, `sha512` and `md5`.
+// based chosen hashing type. Such as `bcrypt`, `scrypt`, `pbkdf2`, `sha1`, `sha256`,
+// `sha512` and `md5`.
+//
+// Currently `bcrypt` is supported by aah framework, remaining encoders are `upcoming`.
+//
+// Caution: If you're using an unsecure hashing it may not be secured for your
+// application. Consider using `bcrypt`, `scrypt`, or `pbkdf2`. Good read about
+// hashing security - https://crackstation.net/hashing-security.htm
 type PasswordEncoder interface {
 	Compare(hash, password []byte) bool
 }

@@ -110,6 +110,16 @@ func (m *Manager) AddAuthScheme(name string, authScheme scheme.Schemer) error {
 	return nil
 }
 
+// IsAuthSchemesConfigured method true if one or more auth scheme is configured in
+// security.conf under `security.auth_schemes { ... }`
+func (m *Manager) IsAuthSchemesConfigured() bool {
+	return len(m.authSchemes) != 0
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Package methods
+//___________________________________
+
 // AcquireSubject method gets the subject from pool.
 func AcquireSubject() *Subject {
 	return subjectPool.Get().(*Subject)
