@@ -22,7 +22,7 @@ var (
 type HookFunc func(e Entry)
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AddHook method is to add logger hook function.
