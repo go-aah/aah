@@ -64,8 +64,16 @@ func (e engine) handleAuthcAndAuthz(ctx *Context) flowResult {
 
 	authScheme := AppSecurityManager().GetAuthScheme(ctx.route.Auth)
 	if authScheme == nil {
-		// If auth scheme is nil then treat it as `anonymous`.
-		log.Tracef("Route auth scheme is nil, treat it as anonymous: %v", ctx.Req.Path)
+		// If one or more auth schemes are defined in `security.auth_schemes { ... }`
+		// and routes `auth` attribute is not defined then framework treats that route as `403 Forbidden`.
+		if AppSecurityManager().IsAuthSchemesConfigured() {
+			log.Warnf("Auth schemes is configured in security.conf, however not in defined routes `auth` config, so treat it as 403 forbidden: %v", ctx.Req.Path)
+			ctx.Reply().Forbidden().Text("403 Forbidden")
+			return flowStop
+		}
+
+		// If auth scheme is not configured in security.conf then treat it as `anonymous`.
+		log.Tracef("Route auth scheme is not configured, so treat it as anonymous: %v", ctx.Req.Path)
 		return flowCont
 	}
 
@@ -113,12 +121,14 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 
 	// Do Authentication
 	authcInfo, err := formAuth.DoAuthenticate(formAuth.ExtractAuthenticationToken(ctx.Req))
-	if err == authc.ErrAuthenticationFailed {
-		log.Infof("Authentication is failed, sending to login failure URL")
+	if err == authc.ErrAuthenticationFailed || err != nil || authcInfo == nil {
+		log.Info("Authentication is failed, sending to login failure URL")
 		ctx.Reply().Redirect(formAuth.LoginFailureURL + "&_rt=" + ctx.Req.Raw.FormValue("_rt"))
 		e.writeReply(ctx)
 		return flowStop
 	}
+
+	log.Info("Authentication successful")
 
 	ctx.Subject().AuthenticationInfo = authcInfo
 	ctx.Subject().AuthorizationInfo = formAuth.DoAuthorizationInfo(authcInfo)
@@ -148,8 +158,8 @@ func (e *engine) doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResul
 
 	// Do Authentication
 	authcInfo, err := ascheme.DoAuthenticate(ascheme.ExtractAuthenticationToken(ctx.Req))
-	if err == authc.ErrAuthenticationFailed {
-		log.Infof("Authentication is failed")
+	if err == authc.ErrAuthenticationFailed || err != nil || authcInfo == nil {
+		log.Info("Authentication is failed")
 		ctx.Reply().Unauthorized()
 
 		if ascheme.Scheme() == "basic" {
@@ -157,9 +167,12 @@ func (e *engine) doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResul
 			ctx.Reply().Header(ahttp.HeaderWWWAuthenticate, `Basic realm="`+basicAuth.RealmName+`"`)
 		}
 		// TODO write response based on Content type
+		ctx.Reply().Text("401 Unauthorized")
 		e.writeReply(ctx)
 		return flowStop
 	}
+
+	log.Info("Authentication successful")
 
 	ctx.Subject().AuthenticationInfo = authcInfo
 	ctx.Subject().AuthorizationInfo = ascheme.DoAuthorizationInfo(authcInfo)
