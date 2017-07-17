@@ -93,7 +93,14 @@ func (tfa *testFormAuthentication) GetAuthorizationInfo(authcInfo *authc.Authent
 	return nil
 }
 
-func TestSecurityHandleAuthcAndAuthz(t *testing.T) {
+func testGetAuthenticationInfo() *authc.AuthenticationInfo {
+	authcInfo := authc.NewAuthenticationInfo()
+	authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "jeeva", IsPrimary: true})
+	authcInfo.Credential = []byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6") // welcome123
+	return authcInfo
+}
+
+func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 	e := engine{}
 
 	// anonymous
@@ -169,9 +176,59 @@ func TestSecurityHandleAuthcAndAuthz(t *testing.T) {
 	assert.True(t, result6 == flowStop)
 }
 
-func testGetAuthenticationInfo() *authc.AuthenticationInfo {
-	authcInfo := authc.NewAuthenticationInfo()
-	authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "jeeva", IsPrimary: true})
-	authcInfo.Credential = []byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6") // welcome123
-	return authcInfo
+type testBasicAuthentication struct {
+}
+
+func (tba *testBasicAuthentication) Init(cfg *config.Config) error {
+	return nil
+}
+
+func (tba *testBasicAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) *authc.AuthenticationInfo {
+	return testGetAuthenticationInfo()
+}
+
+func (tba *testBasicAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {
+	return nil
+}
+
+func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
+	e := engine{}
+
+	// basic auth scheme
+	cfg, _ := config.ParseString(`
+		security {
+		  auth_schemes {
+		    # HTTP Basic Auth Scheme
+		    basic_auth {
+		      scheme = "basic"
+		      authenticator = "security/Authentication"
+		      authorizer = "security/Authorization"
+		    }
+		  }
+		}
+	`)
+	err := initSecurity(cfg)
+	assert.Nil(t, err)
+	r1 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
+	w1 := httptest.NewRecorder()
+	ctx1 := &Context{
+		Req:     ahttp.ParseRequest(r1, &ahttp.Request{}),
+		Res:     ahttp.GetResponseWriter(w1),
+		route:   &router.Route{Auth: "basic_auth"},
+		subject: &security.Subject{},
+		reply:   NewReply(),
+	}
+	result1 := e.handleAuthcAndAuthz(ctx1)
+	assert.True(t, result1 == flowStop)
+
+	testBasicAuth := &testBasicAuthentication{}
+	basicAuth := AppSecurityManager().GetAuthScheme("basic_auth").(*scheme.BasicAuth)
+	err = basicAuth.SetAuthenticator(testBasicAuth)
+	assert.Nil(t, err)
+	err = basicAuth.SetAuthorizer(testBasicAuth)
+	assert.Nil(t, err)
+	r2 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
+	ctx1.Req = ahttp.ParseRequest(r2, &ahttp.Request{})
+	result2 := e.handleAuthcAndAuthz(ctx1)
+	assert.True(t, result2 == flowStop)
 }

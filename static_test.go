@@ -19,7 +19,7 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
-func TestStaticDirectoryListing(t *testing.T) {
+func TestStaticFileAndDirectoryListing(t *testing.T) {
 	appCfg, _ := config.ParseString("")
 	e := newEngine(appCfg)
 

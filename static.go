@@ -193,9 +193,11 @@ func checkGzipRequired(file string) bool {
 // Note: `ctx.route.*` values come from application routes configuration.
 func getHTTPDirAndFilePath(ctx *Context) (http.Dir, string) {
 	if ctx.route.IsFile() { // this is configured value from routes.conf
-		return http.Dir(filepath.Join(AppBaseDir(), dirStatic)), ctx.route.File
+		return http.Dir(filepath.Join(AppBaseDir(), dirStatic)),
+			parseCacheBustPart(ctx.route.File, AppBuildInfo().Version)
 	}
-	return http.Dir(filepath.Join(AppBaseDir(), ctx.route.Dir)), ctx.Req.PathValue("filepath")
+	return http.Dir(filepath.Join(AppBaseDir(), ctx.route.Dir)),
+		parseCacheBustPart(ctx.Req.PathValue("filepath"), AppBuildInfo().Version)
 }
 
 // detectFileContentType method to identify the static file content-type.
@@ -248,6 +250,15 @@ func parseStaticMimeCacheMap(e *Event) {
 			staticMimeCacheHdrMap[strings.TrimSpace(strings.ToLower(m))] = hdr
 		}
 	}
+}
+
+func parseCacheBustPart(name, part string) string {
+	if strings.Contains(name, part) {
+		name = strings.Replace(name, "-"+part, "", 1)
+		name = strings.Replace(name, part+"-", "", 1)
+		return name
+	}
+	return name
 }
 
 func init() {
