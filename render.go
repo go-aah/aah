@@ -13,9 +13,16 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0-unstable"
+)
+
+var (
+	rdrHTMLPool = &sync.Pool{New: func() interface{} { return &HTML{} }}
+	rdrJSONPool = &sync.Pool{New: func() interface{} { return &JSON{} }}
+	rdrXMLPool  = &sync.Pool{New: func() interface{} { return &XML{} }}
 )
 
 type (
@@ -115,6 +122,12 @@ func (j *JSON) Render(w io.Writer) error {
 	return nil
 }
 
+func (j *JSON) reset() {
+	j.Callback = ""
+	j.IsJSONP = false
+	j.Data = nil
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // XML Render methods
 //___________________________________
@@ -141,6 +154,10 @@ func (x *XML) Render(w io.Writer) error {
 	}
 
 	return nil
+}
+
+func (x *XML) reset() {
+	x.Data = nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -195,6 +212,13 @@ func (h *HTML) Render(w io.Writer) error {
 	return h.Template.ExecuteTemplate(w, h.Layout, h.ViewArgs)
 }
 
+func (h *HTML) reset() {
+	h.Template = nil
+	h.Filename = ""
+	h.Layout = ""
+	h.ViewArgs = make(Data)
+}
+
 // doRender method renders and detects the errors earlier. Writes the
 // error info if any.
 func (e *engine) doRender(ctx *Context) {
@@ -212,6 +236,33 @@ func (e *engine) doRender(ctx *Context) {
 			reply.InternalServerError()
 			reply.body.Reset()
 			reply.body.WriteString("500 Internal Server Error\n")
+		}
+	}
+}
+
+func acquireHTML() *HTML {
+	return rdrHTMLPool.Get().(*HTML)
+}
+
+func acquireJSON() *JSON {
+	return rdrJSONPool.Get().(*JSON)
+}
+
+func acquireXML() *XML {
+	return rdrXMLPool.Get().(*XML)
+}
+
+func releaseRender(r Render) {
+	if r != nil {
+		if t, ok := r.(*JSON); ok {
+			t.reset()
+			rdrJSONPool.Put(t)
+		} else if t, ok := r.(*HTML); ok {
+			t.reset()
+			rdrHTMLPool.Put(t)
+		} else if t, ok := r.(*XML); ok {
+			t.reset()
+			rdrXMLPool.Put(t)
 		}
 	}
 }
