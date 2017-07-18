@@ -5,6 +5,7 @@
 package log
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -95,6 +96,7 @@ func TestConsoleLoggerDefaults(t *testing.T) {
 	logger, err := New(cfg)
 	assert.NotNil(t, logger)
 	assert.Nil(t, err)
+	logger.SetWriter(ioutil.Discard)
 
 	// receiver nil scenario
 	logger.receiver = nil

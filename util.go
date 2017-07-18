@@ -46,14 +46,6 @@ func levelByName(name string) level {
 	return LevelUnknown
 }
 
-func fmtFlagByName(name string) ess.FmtFlag {
-	if flag, ok := FmtFlags[name]; ok {
-		return flag
-	}
-
-	return FmtFlagUnknown
-}
-
 func isFmtFlagExists(flags []ess.FmtFlagPart, flag ess.FmtFlag) bool {
 	for _, f := range flags {
 		if f.Flag == flag {
@@ -85,8 +77,6 @@ func getReceiverByName(name string) Receiver {
 		return &FileReceiver{}
 	case "CONSOLE":
 		return &ConsoleReceiver{}
-	case "DISCARD":
-		return &DiscardReceiver{}
 	default:
 		return nil
 	}

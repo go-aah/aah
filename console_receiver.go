@@ -70,6 +70,11 @@ func (c *ConsoleReceiver) SetPattern(pattern string) error {
 	return nil
 }
 
+// SetWriter method sets the given writer into console receiver.
+func (c *ConsoleReceiver) SetWriter(w io.Writer) {
+	c.out = w
+}
+
 // IsCallerInfo method returns true if log receiver is configured with caller info
 // otherwise false.
 func (c *ConsoleReceiver) IsCallerInfo() bool {

@@ -64,10 +64,11 @@ var (
 
 type (
 	// Receiver is the interface for pluggable log receiver.
-	// For e.g: Console, File, HTTP, etc
+	// For e.g: Console, File
 	Receiver interface {
 		Init(cfg *config.Config) error
 		SetPattern(pattern string) error
+		SetWriter(w io.Writer)
 		IsCallerInfo() bool
 		Writer() io.Writer
 		Log(e *Entry)
@@ -137,7 +138,7 @@ func (l *Logger) SetLevel(level string) error {
 	return nil
 }
 
-// SetPattern methods sets the log format pattern.
+// SetPattern method sets the log format pattern.
 func (l *Logger) SetPattern(pattern string) error {
 	l.m.Lock()
 	defer l.m.Unlock()
@@ -147,7 +148,7 @@ func (l *Logger) SetPattern(pattern string) error {
 	return l.receiver.SetPattern(pattern)
 }
 
-// SetReceiver sets the given receiver into logger instance.
+// SetReceiver method sets the given receiver into logger instance.
 func (l *Logger) SetReceiver(receiver Receiver) error {
 	l.m.Lock()
 	defer l.m.Unlock()
@@ -158,6 +159,13 @@ func (l *Logger) SetReceiver(receiver Receiver) error {
 
 	l.receiver = receiver
 	return l.receiver.Init(l.cfg)
+}
+
+// SetWriter method sets the given writer into logger instance.
+func (l *Logger) SetWriter(w io.Writer) {
+	l.m.Lock()
+	defer l.m.Unlock()
+	l.receiver.SetWriter(w)
 }
 
 // ToGoLogger method wraps the current log writer into Go Logger instance.

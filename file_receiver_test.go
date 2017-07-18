@@ -5,6 +5,7 @@
 package log
 
 import (
+	"io/ioutil"
 	"testing"
 
 	"aahframework.org/config.v0"
@@ -158,4 +159,5 @@ func testFileLogger(t *testing.T, cfgStr string, loop int) {
 	}
 
 	assert.NotNil(t, logger.ToGoLogger())
+	logger.SetWriter(ioutil.Discard)
 }

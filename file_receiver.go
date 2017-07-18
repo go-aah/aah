@@ -91,6 +91,11 @@ func (f *FileReceiver) SetPattern(pattern string) error {
 	return nil
 }
 
+// SetWriter method sets the given writer into file receiver.
+func (f *FileReceiver) SetWriter(w io.Writer) {
+	f.out = w
+}
+
 // IsCallerInfo method returns true if log receiver is configured with caller info
 // otherwise false.
 func (f *FileReceiver) IsCallerInfo() bool {
@@ -173,7 +178,7 @@ func (f *FileReceiver) openFile() error {
 		return err
 	}
 
-	f.out = file
+	f.SetWriter(file)
 	f.isClosed = false
 	f.stats = &receiverStats{}
 	f.stats.bytes = fileStat.Size()
