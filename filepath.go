@@ -281,13 +281,9 @@ func DirsPathExcludes(basePath string, recursive bool, excludes Excludes) (pdirs
 
 	if recursive {
 		err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
-			if excludes.Match(filepath.Base(srcPath)) {
-				if info.IsDir() {
-					// excluding directory
-					return filepath.SkipDir
-				}
-				// excluding file
-				return nil
+			if info.IsDir() && excludes.Match(filepath.Base(srcPath)) {
+				// excluding directory
+				return filepath.SkipDir
 			}
 
 			if info.IsDir() {
@@ -327,11 +323,7 @@ func FilesPathExcludes(basePath string, recursive bool, excludes Excludes) (file
 
 	if recursive {
 		err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
-			if excludes.Match(filepath.Base(srcPath)) {
-				if info.IsDir() {
-					// excluding directory
-					return filepath.SkipDir
-				}
+			if !info.IsDir() && excludes.Match(filepath.Base(srcPath)) {
 				// excluding file
 				return nil
 			}
