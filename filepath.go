@@ -269,8 +269,27 @@ func DeleteFiles(files ...string) (errs []error) {
 
 // DirsPath method returns all directories absolute path from given base path recursively.
 func DirsPath(basePath string, recursive bool) (pdirs []string, err error) {
+	return DirsPathExcludes(basePath, recursive, Excludes{})
+}
+
+// DirsPathExcludes method returns all directories absolute path from given base path recursively
+// excluding the excludes list.
+func DirsPathExcludes(basePath string, recursive bool, excludes Excludes) (pdirs []string, err error) {
+	if err = excludes.Validate(); err != nil {
+		return
+	}
+
 	if recursive {
 		err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
+			if excludes.Match(filepath.Base(srcPath)) {
+				if info.IsDir() {
+					// excluding directory
+					return filepath.SkipDir
+				}
+				// excluding file
+				return nil
+			}
+
 			if info.IsDir() {
 				pdirs = append(pdirs, srcPath)
 			}
@@ -286,7 +305,7 @@ func DirsPath(basePath string, recursive bool) (pdirs []string, err error) {
 	}
 
 	for _, v := range list {
-		if v.IsDir() {
+		if v.IsDir() && !excludes.Match(v.Name()) {
 			pdirs = append(pdirs, filepath.Join(basePath, v.Name()))
 		}
 	}
@@ -296,8 +315,27 @@ func DirsPath(basePath string, recursive bool) (pdirs []string, err error) {
 
 // FilesPath method returns all files absolute path from given base path recursively.
 func FilesPath(basePath string, recursive bool) (files []string, err error) {
+	return FilesPathExcludes(basePath, recursive, Excludes{})
+}
+
+// FilesPathExcludes method returns all files absolute path from given base path recursively
+// excluding the excludes list.
+func FilesPathExcludes(basePath string, recursive bool, excludes Excludes) (files []string, err error) {
+	if err = excludes.Validate(); err != nil {
+		return
+	}
+
 	if recursive {
 		err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
+			if excludes.Match(filepath.Base(srcPath)) {
+				if info.IsDir() {
+					// excluding directory
+					return filepath.SkipDir
+				}
+				// excluding file
+				return nil
+			}
+
 			if !info.IsDir() {
 				files = append(files, srcPath)
 			}
@@ -313,7 +351,7 @@ func FilesPath(basePath string, recursive bool) (files []string, err error) {
 	}
 
 	for _, v := range list {
-		if !v.IsDir() {
+		if !v.IsDir() && !excludes.Match(v.Name()) {
 			files = append(files, filepath.Join(basePath, v.Name()))
 		}
 	}
