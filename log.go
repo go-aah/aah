@@ -260,8 +260,8 @@ func (l *Logger) Fatalf(format string, v ...interface{}) {
 }
 
 // Fatalln logs message as `FATAL` and call to os.Exit(1).
-func (l *Logger) Fatalln(format string, v ...interface{}) {
-	l.output(levelFatal, 3, &format, v...)
+func (l *Logger) Fatalln(v ...interface{}) {
+	l.output(levelFatal, 3, nil, v...)
 	exit(1)
 }
 

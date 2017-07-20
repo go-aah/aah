@@ -101,8 +101,8 @@ func Fatalf(format string, v ...interface{}) {
 }
 
 // Fatalln logs message as `FATAL` and call to os.Exit(1).
-func Fatalln(format string, v ...interface{}) {
-	std.output(levelFatal, 3, &format, v...)
+func Fatalln(v ...interface{}) {
+	std.output(levelFatal, 3, nil, v...)
 	exit(1)
 }
 
