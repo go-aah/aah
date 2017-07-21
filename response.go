@@ -125,8 +125,10 @@ func (r *Response) Unwrap() http.ResponseWriter {
 
 // CloseNotify method calls underlying CloseNotify method if it's compatible
 func (r *Response) CloseNotify() <-chan bool {
-	n := r.w.(http.CloseNotifier)
-	return n.CloseNotify()
+	if n, ok := r.w.(http.CloseNotifier); ok {
+		return n.CloseNotify()
+	}
+	return nil
 }
 
 // Flush method calls underlying Flush method if it's compatible
