@@ -78,11 +78,9 @@ func TestEngineNew(t *testing.T) {
 	assert.True(t, e.isRequestIDEnabled)
 	assert.True(t, e.isGzipEnabled)
 
-	req := acquireRequest()
 	ctx := acquireContext()
-	ctx.Req = req
+	ctx.Req = &ahttp.Request{}
 	assert.NotNil(t, ctx)
-	assert.NotNil(t, req)
 	assert.NotNil(t, ctx.Req)
 	releaseContext(ctx)
 

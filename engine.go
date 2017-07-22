@@ -37,7 +37,6 @@ var (
 	minifier          MinifierFunc
 	noGzipStatusCodes = []int{http.StatusNotModified, http.StatusNoContent}
 	ctxPool           *sync.Pool
-	reqPool           *sync.Pool
 )
 
 type (
@@ -122,16 +121,7 @@ func (e *engine) handleRecovery(ctx *Context) {
 		st.Print(buf)
 		log.Error(buf.String())
 
-		ctx.Reply().InternalServerError()
-		e.negotiateContentType(ctx)
-		if ahttp.ContentTypeJSON.IsEqual(ctx.Reply().ContType) {
-			ctx.Reply().JSON(Data{"code": "500", "message": "Internal Server Error"})
-		} else if ahttp.ContentTypeXML.IsEqual(ctx.Reply().ContType) {
-			ctx.Reply().XML(Data{"code": "500", "message": "Internal Server Error"})
-		} else {
-			ctx.Reply().Text("500 Internal Server Error")
-		}
-
+		writeErrorInfo(ctx, http.StatusInternalServerError, "Internal Server Error")
 		e.writeReply(ctx)
 	}
 }
@@ -149,10 +139,10 @@ func (e *engine) setRequestID(ctx *Context) {
 
 // prepareContext method gets controller, request from pool, set the targeted
 // controller, parses the request and returns the controller.
-func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Context {
-	ctx, r := acquireContext(), acquireRequest()
-	ctx.Req = ahttp.ParseRequest(req, r)
-	ctx.Res = ahttp.GetResponseWriter(w)
+func (e *engine) prepareContext(w http.ResponseWriter, r *http.Request) *Context {
+	ctx := acquireContext()
+	ctx.Req = ahttp.AcquireRequest(r)
+	ctx.Res = ahttp.AcquireResponseWriter(w)
 	ctx.reply = acquireReply()
 	ctx.subject = security.AcquireSubject()
 	return ctx
@@ -175,7 +165,7 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 func (e *engine) handleRoute(ctx *Context) flowResult {
 	domain := AppRouter().FindDomain(ctx.Req)
 	if domain == nil {
-		ctx.Reply().NotFound().Text("404 Not Found")
+		writeErrorInfo(ctx, http.StatusNotFound, "Not Found")
 		e.writeReply(ctx)
 		return flowStop
 	}
@@ -271,7 +261,11 @@ func (e *engine) writeReply(ctx *Context) {
 	}
 
 	// ContentType
-	e.negotiateContentType(ctx)
+	if !ctx.Reply().IsContentTypeSet() {
+		if ct := identifyContentType(ctx); ct != nil {
+			ctx.Reply().ContentType(ct.String())
+		}
+	}
 
 	// resolving view template
 	e.resolveView(ctx)
@@ -311,19 +305,6 @@ func (e *engine) writeReply(ctx *Context) {
 	// Send data to access log channel
 	if e.isAccessLogEnabled {
 		sendToAccessLog(ctx)
-	}
-}
-
-// negotiateContentType method tries to identify if reply.ContType is empty.
-// Not necessarily it will set one.
-func (e *engine) negotiateContentType(ctx *Context) {
-	if !ctx.Reply().IsContentTypeSet() {
-		if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
-			ctx.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
-			ctx.Reply().ContentType(ctx.Req.AcceptContentType.String())
-		} else if ct := defaultContentType(); ct != nil { // as per 'render.default' in aah.conf
-			ctx.Reply().ContentType(ct.String())
-		}
 	}
 }
 
@@ -391,26 +372,8 @@ func acquireContext() *Context {
 	return ctxPool.Get().(*Context)
 }
 
-func acquireRequest() *ahttp.Request {
-	return reqPool.Get().(*ahttp.Request)
-}
-
 func releaseContext(ctx *Context) {
-	// Close the writer and Put back to pool
-	if ctx.Res != nil {
-		if _, ok := ctx.Res.(*ahttp.GzipResponse); ok {
-			ahttp.PutGzipResponseWiriter(ctx.Res)
-		} else {
-			ahttp.PutResponseWriter(ctx.Res)
-		}
-	}
-
-	// clear and put `ahttp.Request` back to pool
-	if ctx.Req != nil {
-		ctx.Req.Reset()
-		reqPool.Put(ctx.Req)
-	}
-
+	ahttp.ReleaseResponseWriter(ctx.Res)
 	releaseReply(ctx.reply)
 	security.ReleaseSubject(ctx.subject)
 
@@ -425,6 +388,4 @@ func init() {
 			values:   make(map[string]interface{}),
 		}
 	}}
-
-	reqPool = &sync.Pool{New: func() interface{} { return &ahttp.Request{} }}
 }

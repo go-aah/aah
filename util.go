@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	ahttp "aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0-unstable"
 )
@@ -105,4 +106,15 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func identifyContentType(ctx *Context) *ahttp.ContentType {
+	// based on 'Accept' Header
+	if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
+		ctx.Req.AcceptContentType.Mime != "*/*" {
+		return ctx.Req.AcceptContentType
+	}
+
+	// as per 'render.default' in aah.conf or nil
+	return defaultContentType()
 }

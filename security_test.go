@@ -81,12 +81,17 @@ func TestSecuritySessionTemplateFuns(t *testing.T) {
 type testFormAuthentication struct {
 }
 
+var (
+	_ authc.Authenticator = (*testFormAuthentication)(nil)
+	_ authz.Authorizer    = (*testFormAuthentication)(nil)
+)
+
 func (tfa *testFormAuthentication) Init(cfg *config.Config) error {
 	return nil
 }
 
-func (tfa *testFormAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) *authc.AuthenticationInfo {
-	return testGetAuthenticationInfo()
+func (tfa *testFormAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
+	return testGetAuthenticationInfo(), nil
 }
 
 func (tfa *testFormAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {
@@ -179,12 +184,17 @@ func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 type testBasicAuthentication struct {
 }
 
+var (
+	_ authc.Authenticator = (*testBasicAuthentication)(nil)
+	_ authz.Authorizer    = (*testBasicAuthentication)(nil)
+)
+
 func (tba *testBasicAuthentication) Init(cfg *config.Config) error {
 	return nil
 }
 
-func (tba *testBasicAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) *authc.AuthenticationInfo {
-	return testGetAuthenticationInfo()
+func (tba *testBasicAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
+	return testGetAuthenticationInfo(), nil
 }
 
 func (tba *testBasicAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {

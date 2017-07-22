@@ -6,6 +6,7 @@ package aah
 
 import (
 	"fmt"
+	"net/http"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
@@ -67,8 +68,9 @@ func (e engine) handleAuthcAndAuthz(ctx *Context) flowResult {
 		// If one or more auth schemes are defined in `security.auth_schemes { ... }`
 		// and routes `auth` attribute is not defined then framework treats that route as `403 Forbidden`.
 		if AppSecurityManager().IsAuthSchemesConfigured() {
-			log.Warnf("Auth schemes is configured in security.conf, however not in defined routes `auth` config, so treat it as 403 forbidden: %v", ctx.Req.Path)
-			ctx.Reply().Forbidden().Text("403 Forbidden")
+			log.Warnf("Auth schemes are configured in security.conf, however attribute 'auth' or 'default_auth' is not defined in routes.conf, so treat it as 403 forbidden: %v", ctx.Req.Path)
+			writeErrorInfo(ctx, http.StatusForbidden, "Forbidden")
+			e.writeReply(ctx)
 			return flowStop
 		}
 
@@ -95,8 +97,6 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 	if ctx.Subject().IsAuthenticated() {
 		if ctx.Session().IsKeyExists(KeyViewArgAuthcInfo) {
 			ctx.Subject().AuthenticationInfo = ctx.Session().Get(KeyViewArgAuthcInfo).(*authc.AuthenticationInfo)
-
-			// TODO cache for AuthorizationInfo
 			ctx.Subject().AuthorizationInfo = formAuth.DoAuthorizationInfo(ctx.Subject().AuthenticationInfo)
 		} else {
 			log.Warn("It seems there is an issue with session data of AuthenticationInfo")
@@ -121,9 +121,16 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 
 	// Do Authentication
 	authcInfo, err := formAuth.DoAuthenticate(formAuth.ExtractAuthenticationToken(ctx.Req))
-	if err == authc.ErrAuthenticationFailed || err != nil || authcInfo == nil {
+	if err != nil || authcInfo == nil {
 		log.Info("Authentication is failed, sending to login failure URL")
-		ctx.Reply().Redirect(formAuth.LoginFailureURL + "&_rt=" + ctx.Req.Raw.FormValue("_rt"))
+
+		redirectURL := formAuth.LoginFailureURL
+		redirectTarget := ctx.Req.Raw.FormValue("_rt")
+		if !ess.IsStrEmpty(redirectTarget) {
+			redirectURL = redirectURL + "&_rt=" + redirectTarget
+		}
+
+		ctx.Reply().Redirect(redirectURL)
 		e.writeReply(ctx)
 		return flowStop
 	}
@@ -158,16 +165,15 @@ func (e *engine) doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResul
 
 	// Do Authentication
 	authcInfo, err := ascheme.DoAuthenticate(ascheme.ExtractAuthenticationToken(ctx.Req))
-	if err == authc.ErrAuthenticationFailed || err != nil || authcInfo == nil {
+	if err != nil || authcInfo == nil {
 		log.Info("Authentication is failed")
-		ctx.Reply().Unauthorized()
 
 		if ascheme.Scheme() == "basic" {
 			basicAuth := ascheme.(*scheme.BasicAuth)
 			ctx.Reply().Header(ahttp.HeaderWWWAuthenticate, `Basic realm="`+basicAuth.RealmName+`"`)
 		}
-		// TODO write response based on Content type
-		ctx.Reply().Text("401 Unauthorized")
+
+		writeErrorInfo(ctx, http.StatusUnauthorized, "Unauthorized")
 		e.writeReply(ctx)
 		return flowStop
 	}

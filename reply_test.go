@@ -191,7 +191,8 @@ func TestReplyXML(t *testing.T) {
 
 	err := re1.Rdr.Render(buf)
 	assert.FailOnError(t, err, "")
-	assert.Equal(t, `<Sample>
+	assert.Equal(t, `<?xml version="1.0" encoding="UTF-8"?>
+<Sample>
     <Name>John</Name>
     <Age>28</Age>
     <Address>this is my street</Address>
@@ -203,8 +204,26 @@ func TestReplyXML(t *testing.T) {
 
 	err = re1.Rdr.Render(buf)
 	assert.FailOnError(t, err, "")
-	assert.Equal(t, `<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`,
+	assert.Equal(t, `<?xml version="1.0" encoding="UTF-8"?>
+<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`,
 		buf.String())
+
+	buf.Reset()
+
+	data2 := Data{
+		"Name":    "John",
+		"Age":     28,
+		"Address": "this is my street",
+	}
+
+	re1.Rdr.(*XML).reset()
+	re1.XML(data2)
+	assert.True(t, re1.IsContentTypeSet())
+
+	err = re1.Rdr.Render(buf)
+	assert.FailOnError(t, err, "")
+	assert.True(t, strings.HasPrefix(buf.String(), `<?xml version="1.0" encoding="UTF-8"?>`))
+	re1.Rdr.(*XML).reset()
 }
 
 func TestReplyReadfrom(t *testing.T) {

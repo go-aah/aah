@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"aahframework.org/essentials.v0"
@@ -20,9 +21,10 @@ import (
 )
 
 var (
-	rdrHTMLPool = &sync.Pool{New: func() interface{} { return &HTML{} }}
-	rdrJSONPool = &sync.Pool{New: func() interface{} { return &JSON{} }}
-	rdrXMLPool  = &sync.Pool{New: func() interface{} { return &XML{} }}
+	xmlHeaderBytes = []byte(xml.Header)
+	rdrHTMLPool    = &sync.Pool{New: func() interface{} { return &HTML{} }}
+	rdrJSONPool    = &sync.Pool{New: func() interface{} { return &JSON{} }}
+	rdrXMLPool     = &sync.Pool{New: func() interface{} { return &XML{} }}
 )
 
 type (
@@ -149,6 +151,10 @@ func (x *XML) Render(w io.Writer) error {
 		return err
 	}
 
+	if _, err = w.Write(xmlHeaderBytes); err != nil {
+		return err
+	}
+
 	if _, err = w.Write(bytes); err != nil {
 		return err
 	}
@@ -158,6 +164,29 @@ func (x *XML) Render(w io.Writer) error {
 
 func (x *XML) reset() {
 	x.Data = nil
+}
+
+// MarshalXML method is to marshal `aah.Data` into XML.
+func (d Data) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	tokens := []xml.Token{start}
+	for k, v := range d {
+		token := xml.StartElement{Name: xml.Name{Local: strings.Title(k)}}
+		tokens = append(tokens, token,
+			xml.CharData(fmt.Sprintf("%v", v)),
+			xml.EndElement{Name: token.Name})
+	}
+
+	tokens = append(tokens, xml.EndElement{Name: start.Name})
+
+	var err error
+	for _, t := range tokens {
+		if err = e.EncodeToken(t); err != nil {
+			return err
+		}
+	}
+
+	// flush to ensure tokens are written
+	return e.Flush()
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -233,6 +262,7 @@ func (e *engine) doRender(ctx *Context) {
 
 		if err := reply.Rdr.Render(reply.body); err != nil {
 			log.Error("Render response body error: ", err)
+			// TODO handle response based on content type
 			reply.InternalServerError()
 			reply.body.Reset()
 			reply.body.WriteString("500 Internal Server Error\n")

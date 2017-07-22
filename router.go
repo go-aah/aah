@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"net/http"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -147,28 +148,28 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 	// HTTP: OPTIONS
 	if reqMethod == ahttp.MethodOptions {
 		if domain.AutoOptions {
-			if allowed := domain.Allowed(reqMethod, reqPath); !ess.IsStrEmpty(allowed) {
-				allowed += ", " + ahttp.MethodOptions
-				log.Debugf("Auto 'OPTIONS' allowed HTTP Methods: %s", allowed)
-				reply.Header(ahttp.HeaderAllow, allowed)
-				return nil
-			}
+			processAllowedMethods(reply, domain.Allowed(reqMethod, reqPath), "Auto 'OPTIONS', ")
+			writeErrorInfo(ctx, http.StatusOK, "'OPTIONS' allowed HTTP Methods")
+			return nil
 		}
 	}
 
 	// 405 Method Not Allowed
 	if domain.MethodNotAllowed {
-		if allowed := domain.Allowed(reqMethod, reqPath); !ess.IsStrEmpty(allowed) {
-			allowed += ", " + ahttp.MethodOptions
-			log.Debugf("Allowed HTTP Methods for 405 response: %s", allowed)
-			reply.MethodNotAllowed().
-				Header(ahttp.HeaderAllow, allowed).
-				Text("405 Method Not Allowed")
-			return nil
-		}
+		processAllowedMethods(reply, domain.Allowed(reqMethod, reqPath), "405 response, ")
+		writeErrorInfo(ctx, http.StatusMethodNotAllowed, "Method Not Allowed")
+		return nil
 	}
 
 	return errors.New("route not found")
+}
+
+func processAllowedMethods(reply *Reply, allowed, prefix string) {
+	if !ess.IsStrEmpty(allowed) {
+		allowed += ", " + ahttp.MethodOptions
+		reply.Header(ahttp.HeaderAllow, allowed)
+		log.Debugf("%sAllowed HTTP Methods: %s", prefix, allowed)
+	}
 }
 
 // handleRouteNotFound method is used for 1. route action not found, 2. route is
@@ -177,13 +178,13 @@ func handleRouteNotFound(ctx *Context, domain *router.Domain, route *router.Rout
 	// handle effectively to reduce heap allocation
 	if domain.NotFoundRoute == nil {
 		log.Warnf("Route not found: %s, isStaticRoute: false", ctx.Req.Path)
-		ctx.Reply().NotFound().Text("404 Not Found")
+		writeErrorInfo(ctx, http.StatusNotFound, "Not Found")
 		return
 	}
 
 	log.Warnf("Route not found: %s, isStaticRoute: %v", ctx.Req.Path, route.IsStatic)
 	if err := ctx.setTarget(route); err == errTargetNotFound {
-		ctx.Reply().NotFound().Text("404 Not Found")
+		writeErrorInfo(ctx, http.StatusNotFound, "Not Found")
 		return
 	}
 
