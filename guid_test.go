@@ -54,21 +54,21 @@ type guidParts struct {
 }
 
 var uniqueIds = []guidParts{
-	guidParts{
+	{
 		"4d88e15b60f486e428412dc9",
 		1300816219,
 		[]byte{0x60, 0xf4, 0x86},
 		0xe428,
 		4271561,
 	},
-	guidParts{
+	{
 		"000000000000000000000000",
 		0,
 		[]byte{0x00, 0x00, 0x00},
 		0x0000,
 		0,
 	},
-	guidParts{
+	{
 		"00000000aabbccddee000001",
 		0,
 		[]byte{0xaa, 0xbb, 0xcc},
