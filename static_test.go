@@ -54,6 +54,10 @@ func TestStaticMisc(t *testing.T) {
 
 	directoryList(w1, r1, f)
 	assert.Equal(t, "Error reading directory", w1.Body.String())
+
+	// cache bust filename parse
+	filename := parseCacheBustPart("aah-813e524.css", "813e524")
+	assert.Equal(t, "aah.css", filename)
 }
 
 func TestParseStaticCacheMap(t *testing.T) {

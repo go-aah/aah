@@ -87,7 +87,7 @@ func (e *engine) serveStatic(ctx *Context) error {
 			// apply cache header if environment profile is `prod`
 			if appIsProfileProd {
 				ctx.Res.Header().Set(ahttp.HeaderCacheControl, cacheHeader(contentType))
-			} else { // for hot-reload
+			} else { // for static files hot-reload
 				ctx.Res.Header().Set(ahttp.HeaderExpires, "0")
 				ctx.Res.Header().Set(ahttp.HeaderCacheControl, noCacheHdrValue)
 			}
