@@ -45,12 +45,12 @@ var (
 	responsePool = &sync.Pool{New: func() interface{} { return &Response{} }}
 
 	// interface compliance
-	_ http.CloseNotifier = &Response{}
-	_ http.Flusher       = &Response{}
-	_ http.Hijacker      = &Response{}
-	_ http.Pusher        = &Response{}
-	_ io.Closer          = &Response{}
-	_ ResponseWriter     = &Response{}
+	_ http.CloseNotifier = (*Response)(nil)
+	_ http.Flusher       = (*Response)(nil)
+	_ http.Hijacker      = (*Response)(nil)
+	_ http.Pusher        = (*Response)(nil)
+	_ io.Closer          = (*Response)(nil)
+	_ ResponseWriter     = (*Response)(nil)
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

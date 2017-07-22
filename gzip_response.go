@@ -30,12 +30,12 @@ var (
 	gwPool = &sync.Pool{}
 
 	// interface compliance
-	_ http.CloseNotifier = &GzipResponse{}
-	_ http.Flusher       = &GzipResponse{}
-	_ http.Hijacker      = &GzipResponse{}
-	_ http.Pusher        = &GzipResponse{}
-	_ io.Closer          = &GzipResponse{}
-	_ ResponseWriter     = &GzipResponse{}
+	_ http.CloseNotifier = (*GzipResponse)(nil)
+	_ http.Flusher       = (*GzipResponse)(nil)
+	_ http.Hijacker      = (*GzipResponse)(nil)
+	_ http.Pusher        = (*GzipResponse)(nil)
+	_ io.Closer          = (*GzipResponse)(nil)
+	_ ResponseWriter     = (*GzipResponse)(nil)
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
