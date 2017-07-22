@@ -12,8 +12,8 @@ import "fmt"
 //
 // Currently `bcrypt` is supported by aah framework, remaining encoders are `upcoming`.
 //
-// Caution: If you're using an unsecure hashing it may not be secured for your
-// application. Consider using `bcrypt`, `scrypt`, or `pbkdf2`. Good read about
+// Caution: If you're using an unsecure hashing, your application is exposed to security
+// issues. Consider using `bcrypt`, `scrypt`, or `pbkdf2`. Good read about
 // hashing security - https://crackstation.net/hashing-security.htm
 type PasswordEncoder interface {
 	Compare(hash, password []byte) bool

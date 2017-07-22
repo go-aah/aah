@@ -17,7 +17,7 @@ func TestSchemeBaseAuth(t *testing.T) {
 	// BaseAuth initialize and assertion
 	baseAuth := BaseAuth{}
 	cfg, _ := config.ParseString("")
-	err := baseAuth.Init(cfg)
+	err := baseAuth.Init(cfg, "base")
 
 	assert.Nil(t, err)
 	assert.NotNil(t, baseAuth)
@@ -52,7 +52,7 @@ func TestSchemeBaseAuth(t *testing.T) {
 
 	authzInfo = baseAuth.DoAuthorizationInfo(authcInfo)
 	assert.NotNil(t, authzInfo)
-	assert.Nil(t, baseAuth.Init(cfg))
+	assert.Nil(t, baseAuth.Init(cfg, "base"))
 	assert.Equal(t, "unknown", baseAuth.Scheme())
 
 	authcToken = baseAuth.ExtractAuthenticationToken(nil)

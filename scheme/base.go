@@ -14,6 +14,8 @@ import (
 	"aahframework.org/security.v0-unstable/authz"
 )
 
+var _ Schemer = (*BaseAuth)(nil)
+
 // BaseAuth struct hold base implementation of aah framework's authentication schemes.
 type BaseAuth struct {
 	authenticator   authc.Authenticator
@@ -25,8 +27,8 @@ type BaseAuth struct {
 }
 
 // Init method typically implemented by extending struct.
-func (b *BaseAuth) Init(cfg *config.Config) error {
-	log.Trace("BaseAuth Init called")
+func (b *BaseAuth) Init(cfg *config.Config, keyName string) error {
+	log.Trace("BaseAuth Init called:", keyName)
 	return nil
 }
 
@@ -69,9 +71,9 @@ func (b *BaseAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 		return nil, authc.ErrAuthenticatorIsNil
 	}
 
-	authcInfo := b.authenticator.GetAuthenticationInfo(authcToken)
-	if authcInfo == nil {
-		log.Error("Subject not found")
+	authcInfo, err := b.authenticator.GetAuthenticationInfo(authcToken)
+	if err != nil || authcInfo == nil {
+		log.Error(err)
 		return nil, authc.ErrAuthenticationFailed
 	}
 

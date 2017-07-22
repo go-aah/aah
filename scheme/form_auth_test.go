@@ -20,28 +20,33 @@ import (
 type testFormAuthentication struct {
 }
 
+var (
+	_ authc.Authenticator = (*testFormAuthentication)(nil)
+	_ authz.Authorizer    = (*testFormAuthentication)(nil)
+)
+
 func (tfa *testFormAuthentication) Init(cfg *config.Config) error {
 	return nil
 }
 
-func (tfa *testFormAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) *authc.AuthenticationInfo {
+func (tfa *testFormAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
 	if authcToken == nil {
-		return authc.NewAuthenticationInfo()
+		return authc.NewAuthenticationInfo(), nil
 	}
 
 	if authcToken.Identity == "jeeva" {
 		authcInfo := authc.NewAuthenticationInfo()
 		authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "jeeva", IsPrimary: true})
 		authcInfo.Credential = []byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6") // welcome123
-		return authcInfo
+		return authcInfo, nil
 	} else if authcToken.Identity == "john" {
 		authcInfo := authc.NewAuthenticationInfo()
 		authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "john", IsPrimary: true})
 		authcInfo.Credential = []byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6") // welcome123
 		authcInfo.IsLocked = true
-		return authcInfo
+		return authcInfo, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (tfa *testFormAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {

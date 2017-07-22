@@ -99,22 +99,27 @@ func TestSchemeBasicAuthFileRealm(t *testing.T) {
 type testBasicAuthentication struct {
 }
 
+var (
+	_ authc.Authenticator = (*testBasicAuthentication)(nil)
+	_ authz.Authorizer    = (*testBasicAuthentication)(nil)
+)
+
 func (tba *testBasicAuthentication) Init(cfg *config.Config) error {
 	return nil
 }
 
-func (tba *testBasicAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) *authc.AuthenticationInfo {
+func (tba *testBasicAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
 	if authcToken == nil {
-		return authc.NewAuthenticationInfo()
+		return authc.NewAuthenticationInfo(), nil
 	}
 
 	if authcToken.Identity == "test1" {
 		authcInfo := authc.NewAuthenticationInfo()
 		authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "test1", IsPrimary: true})
 		authcInfo.Credential = []byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6") // welcome123
-		return authcInfo
+		return authcInfo, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (tba *testBasicAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {

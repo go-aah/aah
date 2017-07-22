@@ -18,7 +18,7 @@ func TestScheme(t *testing.T) {
 	authScheme = New("basic")
 	assert.NotNil(t, authScheme)
 
-	authScheme = New("api")
+	authScheme = New("generic")
 	assert.NotNil(t, authScheme)
 
 	authScheme = New("unknown")

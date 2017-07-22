@@ -9,38 +9,43 @@ import (
 	"strings"
 	"testing"
 
-	ahttp "aahframework.org/ahttp.v0"
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/security.v0-unstable/authc"
 	"aahframework.org/security.v0-unstable/authz"
 	"aahframework.org/test.v0/assert"
 )
 
-type testAPIAuthentication struct {
+type testGenericAuthentication struct {
 }
 
-func (ta *testAPIAuthentication) Init(cfg *config.Config) error {
+var (
+	_ authc.Authenticator = (*testGenericAuthentication)(nil)
+	_ authz.Authorizer    = (*testGenericAuthentication)(nil)
+)
+
+func (tg *testGenericAuthentication) Init(cfg *config.Config) error {
 	return nil
 }
 
-func (ta *testAPIAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) *authc.AuthenticationInfo {
+func (tg *testGenericAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
 	if authcToken == nil {
-		return authc.NewAuthenticationInfo()
+		return authc.NewAuthenticationInfo(), nil
 	}
 
 	if strings.HasSuffix(authcToken.Identity, "de4cdd5e96d24708af69b2d0f1b6db14") {
 		authcInfo := authc.NewAuthenticationInfo()
 		authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "jeeva", IsPrimary: true})
-		return authcInfo
+		return authcInfo, nil
 	} else if strings.HasSuffix(authcToken.Identity, "de4cdd5e96d24708af69b2d0f1b6db14") {
 		authcInfo := authc.NewAuthenticationInfo()
 		authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "database", Value: "john", IsPrimary: true})
-		return authcInfo
+		return authcInfo, nil
 	}
-	return nil
+	return nil, nil
 }
 
-func (ta *testAPIAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {
+func (tg *testGenericAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {
 	return nil
 }
 
@@ -73,36 +78,36 @@ func TestSchemeAPIAuth(t *testing.T) {
   }
   `
 
-	apiAuth := APIAuth{}
+	genericAuth := GenericAuth{}
 	cfg, _ := config.ParseString(securityAuthConfigStr)
 
-	err := apiAuth.Init(cfg, "api_auth")
+	err := genericAuth.Init(cfg, "api_auth")
 	assert.Nil(t, err)
-	assert.Equal(t, "api", apiAuth.Scheme())
-	assert.Equal(t, "X-Authorization", apiAuth.IdentityHeader)
-	assert.Equal(t, "", apiAuth.CredentialHeader)
+	assert.Equal(t, "api", genericAuth.Scheme())
+	assert.Equal(t, "X-Authorization", genericAuth.IdentityHeader)
+	assert.Equal(t, "", genericAuth.CredentialHeader)
 
 	// Authentication - Failure
 	req, _ := http.NewRequest("GET", "http://localhost:8080/users/10010", nil)
 	req.Header.Add("X-Authorization", "Bearer de4cdd5e96d24708af69b2d0f1b6db14")
 	areq := ahttp.ParseRequest(req, &ahttp.Request{})
-	authcToken := apiAuth.ExtractAuthenticationToken(areq)
-	authcInfo, err := apiAuth.DoAuthenticate(authcToken)
+	authcToken := genericAuth.ExtractAuthenticationToken(areq)
+	authcInfo, err := genericAuth.DoAuthenticate(authcToken)
 	assert.NotNil(t, err)
 	assert.Equal(t, "security: authenticator is nil", err.Error())
 	assert.Nil(t, authcInfo)
 
-	ta := &testAPIAuthentication{}
-	assert.Nil(t, apiAuth.SetAuthenticator(ta))
-	assert.Nil(t, apiAuth.SetAuthorizer(ta))
+	ta := &testGenericAuthentication{}
+	assert.Nil(t, genericAuth.SetAuthenticator(ta))
+	assert.Nil(t, genericAuth.SetAuthorizer(ta))
 
 	// Authentication - Success
-	authcInfo, err = apiAuth.DoAuthenticate(authcToken)
+	authcInfo, err = genericAuth.DoAuthenticate(authcToken)
 	assert.Nil(t, err)
 	assert.NotNil(t, authcInfo)
 	assert.Equal(t, "jeeva", authcInfo.PrimaryPrincipal().Value)
 
-	authzInfo := apiAuth.DoAuthorizationInfo(authcInfo)
+	authzInfo := genericAuth.DoAuthorizationInfo(authcInfo)
 	assert.NotNil(t, authzInfo)
 	assert.False(t, authzInfo.HasRole("role1"))
 

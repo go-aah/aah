@@ -16,6 +16,8 @@ import (
 	"aahframework.org/security.v0-unstable/authz"
 )
 
+var _ Schemer = (*BasicAuth)(nil)
+
 type (
 	// BasicAuth struct is aah framework's ready to use Basic Authentication scheme.
 	BasicAuth struct {
@@ -92,6 +94,7 @@ func (b *BasicAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*auth
 	log.Info(authcToken)
 
 	var authcInfo *authc.AuthenticationInfo
+	var err error
 	if b.isFileRealm {
 		if subject, found := b.subjectMap[authcToken.Identity]; found {
 			authcInfo = subject.AuthcInfo
@@ -102,11 +105,11 @@ func (b *BasicAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*auth
 			return nil, authc.ErrAuthenticatorIsNil
 		}
 
-		authcInfo = b.authenticator.GetAuthenticationInfo(authcToken)
+		authcInfo, err = b.authenticator.GetAuthenticationInfo(authcToken)
 	}
 
-	if authcInfo == nil {
-		log.Error("Subject not found")
+	if err != nil || authcInfo == nil {
+		log.Error(err)
 		return nil, authc.ErrAuthenticationFailed
 	}
 

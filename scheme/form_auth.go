@@ -12,6 +12,8 @@ import (
 	"aahframework.org/security.v0-unstable/authc"
 )
 
+var _ Schemer = (*FormAuth)(nil)
+
 // FormAuth struct is aah framework's ready to use Form Authentication scheme.
 type FormAuth struct {
 	BaseAuth
@@ -55,9 +57,9 @@ func (f *FormAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 	}
 
 	// Getting authentication information
-	authcInfo := f.authenticator.GetAuthenticationInfo(authcToken)
-	if authcInfo == nil {
-		log.Error("Subject not found")
+	authcInfo, err := f.authenticator.GetAuthenticationInfo(authcToken)
+	if err != nil || authcInfo == nil {
+		log.Error(err)
 		return nil, authc.ErrAuthenticationFailed
 	}
 

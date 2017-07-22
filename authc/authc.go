@@ -19,6 +19,10 @@ var (
 	// such as subject password doesn't match, is-locked or is-Expired.
 	ErrAuthenticationFailed = errors.New("security: authentication failed")
 
+	// ErrSubjectNotExists error is returned when Subject is not exists in the application
+	// datasource. Typically used by aah application.
+	ErrSubjectNotExists = errors.New("security: subject not exists")
+
 	authcInfoPool = &sync.Pool{New: func() interface{} {
 		return &AuthenticationInfo{
 			Principals: make([]*Principal, 0),
@@ -34,7 +38,7 @@ type Authenticator interface {
 
 	// GetAuthenticationInfo method gets called when authentication happens for
 	// user provided credentials.
-	GetAuthenticationInfo(authcToken *AuthenticationToken) *AuthenticationInfo
+	GetAuthenticationInfo(authcToken *AuthenticationToken) (*AuthenticationInfo, error)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
