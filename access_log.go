@@ -23,6 +23,7 @@ const (
 	fmtFlagRequestTime
 	fmtFlagRequestURL
 	fmtFlagRequestMethod
+	fmtFlagRequestProto
 	fmtFlagRequestID
 	fmtFlagRequestHeader
 	fmtFlagQueryString
@@ -30,6 +31,7 @@ const (
 	fmtFlagResponseSize
 	fmtFlagResponseHeader
 	fmtFlagResponseTime
+	fmtFlagCustom
 )
 
 var (
@@ -38,6 +40,7 @@ var (
 		"reqtime":   fmtFlagRequestTime,
 		"requrl":    fmtFlagRequestURL,
 		"reqmethod": fmtFlagRequestMethod,
+		"reqproto":  fmtFlagRequestProto,
 		"reqid":     fmtFlagRequestID,
 		"reqhdr":    fmtFlagRequestHeader,
 		"querystr":  fmtFlagQueryString,
@@ -45,9 +48,10 @@ var (
 		"ressize":   fmtFlagResponseSize,
 		"reshdr":    fmtFlagResponseHeader,
 		"restime":   fmtFlagResponseTime,
+		"custom":    fmtFlagCustom,
 	}
 
-	appDefaultAccessLogPattern = "%clientip %reqtime %restime %resstatus %ressize %reqmethod %requrl"
+	appDefaultAccessLogPattern = "%clientip %custom:- %reqtime %reqmethod %requrl %reqproto %resstatus %ressize %restime %reqhdr:referer"
 	appReqStartTimeKey         = "_appReqStartTimeKey"
 	appReqIDHdrKey             = ahttp.HeaderXRequestID
 	appAccessLog               *log.Logger
@@ -86,7 +90,7 @@ func (al *accessLog) GetRequestHdr(hdrKey string) string {
 	if len(hdrValues) == 0 {
 		return "-"
 	}
-	return strings.Join(hdrValues, ", ")
+	return `"` + strings.Join(hdrValues, ", ") + `"`
 }
 
 func (al *accessLog) GetResponseHdr(hdrKey string) string {
@@ -94,7 +98,7 @@ func (al *accessLog) GetResponseHdr(hdrKey string) string {
 	if len(hdrValues) == 0 {
 		return "-"
 	}
-	return strings.Join(hdrValues, ", ")
+	return `"` + strings.Join(hdrValues, ", ") + `"`
 }
 
 func (al *accessLog) GetQueryString() string {
@@ -102,7 +106,7 @@ func (al *accessLog) GetQueryString() string {
 	if ess.IsStrEmpty(queryStr) {
 		return "-"
 	}
-	return queryStr
+	return `"` + queryStr + `"`
 }
 
 func (al *accessLog) Reset() {
@@ -196,6 +200,8 @@ func accessLogFormatter(al *accessLog) string {
 			buf.WriteString(al.Request.Path)
 		case fmtFlagRequestMethod:
 			buf.WriteString(al.Request.Method)
+		case fmtFlagRequestProto:
+			buf.WriteString(al.Request.Raw.Proto)
 		case fmtFlagRequestID:
 			buf.WriteString(al.GetRequestHdr(appReqIDHdrKey))
 		case fmtFlagRequestHeader:
@@ -210,6 +216,8 @@ func accessLogFormatter(al *accessLog) string {
 			buf.WriteString(al.GetResponseHdr(part.Format))
 		case fmtFlagResponseTime:
 			buf.WriteString(fmt.Sprintf("%.4f", al.ElapsedDuration.Seconds()*1e3))
+		case fmtFlagCustom:
+			buf.WriteString(part.Format)
 		}
 		buf.WriteByte(' ')
 	}

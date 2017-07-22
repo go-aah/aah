@@ -27,10 +27,10 @@ func TestAccessLogFormatter(t *testing.T) {
 	al.Request.Header.Set(ahttp.HeaderXRequestID, "5946ed129bf23409520736de")
 
 	// Testing for the default access log pattern first
-	expectedDefaultFormat := fmt.Sprintf("%s %v %v %d %d %s %s",
+	expectedDefaultFormat := fmt.Sprintf("%v - %v %v %v %v %v %v %v %v",
 		"[::1]", al.StartTime.Format(time.RFC3339),
-		fmt.Sprintf("%.4f", al.ElapsedDuration.Seconds()*1e3), al.ResStatus,
-		al.ResBytes, al.Request.Method, al.Request.Path)
+		al.Request.Method, al.Request.Path, al.Request.Raw.Proto, al.ResStatus,
+		al.ResBytes, fmt.Sprintf("%.4f", al.ElapsedDuration.Seconds()*1e3), "-")
 
 	testFormatter(t, al, appDefaultAccessLogPattern, expectedDefaultFormat)
 
@@ -38,7 +38,7 @@ func TestAccessLogFormatter(t *testing.T) {
 	al = createTestAccessLog()
 	al.ResHdr.Add("content-type", "application/json")
 	pattern := "%reqtime:2016-05-16 %reqhdr %querystr %reshdr:content-type"
-	expected := fmt.Sprintf("%s %s %s %s", al.StartTime.Format("2016-05-16"), "-", "me=human", al.ResHdr.Get("Content-Type"))
+	expected := fmt.Sprintf(`%s %s "%s" "%s"`, al.StartTime.Format("2016-05-16"), "-", "me=human", al.ResHdr.Get("Content-Type"))
 
 	testFormatter(t, al, pattern, expected)
 
@@ -50,7 +50,7 @@ func TestAccessLogFormatter(t *testing.T) {
 	al.Request.ClientIP = "127.0.0.1"
 	al.ResHdr.Add("content-type", "application/json")
 	allAvailablePatterns := "%clientip %reqid %reqtime %restime %resstatus %ressize %reqmethod %requrl %reqhdr:accept %querystr %reshdr"
-	expectedForAllAvailablePatterns := fmt.Sprintf("%s %s %s %v %d %d %s %s %s %s %s",
+	expectedForAllAvailablePatterns := fmt.Sprintf(`%s "%s" %s %v %d %d %s %s "%s" "%s" %s`,
 		al.Request.ClientIP, al.Request.Header.Get(ahttp.HeaderXRequestID),
 		al.StartTime.Format(time.RFC3339), fmt.Sprintf("%.4f", al.ElapsedDuration.Seconds()*1e3),
 		al.ResStatus, al.ResBytes, al.Request.Method,
