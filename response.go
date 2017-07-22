@@ -42,41 +42,35 @@ type (
 )
 
 var (
-	rPool = sync.Pool{
-		New: func() interface{} {
-			return &Response{}
-		},
-	}
+	responsePool = &sync.Pool{New: func() interface{} { return &Response{} }}
 
 	// interface compliance
-	_ http.CloseNotifier = &Response{}
-	_ http.Flusher       = &Response{}
-	_ http.Hijacker      = &Response{}
-	_ http.Pusher        = &Response{}
-	_ io.Closer          = &Response{}
-	_ ResponseWriter     = &Response{}
+	_ http.CloseNotifier = (*Response)(nil)
+	_ http.Flusher       = (*Response)(nil)
+	_ http.Hijacker      = (*Response)(nil)
+	_ http.Pusher        = (*Response)(nil)
+	_ io.Closer          = (*Response)(nil)
+	_ ResponseWriter     = (*Response)(nil)
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
+// TODO for old method cleanup
+
 // GetResponseWriter method wraps given writer and returns the aah response writer.
+// Deprecated use `AcquireResponseWriter` instead.
 func GetResponseWriter(w http.ResponseWriter) ResponseWriter {
-	rw := rPool.Get().(*Response)
+	rw := responsePool.Get().(*Response)
 	rw.w = w
 	return rw
 }
 
 // PutResponseWriter method puts response writer back to pool.
+// Deprecated use `ReleaseResponseWriter` instead.
 func PutResponseWriter(aw ResponseWriter) {
-	r := aw.(*Response)
-	_ = r.Close()
-	r.w = nil
-	r.status = 0
-	r.bytesWritten = 0
-	r.wroteStatus = false
-	rPool.Put(r)
+	releaseResponse(aw.(*Response))
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -131,8 +125,10 @@ func (r *Response) Unwrap() http.ResponseWriter {
 
 // CloseNotify method calls underlying CloseNotify method if it's compatible
 func (r *Response) CloseNotify() <-chan bool {
-	n := r.w.(http.CloseNotifier)
-	return n.CloseNotify()
+	if n, ok := r.w.(http.CloseNotifier); ok {
+		return n.CloseNotify()
+	}
+	return nil
 }
 
 // Flush method calls underlying Flush method if it's compatible
@@ -162,6 +158,14 @@ func (r *Response) Push(target string, opts *http.PushOptions) error {
 	return nil
 }
 
+// Reset method resets the instance value for repurpose.
+func (r *Response) Reset() {
+	r.w = nil
+	r.status = 0
+	r.bytesWritten = 0
+	r.wroteStatus = false
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Response Unexported methods
 //___________________________________
@@ -170,4 +174,11 @@ func (r *Response) setContentTypeIfNotSet(b []byte) {
 	if _, found := r.Header()[HeaderContentType]; !found {
 		r.Header().Set(HeaderContentType, http.DetectContentType(b))
 	}
+}
+
+// releaseResponse method puts response back to pool.
+func releaseResponse(r *Response) {
+	_ = r.Close()
+	r.Reset()
+	responsePool.Put(r)
 }

@@ -54,10 +54,45 @@ func TestHTTPGzipWriter(t *testing.T) {
 	assert.True(t, strings.HasPrefix(string(resp), "aah framework - testing gzip response writer"))
 }
 
+func TestHTTPGzipWriter2(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		GzipLevel = gzip.BestSpeed
+		gw := WrapGzipWriter(AcquireResponseWriter(w))
+		defer ReleaseResponseWriter(gw)
+
+		gw.Header().Set(HeaderVary, HeaderAcceptEncoding)
+		gw.Header().Set(HeaderContentEncoding, "gzip")
+		gw.WriteHeader(http.StatusOK)
+
+		_, _ = gw.Write([]byte(`aah framework - testing gzip response writer
+
+      Package ahttp is to cater HTTP helper methods for aah framework.
+      Like parse HTTP headers, ResponseWriter, content type, etc.
+
+      Dir method returns a http.Filesystem that can be directly used by http.FileServer().
+      It works the same as http.Dir() also provides ability to disable directory listing
+      with http.FileServer
+
+			Streamlined pool and methods.
+      `))
+		assert.Equal(t, 441, gw.BytesWritten())
+		assert.Equal(t, 200, gw.Status())
+		assert.NotNil(t, gw.Unwrap())
+	}
+
+	resp := gzipCallAndValidate(t, handler)
+	assert.Equal(t, 431, len(resp))
+	assert.True(t, strings.HasPrefix(string(resp), "aah framework - testing gzip response writer"))
+}
+
 func TestHTTPGzipHijack(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		GzipLevel = gzip.BestSpeed
-		gw := GetGzipResponseWriter(GetResponseWriter(w))
+		for i := 0; i < 5; i++ {
+			ngw, _ := gzip.NewWriterLevel(w, GzipLevel)
+			gwPool.Put(ngw)
+		}
+		gw := WrapGzipWriter(GetResponseWriter(w))
 
 		con, rw, err := gw.(http.Hijacker).Hijack()
 		assert.FailOnError(t, err, "")

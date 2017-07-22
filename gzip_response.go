@@ -26,43 +26,38 @@ var (
 	// GzipLevel holds value from app config.
 	GzipLevel int
 
-	grPool = sync.Pool{
-		New: func() interface{} {
-			return &GzipResponse{}
-		},
-	}
-
-	gwPool = sync.Pool{}
+	grPool = &sync.Pool{New: func() interface{} { return &GzipResponse{} }}
+	gwPool = &sync.Pool{}
 
 	// interface compliance
-	_ http.CloseNotifier = &GzipResponse{}
-	_ http.Flusher       = &GzipResponse{}
-	_ http.Hijacker      = &GzipResponse{}
-	_ http.Pusher        = &GzipResponse{}
-	_ io.Closer          = &GzipResponse{}
-	_ ResponseWriter     = &GzipResponse{}
+	_ http.CloseNotifier = (*GzipResponse)(nil)
+	_ http.Flusher       = (*GzipResponse)(nil)
+	_ http.Hijacker      = (*GzipResponse)(nil)
+	_ http.Pusher        = (*GzipResponse)(nil)
+	_ io.Closer          = (*GzipResponse)(nil)
+	_ ResponseWriter     = (*GzipResponse)(nil)
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
+
+// TODO for old method cleanup
 
 // GetGzipResponseWriter wraps `http.ResponseWriter`, returns aah framework response
 // writer that allows to advantage of response process.
+// Deprecated use `AcquireResponseWriter` instead.
 func GetGzipResponseWriter(w ResponseWriter) ResponseWriter {
 	gr := grPool.Get().(*GzipResponse)
-	gr.gw = getGzipWriter(w)
+	gr.gw = acquireGzipWriter(w)
 	gr.r = w.(*Response)
 	return gr
 }
 
 // PutGzipResponseWiriter method resets and puts the gzip writer into pool.
+// Deprecated use `ReleaseResponseWriter` instead.
 func PutGzipResponseWiriter(rw ResponseWriter) {
-	gw := rw.(*GzipResponse)
-	putGzipWriter(gw.gw)
-	PutResponseWriter(gw.r)
-	_ = gw.Close()
-	grPool.Put(gw)
+	releaseGzipResponse(rw.(*GzipResponse))
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -143,7 +138,15 @@ func (g *GzipResponse) Push(target string, opts *http.PushOptions) error {
 // GzipResponse Unexported methods
 //___________________________________
 
-func getGzipWriter(w io.Writer) *gzip.Writer {
+// releaseGzipResponse method resets and puts the gzip response into pool.
+func releaseGzipResponse(gw *GzipResponse) {
+	releaseGzipWriter(gw.gw)
+	releaseResponse(gw.r)
+	_ = gw.Close()
+	grPool.Put(gw)
+}
+
+func acquireGzipWriter(w io.Writer) *gzip.Writer {
 	gw := gwPool.Get()
 	if gw == nil {
 		if ngw, err := gzip.NewWriterLevel(w, GzipLevel); err == nil {
@@ -156,7 +159,7 @@ func getGzipWriter(w io.Writer) *gzip.Writer {
 	return ngw
 }
 
-func putGzipWriter(gw *gzip.Writer) {
+func releaseGzipWriter(gw *gzip.Writer) {
 	_ = gw.Close()
 	gwPool.Put(gw)
 }

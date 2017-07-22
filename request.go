@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"aahframework.org/essentials.v0"
 )
@@ -19,6 +20,8 @@ const (
 	jsonpReqParamKey = "callback"
 	ajaxHeaderValue  = "XMLHttpRequest"
 )
+
+var requestPool = &sync.Pool{New: func() interface{} { return &Request{} }}
 
 type (
 	// Request is extends `http.Request` for aah framework
@@ -84,6 +87,8 @@ type (
 
 		// Raw an object of Go HTTP server, direct interaction with
 		// raw object is not encouraged.
+		//
+		// Raw field to be unexported on v1 release, use `Req.Unwarp()` instead.
 		Raw *http.Request
 	}
 
@@ -97,7 +102,7 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // ParseRequest method populates the given aah framework `ahttp.Request`
@@ -180,6 +185,11 @@ func (r *Request) FormArrayValue(key string) []string {
 // returns error. It is caller responsibility to close the file.
 func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, error) {
 	return r.Params.FormFile(key)
+}
+
+//Unwrap returns the underlying http.Request
+func (r *Request) Unwrap() *http.Request {
+	return r.Raw
 }
 
 // Reset method resets request instance for reuse.
