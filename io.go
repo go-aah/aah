@@ -10,6 +10,10 @@ import "io"
 // about error while `Close()` and helpful for code quality too.
 func CloseQuietly(c ...interface{}) {
 	for _, v := range c {
+		if v == nil {
+			continue
+		}
+
 		if d, ok := v.(io.Closer); ok {
 			_ = d.Close()
 		}

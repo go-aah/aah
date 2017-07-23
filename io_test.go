@@ -16,5 +16,5 @@ func TestCloseQuietly(t *testing.T) {
 
 	assert.FailOnError(t, err, "")
 
-	CloseQuietly(file)
+	CloseQuietly(file, nil)
 }

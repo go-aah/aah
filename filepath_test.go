@@ -219,6 +219,9 @@ func TestStripExt(t *testing.T) {
 
 	name3 := StripExt("")
 	assert.Equal(t, "", name3)
+
+	name4 := StripExt("myname")
+	assert.Equal(t, "myname", name4)
 }
 
 func TestDirPaths(t *testing.T) {
@@ -250,6 +253,10 @@ func TestDirPaths(t *testing.T) {
 	assert.True(t, IsSliceContainsString(dirs, path11))
 	assert.True(t, IsSliceContainsString(dirs, path12))
 	assert.False(t, IsSliceContainsString(dirs, join(path22, "not-exists")))
+
+	dirs, err = DirsPathExcludes(join(testdataPath, "dirpaths"), true, Excludes{"level1-2", "level2-2"})
+	assert.FailOnError(t, err, "unable to get directory list")
+	assert.True(t, len(dirs) == 6)
 }
 
 func TestFilesPath(t *testing.T) {
@@ -284,4 +291,8 @@ func TestFilesPath(t *testing.T) {
 	files, err = FilesPath(path11, false)
 	assert.Nil(t, err)
 	assert.True(t, strings.HasSuffix(files[0], "file11.txt"))
+
+	files, err = FilesPathExcludes(join(testdataPath, "dirpaths"), true, Excludes{"file12.txt", "file22.txt"})
+	assert.Nil(t, err)
+	assert.True(t, len(files) == 3)
 }
