@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/essentials.v0"
 )
 
 // Format flags used to define log message format for each log entry

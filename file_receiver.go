@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/essentials.v0"
 )
 
 var (
