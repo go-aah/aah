@@ -25,7 +25,7 @@ import (
 
 const (
 	// Version no. of aah framework router library
-	Version = "0.7"
+	Version = "0.8"
 
 	wildcardSubdomainPrefix = "*."
 )
@@ -57,7 +57,6 @@ type (
 		configPath string
 		config     *config.Config
 		appCfg     *config.Config
-		// isConfigLoad bool
 	}
 
 	// Domain is used to hold domain related routes and it's route configuration
@@ -70,6 +69,7 @@ type (
 		MethodNotAllowed      bool
 		RedirectTrailingSlash bool
 		AutoOptions           bool
+		DefaultAuth           string
 		trees                 map[string]*node
 		routes                map[string]*Route
 	}
@@ -82,6 +82,7 @@ type (
 		Controller string
 		Action     string
 		ParentName string
+		Auth       string
 
 		// static route fields in-addition to above
 		IsStatic bool
@@ -98,10 +99,16 @@ type (
 
 	// PathParams is a PathParam-slice, as returned by the route tree.
 	PathParams []PathParam
+
+	parentRouteInfo struct {
+		ParentName string
+		PrefixPath string
+		Auth       string
+	}
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // New method returns the Router instance.
@@ -261,6 +268,7 @@ func (r *Router) processRoutesConfig() (err error) {
 			MethodNotAllowed:      domainCfg.BoolDefault("method_not_allowed", true),
 			RedirectTrailingSlash: domainCfg.BoolDefault("redirect_trailing_slash", true),
 			AutoOptions:           domainCfg.BoolDefault("auto_options", true),
+			DefaultAuth:           domainCfg.StringDefault("default_auth", ""),
 			trees:                 make(map[string]*node),
 			routes:                make(map[string]*Route),
 		}
@@ -293,13 +301,16 @@ func (r *Router) processRoutesConfig() (err error) {
 		// add domain routes
 		key := domain.key()
 		log.Debugf("Domain: %s, routes found: %d", key, len(domain.routes))
-		for _, dr := range domain.routes {
-			parentInfo := ""
-			if !ess.IsStrEmpty(dr.ParentName) {
-				parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
+		if log.IsLevelTrace() {
+			// don't spend time here, process only if log level is trace
+			for _, dr := range domain.routes {
+				parentInfo := ""
+				if !ess.IsStrEmpty(dr.ParentName) {
+					parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
+				}
+				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v, Auth: %v",
+					dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action, dr.Auth)
 			}
-			log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v",
-				dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action)
 		}
 
 		r.Domains[key] = domain
@@ -340,7 +351,7 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 		return nil
 	}
 
-	routes, err := parseRoutesSection(routesCfg, "", "")
+	routes, err := parseRoutesSection(routesCfg, &parentRouteInfo{Auth: domain.DefaultAuth})
 	if err != nil {
 		return err
 	}
@@ -627,7 +638,7 @@ func addRegisteredAction(methods map[string]map[string]uint8, route *Route) {
 	}
 }
 
-func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (routes []*Route, err error) {
+func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes []*Route, err error) {
 	for _, routeName := range cfg.Keys() {
 		// getting 'path'
 		routePath, found := cfg.String(routeName + ".path")
@@ -642,7 +653,7 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 			return
 		}
 
-		routePath = path.Join(prefixPath, routePath)
+		routePath = path.Join(routeInfo.PrefixPath, routePath)
 
 		// check child routes exists
 		notToSkip := true
@@ -671,6 +682,9 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 			return
 		}
 
+		// getting route authentication scheme name
+		routeAuth := cfg.StringDefault(routeName+".auth", routeInfo.Auth)
+
 		if notToSkip {
 			for _, m := range strings.Split(routeMethod, ",") {
 				routes = append(routes, &Route{
@@ -679,14 +693,19 @@ func parseRoutesSection(cfg *config.Config, parentName, prefixPath string) (rout
 					Method:     strings.TrimSpace(m),
 					Controller: routeController,
 					Action:     routeAction,
-					ParentName: parentName,
+					ParentName: routeInfo.ParentName,
+					Auth:       routeAuth,
 				})
 			}
 		}
 
 		// loading child routes
 		if childRoutes, found := cfg.GetSubConfig(routeName + ".routes"); found {
-			croutes, er := parseRoutesSection(childRoutes, routeName, routePath)
+			croutes, er := parseRoutesSection(childRoutes, &parentRouteInfo{
+				ParentName: routeName,
+				PrefixPath: routePath,
+				Auth:       routeAuth,
+			})
 			if er != nil {
 				err = er
 				return

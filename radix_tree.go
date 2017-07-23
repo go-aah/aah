@@ -151,7 +151,7 @@ func (n *node) add(path string, value interface{}) error {
 						if n.nType == catchAll {
 							pathSeg = path
 						} else {
-							pathSeg = strings.SplitN(path, "/", 2)[0]
+							pathSeg = strings.SplitN(path, SlashString, 2)[0]
 						}
 						prefix := fullPath[:strings.Index(fullPath, pathSeg)] + n.path
 

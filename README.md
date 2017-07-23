@@ -1,7 +1,7 @@
 # router - aah framework
-[![Build Status](https://travis-ci.org/go-aah/router.svg?branch=master)](https://travis-ci.org/go-aah/router) [![codecov](https://codecov.io/gh/go-aah/router/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/router/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/router.v0)](https://goreportcard.com/report/aahframework.org/router.v0) [![Version](https://img.shields.io/badge/version-0.7-blue.svg)](https://github.com/go-aah/router/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/router.v0?status.svg)](https://godoc.org/aahframework.org/router.v0)  [![License](https://img.shields.io/github/license/go-aah/router.svg)](LICENSE)
+[![Build Status](https://travis-ci.org/go-aah/router.svg?branch=master)](https://travis-ci.org/go-aah/router) [![codecov](https://codecov.io/gh/go-aah/router/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/router/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/router.v0)](https://goreportcard.com/report/aahframework.org/router.v0) [![Version](https://img.shields.io/badge/version-0.8-blue.svg)](https://github.com/go-aah/router/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/router.v0?status.svg)](https://godoc.org/aahframework.org/router.v0)  [![License](https://img.shields.io/github/license/go-aah/router.svg)](LICENSE) [![Twitter](https://img.shields.io/badge/twitter-@aahframework-55acee.svg)](https://twitter.com/aahframework)
 
-***v0.7 [released](https://github.com/go-aah/router/releases/latest) and tagged on May 16, 2017***
+***v0.8 [released](https://github.com/go-aah/router/releases/latest) and tagged on Jul 23, 2017***
 
 HTTP Router it supports domain and sub-domains routing. It's built using radix tree routing algorithm of [httprouter](https://github.com/julienschmidt/httprouter) library.
 
