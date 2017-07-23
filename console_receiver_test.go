@@ -5,6 +5,8 @@
 package log
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"aahframework.org/config.v0"
@@ -67,7 +69,7 @@ func TestConsoleLoggerUnknownFormatFlag(t *testing.T) {
 	cfg, _ := config.ParseString(configStr)
 	logger, err := New(cfg)
 	assert.Nil(t, logger)
-	assert.Equal(t, "unrecognized log format flag: myfile", err.Error())
+	assert.Equal(t, "fmtflag: unknown flag 'myfile'", err.Error())
 }
 
 func TestConsoleLoggerUnknownLevel(t *testing.T) {
@@ -94,6 +96,7 @@ func TestConsoleLoggerDefaults(t *testing.T) {
 	logger, err := New(cfg)
 	assert.NotNil(t, logger)
 	assert.Nil(t, err)
+	logger.SetWriter(ioutil.Discard)
 
 	// receiver nil scenario
 	logger.receiver = nil
@@ -120,6 +123,12 @@ func testConsoleLogger(t *testing.T, cfgStr string) {
 
 	logger.Error("Yes, yes, yes - finally an error")
 	logger.Errorf("Yes, yes, yes - %v", "finally an error")
+
+	exit = func(code int) {}
+	logger.Fatal("Yes, yes, yes - at last fatal")
+	logger.Fatalf("Yes, yes, yes - %v", "at last fatal")
+	logger.Fatalln("Yes, yes, yes - %v", "at last fatal")
+	exit = os.Exit
 
 	assert.NotNil(t, logger.ToGoLogger())
 }

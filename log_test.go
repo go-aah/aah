@@ -66,14 +66,6 @@ func TestMisc(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, "log: config is nil", err.Error())
 
-	// Discard
-	discard := DiscardReceiver{}
-	_ = discard.Init(nil)
-	discard.Log(&Entry{})
-	_ = discard.SetPattern("nothing")
-	assert.False(t, discard.IsCallerInfo())
-	assert.NotNil(t, discard.Writer())
-
 	// util
 	assert.Nil(t, getReceiverByName("SMTP"))
 	assert.Equal(t, "", formatTime(time.Time{}))

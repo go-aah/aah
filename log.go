@@ -35,14 +35,11 @@ import (
 )
 
 // Level type definition
-type Level uint8
-
-// FmtFlag type definition
-type FmtFlag uint8
+type level uint8
 
 // Log Level definition
 const (
-	levelFatal Level = iota
+	levelFatal level = iota
 	levelPanic
 	LevelError
 	LevelWarn
@@ -52,68 +49,26 @@ const (
 	LevelUnknown
 )
 
-// Format flags used to define log message format for each log entry
-const (
-	FmtFlagLevel FmtFlag = iota
-	FmtFlagTime
-	FmtFlagUTCTime
-	FmtFlagLongfile
-	FmtFlagShortfile
-	FmtFlagLine
-	FmtFlagMessage
-	FmtFlagCustom
-	FmtFlagUnknown
-)
-
 var (
 	// Version no. of aahframework.org/log library
-	Version = "0.4"
-
-	// FmtFlags is the list of log format flags supported by aah/log library
-	// Usage of flag order is up to format composition.
-	//    level     - outputs INFO, DEBUG, ERROR, so on
-	//    time      - outputs local time as per format supplied
-	//    utctime   - outputs UTC time as per format supplied
-	//    longfile  - outputs full file name: /a/b/c/d.go
-	//    shortfile - outputs final file name element: d.go
-	//    line      - outputs file line number: L23
-	//    message   - outputs given message along supplied arguments if they present
-	//    custom    - outputs string as-is into log entry
-	FmtFlags = map[string]FmtFlag{
-		"level":     FmtFlagLevel,
-		"time":      FmtFlagTime,
-		"utctime":   FmtFlagUTCTime,
-		"longfile":  FmtFlagLongfile,
-		"shortfile": FmtFlagShortfile,
-		"line":      FmtFlagLine,
-		"message":   FmtFlagMessage,
-		"custom":    FmtFlagCustom,
-	}
-
-	// DefaultPattern is default log entry pattern in aah/log. Only applicable to
-	// text formatter.
-	// For e.g:
-	//    2006-01-02 15:04:05.000 INFO  This is my message
-	DefaultPattern = "%time:2006-01-02 15:04:05.000 %level:-5 %message"
-
-	// BackupTimeFormat is used for timestamp with filename on rotation
-	BackupTimeFormat = "2006-01-02-15-04-05.000"
+	Version = "0.5"
 
 	// ErrLogReceiverIsNil returned when suppiled receiver is nil.
 	ErrLogReceiverIsNil = errors.New("log: receiver is nil")
 
-	flagSeparator      = "%"
-	flagValueSeparator = ":"
-	defaultFormat      = "%v"
-	filePermission     = os.FileMode(0755)
+	filePermission = os.FileMode(0755)
+
+	// abstract it, can be unit tested
+	exit = os.Exit
 )
 
 type (
 	// Receiver is the interface for pluggable log receiver.
-	// For e.g: Console, File, HTTP, etc
+	// For e.g: Console, File
 	Receiver interface {
 		Init(cfg *config.Config) error
 		SetPattern(pattern string) error
+		SetWriter(w io.Writer)
 		IsCallerInfo() bool
 		Writer() io.Writer
 		Log(e *Entry)
@@ -125,13 +80,13 @@ type (
 	Logger struct {
 		cfg      *config.Config
 		m        *sync.Mutex
-		level    Level
+		level    level
 		receiver Receiver
 	}
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // New method creates the aah logger based on supplied `config.Config`.
@@ -183,7 +138,7 @@ func (l *Logger) SetLevel(level string) error {
 	return nil
 }
 
-// SetPattern methods sets the log format pattern.
+// SetPattern method sets the log format pattern.
 func (l *Logger) SetPattern(pattern string) error {
 	l.m.Lock()
 	defer l.m.Unlock()
@@ -193,7 +148,7 @@ func (l *Logger) SetPattern(pattern string) error {
 	return l.receiver.SetPattern(pattern)
 }
 
-// SetReceiver sets the given receiver into logger instance.
+// SetReceiver method sets the given receiver into logger instance.
 func (l *Logger) SetReceiver(receiver Receiver) error {
 	l.m.Lock()
 	defer l.m.Unlock()
@@ -204,6 +159,13 @@ func (l *Logger) SetReceiver(receiver Receiver) error {
 
 	l.receiver = receiver
 	return l.receiver.Init(l.cfg)
+}
+
+// SetWriter method sets the given writer into logger instance.
+func (l *Logger) SetWriter(w io.Writer) {
+	l.m.Lock()
+	defer l.m.Unlock()
+	l.receiver.SetWriter(w)
 }
 
 // ToGoLogger method wraps the current log writer into Go Logger instance.
@@ -288,19 +250,19 @@ func (l *Logger) Println(format string, v ...interface{}) {
 // Fatal logs message as `FATAL` and call to os.Exit(1).
 func (l *Logger) Fatal(v ...interface{}) {
 	l.output(levelFatal, 3, nil, v...)
-	os.Exit(1)
+	exit(1)
 }
 
 // Fatalf logs message as `FATAL` and call to os.Exit(1).
 func (l *Logger) Fatalf(format string, v ...interface{}) {
 	l.output(levelFatal, 3, &format, v...)
-	os.Exit(1)
+	exit(1)
 }
 
 // Fatalln logs message as `FATAL` and call to os.Exit(1).
-func (l *Logger) Fatalln(format string, v ...interface{}) {
-	l.output(levelFatal, 3, &format, v...)
-	os.Exit(1)
+func (l *Logger) Fatalln(v ...interface{}) {
+	l.output(levelFatal, 3, nil, v...)
+	exit(1)
 }
 
 // Panic logs message as `PANIC` and call to panic().
@@ -322,18 +284,47 @@ func (l *Logger) Panicln(format string, v ...interface{}) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Logger level methods
+//___________________________________
+
+// IsLevelInfo method returns true if log level is INFO otherwise false.
+func (l *Logger) IsLevelInfo() bool {
+	return l.level == LevelInfo
+}
+
+// IsLevelError method returns true if log level is ERROR otherwise false.
+func (l *Logger) IsLevelError() bool {
+	return l.level == LevelError
+}
+
+// IsLevelWarn method returns true if log level is WARN otherwise false.
+func (l *Logger) IsLevelWarn() bool {
+	return l.level == LevelWarn
+}
+
+// IsLevelDebug method returns true if log level is DEBUG otherwise false.
+func (l *Logger) IsLevelDebug() bool {
+	return l.level == LevelDebug
+}
+
+// IsLevelTrace method returns true if log level is TRACE otherwise false.
+func (l *Logger) IsLevelTrace() bool {
+	return l.level == LevelTrace
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
 
 // output method checks the level, formats the arguments and call to configured
 // Log receivers.
-func (l *Logger) output(level Level, calldepth int, format *string, v ...interface{}) {
+func (l *Logger) output(level level, calldepth int, format *string, v ...interface{}) {
 	if level > l.level {
 		return
 	}
 
-	entry := getEntry()
-	defer putEntry(entry)
+	entry := acquireEntry()
+	defer releaseEntry(entry)
 	entry.Time = time.Now()
 	entry.Level = level
 	if format == nil {
@@ -347,4 +338,7 @@ func (l *Logger) output(level Level, calldepth int, format *string, v ...interfa
 	}
 
 	l.receiver.Log(entry)
+
+	// Execute logger hooks
+	go executeHooks(*entry)
 }

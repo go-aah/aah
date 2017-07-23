@@ -5,6 +5,7 @@
 package log
 
 import (
+	"io/ioutil"
 	"testing"
 
 	"aahframework.org/config.v0"
@@ -113,7 +114,7 @@ func TestFileLoggerUnknownFormatFlag(t *testing.T) {
 	cfg, _ := config.ParseString(configStr)
 	logger, err := New(cfg)
 	assert.Nil(t, logger)
-	assert.Equal(t, "unrecognized log format flag: myfile", err.Error())
+	assert.Equal(t, "fmtflag: unknown flag 'myfile'", err.Error())
 }
 
 func TestFileLoggerIncorrectSizeValue(t *testing.T) {
@@ -158,4 +159,5 @@ func testFileLogger(t *testing.T, cfgStr string, loop int) {
 	}
 
 	assert.NotNil(t, logger.ToGoLogger())
+	logger.SetWriter(ioutil.Discard)
 }

@@ -11,6 +11,7 @@ import (
 	"runtime"
 
 	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
 )
 
 var (
@@ -26,7 +27,7 @@ var (
 		LevelTrace: []byte("\033[0;35m"), // magenta (purple)
 	}
 
-	_ Receiver = &ConsoleReceiver{}
+	_ Receiver = (*ConsoleReceiver)(nil)
 )
 
 // ConsoleReceiver writes the log entry into os.Stderr.
@@ -34,7 +35,7 @@ var (
 type ConsoleReceiver struct {
 	out          io.Writer
 	formatter    string
-	flags        *[]FlagPart
+	flags        []ess.FmtFlagPart
 	isCallerInfo bool
 	isColor      bool
 }
@@ -58,7 +59,7 @@ func (c *ConsoleReceiver) Init(cfg *config.Config) error {
 
 // SetPattern method initializes the logger format pattern.
 func (c *ConsoleReceiver) SetPattern(pattern string) error {
-	flags, err := parseFlag(pattern)
+	flags, err := ess.ParseFmtFlag(pattern, FmtFlags)
 	if err != nil {
 		return err
 	}
@@ -67,6 +68,11 @@ func (c *ConsoleReceiver) SetPattern(pattern string) error {
 		c.isCallerInfo = isCallerInfo(c.flags)
 	}
 	return nil
+}
+
+// SetWriter method sets the given writer into console receiver.
+func (c *ConsoleReceiver) SetWriter(w io.Writer) {
+	c.out = w
 }
 
 // IsCallerInfo method returns true if log receiver is configured with caller info

@@ -5,6 +5,7 @@
 package log
 
 import (
+	"os"
 	"testing"
 
 	"aahframework.org/config.v0"
@@ -42,6 +43,18 @@ func TestDefaultLogger(t *testing.T) {
 	testStdPanic("panicf", "this is panicf")
 	testStdPanic("panicln", "this is panicln")
 
+	assert.Equal(t, "DEBUG", Level())
+	assert.True(t, IsLevelDebug())
+	assert.False(t, IsLevelError())
+	assert.False(t, IsLevelInfo())
+	assert.False(t, IsLevelWarn())
+	assert.False(t, IsLevelTrace())
+
+	exit = func(code int) {}
+	Fatal("fatal msg 1")
+	Fatalln("fatal msg %v", 2)
+	Fatalf("fatal msg %v", 3)
+	exit = os.Exit
 }
 
 func TestDefaultLoggerMisc(t *testing.T) {
@@ -52,6 +65,7 @@ func TestDefaultLoggerMisc(t *testing.T) {
 	Printf("welcome 2 printf")
 	Println("welcome 2 println")
 
+	assert.Equal(t, "DEBUG", newStd.Level())
 	assert.Nil(t, SetLevel("trace"))
 	assert.Nil(t, SetPattern("%level:-5 %message"))
 }

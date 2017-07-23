@@ -8,10 +8,12 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"aahframework.org/essentials.v0"
 )
 
 var (
-	levelNameToLevel = map[string]Level{
+	levelNameToLevel = map[string]level{
 		"FATAL": levelFatal,
 		"PANIC": levelPanic,
 		"ERROR": LevelError,
@@ -21,7 +23,7 @@ var (
 		"TRACE": LevelTrace,
 	}
 
-	levelToLevelName = map[Level]string{
+	levelToLevelName = map[level]string{
 		levelFatal: "FATAL",
 		levelPanic: "PANIC",
 		LevelError: "ERROR",
@@ -36,7 +38,7 @@ var (
 // Unexported methods
 //___________________________________
 
-func levelByName(name string) Level {
+func levelByName(name string) level {
 	if level, ok := levelNameToLevel[strings.ToUpper(name)]; ok {
 		return level
 	}
@@ -44,16 +46,8 @@ func levelByName(name string) Level {
 	return LevelUnknown
 }
 
-func fmtFlagByName(name string) FmtFlag {
-	if flag, ok := FmtFlags[name]; ok {
-		return flag
-	}
-
-	return FmtFlagUnknown
-}
-
-func isFmtFlagExists(flags *[]FlagPart, flag FmtFlag) bool {
-	for _, f := range *flags {
+func isFmtFlagExists(flags []ess.FmtFlagPart, flag ess.FmtFlag) bool {
+	for _, f := range flags {
 		if f.Flag == flag {
 			return true
 		}
@@ -71,19 +65,21 @@ func fetchCallerInfo(calldepth int) (string, int) {
 }
 
 // isCallerInfo method to identify to fetch caller or not.
-func isCallerInfo(flags *[]FlagPart) bool {
+func isCallerInfo(flags []ess.FmtFlagPart) bool {
 	return (isFmtFlagExists(flags, FmtFlagShortfile) ||
 		isFmtFlagExists(flags, FmtFlagLongfile) ||
 		isFmtFlagExists(flags, FmtFlagLine))
 }
 
 func getReceiverByName(name string) Receiver {
-	if name == "FILE" {
+	switch name {
+	case "FILE":
 		return &FileReceiver{}
-	} else if name == "CONSOLE" {
+	case "CONSOLE":
 		return &ConsoleReceiver{}
+	default:
+		return nil
 	}
-	return nil
 }
 
 func formatTime(t time.Time) string {
