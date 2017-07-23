@@ -19,7 +19,7 @@ import (
 )
 
 // Version no. of aah framework view library
-const Version = "0.3"
+const Version = "0.4"
 
 var (
 	// TemplateFuncMap aah framework Go template function map.
@@ -58,7 +58,7 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AddTemplateFunc method adds given Go template funcs into function map.
