@@ -20,7 +20,7 @@ var (
 	// backupTimeFormat is used for timestamp with filename on rotation
 	backupTimeFormat = "2006-01-02-15-04-05.000"
 
-	_ Receiver = &FileReceiver{}
+	_ Receiver = (*FileReceiver)(nil)
 )
 
 // FileReceiver writes the log entry into file.

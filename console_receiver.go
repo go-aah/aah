@@ -27,7 +27,7 @@ var (
 		LevelTrace: []byte("\033[0;35m"), // magenta (purple)
 	}
 
-	_ Receiver = &ConsoleReceiver{}
+	_ Receiver = (*ConsoleReceiver)(nil)
 )
 
 // ConsoleReceiver writes the log entry into os.Stderr.
