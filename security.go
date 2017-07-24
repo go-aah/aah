@@ -170,7 +170,6 @@ func (e *engine) doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResul
 		}
 
 		writeErrorInfo(ctx, http.StatusUnauthorized, "Unauthorized")
-		e.writeReply(ctx)
 		return flowStop
 	}
 

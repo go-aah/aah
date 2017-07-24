@@ -313,7 +313,7 @@ func (e *engine) wrapGzipWriter(ctx *Context) {
 		ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
 		ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
 		ctx.Res.Header().Del(ahttp.HeaderContentLength)
-		ctx.Res = ahttp.GetGzipResponseWriter(ctx.Res)
+		ctx.Res = ahttp.WrapGzipWriter(ctx.Res)
 	}
 }
 
