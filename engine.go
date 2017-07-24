@@ -221,7 +221,7 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 // loadSession method loads session from request for `stateful` session.
 func (e *engine) loadSession(ctx *Context) {
 	if AppSessionManager().IsStateful() {
-		ctx.subject.Session = AppSessionManager().GetSession(ctx.Req.Raw)
+		ctx.subject.Session = AppSessionManager().GetSession(ctx.Req.Unwrap())
 	}
 }
 
@@ -256,7 +256,7 @@ func (e *engine) writeReply(ctx *Context) {
 
 	if reply.redirect { // handle redirects
 		log.Debugf("Redirecting to '%s' with status '%d'", reply.path, reply.Code)
-		http.Redirect(ctx.Res, ctx.Req.Raw, reply.path, reply.Code)
+		http.Redirect(ctx.Res, ctx.Req.Unwrap(), reply.path, reply.Code)
 		return
 	}
 
@@ -373,9 +373,10 @@ func acquireContext() *Context {
 }
 
 func releaseContext(ctx *Context) {
+	ahttp.ReleaseRequest(ctx.Req)
 	ahttp.ReleaseResponseWriter(ctx.Res)
-	releaseReply(ctx.reply)
 	security.ReleaseSubject(ctx.subject)
+	releaseReply(ctx.reply)
 
 	ctx.Reset()
 	ctxPool.Put(ctx)

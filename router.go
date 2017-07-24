@@ -134,12 +134,12 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 			}
 
 			if len(reqPath) > 1 && reqPath[len(reqPath)-1] == '/' {
-				ctx.Req.Raw.URL.Path = reqPath[:len(reqPath)-1]
+				ctx.Req.Unwrap().URL.Path = reqPath[:len(reqPath)-1]
 			} else {
-				ctx.Req.Raw.URL.Path = reqPath + "/"
+				ctx.Req.Unwrap().URL.Path = reqPath + "/"
 			}
 
-			reply.Redirect(ctx.Req.Raw.URL.String())
+			reply.Redirect(ctx.Req.Unwrap().URL.String())
 			log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.path)
 			return nil
 		}

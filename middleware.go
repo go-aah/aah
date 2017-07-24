@@ -64,7 +64,7 @@ func ToMiddleware(handler interface{}) MiddlewareFunc {
 	case http.Handler:
 		h := handler.(http.Handler)
 		return func(ctx *Context, m *Middleware) {
-			h.ServeHTTP(ctx.Res, ctx.Req.Raw)
+			h.ServeHTTP(ctx.Res, ctx.Req.Unwrap())
 			m.Next(ctx)
 		}
 	case func(http.ResponseWriter, *http.Request):

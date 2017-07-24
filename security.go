@@ -110,7 +110,7 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 	if formAuth.LoginSubmitURL != ctx.route.Path && ctx.Req.Method != ahttp.MethodPost {
 		loginURL := formAuth.LoginURL
 		if formAuth.LoginURL != ctx.Req.Path {
-			loginURL = fmt.Sprintf("%s?_rt=%s", loginURL, ctx.Req.Raw.RequestURI)
+			loginURL = fmt.Sprintf("%s?_rt=%s", loginURL, ctx.Req.Unwrap().RequestURI)
 		}
 		ctx.Reply().Redirect(loginURL)
 		e.writeReply(ctx)
@@ -125,7 +125,7 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 		log.Info("Authentication is failed, sending to login failure URL")
 
 		redirectURL := formAuth.LoginFailureURL
-		redirectTarget := ctx.Req.Raw.FormValue("_rt")
+		redirectTarget := ctx.Req.Unwrap().FormValue("_rt")
 		if !ess.IsStrEmpty(redirectTarget) {
 			redirectURL = redirectURL + "&_rt=" + redirectTarget
 		}
@@ -147,7 +147,7 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 
 	publishOnPostAuthEvent(ctx)
 
-	rt := ctx.Req.Raw.FormValue("_rt")
+	rt := ctx.Req.Unwrap().FormValue("_rt")
 	if formAuth.IsAlwaysToDefaultTarget || ess.IsStrEmpty(rt) {
 		ctx.Reply().Redirect(formAuth.DefaultTargetURL)
 	} else {

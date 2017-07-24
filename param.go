@@ -34,7 +34,7 @@ var (
 // parameters (Payload, Form, Query, Multi-part) stores into context. Request
 // params are made available in View via template functions.
 func (e *engine) parseRequestParams(ctx *Context) {
-	req := ctx.Req.Raw
+	req := ctx.Req.Unwrap()
 
 	if ctx.Req.Method != ahttp.MethodGet {
 		contentType := ctx.Req.ContentType.Mime

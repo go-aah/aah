@@ -163,7 +163,7 @@ func (ctx *Context) SetURL(pathURL string) {
 		return
 	}
 
-	rawReq := ctx.Req.Raw
+	rawReq := ctx.Req.Unwrap()
 	if !ess.IsStrEmpty(u.Host) {
 		log.Debugf("Host have been updated from '%s' to '%s'", ctx.Req.Host, u.Host)
 		rawReq.Host = u.Host
@@ -194,7 +194,7 @@ func (ctx *Context) SetMethod(method string) {
 	}
 
 	log.Debugf("Request method have been updated from '%s' to '%s'", ctx.Req.Method, method)
-	ctx.Req.Raw.Method = method
+	ctx.Req.Unwrap().Method = method
 	ctx.Req.Method = method
 }
 

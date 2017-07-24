@@ -96,7 +96,7 @@ func (e *engine) serveStatic(ctx *Context) error {
 		// 'OnPreReply' server extension point
 		publishOnPreReplyEvent(ctx)
 
-		http.ServeContent(ctx.Res, ctx.Req.Raw, path.Base(filePath), fi.ModTime(), f)
+		http.ServeContent(ctx.Res, ctx.Req.Unwrap(), path.Base(filePath), fi.ModTime(), f)
 
 		// 'OnAfterReply' server extension point
 		publishOnAfterReplyEvent(ctx)
