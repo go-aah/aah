@@ -10,7 +10,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/log.v0"
 )
 
 const (
@@ -33,7 +33,7 @@ var (
 // parseRequestParams method parses the incoming HTTP request to collects request
 // parameters (Payload, Form, Query, Multi-part) stores into context. Request
 // params are made available in View via template functions.
-func (e *engine) parseRequestParams(ctx *Context) {
+func (e *engine) parseRequestParams(ctx *Context) flowResult {
 	req := ctx.Req.Unwrap()
 
 	if ctx.Req.Method != ahttp.MethodGet {
@@ -44,11 +44,14 @@ func (e *engine) parseRequestParams(ctx *Context) {
 		// TODO HTML sanitizer for Form and Multipart Form
 
 		switch contentType {
-		case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeXML.Mime, ahttp.ContentTypeXMLText.Mime:
+		case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeJSONText.Mime,
+			ahttp.ContentTypeXML.Mime, ahttp.ContentTypeXMLText.Mime:
 			if payloadBytes, err := ioutil.ReadAll(req.Body); err == nil {
 				ctx.Req.Payload = payloadBytes
 			} else {
 				log.Errorf("unable to read request body for '%s': %s", contentType, err)
+				writeErrorInfo(ctx, http.StatusBadRequest, "unable to read request body")
+				return flowStop
 			}
 		case ahttp.ContentTypeForm.Mime:
 			if err := req.ParseForm(); err == nil {
@@ -88,6 +91,7 @@ func (e *engine) parseRequestParams(ctx *Context) {
 
 	// All the request parameters made available to templates via funcs.
 	ctx.AddViewArg(KeyViewArgRequestParams, ctx.Req.Params)
+	return flowCont
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

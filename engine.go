@@ -16,7 +16,7 @@ import (
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/log.v0"
 	"aahframework.org/security.v0-unstable"
 )
 
@@ -84,7 +84,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Handling route
 
 	if e.handleRoute(ctx) == flowStop {
-		return
+		goto wReply
 	}
 
 	// Load session
@@ -92,11 +92,13 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Authentication and Authorization
 	if e.handleAuthcAndAuthz(ctx) == flowStop {
-		return
+		goto wReply
 	}
 
 	// Parsing request params
-	e.parseRequestParams(ctx)
+	if e.parseRequestParams(ctx) == flowStop {
+		goto wReply
+	}
 
 	// Set defaults when actual value not found
 	e.setDefaults(ctx)
@@ -104,6 +106,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Middlewares, interceptors, targeted controller
 	e.executeMiddlewares(ctx)
 
+wReply:
 	// Write Reply on the wire
 	e.writeReply(ctx)
 }
@@ -166,20 +169,17 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 	domain := AppRouter().FindDomain(ctx.Req)
 	if domain == nil {
 		writeErrorInfo(ctx, http.StatusNotFound, "Not Found")
-		e.writeReply(ctx)
 		return flowStop
 	}
 
 	route, pathParams, rts := domain.Lookup(ctx.Req)
 	if route == nil { // route not found
 		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
-			e.writeReply(ctx)
 			return flowStop
 		}
 
 		ctx.route = domain.NotFoundRoute
 		handleRouteNotFound(ctx, domain, domain.NotFoundRoute)
-		e.writeReply(ctx)
 		return flowStop
 	}
 
@@ -203,7 +203,7 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 	if route.IsStatic {
 		if err := e.serveStatic(ctx); err == errFileNotFound {
 			handleRouteNotFound(ctx, domain, route)
-			e.writeReply(ctx)
+			ctx.Reply().done = false // override
 		}
 		return flowStop
 	}
@@ -211,7 +211,6 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 	// No controller or action found for the route
 	if err := ctx.setTarget(route); err == errTargetNotFound {
 		handleRouteNotFound(ctx, domain, route)
-		e.writeReply(ctx)
 		return flowStop
 	}
 
@@ -240,11 +239,9 @@ func (e *engine) executeMiddlewares(ctx *Context) {
 
 // writeReply method writes the response on the wire based on `Reply` instance.
 func (e *engine) writeReply(ctx *Context) {
-	reply := ctx.Reply()
-
 	// Response already written on the wire, don't go forward.
-	// refer `ctx.Abort()` method.
-	if reply.done {
+	// refer to `Reply().Done()` method.
+	if ctx.Reply().done {
 		return
 	}
 
@@ -254,6 +251,7 @@ func (e *engine) writeReply(ctx *Context) {
 	// Set Cookies
 	e.setCookies(ctx)
 
+	reply := ctx.Reply()
 	if reply.redirect { // handle redirects
 		log.Debugf("Redirecting to '%s' with status '%d'", reply.path, reply.Code)
 		http.Redirect(ctx.Res, ctx.Req.Unwrap(), reply.path, reply.Code)
@@ -261,9 +259,9 @@ func (e *engine) writeReply(ctx *Context) {
 	}
 
 	// ContentType
-	if !ctx.Reply().IsContentTypeSet() {
+	if !reply.IsContentTypeSet() {
 		if ct := identifyContentType(ctx); ct != nil {
-			ctx.Reply().ContentType(ct.String())
+			reply.ContentType(ct.String())
 		}
 	}
 
@@ -280,7 +278,7 @@ func (e *engine) writeReply(ctx *Context) {
 	}
 
 	// ContentType, if it's not set then auto detect later in the writer
-	if ctx.Reply().IsContentTypeSet() {
+	if reply.IsContentTypeSet() {
 		ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
 	}
 
@@ -373,8 +371,8 @@ func acquireContext() *Context {
 }
 
 func releaseContext(ctx *Context) {
-	ahttp.ReleaseRequest(ctx.Req)
 	ahttp.ReleaseResponseWriter(ctx.Res)
+	ahttp.ReleaseRequest(ctx.Req)
 	security.ReleaseSubject(ctx.subject)
 	releaseReply(ctx.reply)
 

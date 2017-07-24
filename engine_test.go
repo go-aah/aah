@@ -16,7 +16,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -224,6 +224,18 @@ func TestEngineServeHTTP(t *testing.T) {
 	body8, _ := ioutil.ReadAll(reader8)
 	assert.Equal(t, "405 Method Not Allowed", string(body8))
 	assert.Equal(t, "GET, OPTIONS", resp8.Header.Get("Allow"))
+
+	// Auto Options
+	r9 := httptest.NewRequest("OPTIONS", "http://localhost:8080/credits", nil)
+	r9.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
+	w9 := httptest.NewRecorder()
+	e.ServeHTTP(w9, r9)
+
+	resp9 := w9.Result()
+	reader9, _ := gzip.NewReader(resp9.Body)
+	body9, _ := ioutil.ReadAll(reader9)
+	assert.Equal(t, "200 'OPTIONS' allowed HTTP Methods", string(body9))
+	assert.Equal(t, "GET, OPTIONS", resp9.Header.Get("Allow"))
 
 	appBaseDir = ""
 }
