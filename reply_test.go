@@ -353,7 +353,6 @@ func TestReplyDone(t *testing.T) {
 func TestReplyCookie(t *testing.T) {
 	re1 := acquireReply()
 
-	assert.Nil(t, re1.cookies)
 	re1.Cookie(&http.Cookie{
 		Name:     "aah-test-cookie",
 		Value:    "This is reply cookie interface test value",

@@ -70,7 +70,6 @@ func (e engine) handleAuthcAndAuthz(ctx *Context) flowResult {
 		if AppSecurityManager().IsAuthSchemesConfigured() {
 			log.Warnf("Auth schemes are configured in security.conf, however attribute 'auth' or 'default_auth' is not defined in routes.conf, so treat it as 403 forbidden: %v", ctx.Req.Path)
 			writeErrorInfo(ctx, http.StatusForbidden, "Forbidden")
-			e.writeReply(ctx)
 			return flowStop
 		}
 
@@ -113,7 +112,6 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 			loginURL = fmt.Sprintf("%s?_rt=%s", loginURL, ctx.Req.Unwrap().RequestURI)
 		}
 		ctx.Reply().Redirect(loginURL)
-		e.writeReply(ctx)
 		return flowStop
 	}
 
@@ -131,7 +129,6 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 		}
 
 		ctx.Reply().Redirect(redirectURL)
-		e.writeReply(ctx)
 		return flowStop
 	}
 
@@ -155,7 +152,6 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 		ctx.Reply().Redirect(rt)
 	}
 
-	e.writeReply(ctx)
 	return flowStop
 }
 

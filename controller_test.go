@@ -7,7 +7,7 @@ package aah
 import (
 	"testing"
 
-	"aahframework.org/router.v0-unstable"
+	"aahframework.org/router.v0"
 	"aahframework.org/test.v0/assert"
 )
 

@@ -20,7 +20,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/log.v0"
 )
 
 const (
@@ -39,6 +39,9 @@ type byName []os.FileInfo
 
 // serveStatic method static file/directory delivery.
 func (e *engine) serveStatic(ctx *Context) error {
+	// Taking control over for static file delivery
+	ctx.Reply().Done()
+
 	// TODO static assets Dynamic minify for JS and CSS for non-dev profile
 
 	// Determine route is file or directory as per user defined

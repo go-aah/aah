@@ -18,7 +18,7 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/test.v0/assert"
-	"aahframework.org/view.v0-unstable"
+	"aahframework.org/view.v0"
 )
 
 func TestViewInit(t *testing.T) {
