@@ -171,7 +171,7 @@ func (r *Response) Reset() {
 //___________________________________
 
 func (r *Response) setContentTypeIfNotSet(b []byte) {
-	if _, found := r.Header()[HeaderContentType]; !found {
+	if ct := r.Header().Get(HeaderContentType); ess.IsStrEmpty(ct) {
 		r.Header().Set(HeaderContentType, http.DetectContentType(b))
 	}
 }

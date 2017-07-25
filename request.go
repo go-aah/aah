@@ -35,6 +35,9 @@ type (
 		// Host value of the HTTP 'Host' header (e.g. 'example.com:8080').
 		Host string
 
+		// Proto value of the current HTTP request protocol. (e.g. HTTP/1.1, HTTP/2.0)
+		Proto string
+
 		// Method request method e.g. `GET`, `POST`, etc.
 		Method string
 
@@ -110,6 +113,7 @@ type (
 func ParseRequest(r *http.Request, req *Request) *Request {
 	req.Scheme = identifyScheme(r)
 	req.Host = host(r)
+	req.Proto = r.Proto
 	req.Method = r.Method
 	req.Path = r.URL.Path
 	req.Header = r.Header
@@ -196,6 +200,7 @@ func (r *Request) Unwrap() *http.Request {
 func (r *Request) Reset() {
 	r.Scheme = ""
 	r.Host = ""
+	r.Proto = ""
 	r.Method = ""
 	r.Path = ""
 	r.Header = nil
@@ -269,7 +274,7 @@ func (p *Params) FormFile(key string) (multipart.File, *multipart.FileHeader, er
 			f, err := fh[0].Open()
 			return f, fh[0], err
 		}
-		return nil, nil, fmt.Errorf("error file is missing: %s", key)
+		return nil, nil, fmt.Errorf("ahttp: no such key/file: %s", key)
 	}
 	return nil, nil, nil
 }

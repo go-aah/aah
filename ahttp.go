@@ -12,7 +12,7 @@ import (
 )
 
 // Version no. of aah framework ahttp library
-const Version = "0.9"
+const Version = "0.10"
 
 // HTTP Method names
 const (

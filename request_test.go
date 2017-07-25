@@ -143,7 +143,7 @@ func TestHTTPRequestParams(t *testing.T) {
 	req3.Header.Add(HeaderContentType, ContentTypeMultipartForm.String())
 	aahReq3 := AcquireRequest(req3)
 	aahReq3.Params.File = make(map[string][]*multipart.FileHeader)
-	aahReq3.Params.File["testfile.txt"] = []*multipart.FileHeader{&multipart.FileHeader{Filename: "testfile.txt"}}
+	aahReq3.Params.File["testfile.txt"] = []*multipart.FileHeader{{Filename: "testfile.txt"}}
 	f, fh, err := aahReq3.FormFile("testfile.txt")
 	assert.Nil(t, f)
 	assert.Equal(t, "testfile.txt", fh.Filename)
