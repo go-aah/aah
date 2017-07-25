@@ -206,15 +206,11 @@ func tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL 
 		log.Errorf("router: template 'rurl' - route name is empty: %v", args)
 		return template.URL("#")
 	}
-
-	host := viewArgs["Host"].(string)
-	routeName := args[0].(string)
-	return template.URL(createReverseURL(host, routeName, nil, args[1:]...))
+	return template.URL(createReverseURL(viewArgs["Host"].(string), args[0].(string), nil, args[1:]...))
 }
 
 // tmplURLm method returns reverse URL by given route name and
 // map[string]interface{}. Mapped to Go template func.
 func tmplURLm(viewArgs map[string]interface{}, routeName string, args map[string]interface{}) template.URL {
-	host := viewArgs["Host"].(string)
-	return template.URL(createReverseURL(host, routeName, args))
+	return template.URL(createReverseURL(viewArgs["Host"].(string), routeName, args))
 }

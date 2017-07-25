@@ -201,7 +201,7 @@ func accessLogFormatter(al *accessLog) string {
 		case fmtFlagRequestMethod:
 			buf.WriteString(al.Request.Method)
 		case fmtFlagRequestProto:
-			buf.WriteString(al.Request.Raw.Proto)
+			buf.WriteString(al.Request.Unwrap().Proto)
 		case fmtFlagRequestID:
 			buf.WriteString(al.GetRequestHdr(appReqIDHdrKey))
 		case fmtFlagRequestHeader:

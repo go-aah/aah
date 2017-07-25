@@ -76,9 +76,11 @@ func (e *engine) serveStatic(ctx *Context) error {
 		return nil
 	}
 
-	// Gzip
-	ctx.Reply().gzip = checkGzipRequired(filePath)
-	e.wrapGzipWriter(ctx)
+	// Gzip, 1kb above
+	if fi.Size() > 1024 {
+		ctx.Reply().gzip = checkGzipRequired(filePath)
+		e.wrapGzipWriter(ctx)
+	}
 	e.writeHeaders(ctx)
 
 	// Serve file

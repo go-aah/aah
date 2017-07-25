@@ -33,10 +33,10 @@ const (
 
 var (
 	errFileNotFound = errors.New("file not found")
+	ctHTML          = ahttp.ContentTypeHTML
 
-	minifier          MinifierFunc
-	noGzipStatusCodes = []int{http.StatusNotModified, http.StatusNoContent}
-	ctxPool           *sync.Pool
+	minifier MinifierFunc
+	ctxPool  *sync.Pool
 )
 
 type (
@@ -82,7 +82,6 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	publishOnRequestEvent(ctx)
 
 	// Handling route
-
 	if e.handleRoute(ctx) == flowStop {
 		goto wReply
 	}
@@ -272,8 +271,9 @@ func (e *engine) writeReply(ctx *Context) {
 	// error info without messing with response on the wire.
 	e.doRender(ctx)
 
-	// Gzip
-	if !isNoGzipStatusCode(reply.Code) && reply.body.Len() != 0 {
+	isBodyAllowed := isResponseBodyAllowed(reply.Code)
+	// Gzip, 1kb above TODO make it configurable for bytes size value
+	if isBodyAllowed && reply.body.Len() > 1024 {
 		e.wrapGzipWriter(ctx)
 	}
 
@@ -288,13 +288,16 @@ func (e *engine) writeReply(ctx *Context) {
 	// HTTP status
 	ctx.Res.WriteHeader(reply.Code)
 
-	// Write response buffer on the wire
-	if minifier == nil || !appIsProfileProd ||
-		isNoGzipStatusCode(reply.Code) ||
-		!ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
-		_, _ = reply.body.WriteTo(ctx.Res)
-	} else if err := minifier(reply.ContType, ctx.Res, reply.body); err != nil {
-		log.Errorf("Minifier error: %v", err)
+	if isBodyAllowed {
+		// Write response on the wire
+		var err error
+		if minifier == nil || !appIsProfileProd || !ctHTML.IsEqual(reply.ContType) {
+			if _, err = reply.body.WriteTo(ctx.Res); err != nil {
+				log.Error(err)
+			}
+		} else if err = minifier(reply.ContType, ctx.Res, reply.body); err != nil {
+			log.Errorf("Minifier error: %s", err.Error())
+		}
 	}
 
 	// 'OnAfterReply' server extension point

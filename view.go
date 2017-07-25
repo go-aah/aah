@@ -49,6 +49,7 @@ func AddViewEngine(name string, engine view.Enginer) error {
 }
 
 // SetMinifier method sets the given minifier func into aah framework.
+// Note: currently minifier is called only for HTML contentType.
 func SetMinifier(fn MinifierFunc) {
 	if minifier == nil {
 		minifier = fn
@@ -101,7 +102,7 @@ func (e *engine) resolveView(ctx *Context) {
 	reply := ctx.Reply()
 
 	// HTML response
-	if ahttp.ContentTypeHTML.IsEqual(reply.ContType) && appViewEngine != nil {
+	if ctHTML.IsEqual(reply.ContType) && appViewEngine != nil {
 		if reply.Rdr == nil {
 			reply.Rdr = &HTML{}
 		}

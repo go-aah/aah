@@ -8,13 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	ahttp "aahframework.org/ahttp.v0"
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
@@ -77,13 +78,14 @@ func getBinaryFileName() string {
 	return ess.StripExt(AppBuildInfo().BinaryName)
 }
 
-func isNoGzipStatusCode(code int) bool {
-	for _, c := range noGzipStatusCodes {
-		if c == code {
-			return true
-		}
+// This method is similar to
+// https://golang.org/src/net/http/transfer.go#bodyAllowedForStatus
+func isResponseBodyAllowed(code int) bool {
+	if (code >= http.StatusContinue && code < http.StatusOK) ||
+		code == http.StatusNoContent || code == http.StatusNotModified {
+		return false
 	}
-	return false
+	return true
 }
 
 func resolveControllerName(ctx *Context) string {

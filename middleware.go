@@ -102,12 +102,8 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 	target := reflect.ValueOf(ctx.target)
 	controller := resolveControllerName(ctx)
 
-	// Finally action and method
+	// Finally action and method. Always executed if present
 	defer func() {
-		if ctx.abort {
-			return
-		}
-
 		if finallyActionMethod := target.MethodByName(incpFinallyActionName + ctx.action.Name); finallyActionMethod.IsValid() {
 			log.Debugf("Calling interceptor: %s.%s", controller, incpFinallyActionName+ctx.action.Name)
 			finallyActionMethod.Call(emptyArg)

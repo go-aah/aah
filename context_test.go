@@ -120,6 +120,9 @@ func TestContextSetTarget(t *testing.T) {
 	assert.NotNil(t, ctx.action.Parameters)
 	assert.Equal(t, "userId", ctx.action.Parameters[0].Name)
 
+	ctx.controller.Namespace = ""
+	assert.Equal(t, "Level3", resolveControllerName(ctx))
+
 	err2 := ctx.setTarget(&router.Route{Controller: "NoController"})
 	assert.Equal(t, errTargetNotFound, err2)
 
