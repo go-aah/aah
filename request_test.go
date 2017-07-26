@@ -5,11 +5,13 @@
 package ahttp
 
 import (
+	"bytes"
 	"crypto/tls"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -192,4 +194,125 @@ func TestRequestSchemeDerived(t *testing.T) {
 
 func createRequestWithHost(host, remote string) *http.Request {
 	return &http.Request{Host: host, RemoteAddr: remote, Header: http.Header{}}
+}
+
+func setUpRequestSaveFile(t *testing.T) (*Request, string, func()) {
+	buf := new(bytes.Buffer)
+	multipartWriter := multipart.NewWriter(buf)
+	_, err := multipartWriter.CreateFormFile("framework", "aah")
+	assert.Nil(t, err)
+
+	multipartWriter.Close()
+
+	req, _ := http.NewRequest("POST", "http://localhost:8080", buf)
+	req.Header.Add(HeaderContentType, multipartWriter.FormDataContentType())
+	aahReq := AcquireRequest(req)
+	aahReq.Params.File = make(map[string][]*multipart.FileHeader)
+
+	_, header, err := req.FormFile("framework")
+	assert.Nil(t, err)
+
+	aahReq.Params.File["framework"] = []*multipart.FileHeader{header}
+
+	path := "testdata/aah.txt"
+
+	return aahReq, path, func() {
+		os.Remove(path) //Teardown
+	}
+}
+
+func TestRequestSaveFile(t *testing.T) {
+	aahReq, path, teardown := setUpRequestSaveFile(t)
+	defer teardown()
+
+	assert.Nil(t, aahReq.SaveFile("framework", path))
+	_, err := os.Stat(path)
+	assert.Nil(t, err)
+}
+
+func TestRequestSaveFileFailsValidation(t *testing.T) {
+	aahReq, path, teardown := setUpRequestSaveFile(t)
+	defer teardown()
+
+	// Empty keys should error out
+	assert.NotNil(t, aahReq.SaveFile("", path))
+
+	// Empty path should error out
+	assert.NotNil(t, aahReq.SaveFile("framework", ""))
+
+	// If "path" is a directory, it should error out
+	assert.NotNil(t, aahReq.SaveFile("framework", "testdata"))
+}
+
+func TestRequestSaveFileFailsForNotFoundFile(t *testing.T) {
+	aahReq, path, teardown := setUpRequestSaveFile(t)
+	defer teardown()
+
+	assert.NotNil(t, aahReq.SaveFile("unknown-key", path))
+}
+
+func TestRequestSaveFileCannotCreateFile(t *testing.T) {
+	aahReq, _, teardown := setUpRequestSaveFile(t)
+	defer teardown()
+
+	assert.NotNil(t, aahReq.SaveFile("framework", "/root/aah.txt"))
+}
+
+func setUpRequestSaveFiles(t *testing.T) (*Request, string, func()) {
+	buf := new(bytes.Buffer)
+	multipartWriter := multipart.NewWriter(buf)
+	_, err := multipartWriter.CreateFormFile("framework", "aah")
+	assert.Nil(t, err)
+	_, err = multipartWriter.CreateFormFile("framework2", "aah2")
+	assert.Nil(t, err)
+
+	multipartWriter.Close()
+
+	req, _ := http.NewRequest("POST", "http://localhost:8080", buf)
+	req.Header.Add(HeaderContentType, multipartWriter.FormDataContentType())
+	aahReq := AcquireRequest(req)
+	aahReq.Params.File = make(map[string][]*multipart.FileHeader)
+
+	_, header, err := req.FormFile("framework")
+	assert.Nil(t, err)
+	_, header2, err := req.FormFile("framework2")
+	assert.Nil(t, err)
+
+	aahReq.Params.File["framework"] = []*multipart.FileHeader{header, header2}
+
+	dir := "testdata/upload"
+
+	os.Mkdir(dir, 0755)
+	return aahReq, dir, func() {
+		os.RemoveAll(dir)
+	}
+}
+
+func TestRequestSaveFiles(t *testing.T) {
+	aahReq, dir, teardown := setUpRequestSaveFiles(t)
+	defer teardown()
+
+	assert.Nil(t, aahReq.SaveFiles("framework", dir))
+	_, err := os.Stat(dir + "/aah")
+	assert.Nil(t, err)
+	_, err = os.Stat(dir + "/aah2")
+	assert.Nil(t, err)
+}
+
+func TestRequestSaveFilesFailsVaildation(t *testing.T) {
+	aahReq, dir, teardown := setUpRequestSaveFiles(t)
+	defer teardown()
+
+	// Empty key
+	assert.NotNil(t, aahReq.SaveFiles("", dir))
+
+	// Empty directory
+	assert.NotNil(t, aahReq.SaveFiles("key", ""))
+}
+
+func TestRequestSaveFilesCannotCreateFile(t *testing.T) {
+	aahReq, _, teardown := setUpRequestSaveFiles(t)
+	defer teardown()
+
+	assert.NotNil(t, aahReq.SaveFiles("framework", "/root"))
 }

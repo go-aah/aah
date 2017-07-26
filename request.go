@@ -5,11 +5,15 @@
 package ahttp
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -196,6 +200,52 @@ func (r *Request) Unwrap() *http.Request {
 	return r.Raw
 }
 
+// SaveFile method saves an uploaded multipart file for given key from the HTTP request into given destination
+func (r *Request) SaveFile(key, dstFile string) error {
+	if ess.IsStrEmpty(dstFile) || ess.IsStrEmpty(key) {
+		return errors.New("ahttp: key or dstFile is empty")
+	}
+
+	if ess.IsDir(dstFile) {
+		return errors.New("ahttp: dstFile should not be a directory")
+	}
+
+	uploadedFile, _, err := r.FormFile(key)
+	if err != nil {
+		return err
+	}
+	defer ess.CloseQuietly(uploadedFile)
+
+	return saveFile(uploadedFile, dstFile)
+}
+
+// SaveFiles method saves an uploaded multipart file(s) for the given key from the HTTP request into given destination directory.
+// It uses the filename as uploaded filename from the request
+func (r *Request) SaveFiles(key, dstPath string) []error {
+	if !ess.IsDir(dstPath) {
+		return []error{fmt.Errorf("ahttp: destination path, %s is not a directory", dstPath)}
+	}
+
+	if ess.IsStrEmpty(key) {
+		return []error{fmt.Errorf("ahttp: form file key, %s is empty.", key)}
+	}
+
+	var errs []error
+	for _, file := range r.Params.File[key] {
+		uploadedFile, err := file.Open()
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		if err := saveFile(uploadedFile, filepath.Join(dstPath, file.Filename)); err != nil {
+			errs = append(errs, err)
+		}
+		ess.CloseQuietly(uploadedFile)
+	}
+	return errs
+}
+
 // Reset method resets request instance for reuse.
 func (r *Request) Reset() {
 	r.Scheme = ""
@@ -355,4 +405,15 @@ func isGzipAccepted(req *Request, r *http.Request) bool {
 		}
 	}
 	return false
+}
+
+func saveFile(r io.Reader, destFile string) error {
+	f, err := os.OpenFile(destFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+	if err != nil {
+		return err
+	}
+	defer ess.CloseQuietly(f)
+
+	_, err = io.Copy(f, r)
+	return err
 }
