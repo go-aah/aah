@@ -63,7 +63,9 @@ type (
 // AddTemplateFunc method adds given Go template funcs into function map.
 func AddTemplateFunc(funcMap template.FuncMap) {
 	for fname, funcImpl := range funcMap {
-		TemplateFuncMap[fname] = funcImpl
+		if _, found := TemplateFuncMap[fname]; !found {
+			TemplateFuncMap[fname] = funcImpl
+		}
 	}
 }
 
