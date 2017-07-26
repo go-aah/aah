@@ -11,14 +11,15 @@ import (
 	"html/template"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
+	"aahframework.org/pool.v0"
 )
 
 // Version no. of aah framework view library
-const Version = "0.5"
+const Version = "0.4"
 
 var (
 	// TemplateFuncMap aah framework Go template function map.
@@ -45,7 +46,7 @@ type (
 	// be imported via template function `import "name.ext" .`.
 	CommonTemplate struct {
 		templates *template.Template
-		bufPool   *sync.Pool
+		bufPool   *pool.Pool
 	}
 
 	// Templates hold template reference of lowercase key and case sensitive key
@@ -63,7 +64,11 @@ type (
 // AddTemplateFunc method adds given Go template funcs into function map.
 func AddTemplateFunc(funcMap template.FuncMap) {
 	for fname, funcImpl := range funcMap {
-		TemplateFuncMap[fname] = funcImpl
+		if _, found := TemplateFuncMap[fname]; found {
+			log.Warnf("Template func name '%s' already exists, skip it.", fname)
+		} else {
+			TemplateFuncMap[fname] = funcImpl
+		}
 	}
 }
 
@@ -109,7 +114,12 @@ func (c *CommonTemplate) Init(cfg *config.Config, baseDir string) error {
 		return nil
 	}
 
-	c.bufPool = &sync.Pool{New: func() interface{} { return &bytes.Buffer{} }}
+	c.bufPool = pool.NewPool(
+		cfg.IntDefault("pooling.buffer", 0),
+		func() interface{} {
+			return &bytes.Buffer{}
+		},
+	)
 
 	viewFileExt := cfg.StringDefault("view.ext", ".html")
 	commons, err := filepath.Glob(filepath.Join(commonBaseDir, "*"+viewFileExt))
@@ -129,8 +139,8 @@ func (c *CommonTemplate) Execute(name string, viewArgs map[string]interface{}) (
 		return "", fmt.Errorf("commontemplate: template not found: %s", name)
 	}
 
-	buf := c.acquireBuffer()
-	defer c.releaseBuffer(buf)
+	buf := c.getBuffer()
+	defer c.putBuffer(buf)
 
 	if err := tmpl.Execute(buf, viewArgs); err != nil {
 		return "", err
@@ -143,11 +153,11 @@ func (c *CommonTemplate) Execute(name string, viewArgs map[string]interface{}) (
 // CommonTemplate unexported methods
 //___________________________________
 
-func (c *CommonTemplate) acquireBuffer() *bytes.Buffer {
+func (c *CommonTemplate) getBuffer() *bytes.Buffer {
 	return c.bufPool.Get().(*bytes.Buffer)
 }
 
-func (c *CommonTemplate) releaseBuffer(buf *bytes.Buffer) {
+func (c *CommonTemplate) putBuffer(buf *bytes.Buffer) {
 	buf.Reset()
 	c.bufPool.Put(buf)
 }
