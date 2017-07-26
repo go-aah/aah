@@ -14,12 +14,11 @@ import (
 
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 	"aahframework.org/pool.v0"
 )
 
 // Version no. of aah framework view library
-const Version = "0.4"
+const Version = "0.5"
 
 var (
 	// TemplateFuncMap aah framework Go template function map.
@@ -64,9 +63,7 @@ type (
 // AddTemplateFunc method adds given Go template funcs into function map.
 func AddTemplateFunc(funcMap template.FuncMap) {
 	for fname, funcImpl := range funcMap {
-		if _, found := TemplateFuncMap[fname]; found {
-			log.Warnf("Template func name '%s' already exists, skip it.", fname)
-		} else {
+		if _, found := TemplateFuncMap[fname]; !found {
 			TemplateFuncMap[fname] = funcImpl
 		}
 	}
