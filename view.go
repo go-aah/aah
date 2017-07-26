@@ -11,10 +11,10 @@ import (
 	"html/template"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/pool.v0"
 )
 
 // Version no. of aah framework view library
@@ -45,7 +45,7 @@ type (
 	// be imported via template function `import "name.ext" .`.
 	CommonTemplate struct {
 		templates *template.Template
-		bufPool   *pool.Pool
+		bufPool   *sync.Pool
 	}
 
 	// Templates hold template reference of lowercase key and case sensitive key
@@ -111,12 +111,7 @@ func (c *CommonTemplate) Init(cfg *config.Config, baseDir string) error {
 		return nil
 	}
 
-	c.bufPool = pool.NewPool(
-		cfg.IntDefault("pooling.buffer", 0),
-		func() interface{} {
-			return &bytes.Buffer{}
-		},
-	)
+	c.bufPool = &sync.Pool{New: func() interface{} { return &bytes.Buffer{} }}
 
 	viewFileExt := cfg.StringDefault("view.ext", ".html")
 	commons, err := filepath.Glob(filepath.Join(commonBaseDir, "*"+viewFileExt))
@@ -136,8 +131,8 @@ func (c *CommonTemplate) Execute(name string, viewArgs map[string]interface{}) (
 		return "", fmt.Errorf("commontemplate: template not found: %s", name)
 	}
 
-	buf := c.getBuffer()
-	defer c.putBuffer(buf)
+	buf := c.acquireBuffer()
+	defer c.releaseBuffer(buf)
 
 	if err := tmpl.Execute(buf, viewArgs); err != nil {
 		return "", err
@@ -150,11 +145,11 @@ func (c *CommonTemplate) Execute(name string, viewArgs map[string]interface{}) (
 // CommonTemplate unexported methods
 //___________________________________
 
-func (c *CommonTemplate) getBuffer() *bytes.Buffer {
+func (c *CommonTemplate) acquireBuffer() *bytes.Buffer {
 	return c.bufPool.Get().(*bytes.Buffer)
 }
 
-func (c *CommonTemplate) putBuffer(buf *bytes.Buffer) {
+func (c *CommonTemplate) releaseBuffer(buf *bytes.Buffer) {
 	buf.Reset()
 	c.bufPool.Put(buf)
 }
