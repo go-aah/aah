@@ -106,16 +106,9 @@ func AppHTTPAddress() string {
 // AppHTTPPort method returns aah application HTTP port number based on `server.port`
 // value. Possible outcomes are user-defined port, `80`, `443` and `8080`.
 func AppHTTPPort() string {
-	port := AppConfig().StringDefault("server.port", appDefaultHTTPPort)
-	if !ess.IsStrEmpty(port) {
-		return port
-	}
-
-	if AppIsSSLEnabled() {
-		return "443"
-	}
-
-	return "80"
+	port := firstNonEmpty(AppConfig().StringDefault("server.proxyport", ""),
+		AppConfig().StringDefault("server.port", appDefaultHTTPPort))
+	return parsePort(port)
 }
 
 // AppDateFormat method returns aah application date format

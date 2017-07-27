@@ -244,6 +244,9 @@ func (e *engine) writeReply(ctx *Context) {
 		return
 	}
 
+	// 'OnPreReply' server extension point
+	publishOnPreReplyEvent(ctx)
+
 	// HTTP headers
 	e.writeHeaders(ctx)
 
@@ -281,9 +284,6 @@ func (e *engine) writeReply(ctx *Context) {
 	if reply.IsContentTypeSet() {
 		ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
 	}
-
-	// 'OnPreReply' server extension point
-	publishOnPreReplyEvent(ctx)
 
 	// HTTP status
 	ctx.Res.WriteHeader(reply.Code)

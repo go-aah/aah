@@ -120,3 +120,15 @@ func identifyContentType(ctx *Context) *ahttp.ContentType {
 	// as per 'render.default' in aah.conf or nil
 	return defaultContentType()
 }
+
+func parsePort(port string) string {
+	if !ess.IsStrEmpty(port) {
+		return port
+	}
+
+	if AppIsSSLEnabled() {
+		return "443"
+	}
+
+	return "80"
+}

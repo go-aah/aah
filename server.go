@@ -124,6 +124,9 @@ func Shutdown() {
 
 	graceTimeout, _ := time.ParseDuration(graceTime)
 	ctx, cancel := context.WithTimeout(context.Background(), graceTimeout)
+	defer cancel()
+
+	log.Trace("aah go server shutdown with timeout: ", graceTime)
 	if err := aahServer.Shutdown(ctx); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
@@ -131,10 +134,9 @@ func Shutdown() {
 	// Publish `OnShutdown` event
 	AppEventStore().sortAndPublishSync(&Event{Name: EventOnShutdown})
 
-	// Exit normally
-	cancel()
 	log.Infof("'%v' application stopped", AppName())
-	os.Exit(0)
+
+	// bye bye
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -185,14 +187,14 @@ func startHTTPS() {
 		aahServer.TLSConfig.NextProtos = append(aahServer.TLSConfig.NextProtos, "h2")
 	}
 
-	log.Infof("aah go server running on %v", aahServer.Addr)
+	printStartupNote()
 	if err := aahServer.ListenAndServeTLS(appSSLCert, appSSLKey); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
 }
 
 func startHTTP() {
-	log.Infof("aah go server running on %v", aahServer.Addr)
+	printStartupNote()
 	if err := aahServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
@@ -200,17 +202,17 @@ func startHTTP() {
 
 // listenSignals method listens to OS signals for aah server Shutdown.
 func listenSignals() {
-	sc := make(chan os.Signal, 2)
+	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		switch <-sc {
-		case os.Interrupt:
-			log.Warn("Interrupt signal received")
-		case syscall.SIGTERM:
-			log.Warn("Termination signal received")
-		}
-		Shutdown()
-	}()
+
+	sig := <-sc
+	switch sig {
+	case os.Interrupt:
+		log.Warn("Interrupt signal received")
+	case syscall.SIGTERM:
+		log.Warn("Termination signal received")
+	}
+	Shutdown()
 }
 
 func initAutoCertManager(cfg *config.Config) error {
@@ -239,4 +241,9 @@ func initAutoCertManager(cfg *config.Config) error {
 	}
 
 	return nil
+}
+
+func printStartupNote() {
+	port := firstNonEmpty(AppConfig().StringDefault("server.port", appDefaultHTTPPort), AppConfig().StringDefault("server.proxyport", ""))
+	log.Infof("aah go server running on %s:%s", AppHTTPAddress(), parsePort(port))
 }
