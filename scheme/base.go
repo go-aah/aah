@@ -67,13 +67,15 @@ func (b *BaseAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 	log.Info(authcToken)
 
 	if b.authenticator == nil {
-		log.Warnf("%v: authenticator is nil", b.scheme)
+		log.Warnf("%v: authenticator is not properly configured in security.conf", b.scheme)
 		return nil, authc.ErrAuthenticatorIsNil
 	}
 
 	authcInfo, err := b.authenticator.GetAuthenticationInfo(authcToken)
 	if err != nil || authcInfo == nil {
-		log.Error(err)
+		if err != nil {
+			log.Error(err)
+		}
 		return nil, authc.ErrAuthenticationFailed
 	}
 

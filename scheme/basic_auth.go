@@ -101,7 +101,7 @@ func (b *BasicAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*auth
 		}
 	} else {
 		if b.authenticator == nil {
-			log.Warnf("%v: authenticator is nil", b.scheme)
+			log.Warnf("%v: you have not configured your basic auth properly in security.conf, possibly file realm or authenticator", b.scheme)
 			return nil, authc.ErrAuthenticatorIsNil
 		}
 
@@ -109,7 +109,9 @@ func (b *BasicAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*auth
 	}
 
 	if err != nil || authcInfo == nil {
-		log.Error(err)
+		if err != nil {
+			log.Error(err)
+		}
 		return nil, authc.ErrAuthenticationFailed
 	}
 
@@ -132,7 +134,7 @@ func (b *BasicAuth) DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *au
 	}
 
 	if b.authorizer == nil {
-		log.Warnf("%v: authorizer is nil", b.scheme)
+		log.Warnf("%v: authorizer is not properly configured in security.conf", b.scheme)
 		return authz.NewAuthorizationInfo()
 	}
 

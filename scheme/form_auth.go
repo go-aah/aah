@@ -52,14 +52,16 @@ func (f *FormAuth) Init(cfg *config.Config, keyName string) error {
 func (f *FormAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
 	log.Info(authcToken)
 	if f.authenticator == nil {
-		log.Warnf("%v: authenticator is nil", f.scheme)
+		log.Warnf("%v: authenticator is not properly configured in security.conf", f.scheme)
 		return nil, authc.ErrAuthenticatorIsNil
 	}
 
 	// Getting authentication information
 	authcInfo, err := f.authenticator.GetAuthenticationInfo(authcToken)
 	if err != nil || authcInfo == nil {
-		log.Error(err)
+		if err != nil {
+			log.Error(err)
+		}
 		return nil, authc.ErrAuthenticationFailed
 	}
 

@@ -53,9 +53,9 @@ func TestSchemeAPIAuth(t *testing.T) {
 	securityAuthConfigStr := `
   security {
     auth_schemes {
-      api_auth {
-        # REST API Auth Scheme
-        scheme = "api"
+      generic_auth {
+        # Generic Auth Scheme
+        scheme = "generic"
 
         # Authenticator is used to validate the subject (aka User)
         authenticator = "security/APIAuthentication"
@@ -81,9 +81,9 @@ func TestSchemeAPIAuth(t *testing.T) {
 	genericAuth := GenericAuth{}
 	cfg, _ := config.ParseString(securityAuthConfigStr)
 
-	err := genericAuth.Init(cfg, "api_auth")
+	err := genericAuth.Init(cfg, "generic_auth")
 	assert.Nil(t, err)
-	assert.Equal(t, "api", genericAuth.Scheme())
+	assert.Equal(t, "generic", genericAuth.Scheme())
 	assert.Equal(t, "X-Authorization", genericAuth.IdentityHeader)
 	assert.Equal(t, "", genericAuth.CredentialHeader)
 

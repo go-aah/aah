@@ -22,7 +22,7 @@ type GenericAuth struct {
 	CredentialHeader string
 }
 
-// Init method initializes the API authentication scheme from `security.auth_schemes`.
+// Init method initializes the Generic authentication scheme from `security.auth_schemes`.
 func (g *GenericAuth) Init(cfg *config.Config, keyName string) error {
 	g.appCfg = cfg
 	g.keyPrefix = "security.auth_schemes." + keyName

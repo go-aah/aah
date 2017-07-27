@@ -46,7 +46,7 @@ func (tfa *testFormAuthentication) GetAuthenticationInfo(authcToken *authc.Authe
 		authcInfo.IsLocked = true
 		return authcInfo, nil
 	}
-	return nil, nil
+	return nil, authc.ErrSubjectNotExists
 }
 
 func (tfa *testFormAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {

@@ -19,7 +19,7 @@ type (
 		// Init method gets called by framework during an application start.
 		Init(appCfg *config.Config, keyName string) error
 
-		// Scheme method returns the auth scheme name. For e.g.: form, basic, api.
+		// Scheme method returns the auth scheme name. For e.g.: form, basic, generic, etc.
 		Scheme() string
 
 		// SetAuthenticator method is used to set user provided Authentication implementation.
@@ -36,7 +36,7 @@ type (
 		// information.
 		DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo
 
-		// ExtractAuthenticationToken method called by SecurityManager to extract idenity details
+		// ExtractAuthenticationToken method called by SecurityManager to extract identity details
 		// from the HTTP request.
 		ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken
 	}

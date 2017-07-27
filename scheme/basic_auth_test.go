@@ -119,7 +119,7 @@ func (tba *testBasicAuthentication) GetAuthenticationInfo(authcToken *authc.Auth
 		authcInfo.Credential = []byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6") // welcome123
 		return authcInfo, nil
 	}
-	return nil, nil
+	return nil, authc.ErrSubjectNotExists
 }
 
 func (tba *testBasicAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {

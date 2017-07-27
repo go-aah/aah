@@ -2,8 +2,8 @@
 // go-aah/security source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-// Package security houses all the application security implementation (Form Auth,
-// Basic Auth, Token Auth, Session, CORS, CSRF, Security Headers, etc.) by aah framework.
+// Package security houses all the application security implementation Authentication,
+// Authorization, Session Management, CORS, CSRF, Security Headers, etc.) by aah framework.
 package security
 
 import (
