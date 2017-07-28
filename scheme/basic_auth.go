@@ -97,7 +97,10 @@ func (b *BasicAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*auth
 	var err error
 	if b.isFileRealm {
 		if subject, found := b.subjectMap[authcToken.Identity]; found {
-			authcInfo = subject.AuthcInfo
+			ai := *subject.AuthcInfo
+			authcInfo = &ai
+		} else {
+			err = authc.ErrSubjectNotExists
 		}
 	} else {
 		if b.authenticator == nil {
@@ -108,11 +111,9 @@ func (b *BasicAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*auth
 		authcInfo, err = b.authenticator.GetAuthenticationInfo(authcToken)
 	}
 
-	if err != nil || authcInfo == nil {
-		if err != nil {
-			log.Error(err)
-		}
-		return nil, authc.ErrAuthenticationFailed
+	if err != nil {
+		log.Error(err)
+		return nil, err
 	}
 
 	log.Info(authcInfo)

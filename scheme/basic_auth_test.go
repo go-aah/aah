@@ -94,6 +94,15 @@ func TestSchemeBasicAuthFileRealm(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, "security: authentication failed", err.Error())
 	assert.Nil(t, authcInfo)
+
+	// Authenticate - Subject not exists
+	req.SetBasicAuth("test3", "welcome123")
+	areq = ahttp.ParseRequest(req, &ahttp.Request{})
+	authcToken = basicAuth.ExtractAuthenticationToken(areq)
+	authcInfo, err = basicAuth.DoAuthenticate(authcToken)
+	assert.NotNil(t, err)
+	assert.Equal(t, "security: subject not exists", err.Error())
+	assert.Nil(t, authcInfo)
 }
 
 type testBasicAuthentication struct {
@@ -204,7 +213,7 @@ func TestSchemeBasicAuthCustom(t *testing.T) {
 	authcToken.Identity = "newuser"
 	authcInfo, err = basicAuth.DoAuthenticate(authcToken)
 	assert.NotNil(t, err)
-	assert.True(t, err == authc.ErrAuthenticationFailed)
+	assert.True(t, err == authc.ErrSubjectNotExists)
 }
 
 func getTestdataPath() string {
