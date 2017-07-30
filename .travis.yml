@@ -16,6 +16,10 @@ go:
 
 go_import_path: aahframework.org/config.v0
 
+install:
+  - git config --global http.https://aahframework.org.followRedirects true
+  - go get -t -v ./...
+
 script:
   - bash <(curl -s https://aahframework.org/go-test)
 
