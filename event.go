@@ -20,10 +20,10 @@ const (
 	// EventOnStart event is fired before HTTP/Unix listener starts
 	EventOnStart = "OnStart"
 
-	// EventOnShutdown event is fired when server recevies interrupt or kill command.
+	// EventOnShutdown event is fired when server recevies an interrupt or kill command.
 	EventOnShutdown = "OnShutdown"
 
-	// EventOnRequest event is fired when server recevies incoming request.
+	// EventOnRequest event is fired when server recevies an incoming request.
 	EventOnRequest = "OnRequest"
 
 	// EventOnPreReply event is fired when before server writes the reply on the wire.
@@ -39,6 +39,12 @@ const (
 	//   2) `Reply().Redirect(...)` is called.
 	// Refer `aah.Reply.Done()` godoc for more info.
 	EventOnAfterReply = "OnAfterReply"
+
+	// EventOnPreAuth event is fired before server Authenticates & Authorizes an incoming request.
+	EventOnPreAuth = "OnPreAuth"
+
+	// EventOnPostAuth event is fired after server Authenticates & Authorizes an incoming request.
+	EventOnPostAuth = "OnPostAuth"
 )
 
 var (
@@ -46,6 +52,8 @@ var (
 	onRequestFunc    EventCallbackFunc
 	onPreReplyFunc   EventCallbackFunc
 	onAfterReplyFunc EventCallbackFunc
+	onPreAuthFunc    EventCallbackFunc
+	onPostAuthFunc   EventCallbackFunc
 )
 
 type (
@@ -77,7 +85,7 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AppEventStore method returns aah application event store.
@@ -119,7 +127,7 @@ func UnsubscribeEventf(eventName string, ecf EventCallbackFunc) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods - Server events
+// Package methods - Server events
 //___________________________________
 
 // OnInit method is to subscribe to aah application `OnInit` event. `OnInit` event
@@ -197,6 +205,28 @@ func OnAfterReply(sef EventCallbackFunc) {
 		return
 	}
 	log.Warn("'OnAfterReply' aah server extension point is already subscribed.")
+}
+
+// OnPreAuth method is to subscribe to aah application `OnPreAuth` event.
+// `OnPreAuth` event pubished right before the aah server is authenticates &
+// authorizes an incoming request.
+func OnPreAuth(sef EventCallbackFunc) {
+	if onPreAuthFunc == nil {
+		onPreAuthFunc = sef
+		return
+	}
+	log.Warn("'OnPreAuth' aah server extension point is already subscribed.")
+}
+
+// OnPostAuth method is to subscribe to aah application `OnPreAuth` event.
+// `OnPostAuth` event pubished right after the aah server is authenticates &
+// authorizes an incoming request.
+func OnPostAuth(sef EventCallbackFunc) {
+	if onPostAuthFunc == nil {
+		onPostAuthFunc = sef
+		return
+	}
+	log.Warn("'OnPostAuth' aah server extension point is already subscribed.")
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -338,6 +368,18 @@ func publishOnPreReplyEvent(ctx *Context) {
 func publishOnAfterReplyEvent(ctx *Context) {
 	if onAfterReplyFunc != nil {
 		onAfterReplyFunc(&Event{Name: EventOnAfterReply, Data: ctx})
+	}
+}
+
+func publishOnPreAuthEvent(ctx *Context) {
+	if onPreAuthFunc != nil {
+		onPreAuthFunc(&Event{Name: EventOnPreAuth, Data: ctx})
+	}
+}
+
+func publishOnPostAuthEvent(ctx *Context) {
+	if onPostAuthFunc != nil {
+		onPostAuthFunc(&Event{Name: EventOnPostAuth, Data: ctx})
 	}
 }
 

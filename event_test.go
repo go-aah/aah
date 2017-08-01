@@ -213,6 +213,34 @@ func TestServerExtensionEvent(t *testing.T) {
 	OnAfterReply(func(e *Event) {
 		t.Log("OnAfterReply event func called 2")
 	})
+
+	// OnPreAuth
+	assert.Nil(t, onPreAuthFunc)
+	publishOnPreAuthEvent(&Context{})
+	OnPreAuth(func(e *Event) {
+		t.Log("OnPreAuth event func called")
+	})
+	assert.NotNil(t, onPreAuthFunc)
+
+	onPreAuthFunc(&Event{Name: EventOnPreAuth, Data: "Context Data OnPreAuth"})
+	publishOnPreAuthEvent(&Context{})
+	OnPreAuth(func(e *Event) {
+		t.Log("OnPreAuth event func called 2")
+	})
+
+	// OnPostAuth
+	assert.Nil(t, onPostAuthFunc)
+	publishOnPostAuthEvent(&Context{})
+	OnPostAuth(func(e *Event) {
+		t.Log("OnPostAuth event func called")
+	})
+	assert.NotNil(t, onPostAuthFunc)
+
+	onPostAuthFunc(&Event{Name: EventOnPostAuth, Data: "Context Data OnPostAuth"})
+	publishOnPostAuthEvent(&Context{})
+	OnPostAuth(func(e *Event) {
+		t.Log("OnPostAuth event func called 2")
+	})
 }
 
 func TestSubscribeAndUnsubscribeAndPublish(t *testing.T) {

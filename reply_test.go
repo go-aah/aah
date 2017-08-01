@@ -5,7 +5,6 @@
 package aah
 
 import (
-	"bytes"
 	"html/template"
 	"net/http"
 	"os"
@@ -71,7 +70,7 @@ func TestReplyStatusCodes(t *testing.T) {
 }
 
 func TestReplyText(t *testing.T) {
-	buf, re1 := getBufferAndReply()
+	buf, re1 := acquireBuffer(), acquireReply()
 
 	re1.Text("welcome to %s %s", "aah", "framework")
 	assert.True(t, re1.IsContentTypeSet())
@@ -91,7 +90,7 @@ func TestReplyText(t *testing.T) {
 }
 
 func TestReplyJSON(t *testing.T) {
-	buf, re1 := getBufferAndReply()
+	buf, re1 := acquireBuffer(), acquireReply()
 	appConfig = getReplyRenderCfg()
 
 	data := struct {
@@ -132,7 +131,7 @@ func TestReplyJSON(t *testing.T) {
 }
 
 func TestReplyJSONP(t *testing.T) {
-	buf, re1 := getBufferAndReply()
+	buf, re1 := acquireBuffer(), acquireReply()
 	re1.body = buf
 	appConfig = getReplyRenderCfg()
 
@@ -172,7 +171,7 @@ func TestReplyJSONP(t *testing.T) {
 }
 
 func TestReplyXML(t *testing.T) {
-	buf, re1 := getBufferAndReply()
+	buf, re1 := acquireBuffer(), acquireReply()
 	appConfig = getReplyRenderCfg()
 
 	type Sample struct {
@@ -192,7 +191,8 @@ func TestReplyXML(t *testing.T) {
 
 	err := re1.Rdr.Render(buf)
 	assert.FailOnError(t, err, "")
-	assert.Equal(t, `<Sample>
+	assert.Equal(t, `<?xml version="1.0" encoding="UTF-8"?>
+<Sample>
     <Name>John</Name>
     <Age>28</Age>
     <Address>this is my street</Address>
@@ -204,12 +204,30 @@ func TestReplyXML(t *testing.T) {
 
 	err = re1.Rdr.Render(buf)
 	assert.FailOnError(t, err, "")
-	assert.Equal(t, `<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`,
+	assert.Equal(t, `<?xml version="1.0" encoding="UTF-8"?>
+<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`,
 		buf.String())
+
+	buf.Reset()
+
+	data2 := Data{
+		"Name":    "John",
+		"Age":     28,
+		"Address": "this is my street",
+	}
+
+	re1.Rdr.(*XML).reset()
+	re1.XML(data2)
+	assert.True(t, re1.IsContentTypeSet())
+
+	err = re1.Rdr.Render(buf)
+	assert.FailOnError(t, err, "")
+	assert.True(t, strings.HasPrefix(buf.String(), `<?xml version="1.0" encoding="UTF-8"?>`))
+	re1.Rdr.(*XML).reset()
 }
 
 func TestReplyReadfrom(t *testing.T) {
-	buf, re1 := getBufferAndReply()
+	buf, re1 := acquireBuffer(), acquireReply()
 	re1.ContentType(ahttp.ContentTypeOctetStream.Raw()).
 		Binary([]byte(`<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`))
 
@@ -225,7 +243,7 @@ func TestReplyReadfrom(t *testing.T) {
 }
 
 func TestReplyFileDownload(t *testing.T) {
-	buf, re1 := getBufferAndReply()
+	buf, re1 := acquireBuffer(), acquireReply()
 	re1.FileDownload(getReplyFilepath("file1.txt"), "sample.txt")
 	assert.Equal(t, http.StatusOK, re1.Code)
 
@@ -253,7 +271,7 @@ func TestReplyHTML(t *testing.T) {
 	{{ define "body" }}<p>This is test body</p>{{ end }}
 	`
 
-	buf, re1 := getBufferAndReply()
+	buf, re1 := acquireBuffer(), acquireReply()
 
 	tmpl := template.Must(template.New("test").Parse(tmplStr))
 	assert.NotNil(t, tmpl)
@@ -285,42 +303,47 @@ func TestReplyHTML(t *testing.T) {
 	err = re1.Rdr.Render(buf)
 	assert.NotNil(t, err)
 	assert.Equal(t, "template is nil", err.Error())
+	releaseReply(re1)
 
 	// HTMLlf
-	relf := NewReply()
+	relf := acquireReply()
 	relf.HTMLlf("docs.html", "Filename.html", nil)
 	assert.Equal(t, "text/html; charset=utf-8", relf.ContType)
 
 	htmllf := relf.Rdr.(*HTML)
 	assert.Equal(t, "docs.html", htmllf.Layout)
 	assert.Equal(t, "Filename.html", htmllf.Filename)
+	releaseRender(htmllf)
 
 	// HTMLf
-	ref := NewReply()
+	ref := acquireReply()
 	ref.HTMLf("Filename1.html", nil)
 	assert.Equal(t, "text/html; charset=utf-8", ref.ContType)
 
 	htmlf := ref.Rdr.(*HTML)
 	assert.True(t, ess.IsStrEmpty(htmlf.Layout))
 	assert.Equal(t, "Filename1.html", htmlf.Filename)
+	releaseRender(htmlf)
 }
 
 func TestReplyRedirect(t *testing.T) {
-	redirect1 := NewReply()
+	redirect1 := acquireReply()
 	redirect1.Redirect("/go-to-see.page")
 	assert.Equal(t, http.StatusFound, redirect1.Code)
 	assert.True(t, redirect1.redirect)
 	assert.Equal(t, "/go-to-see.page", redirect1.path)
+	releaseReply(redirect1)
 
-	redirect2 := NewReply()
+	redirect2 := acquireReply()
 	redirect2.RedirectSts("/go-to-see-gone-premanent.page", http.StatusMovedPermanently)
 	assert.Equal(t, http.StatusMovedPermanently, redirect2.Code)
 	assert.True(t, redirect2.redirect)
 	assert.Equal(t, "/go-to-see-gone-premanent.page", redirect2.path)
+	releaseReply(redirect2)
 }
 
 func TestReplyDone(t *testing.T) {
-	re1 := NewReply()
+	re1 := acquireReply()
 
 	assert.False(t, re1.done)
 	re1.Done()
@@ -328,9 +351,8 @@ func TestReplyDone(t *testing.T) {
 }
 
 func TestReplyCookie(t *testing.T) {
-	re1 := NewReply()
+	re1 := acquireReply()
 
-	assert.Nil(t, re1.cookies)
 	re1.Cookie(&http.Cookie{
 		Name:     "aah-test-cookie",
 		Value:    "This is reply cookie interface test value",
@@ -343,6 +365,7 @@ func TestReplyCookie(t *testing.T) {
 
 	cookie := re1.cookies[0]
 	assert.Equal(t, "aah-test-cookie", cookie.Name)
+	releaseReply(re1)
 }
 
 func getReplyRenderCfg() *config.Config {
@@ -352,10 +375,6 @@ func getReplyRenderCfg() *config.Config {
   }
     `)
 	return cfg
-}
-
-func getBufferAndReply() (*bytes.Buffer, *Reply) {
-	return &bytes.Buffer{}, NewReply()
 }
 
 func getReplyFilepath(name string) string {

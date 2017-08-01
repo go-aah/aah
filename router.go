@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"net/http"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -22,7 +23,7 @@ import (
 var appRouter *router.Router
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AppRouter method returns aah application router instance.
@@ -133,12 +134,12 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 			}
 
 			if len(reqPath) > 1 && reqPath[len(reqPath)-1] == '/' {
-				ctx.Req.Raw.URL.Path = reqPath[:len(reqPath)-1]
+				ctx.Req.Unwrap().URL.Path = reqPath[:len(reqPath)-1]
 			} else {
-				ctx.Req.Raw.URL.Path = reqPath + "/"
+				ctx.Req.Unwrap().URL.Path = reqPath + "/"
 			}
 
-			reply.Redirect(ctx.Req.Raw.URL.String())
+			reply.Redirect(ctx.Req.Unwrap().URL.String())
 			log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.path)
 			return nil
 		}
@@ -147,28 +148,28 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 	// HTTP: OPTIONS
 	if reqMethod == ahttp.MethodOptions {
 		if domain.AutoOptions {
-			if allowed := domain.Allowed(reqMethod, reqPath); !ess.IsStrEmpty(allowed) {
-				allowed += ", " + ahttp.MethodOptions
-				log.Debugf("Auto 'OPTIONS' allowed HTTP Methods: %s", allowed)
-				reply.Header(ahttp.HeaderAllow, allowed)
-				return nil
-			}
+			processAllowedMethods(reply, domain.Allowed(reqMethod, reqPath), "Auto 'OPTIONS', ")
+			writeErrorInfo(ctx, http.StatusOK, "'OPTIONS' allowed HTTP Methods")
+			return nil
 		}
 	}
 
 	// 405 Method Not Allowed
 	if domain.MethodNotAllowed {
-		if allowed := domain.Allowed(reqMethod, reqPath); !ess.IsStrEmpty(allowed) {
-			allowed += ", " + ahttp.MethodOptions
-			log.Debugf("Allowed HTTP Methods for 405 response: %s", allowed)
-			reply.MethodNotAllowed().
-				Header(ahttp.HeaderAllow, allowed).
-				Text("405 Method Not Allowed")
-			return nil
-		}
+		processAllowedMethods(reply, domain.Allowed(reqMethod, reqPath), "405 response, ")
+		writeErrorInfo(ctx, http.StatusMethodNotAllowed, "Method Not Allowed")
+		return nil
 	}
 
 	return errors.New("route not found")
+}
+
+func processAllowedMethods(reply *Reply, allowed, prefix string) {
+	if !ess.IsStrEmpty(allowed) {
+		allowed += ", " + ahttp.MethodOptions
+		reply.Header(ahttp.HeaderAllow, allowed)
+		log.Debugf("%sAllowed HTTP Methods: %s", prefix, allowed)
+	}
 }
 
 // handleRouteNotFound method is used for 1. route action not found, 2. route is
@@ -177,13 +178,13 @@ func handleRouteNotFound(ctx *Context, domain *router.Domain, route *router.Rout
 	// handle effectively to reduce heap allocation
 	if domain.NotFoundRoute == nil {
 		log.Warnf("Route not found: %s, isStaticRoute: false", ctx.Req.Path)
-		ctx.Reply().NotFound().Text("404 Not Found")
+		writeErrorInfo(ctx, http.StatusNotFound, "Not Found")
 		return
 	}
 
 	log.Warnf("Route not found: %s, isStaticRoute: %v", ctx.Req.Path, route.IsStatic)
 	if err := ctx.setTarget(route); err == errTargetNotFound {
-		ctx.Reply().NotFound().Text("404 Not Found")
+		writeErrorInfo(ctx, http.StatusNotFound, "Not Found")
 		return
 	}
 
@@ -205,15 +206,11 @@ func tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL 
 		log.Errorf("router: template 'rurl' - route name is empty: %v", args)
 		return template.URL("#")
 	}
-
-	host := viewArgs["Host"].(string)
-	routeName := args[0].(string)
-	return template.URL(createReverseURL(host, routeName, nil, args[1:]...))
+	return template.URL(createReverseURL(viewArgs["Host"].(string), args[0].(string), nil, args[1:]...))
 }
 
 // tmplURLm method returns reverse URL by given route name and
 // map[string]interface{}. Mapped to Go template func.
 func tmplURLm(viewArgs map[string]interface{}, routeName string, args map[string]interface{}) template.URL {
-	host := viewArgs["Host"].(string)
-	return template.URL(createReverseURL(host, routeName, args))
+	return template.URL(createReverseURL(viewArgs["Host"].(string), routeName, args))
 }

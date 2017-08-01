@@ -14,6 +14,7 @@ import (
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
+	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/session"
 )
 
@@ -44,9 +45,10 @@ type (
 		target     interface{}
 		domain     *router.Domain
 		route      *router.Route
-		session    *session.Session
+		subject    *security.Subject
 		reply      *Reply
 		viewArgs   map[string]interface{}
+		values     map[string]interface{}
 		abort      bool
 		decorated  bool
 	}
@@ -109,14 +111,19 @@ func (ctx *Context) Subdomain() string {
 	return ""
 }
 
+// Subject method the subject (aka application user) of current request.
+func (ctx *Context) Subject() *security.Subject {
+	return ctx.subject
+}
+
 // Session method always returns `session.Session` object. Use `Session.IsNew`
 // to identify whether sesison is newly created or restored from the request
 // which was already created.
 func (ctx *Context) Session() *session.Session {
-	if ctx.session == nil {
-		ctx.session = AppSessionManager().NewSession()
+	if ctx.subject.Session == nil {
+		ctx.subject.Session = AppSessionManager().NewSession()
 	}
-	return ctx.session
+	return ctx.subject.Session
 }
 
 // Abort method sets the abort to true. It means framework will not proceed with
@@ -156,7 +163,7 @@ func (ctx *Context) SetURL(pathURL string) {
 		return
 	}
 
-	rawReq := ctx.Req.Raw
+	rawReq := ctx.Req.Unwrap()
 	if !ess.IsStrEmpty(u.Host) {
 		log.Debugf("Host have been updated from '%s' to '%s'", ctx.Req.Host, u.Host)
 		rawReq.Host = u.Host
@@ -187,7 +194,7 @@ func (ctx *Context) SetMethod(method string) {
 	}
 
 	log.Debugf("Request method have been updated from '%s' to '%s'", ctx.Req.Method, method)
-	ctx.Req.Raw.Method = method
+	ctx.Req.Unwrap().Method = method
 	ctx.Req.Method = method
 }
 
@@ -200,9 +207,10 @@ func (ctx *Context) Reset() {
 	ctx.target = nil
 	ctx.domain = nil
 	ctx.route = nil
-	ctx.session = nil
+	ctx.subject = nil
 	ctx.reply = nil
-	ctx.viewArgs = nil
+	ctx.viewArgs = make(map[string]interface{})
+	ctx.values = make(map[string]interface{})
 	ctx.abort = false
 	ctx.decorated = false
 }

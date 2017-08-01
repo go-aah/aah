@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -172,6 +173,35 @@ func TestAahLogDir(t *testing.T) {
 	cfg, _ := config.ParseString("")
 	logger, _ := log.New(cfg)
 	log.SetDefaultLogger(logger)
+
+	// relative path filename
+	cfgRelativeFile, _ := config.ParseString(`
+		log {
+			receiver = "file"
+			file = "my-test-file.log"
+		}
+		`)
+	err = initLogs(logsDir, cfgRelativeFile)
+	assert.Nil(t, err)
+
+	// no filename mentioned
+	cfgNoFile, _ := config.ParseString(`
+	log {
+		receiver = "file"
+	}
+	`)
+	SetAppBuildInfo(&BuildInfo{
+		BinaryName: "testapp",
+		Date:       time.Now().Format(time.RFC3339),
+		Version:    "1.0.0",
+	})
+	err = initLogs(logsDir, cfgNoFile)
+	assert.Nil(t, err)
+	appBuildInfo = nil
+
+	appLogFatal = func(v ...interface{}) { fmt.Println(v) }
+	logAsFatal(errors.New("test msg"))
+
 }
 
 func TestWritePID(t *testing.T) {

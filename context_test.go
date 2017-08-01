@@ -14,6 +14,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/router.v0"
+	"aahframework.org/security.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -119,6 +120,9 @@ func TestContextSetTarget(t *testing.T) {
 	assert.NotNil(t, ctx.action.Parameters)
 	assert.Equal(t, "userId", ctx.action.Parameters[0].Name)
 
+	ctx.controller.Namespace = ""
+	assert.Equal(t, "Level3", resolveControllerName(ctx))
+
 	err2 := ctx.setTarget(&router.Route{Controller: "NoController"})
 	assert.Equal(t, errTargetNotFound, err2)
 
@@ -131,10 +135,10 @@ func TestContextSession(t *testing.T) {
 	err := initConfig(cfgDir)
 	assert.Nil(t, err)
 
-	err = initSecurity(cfgDir, AppConfig())
+	err = initSecurity(AppConfig())
 	assert.Nil(t, err)
 
-	ctx := &Context{viewArgs: make(map[string]interface{})}
+	ctx := &Context{viewArgs: make(map[string]interface{}), subject: &security.Subject{}}
 	s1 := ctx.Session()
 	assert.NotNil(t, s1)
 	assert.True(t, s1.IsNew)

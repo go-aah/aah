@@ -30,7 +30,7 @@ var (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AppViewEngine method returns aah application view Engine instance.
@@ -49,6 +49,7 @@ func AddViewEngine(name string, engine view.Enginer) error {
 }
 
 // SetMinifier method sets the given minifier func into aah framework.
+// Note: currently minifier is called only for HTML contentType.
 func SetMinifier(fn MinifierFunc) {
 	if minifier == nil {
 		minifier = fn
@@ -101,7 +102,7 @@ func (e *engine) resolveView(ctx *Context) {
 	reply := ctx.Reply()
 
 	// HTML response
-	if ahttp.ContentTypeHTML.IsEqual(reply.ContType) && appViewEngine != nil {
+	if ctHTML.IsEqual(reply.ContType) && appViewEngine != nil {
 		if reply.Rdr == nil {
 			reply.Rdr = &HTML{}
 		}
@@ -136,6 +137,7 @@ func (e *engine) resolveView(ctx *Context) {
 		htmlRdr.ViewArgs["AahVersion"] = Version
 		htmlRdr.ViewArgs["EnvProfile"] = AppProfile()
 		htmlRdr.ViewArgs["AppBuildInfo"] = AppBuildInfo()
+		htmlRdr.ViewArgs[KeyViewArgSubject] = ctx.Subject()
 
 		// find view template by convention if not provided
 		findViewTemplate(ctx)
@@ -234,7 +236,12 @@ func init() {
 		"fparam":          tmplFormParam,
 		"qparam":          tmplQueryParam,
 		"session":         tmplSessionValue,
-		"isauthenticated": tmplIsAuthenticated,
 		"flash":           tmplFlashValue,
+		"isauthenticated": tmplIsAuthenticated,
+		"hasrole":         tmplHasRole,
+		"hasallroles":     tmplHasAllRoles,
+		"hasanyrole":      tmplHasAnyRole,
+		"ispermitted":     tmplIsPermitted,
+		"ispermittedall":  tmplIsPermittedAll,
 	})
 }

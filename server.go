@@ -31,7 +31,7 @@ var (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AddServerTLSConfig method can be used for custom TLS config for aah server.
@@ -62,12 +62,15 @@ func Start() {
 	log.Infof("App Profile: %v", AppProfile())
 	log.Infof("App TLS/SSL Enabled: %v", AppIsSSLEnabled())
 	log.Infof("App Session Mode: %v", sessionMode)
-	log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
-	log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
 
-	for event := range AppEventStore().subscribers {
-		for _, c := range AppEventStore().subscribers[event] {
-			log.Debugf("Callback: %s, subscribed to event: %s", funcName(c.Callback), event)
+	if log.IsLevelDebug() {
+		log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
+		log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
+
+		for event := range AppEventStore().subscribers {
+			for _, c := range AppEventStore().subscribers[event] {
+				log.Debugf("Callback: %s, subscribed to event: %s", funcName(c.Callback), event)
+			}
 		}
 	}
 
@@ -121,6 +124,9 @@ func Shutdown() {
 
 	graceTimeout, _ := time.ParseDuration(graceTime)
 	ctx, cancel := context.WithTimeout(context.Background(), graceTimeout)
+	defer cancel()
+
+	log.Trace("aah go server shutdown with timeout: ", graceTime)
 	if err := aahServer.Shutdown(ctx); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
@@ -128,10 +134,9 @@ func Shutdown() {
 	// Publish `OnShutdown` event
 	AppEventStore().sortAndPublishSync(&Event{Name: EventOnShutdown})
 
-	// Exit normally
-	cancel()
 	log.Infof("'%v' application stopped", AppName())
-	os.Exit(0)
+
+	// bye bye
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -182,14 +187,14 @@ func startHTTPS() {
 		aahServer.TLSConfig.NextProtos = append(aahServer.TLSConfig.NextProtos, "h2")
 	}
 
-	log.Infof("aah go server running on %v", aahServer.Addr)
+	printStartupNote()
 	if err := aahServer.ListenAndServeTLS(appSSLCert, appSSLKey); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
 }
 
 func startHTTP() {
-	log.Infof("aah go server running on %v", aahServer.Addr)
+	printStartupNote()
 	if err := aahServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
@@ -197,17 +202,17 @@ func startHTTP() {
 
 // listenSignals method listens to OS signals for aah server Shutdown.
 func listenSignals() {
-	sc := make(chan os.Signal, 2)
+	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		switch <-sc {
-		case os.Interrupt:
-			log.Warn("Interrupt signal received")
-		case syscall.SIGTERM:
-			log.Warn("Termination signal received")
-		}
-		Shutdown()
-	}()
+
+	sig := <-sc
+	switch sig {
+	case os.Interrupt:
+		log.Warn("Interrupt signal received")
+	case syscall.SIGTERM:
+		log.Warn("Termination signal received")
+	}
+	Shutdown()
 }
 
 func initAutoCertManager(cfg *config.Config) error {
@@ -236,4 +241,9 @@ func initAutoCertManager(cfg *config.Config) error {
 	}
 
 	return nil
+}
+
+func printStartupNote() {
+	port := firstNonEmpty(AppConfig().StringDefault("server.port", appDefaultHTTPPort), AppConfig().StringDefault("server.proxyport", ""))
+	log.Infof("aah go server running on %s:%s", AppHTTPAddress(), parsePort(port))
 }

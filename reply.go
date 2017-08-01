@@ -9,9 +9,15 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
+)
+
+var (
+	bufPool   = &sync.Pool{New: func() interface{} { return &bytes.Buffer{} }}
+	replyPool = &sync.Pool{New: func() interface{} { return NewReply() }}
 )
 
 // Reply gives you control and convenient way to write a response effectively.
@@ -29,7 +35,7 @@ type Reply struct {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // NewReply method returns the new instance on reply builder.
@@ -155,7 +161,9 @@ func (r *Reply) ContentType(contentType string) *Reply {
 // Also it sets HTTP 'Content-Type' as 'application/json; charset=utf-8'.
 // Response rendered pretty if 'render.pretty' is true.
 func (r *Reply) JSON(data interface{}) *Reply {
-	r.Rdr = &JSON{Data: data}
+	j := acquireJSON()
+	j.Data = data
+	r.Rdr = j
 	r.ContentType(ahttp.ContentTypeJSON.Raw())
 	return r
 }
@@ -166,7 +174,11 @@ func (r *Reply) JSON(data interface{}) *Reply {
 // Note: If `callback` param is empty and `callback` query param is exists then
 // query param value will be used.
 func (r *Reply) JSONP(data interface{}, callback string) *Reply {
-	r.Rdr = &JSON{Data: data, IsJSONP: true, Callback: callback}
+	j := acquireJSON()
+	j.Data = data
+	j.IsJSONP = true
+	j.Callback = callback
+	r.Rdr = j
 	r.ContentType(ahttp.ContentTypeJSON.Raw())
 	return r
 }
@@ -175,7 +187,9 @@ func (r *Reply) JSONP(data interface{}, callback string) *Reply {
 // HTTP Content-Type as 'application/xml; charset=utf-8'.
 // Response rendered pretty if 'render.pretty' is true.
 func (r *Reply) XML(data interface{}) *Reply {
-	r.Rdr = &XML{Data: data}
+	x := acquireXML()
+	x.Data = data
+	r.Rdr = x
 	r.ContentType(ahttp.ContentTypeXML.Raw())
 	return r
 }
@@ -262,11 +276,11 @@ func (r *Reply) HTMLf(filename string, data Data) *Reply {
 // HTMLlf method renders based on given layout, filename and data. Refer `Reply.HTML(...)`
 // method.
 func (r *Reply) HTMLlf(layout, filename string, data Data) *Reply {
-	r.Rdr = &HTML{
-		Layout:   layout,
-		Filename: filename,
-		ViewArgs: data,
-	}
+	html := acquireHTML()
+	html.Layout = layout
+	html.Filename = filename
+	html.ViewArgs = data
+	r.Rdr = html
 	r.ContentType(ahttp.ContentTypeHTML.String())
 	return r
 }
@@ -361,7 +375,7 @@ func (r *Reply) Body() *bytes.Buffer {
 	return r.body
 }
 
-// Reset method resets the values into initialized state.
+// Reset method resets the instance values for repurpose.
 func (r *Reply) Reset() {
 	r.Code = http.StatusOK
 	r.ContType = ""
@@ -373,4 +387,32 @@ func (r *Reply) Reset() {
 	r.path = ""
 	r.done = false
 	r.gzip = true
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
+
+func acquireReply() *Reply {
+	return replyPool.Get().(*Reply)
+}
+
+func releaseReply(r *Reply) {
+	if r != nil {
+		releaseBuffer(r.body)
+		releaseRender(r.Rdr)
+		r.Reset()
+		replyPool.Put(r)
+	}
+}
+
+func acquireBuffer() *bytes.Buffer {
+	return bufPool.Get().(*bytes.Buffer)
+}
+
+func releaseBuffer(b *bytes.Buffer) {
+	if b != nil {
+		b.Reset()
+		bufPool.Put(b)
+	}
 }

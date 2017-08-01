@@ -21,7 +21,7 @@ import (
 )
 
 // Version no. of aah framework
-const Version = "0.6"
+const Version = "0.7"
 
 // aah application variables
 var (
@@ -49,6 +49,7 @@ var (
 	appDefaultHTTPPort       = "8080"
 	appDefaultDateFormat     = "2006-01-02"
 	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
+	appLogFatal              = log.Fatal
 
 	goPath   string
 	goSrcDir string
@@ -63,7 +64,7 @@ type BuildInfo struct {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AppName method returns aah application name from app config otherwise app name
@@ -105,16 +106,9 @@ func AppHTTPAddress() string {
 // AppHTTPPort method returns aah application HTTP port number based on `server.port`
 // value. Possible outcomes are user-defined port, `80`, `443` and `8080`.
 func AppHTTPPort() string {
-	port := AppConfig().StringDefault("server.port", appDefaultHTTPPort)
-	if !ess.IsStrEmpty(port) {
-		return port
-	}
-
-	if AppIsSSLEnabled() {
-		return "443"
-	}
-
-	return "80"
+	port := firstNonEmpty(AppConfig().StringDefault("server.proxyport", ""),
+		AppConfig().StringDefault("server.port", appDefaultHTTPPort))
+	return parsePort(port)
 }
 
 // AppDateFormat method returns aah application date format
@@ -200,8 +194,11 @@ func Init(importPath string) {
 		logAsFatal(initLogs(appLogsDir(), AppConfig()))
 		logAsFatal(initI18n(appI18nDir()))
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
-		logAsFatal(initSecurity(appConfigDir(), AppConfig()))
+		logAsFatal(initSecurity(AppConfig()))
 		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
+		if AppConfig().BoolDefault("server.access_log.enable", false) {
+			logAsFatal(initAccessLog(appLogsDir(), AppConfig()))
+		}
 	}
 
 	appInitialized = true
@@ -228,7 +225,7 @@ func appLogsDir() string {
 
 func logAsFatal(err error) {
 	if err != nil {
-		log.Fatal(err)
+		appLogFatal(err)
 	}
 }
 

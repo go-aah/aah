@@ -24,8 +24,9 @@ import (
 )
 
 const (
-	dirStatic = "static"
-	sniffLen  = 512
+	dirStatic       = "static"
+	sniffLen        = 512
+	noCacheHdrValue = "no-cache, no-store, must-revalidate"
 )
 
 var (
@@ -34,8 +35,13 @@ var (
 	errSeeker             = errors.New("static: seeker can't seek")
 )
 
+type byName []os.FileInfo
+
 // serveStatic method static file/directory delivery.
 func (e *engine) serveStatic(ctx *Context) error {
+	// Taking control over for static file delivery
+	ctx.Reply().Done()
+
 	// TODO static assets Dynamic minify for JS and CSS for non-dev profile
 
 	// Determine route is file or directory as per user defined
@@ -70,9 +76,11 @@ func (e *engine) serveStatic(ctx *Context) error {
 		return nil
 	}
 
-	// Gzip
-	ctx.Reply().gzip = checkGzipRequired(filePath)
-	e.wrapGzipWriter(ctx)
+	// Gzip, 1kb above
+	if fi.Size() > 1024 {
+		ctx.Reply().gzip = checkGzipRequired(filePath)
+		e.wrapGzipWriter(ctx)
+	}
 	e.writeHeaders(ctx)
 
 	// Serve file
@@ -84,16 +92,24 @@ func (e *engine) serveStatic(ctx *Context) error {
 			// apply cache header if environment profile is `prod`
 			if appIsProfileProd {
 				ctx.Res.Header().Set(ahttp.HeaderCacheControl, cacheHeader(contentType))
+			} else { // for static files hot-reload
+				ctx.Res.Header().Set(ahttp.HeaderExpires, "0")
+				ctx.Res.Header().Set(ahttp.HeaderCacheControl, noCacheHdrValue)
 			}
 		}
 
 		// 'OnPreReply' server extension point
 		publishOnPreReplyEvent(ctx)
 
-		http.ServeContent(ctx.Res, ctx.Req.Raw, path.Base(filePath), fi.ModTime(), f)
+		http.ServeContent(ctx.Res, ctx.Req.Unwrap(), path.Base(filePath), fi.ModTime(), f)
 
 		// 'OnAfterReply' server extension point
 		publishOnAfterReplyEvent(ctx)
+
+		// Send data to access log channel
+		if e.isAccessLogEnabled && e.isStaticAccessLogEnabled {
+			sendToAccessLog(ctx)
+		}
 		return nil
 	}
 
@@ -113,6 +129,11 @@ func (e *engine) serveStatic(ctx *Context) error {
 
 		// 'OnAfterReply' server extension point
 		publishOnAfterReplyEvent(ctx)
+
+		// Send data to access log channel
+		if e.isAccessLogEnabled && e.isStaticAccessLogEnabled {
+			sendToAccessLog(ctx)
+		}
 		return nil
 	}
 
@@ -177,9 +198,11 @@ func checkGzipRequired(file string) bool {
 // Note: `ctx.route.*` values come from application routes configuration.
 func getHTTPDirAndFilePath(ctx *Context) (http.Dir, string) {
 	if ctx.route.IsFile() { // this is configured value from routes.conf
-		return http.Dir(filepath.Join(AppBaseDir(), dirStatic)), ctx.route.File
+		return http.Dir(filepath.Join(AppBaseDir(), dirStatic)),
+			parseCacheBustPart(ctx.route.File, AppBuildInfo().Version)
 	}
-	return http.Dir(filepath.Join(AppBaseDir(), ctx.route.Dir)), ctx.Req.PathValue("filepath")
+	return http.Dir(filepath.Join(AppBaseDir(), ctx.route.Dir)),
+		parseCacheBustPart(ctx.Req.PathValue("filepath"), AppBuildInfo().Version)
 }
 
 // detectFileContentType method to identify the static file content-type.
@@ -232,6 +255,15 @@ func parseStaticMimeCacheMap(e *Event) {
 			staticMimeCacheHdrMap[strings.TrimSpace(strings.ToLower(m))] = hdr
 		}
 	}
+}
+
+func parseCacheBustPart(name, part string) string {
+	if strings.Contains(name, part) {
+		name = strings.Replace(name, "-"+part, "", 1)
+		name = strings.Replace(name, part+"-", "", 1)
+		return name
+	}
+	return name
 }
 
 func init() {

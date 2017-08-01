@@ -13,9 +13,18 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
+)
+
+var (
+	xmlHeaderBytes = []byte(xml.Header)
+	rdrHTMLPool    = &sync.Pool{New: func() interface{} { return &HTML{} }}
+	rdrJSONPool    = &sync.Pool{New: func() interface{} { return &JSON{} }}
+	rdrXMLPool     = &sync.Pool{New: func() interface{} { return &XML{} }}
 )
 
 type (
@@ -115,6 +124,12 @@ func (j *JSON) Render(w io.Writer) error {
 	return nil
 }
 
+func (j *JSON) reset() {
+	j.Callback = ""
+	j.IsJSONP = false
+	j.Data = nil
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // XML Render methods
 //___________________________________
@@ -136,11 +151,42 @@ func (x *XML) Render(w io.Writer) error {
 		return err
 	}
 
+	if _, err = w.Write(xmlHeaderBytes); err != nil {
+		return err
+	}
+
 	if _, err = w.Write(bytes); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (x *XML) reset() {
+	x.Data = nil
+}
+
+// MarshalXML method is to marshal `aah.Data` into XML.
+func (d Data) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	tokens := []xml.Token{start}
+	for k, v := range d {
+		token := xml.StartElement{Name: xml.Name{Local: strings.Title(k)}}
+		tokens = append(tokens, token,
+			xml.CharData(fmt.Sprintf("%v", v)),
+			xml.EndElement{Name: token.Name})
+	}
+
+	tokens = append(tokens, xml.EndElement{Name: start.Name})
+
+	var err error
+	for _, t := range tokens {
+		if err = e.EncodeToken(t); err != nil {
+			return err
+		}
+	}
+
+	// flush to ensure tokens are written
+	return e.Flush()
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -195,12 +241,19 @@ func (h *HTML) Render(w io.Writer) error {
 	return h.Template.ExecuteTemplate(w, h.Layout, h.ViewArgs)
 }
 
+func (h *HTML) reset() {
+	h.Template = nil
+	h.Filename = ""
+	h.Layout = ""
+	h.ViewArgs = make(Data)
+}
+
 // doRender method renders and detects the errors earlier. Writes the
 // error info if any.
 func (e *engine) doRender(ctx *Context) {
 	if ctx.Reply().Rdr != nil {
 		reply := ctx.Reply()
-		reply.body = e.getBuffer()
+		reply.body = acquireBuffer()
 		if jsonp, ok := reply.Rdr.(*JSON); ok && jsonp.IsJSONP {
 			if ess.IsStrEmpty(jsonp.Callback) {
 				jsonp.Callback = ctx.Req.QueryValue("callback")
@@ -209,9 +262,37 @@ func (e *engine) doRender(ctx *Context) {
 
 		if err := reply.Rdr.Render(reply.body); err != nil {
 			log.Error("Render response body error: ", err)
+			// TODO handle response based on content type
 			reply.InternalServerError()
 			reply.body.Reset()
 			reply.body.WriteString("500 Internal Server Error\n")
+		}
+	}
+}
+
+func acquireHTML() *HTML {
+	return rdrHTMLPool.Get().(*HTML)
+}
+
+func acquireJSON() *JSON {
+	return rdrJSONPool.Get().(*JSON)
+}
+
+func acquireXML() *XML {
+	return rdrXMLPool.Get().(*XML)
+}
+
+func releaseRender(r Render) {
+	if r != nil {
+		if t, ok := r.(*JSON); ok {
+			t.reset()
+			rdrJSONPool.Put(t)
+		} else if t, ok := r.(*HTML); ok {
+			t.reset()
+			rdrHTMLPool.Put(t)
+		} else if t, ok := r.(*XML); ok {
+			t.reset()
+			rdrXMLPool.Put(t)
 		}
 	}
 }

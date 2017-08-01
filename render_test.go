@@ -119,7 +119,8 @@ func TestRenderXML(t *testing.T) {
 	xml1 := XML{Data: data}
 	err := xml1.Render(buf)
 	assert.FailOnError(t, err, "")
-	assert.Equal(t, `<Sample>
+	assert.Equal(t, `<?xml version="1.0" encoding="UTF-8"?>
+<Sample>
     <Name>John</Name>
     <Age>28</Age>
     <Address>this is my street</Address>
@@ -131,7 +132,8 @@ func TestRenderXML(t *testing.T) {
 
 	err = xml1.Render(buf)
 	assert.FailOnError(t, err, "")
-	assert.Equal(t, `<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`,
+	assert.Equal(t, `<?xml version="1.0" encoding="UTF-8"?>
+<Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`,
 		buf.String())
 }
 

@@ -50,7 +50,7 @@ func TestServerStart2(t *testing.T) {
 	assert.NotNil(t, AppRouter())
 
 	// Security
-	err = initSecurity(cfgDir, AppConfig())
+	err = initSecurity(AppConfig())
 	assert.Nil(t, err)
 
 	// i18n

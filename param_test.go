@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/test.v0/assert"
 )
@@ -32,7 +33,7 @@ func TestParamTemplateFuncs(t *testing.T) {
 	aahReq1.Params.Path["userId"] = "100001"
 
 	viewArgs := map[string]interface{}{}
-	viewArgs[keyRequestParams] = aahReq1.Params
+	viewArgs[KeyViewArgRequestParams] = aahReq1.Params
 
 	v1 := tmplQueryParam(viewArgs, "_ref")
 	assert.Equal(t, "true", v1)
@@ -78,4 +79,35 @@ func TestParamParse(t *testing.T) {
 
 	e.parseRequestParams(ctx2)
 	assert.NotNil(t, ctx2.Req.Params.Form)
+}
+
+func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
+	defer ess.DeleteFiles("testapp.pid")
+
+	cfg, err := config.ParseString(`
+		i18n {
+			param_name {
+				query = "language"
+			}
+		}
+	`)
+	appConfig = cfg
+	paramInitialize(&Event{})
+
+	assert.Nil(t, err)
+
+	r := httptest.NewRequest("GET", "http://localhost:8080/index.html?language=en-CA", nil)
+	ctx1 := &Context{
+		Req:      ahttp.ParseRequest(r, &ahttp.Request{}),
+		viewArgs: make(map[string]interface{}),
+	}
+
+	e := &engine{}
+
+	assert.Nil(t, ctx1.Req.Locale)
+	e.parseRequestParams(ctx1)
+	assert.NotNil(t, ctx1.Req.Locale)
+	assert.Equal(t, "en", ctx1.Req.Locale.Language)
+	assert.Equal(t, "CA", ctx1.Req.Locale.Region)
+	assert.Equal(t, "en-CA", ctx1.Req.Locale.String())
 }

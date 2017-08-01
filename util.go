@@ -8,12 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
@@ -76,13 +78,14 @@ func getBinaryFileName() string {
 	return ess.StripExt(AppBuildInfo().BinaryName)
 }
 
-func isNoGzipStatusCode(code int) bool {
-	for _, c := range noGzipStatusCodes {
-		if c == code {
-			return true
-		}
+// This method is similar to
+// https://golang.org/src/net/http/transfer.go#bodyAllowedForStatus
+func isResponseBodyAllowed(code int) bool {
+	if (code >= http.StatusContinue && code < http.StatusOK) ||
+		code == http.StatusNoContent || code == http.StatusNotModified {
+		return false
 	}
-	return false
+	return true
 }
 
 func resolveControllerName(ctx *Context) string {
@@ -94,4 +97,38 @@ func resolveControllerName(ctx *Context) string {
 
 func isCharsetExists(value string) bool {
 	return strings.Contains(value, "charset")
+}
+
+// this method is candidate for essentials library
+// move it when you get a time
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if !ess.IsStrEmpty(v) {
+			return v
+		}
+	}
+	return ""
+}
+
+func identifyContentType(ctx *Context) *ahttp.ContentType {
+	// based on 'Accept' Header
+	if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
+		ctx.Req.AcceptContentType.Mime != "*/*" {
+		return ctx.Req.AcceptContentType
+	}
+
+	// as per 'render.default' in aah.conf or nil
+	return defaultContentType()
+}
+
+func parsePort(port string) string {
+	if !ess.IsStrEmpty(port) {
+		return port
+	}
+
+	if AppIsSSLEnabled() {
+		return "443"
+	}
+
+	return "80"
 }

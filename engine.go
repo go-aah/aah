@@ -5,19 +5,19 @@
 package aah
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+	"sync"
+	"time"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
-	"aahframework.org/pool.v0"
+	"aahframework.org/security.v0"
 )
 
 const (
@@ -26,17 +26,17 @@ const (
 )
 
 const (
-	aahServerName         = "aah-go-server"
-	gzipContentEncoding   = "gzip"
-	hstsHeaderValue       = "max-age=31536000; includeSubDomains"
-	defaultGlobalPoolSize = 500
-	defaultBufPoolSize    = 200
+	aahServerName       = "aah-go-server"
+	gzipContentEncoding = "gzip"
+	hstsHeaderValue     = "max-age=31536000; includeSubDomains"
 )
 
 var (
-	minifier          MinifierFunc
-	errFileNotFound   = errors.New("file not found")
-	noGzipStatusCodes = []int{http.StatusNotModified, http.StatusNoContent}
+	errFileNotFound = errors.New("file not found")
+	ctHTML          = ahttp.ContentTypeHTML
+
+	minifier MinifierFunc
+	ctxPool  *sync.Pool
 )
 
 type (
@@ -50,16 +50,12 @@ type (
 	// Engine is the aah framework application server handler for request and response.
 	// Implements `http.Handler` interface.
 	engine struct {
-		isRequestIDEnabled bool
-		requestIDHeader    string
-		isGzipEnabled      bool
-		ctxPool            *pool.Pool
-		reqPool            *pool.Pool
-		replyPool          *pool.Pool
-		bufPool            *pool.Pool
+		isRequestIDEnabled       bool
+		requestIDHeader          string
+		isGzipEnabled            bool
+		isAccessLogEnabled       bool
+		isStaticAccessLogEnabled bool
 	}
-
-	byName []os.FileInfo
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -68,8 +64,13 @@ type (
 
 // ServeHTTP method implementation of http.Handler interface.
 func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Capture the startTime earlier.
+	// This value is as accurate as could be.
+	startTime := time.Now()
+
 	ctx := e.prepareContext(w, r)
-	defer e.putContext(ctx)
+	ctx.values[appReqStartTimeKey] = startTime
+	defer releaseContext(ctx)
 
 	// Recovery handling, capture every possible panic(s)
 	defer e.handleRecovery(ctx)
@@ -83,14 +84,21 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Handling route
 	if e.handleRoute(ctx) == flowStop {
-		return
+		goto wReply
 	}
 
 	// Load session
 	e.loadSession(ctx)
 
+	// Authentication and Authorization
+	if e.handleAuthcAndAuthz(ctx) == flowStop {
+		goto wReply
+	}
+
 	// Parsing request params
-	e.parseRequestParams(ctx)
+	if e.parseRequestParams(ctx) == flowStop {
+		goto wReply
+	}
 
 	// Set defaults when actual value not found
 	e.setDefaults(ctx)
@@ -98,6 +106,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Middlewares, interceptors, targeted controller
 	e.executeMiddlewares(ctx)
 
+wReply:
 	// Write Reply on the wire
 	e.writeReply(ctx)
 }
@@ -109,22 +118,13 @@ func (e *engine) handleRecovery(ctx *Context) {
 		log.Errorf("Internal Server Error on %s", ctx.Req.Path)
 
 		st := aruntime.NewStacktrace(r, AppConfig())
-		buf := e.getBuffer()
-		defer e.putBuffer(buf)
+		buf := acquireBuffer()
+		defer releaseBuffer(buf)
 
 		st.Print(buf)
 		log.Error(buf.String())
 
-		ctx.Reply().InternalServerError()
-		e.negotiateContentType(ctx)
-		if ahttp.ContentTypeJSON.IsEqual(ctx.Reply().ContType) {
-			ctx.Reply().JSON(Data{"code": "500", "message": "Internal Server Error"})
-		} else if ahttp.ContentTypeXML.IsEqual(ctx.Reply().ContType) {
-			ctx.Reply().XML(Data{"code": "500", "message": "Internal Server Error"})
-		} else {
-			ctx.Reply().Text("500 Internal Server Error")
-		}
-
+		writeErrorInfo(ctx, http.StatusInternalServerError, "Internal Server Error")
 		e.writeReply(ctx)
 	}
 }
@@ -133,9 +133,7 @@ func (e *engine) handleRecovery(ctx *Context) {
 // It won't set new request id header already present.
 func (e *engine) setRequestID(ctx *Context) {
 	if ess.IsStrEmpty(ctx.Req.Header.Get(e.requestIDHeader)) {
-		guid := ess.NewGUID()
-		log.Debugf("Request ID: %v", guid)
-		ctx.Req.Header.Set(e.requestIDHeader, guid)
+		ctx.Req.Header.Set(e.requestIDHeader, ess.NewGUID())
 	} else {
 		log.Debugf("Request already has ID: %v", ctx.Req.Header.Get(e.requestIDHeader))
 	}
@@ -144,13 +142,12 @@ func (e *engine) setRequestID(ctx *Context) {
 
 // prepareContext method gets controller, request from pool, set the targeted
 // controller, parses the request and returns the controller.
-func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Context {
-	ctx, r := e.getContext(), e.getRequest()
-	ctx.Req = ahttp.ParseRequest(req, r)
-	ctx.Res = ahttp.GetResponseWriter(w)
-	ctx.reply = e.getReply()
-	ctx.viewArgs = make(map[string]interface{})
-
+func (e *engine) prepareContext(w http.ResponseWriter, r *http.Request) *Context {
+	ctx := acquireContext()
+	ctx.Req = ahttp.AcquireRequest(r)
+	ctx.Res = ahttp.AcquireResponseWriter(w)
+	ctx.reply = acquireReply()
+	ctx.subject = security.AcquireSubject()
 	return ctx
 }
 
@@ -171,26 +168,28 @@ func (e *engine) prepareContext(w http.ResponseWriter, req *http.Request) *Conte
 func (e *engine) handleRoute(ctx *Context) flowResult {
 	domain := AppRouter().FindDomain(ctx.Req)
 	if domain == nil {
-		ctx.Reply().NotFound().Text("404 Not Found")
-		e.writeReply(ctx)
+		writeErrorInfo(ctx, http.StatusNotFound, "Not Found")
 		return flowStop
 	}
 
 	route, pathParams, rts := domain.Lookup(ctx.Req)
 	if route == nil { // route not found
 		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
-			e.writeReply(ctx)
 			return flowStop
 		}
 
 		ctx.route = domain.NotFoundRoute
 		handleRouteNotFound(ctx, domain, domain.NotFoundRoute)
-		e.writeReply(ctx)
 		return flowStop
 	}
 
 	ctx.route = route
 	ctx.domain = domain
+
+	// security form auth case
+	if isFormAuthLoginRoute(ctx) {
+		return flowCont
+	}
 
 	// Path parameters
 	if pathParams.Len() > 0 {
@@ -204,7 +203,7 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 	if route.IsStatic {
 		if err := e.serveStatic(ctx); err == errFileNotFound {
 			handleRouteNotFound(ctx, domain, route)
-			e.writeReply(ctx)
+			ctx.Reply().done = false // override
 		}
 		return flowStop
 	}
@@ -212,7 +211,6 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 	// No controller or action found for the route
 	if err := ctx.setTarget(route); err == errTargetNotFound {
 		handleRouteNotFound(ctx, domain, route)
-		e.writeReply(ctx)
 		return flowStop
 	}
 
@@ -222,7 +220,7 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 // loadSession method loads session from request for `stateful` session.
 func (e *engine) loadSession(ctx *Context) {
 	if AppSessionManager().IsStateful() {
-		ctx.session = AppSessionManager().GetSession(ctx.Req.Raw)
+		ctx.subject.Session = AppSessionManager().GetSession(ctx.Req.Unwrap())
 	}
 }
 
@@ -241,13 +239,14 @@ func (e *engine) executeMiddlewares(ctx *Context) {
 
 // writeReply method writes the response on the wire based on `Reply` instance.
 func (e *engine) writeReply(ctx *Context) {
-	reply := ctx.Reply()
-
 	// Response already written on the wire, don't go forward.
-	// refer `ctx.Abort()` method.
-	if reply.done {
+	// refer to `Reply().Done()` method.
+	if ctx.Reply().done {
 		return
 	}
+
+	// 'OnPreReply' server extension point
+	publishOnPreReplyEvent(ctx)
 
 	// HTTP headers
 	e.writeHeaders(ctx)
@@ -255,14 +254,19 @@ func (e *engine) writeReply(ctx *Context) {
 	// Set Cookies
 	e.setCookies(ctx)
 
+	reply := ctx.Reply()
 	if reply.redirect { // handle redirects
 		log.Debugf("Redirecting to '%s' with status '%d'", reply.path, reply.Code)
-		http.Redirect(ctx.Res, ctx.Req.Raw, reply.path, reply.Code)
+		http.Redirect(ctx.Res, ctx.Req.Unwrap(), reply.path, reply.Code)
 		return
 	}
 
 	// ContentType
-	e.negotiateContentType(ctx)
+	if !reply.IsContentTypeSet() {
+		if ct := identifyContentType(ctx); ct != nil {
+			reply.ContentType(ct.String())
+		}
+	}
 
 	// resolving view template
 	e.resolveView(ctx)
@@ -271,45 +275,38 @@ func (e *engine) writeReply(ctx *Context) {
 	// error info without messing with response on the wire.
 	e.doRender(ctx)
 
-	// Gzip
-	if !isNoGzipStatusCode(reply.Code) && reply.body.Len() != 0 {
+	isBodyAllowed := isResponseBodyAllowed(reply.Code)
+	// Gzip, 1kb above TODO make it configurable for bytes size value
+	if isBodyAllowed && reply.body.Len() > 1024 {
 		e.wrapGzipWriter(ctx)
 	}
 
 	// ContentType, if it's not set then auto detect later in the writer
-	if ctx.Reply().IsContentTypeSet() {
+	if reply.IsContentTypeSet() {
 		ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
 	}
-
-	// 'OnPreReply' server extension point
-	publishOnPreReplyEvent(ctx)
 
 	// HTTP status
 	ctx.Res.WriteHeader(reply.Code)
 
-	// Write response buffer on the wire
-	if minifier == nil || !appIsProfileProd ||
-		isNoGzipStatusCode(reply.Code) ||
-		!ahttp.ContentTypeHTML.IsEqual(reply.ContType) {
-		_, _ = reply.body.WriteTo(ctx.Res)
-	} else if err := minifier(reply.ContType, ctx.Res, reply.body); err != nil {
-		log.Errorf("Minifier error: %v", err)
+	if isBodyAllowed {
+		// Write response on the wire
+		var err error
+		if minifier == nil || !appIsProfileProd || !ctHTML.IsEqual(reply.ContType) {
+			if _, err = reply.body.WriteTo(ctx.Res); err != nil {
+				log.Error(err)
+			}
+		} else if err = minifier(reply.ContType, ctx.Res, reply.body); err != nil {
+			log.Errorf("Minifier error: %s", err.Error())
+		}
 	}
 
 	// 'OnAfterReply' server extension point
 	publishOnAfterReplyEvent(ctx)
-}
 
-// negotiateContentType method tries to identify if reply.ContType is empty.
-// Not necessarily it will set one.
-func (e *engine) negotiateContentType(ctx *Context) {
-	if !ctx.Reply().IsContentTypeSet() {
-		if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
-			ctx.Req.AcceptContentType.Mime != "*/*" { // based on 'Accept' Header
-			ctx.Reply().ContentType(ctx.Req.AcceptContentType.String())
-		} else if ct := defaultContentType(); ct != nil { // as per 'render.default' in aah.conf
-			ctx.Reply().ContentType(ct.String())
-		}
+	// Send data to access log channel
+	if e.isAccessLogEnabled {
+		sendToAccessLog(ctx)
 	}
 }
 
@@ -320,7 +317,7 @@ func (e *engine) wrapGzipWriter(ctx *Context) {
 		ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
 		ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
 		ctx.Res.Header().Del(ahttp.HeaderContentLength)
-		ctx.Res = ahttp.GetGzipResponseWriter(ctx.Res)
+		ctx.Res = ahttp.WrapGzipWriter(ctx.Res)
 	}
 }
 
@@ -348,72 +345,11 @@ func (e *engine) setCookies(ctx *Context) {
 		http.SetCookie(ctx.Res, c)
 	}
 
-	if AppSessionManager().IsStateful() && ctx.session != nil {
-		// Pass it to view args before saving cookie
-		session := *ctx.session
-		ctx.AddViewArg(keySessionValues, &session)
-		if err := AppSessionManager().SaveSession(ctx.Res, ctx.session); err != nil {
+	if AppSessionManager().IsStateful() && ctx.subject.Session != nil {
+		if err := AppSessionManager().SaveSession(ctx.Res, ctx.subject.Session); err != nil {
 			log.Error(err)
 		}
 	}
-}
-
-// getContext method gets context instance from the pool
-func (e *engine) getContext() *Context {
-	return e.ctxPool.Get().(*Context)
-}
-
-// getRequest method gets request instance from the pool
-func (e *engine) getRequest() *ahttp.Request {
-	return e.reqPool.Get().(*ahttp.Request)
-}
-
-// getReply method gets reply instance from the pool
-func (e *engine) getReply() *Reply {
-	return e.replyPool.Get().(*Reply)
-}
-
-// putContext method puts context back to pool
-func (e *engine) putContext(ctx *Context) {
-	// Close the writer and Put back to pool
-	if ctx.Res != nil {
-		if _, ok := ctx.Res.(*ahttp.GzipResponse); ok {
-			ahttp.PutGzipResponseWiriter(ctx.Res)
-		} else {
-			ahttp.PutResponseWriter(ctx.Res)
-		}
-	}
-
-	// clear and put `ahttp.Request` into pool
-	if ctx.Req != nil {
-		ctx.Req.Reset()
-		e.reqPool.Put(ctx.Req)
-	}
-
-	// clear and put `Reply` into pool
-	if ctx.reply != nil {
-		e.putBuffer(ctx.reply.body)
-		ctx.reply.Reset()
-		e.replyPool.Put(ctx.reply)
-	}
-
-	// clear and put `aah.Context` into pool
-	ctx.Reset()
-	e.ctxPool.Put(ctx)
-}
-
-// getBuffer method gets buffer from pool
-func (e *engine) getBuffer() *bytes.Buffer {
-	return e.bufPool.Get().(*bytes.Buffer)
-}
-
-// putBPool puts buffer into pool
-func (e *engine) putBuffer(b *bytes.Buffer) {
-	if b == nil {
-		return
-	}
-	b.Reset()
-	e.bufPool.Put(b)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -427,32 +363,33 @@ func newEngine(cfg *config.Config) *engine {
 	}
 
 	return &engine{
-		isRequestIDEnabled: cfg.BoolDefault("request.id.enable", true),
-		requestIDHeader:    cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
-		isGzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
-		ctxPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
-			func() interface{} {
-				return &Context{}
-			},
-		),
-		reqPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
-			func() interface{} {
-				return &ahttp.Request{}
-			},
-		),
-		replyPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.global", defaultGlobalPoolSize),
-			func() interface{} {
-				return NewReply()
-			},
-		),
-		bufPool: pool.NewPool(
-			cfg.IntDefault("runtime.pooling.buffer", defaultBufPoolSize),
-			func() interface{} {
-				return &bytes.Buffer{}
-			},
-		),
+		isRequestIDEnabled:       cfg.BoolDefault("request.id.enable", true),
+		requestIDHeader:          cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
+		isGzipEnabled:            cfg.BoolDefault("render.gzip.enable", true),
+		isAccessLogEnabled:       cfg.BoolDefault("server.access_log.enable", false),
+		isStaticAccessLogEnabled: cfg.BoolDefault("server.access_log.static_file", true),
 	}
+}
+
+func acquireContext() *Context {
+	return ctxPool.Get().(*Context)
+}
+
+func releaseContext(ctx *Context) {
+	ahttp.ReleaseResponseWriter(ctx.Res)
+	ahttp.ReleaseRequest(ctx.Req)
+	security.ReleaseSubject(ctx.subject)
+	releaseReply(ctx.reply)
+
+	ctx.Reset()
+	ctxPool.Put(ctx)
+}
+
+func init() {
+	ctxPool = &sync.Pool{New: func() interface{} {
+		return &Context{
+			viewArgs: make(map[string]interface{}),
+			values:   make(map[string]interface{}),
+		}
+	}}
 }

@@ -17,7 +17,7 @@ const keyLocale = "Locale"
 var appI18n *i18n.I18n
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // AppDefaultI18nLang method returns aah application i18n default language if

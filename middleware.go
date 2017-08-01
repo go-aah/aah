@@ -28,7 +28,7 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Global methods
+// Package methods
 //___________________________________
 
 // Middlewares method adds given middleware into middleware stack
@@ -64,7 +64,7 @@ func ToMiddleware(handler interface{}) MiddlewareFunc {
 	case http.Handler:
 		h := handler.(http.Handler)
 		return func(ctx *Context, m *Middleware) {
-			h.ServeHTTP(ctx.Res, ctx.Req.Raw)
+			h.ServeHTTP(ctx.Res, ctx.Req.Unwrap())
 			m.Next(ctx)
 		}
 	case func(http.ResponseWriter, *http.Request):
@@ -102,12 +102,8 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 	target := reflect.ValueOf(ctx.target)
 	controller := resolveControllerName(ctx)
 
-	// Finally action and method
+	// Finally action and method. Always executed if present
 	defer func() {
-		if ctx.abort {
-			return
-		}
-
 		if finallyActionMethod := target.MethodByName(incpFinallyActionName + ctx.action.Name); finallyActionMethod.IsValid() {
 			log.Debugf("Calling interceptor: %s.%s", controller, incpFinallyActionName+ctx.action.Name)
 			finallyActionMethod.Call(emptyArg)
