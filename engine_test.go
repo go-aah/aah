@@ -6,6 +6,7 @@ package aah
 
 import (
 	"compress/gzip"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -88,6 +89,11 @@ func TestEngineNew(t *testing.T) {
 	buf := acquireBuffer()
 	assert.NotNil(t, buf)
 	releaseBuffer(buf)
+
+	appLogFatal = func(v ...interface{}) { fmt.Println(v) }
+	AppConfig().SetInt("render.gzip.level", 10)
+	e = newEngine(AppConfig())
+	fmt.Println(e)
 }
 
 func TestEngineServeHTTP(t *testing.T) {

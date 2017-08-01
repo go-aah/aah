@@ -125,13 +125,17 @@ func (al *accessLog) Reset() {
 func initAccessLog(logsDir string, appCfg *config.Config) error {
 	// log file configuration
 	cfg, _ := config.ParseString("")
-	file := appCfg.StringDefault("request.access_log.file", "")
+	file := appCfg.StringDefault("server.access_log.file", "")
+
+	cfg.SetString("log.receiver", "file")
 	if ess.IsStrEmpty(file) {
 		cfg.SetString("log.file", filepath.Join(logsDir, getBinaryFileName()+"-access.log"))
-	} else if !filepath.IsAbs(file) {
-		cfg.SetString("log.file", filepath.Join(logsDir, file))
 	} else {
-		cfg.SetString("log.file", file)
+		abspath, err := filepath.Abs(file)
+		if err != nil {
+			return err
+		}
+		cfg.SetString("log.file", abspath)
 	}
 
 	cfg.SetString("log.pattern", "%message")
@@ -145,7 +149,7 @@ func initAccessLog(logsDir string, appCfg *config.Config) error {
 	}
 
 	// parse request access log pattern
-	pattern := appCfg.StringDefault("request.access_log.pattern", appDefaultAccessLogPattern)
+	pattern := appCfg.StringDefault("server.access_log.pattern", appDefaultAccessLogPattern)
 	appAccessLogFmtFlags, err = ess.ParseFmtFlag(pattern, accessLogFmtFlags)
 	if err != nil {
 		return err
@@ -153,7 +157,7 @@ func initAccessLog(logsDir string, appCfg *config.Config) error {
 
 	// initialize request access log channel
 	if appAccessLogChan == nil {
-		appAccessLogChan = make(chan *accessLog, cfg.IntDefault("request.access_log.channel_buffer_size", 500))
+		appAccessLogChan = make(chan *accessLog, cfg.IntDefault("server.access_log.channel_buffer_size", 500))
 		go listenForAccessLog()
 	}
 

@@ -50,10 +50,11 @@ type (
 	// Engine is the aah framework application server handler for request and response.
 	// Implements `http.Handler` interface.
 	engine struct {
-		isRequestIDEnabled bool
-		requestIDHeader    string
-		isGzipEnabled      bool
-		isAccessLogEnabled bool
+		isRequestIDEnabled       bool
+		requestIDHeader          string
+		isGzipEnabled            bool
+		isAccessLogEnabled       bool
+		isStaticAccessLogEnabled bool
 	}
 )
 
@@ -362,10 +363,11 @@ func newEngine(cfg *config.Config) *engine {
 	}
 
 	return &engine{
-		isRequestIDEnabled: cfg.BoolDefault("request.id.enable", true),
-		requestIDHeader:    cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
-		isGzipEnabled:      cfg.BoolDefault("render.gzip.enable", true),
-		isAccessLogEnabled: cfg.BoolDefault("request.access_log.enable", false),
+		isRequestIDEnabled:       cfg.BoolDefault("request.id.enable", true),
+		requestIDHeader:          cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
+		isGzipEnabled:            cfg.BoolDefault("render.gzip.enable", true),
+		isAccessLogEnabled:       cfg.BoolDefault("server.access_log.enable", false),
+		isStaticAccessLogEnabled: cfg.BoolDefault("server.access_log.static_file", true),
 	}
 }
 

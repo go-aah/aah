@@ -107,7 +107,7 @@ func (e *engine) serveStatic(ctx *Context) error {
 		publishOnAfterReplyEvent(ctx)
 
 		// Send data to access log channel
-		if e.isAccessLogEnabled {
+		if e.isAccessLogEnabled && e.isStaticAccessLogEnabled {
 			sendToAccessLog(ctx)
 		}
 		return nil
@@ -131,7 +131,7 @@ func (e *engine) serveStatic(ctx *Context) error {
 		publishOnAfterReplyEvent(ctx)
 
 		// Send data to access log channel
-		if e.isAccessLogEnabled {
+		if e.isAccessLogEnabled && e.isStaticAccessLogEnabled {
 			sendToAccessLog(ctx)
 		}
 		return nil

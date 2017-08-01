@@ -67,7 +67,7 @@ func TestAccessLogFormatterInvalidPattern(t *testing.T) {
 
 func TestAccessLogInitDefault(t *testing.T) {
 	testAccessInit(t, `
-		request {
+		server {
 			access_log {
 		    # Default value is false
 		    enable = true
@@ -76,7 +76,7 @@ func TestAccessLogInitDefault(t *testing.T) {
 		`)
 
 	testAccessInit(t, `
-		request {
+		server {
 			access_log {
 		    # Default value is false
 		    enable = true
@@ -87,7 +87,7 @@ func TestAccessLogInitDefault(t *testing.T) {
 		`)
 
 	testAccessInit(t, `
-		request {
+		server {
 			access_log {
 		    # Default value is false
 		    enable = true
@@ -127,7 +127,7 @@ func TestEngineAccessLog(t *testing.T) {
 		},
 	})
 
-	AppConfig().SetBool("request.access_log.enable", true)
+	AppConfig().SetBool("server.access_log.enable", true)
 
 	e := newEngine(AppConfig())
 	req := httptest.NewRequest("GET", "localhost:8080/get-involved.html", nil)
