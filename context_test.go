@@ -14,7 +14,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/router.v0"
-	"aahframework.org/security.v0-unstable"
+	"aahframework.org/security.v0"
 	"aahframework.org/test.v0/assert"
 )
 

@@ -12,10 +12,10 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
-	"aahframework.org/security.v0-unstable"
-	"aahframework.org/security.v0-unstable/authc"
-	"aahframework.org/security.v0-unstable/scheme"
-	"aahframework.org/security.v0-unstable/session"
+	"aahframework.org/security.v0"
+	"aahframework.org/security.v0/authc"
+	"aahframework.org/security.v0/scheme"
+	"aahframework.org/security.v0/session"
 )
 
 const (
