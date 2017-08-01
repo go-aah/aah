@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"aahframework.org/config.v0"
-	"aahframework.org/security.v0-unstable/scheme"
+	"aahframework.org/security.v0/scheme"
 	"aahframework.org/test.v0/assert"
 )
 
