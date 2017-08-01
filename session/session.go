@@ -4,7 +4,10 @@
 
 package session
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 const flashKeyPrefix = "_flash_"
 
@@ -141,26 +144,22 @@ func (s *Session) GetFloat64(key string) float64 {
 	return 0
 }
 
+// String method is stringer interface implementation.
+func (s *Session) String() string {
+	return fmt.Sprintf("Session: ID: %s, CreatedAt: %s, IsNew: %v, IsAuthenticated: %v, Values: %v",
+		s.ID, s.CreatedTime, s.IsNew, s.IsAuthenticated, s.Values)
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
 
-func (s *Session) reset() {
+// Reset method resets the instance values for repurpose.
+func (s *Session) Reset() {
 	s.ID = ""
-	s.Values = nil
+	s.Values = make(map[string]interface{})
 	s.IsNew = false
 	s.CreatedTime = nil
 	s.IsAuthenticated = false
 	s.maxAge = 0
-}
-
-func getSessionObj() *Session {
-	return sPool.Get().(*Session)
-}
-
-func putSessionObj(s *Session) {
-	if s != nil {
-		s.reset()
-		sPool.Put(s)
-	}
 }
