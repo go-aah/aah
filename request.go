@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	jsonpReqParamKey = "callback"
-	ajaxHeaderValue  = "XMLHttpRequest"
+	jsonpReqParamKey     = "callback"
+	ajaxHeaderValue      = "XMLHttpRequest"
+	websocketHeaderValue = "websocket"
 )
 
 var requestPool = &sync.Pool{New: func() interface{} { return &Request{} }}
@@ -154,10 +155,15 @@ func (r *Request) IsJSONP() bool {
 	return !ess.IsStrEmpty(r.QueryValue(jsonpReqParamKey))
 }
 
-// IsAJAX methods returns true if the request header `X-Requested-With` is
+// IsAJAX method returns true if request header `X-Requested-With` is
 // `XMLHttpRequest` otherwise false.
 func (r *Request) IsAJAX() bool {
 	return r.Header.Get(HeaderXRequestedWith) == ajaxHeaderValue
+}
+
+// IsWebSocket method returns true if request is WebSocket otherwise false.
+func (r *Request) IsWebSocket() bool {
+	return r.Header.Get(HeaderUpgrade) == websocketHeaderValue
 }
 
 // PathValue method returns value for given Path param key otherwise empty string.
@@ -200,7 +206,8 @@ func (r *Request) Unwrap() *http.Request {
 	return r.Raw
 }
 
-// SaveFile method saves an uploaded multipart file for given key from the HTTP request into given destination
+// SaveFile method saves an uploaded multipart file for given key from the HTTP
+// request into given destination
 func (r *Request) SaveFile(key, dstFile string) error {
 	if ess.IsStrEmpty(dstFile) || ess.IsStrEmpty(key) {
 		return errors.New("ahttp: key or dstFile is empty")
@@ -219,15 +226,16 @@ func (r *Request) SaveFile(key, dstFile string) error {
 	return saveFile(uploadedFile, dstFile)
 }
 
-// SaveFiles method saves an uploaded multipart file(s) for the given key from the HTTP request into given destination directory.
-// It uses the filename as uploaded filename from the request
+// SaveFiles method saves an uploaded multipart file(s) for the given key
+// from the HTTP request into given destination directory. It uses the filename
+// as uploaded filename from the request
 func (r *Request) SaveFiles(key, dstPath string) []error {
 	if !ess.IsDir(dstPath) {
 		return []error{fmt.Errorf("ahttp: destination path, %s is not a directory", dstPath)}
 	}
 
 	if ess.IsStrEmpty(key) {
-		return []error{fmt.Errorf("ahttp: form file key, %s is empty.", key)}
+		return []error{fmt.Errorf("ahttp: form file key, %s is empty", key)}
 	}
 
 	var errs []error
