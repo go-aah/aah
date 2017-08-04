@@ -316,3 +316,11 @@ func TestRequestSaveFilesCannotCreateFile(t *testing.T) {
 
 	assert.NotNil(t, aahReq.SaveFiles("framework", "/root"))
 }
+
+func TestRequestsaveFileForExistingFile(t *testing.T) {
+	var buf bytes.Buffer
+
+	err := saveFile(&buf, "testdata/file1.txt")
+	assert.NotNil(t, err)
+	assert.Equal(t, "open testdata/file1.txt: file exists", err.Error())
+}
