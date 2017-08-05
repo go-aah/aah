@@ -174,7 +174,7 @@ func listenForAccessLog() {
 
 func sendToAccessLog(ctx *Context) {
 	al := acquireAccessLog()
-	al.StartTime = ctx.values[appReqStartTimeKey].(time.Time)
+	al.StartTime = ctx.Get(appReqStartTimeKey).(time.Time)
 
 	// All the bytes have been written on the wire
 	// so calculate elapsed time
