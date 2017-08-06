@@ -21,7 +21,7 @@ import (
 )
 
 // Version no. of aah framework
-const Version = "0.7"
+const Version = "0.8-dev"
 
 // aah application variables
 var (
