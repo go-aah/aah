@@ -155,8 +155,13 @@ func TestViewResolveView(t *testing.T) {
 	assert.Equal(t, "index.html", htmlRdr.Filename)
 	assert.Equal(t, "views/pages/frontend/app/index.html", htmlRdr.ViewArgs["ViewNotFound"])
 
+	ctx.Req.AcceptContentType.Mime = ""
+	appConfig = appCfg
+	assert.Nil(t, identifyContentType(ctx))
+
 	// cleanup
 	appViewEngine = nil
+	appConfig = nil
 }
 
 func TestViewResolveViewNotFound(t *testing.T) {

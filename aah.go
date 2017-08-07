@@ -40,6 +40,7 @@ var (
 	appIsLetsEncrypt      bool
 	appIsProfileProd      bool
 	appMultipartMaxMemory int64
+	appMaxBodyBytesSize   int64
 	appPID                int
 	appInitialized        bool
 	appBuildInfo          *BuildInfo
@@ -291,6 +292,11 @@ func initAppVariables() error {
 
 	if err = initAutoCertManager(cfg); err != nil {
 		return err
+	}
+
+	maxBodySizeStr := cfg.StringDefault("request.max_body_size", "5mb")
+	if appMaxBodyBytesSize, err = ess.StrToBytes(maxBodySizeStr); err != nil {
+		return errors.New("'request.max_body_size' value is not a valid size unit")
 	}
 
 	multipartMemoryStr := cfg.StringDefault("request.multipart_size", "32mb")

@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"aahframework.org/essentials.v0"
-	"aahframework.org/router.v0"
+	"aahframework.org/router.v0-unstable"
 )
 
 const (
