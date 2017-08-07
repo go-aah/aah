@@ -69,28 +69,31 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 		} // switch end
 
 		// clean up
-		defer func(r *http.Request) {
-			if r.MultipartForm != nil {
+		if req.MultipartForm != nil {
+			defer func(r *http.Request) {
 				log.Debug("multipart form file clean up")
 				if err := r.MultipartForm.RemoveAll(); err != nil {
 					log.Error(err)
 				}
-			}
-		}(req)
+			}(req)
+		}
 	}
 
-	// i18n locale HTTP header `Accept-Language` value override via
-	// Path Variable and URL Query Param (config i18n { param_name { ... } }).
-	// Note: Query parameter takes precedence of all.
-	// Default parameter name is `lang`
-	pathValue := ctx.Req.PathValue(keyPathParamName)
-	queryValue := ctx.Req.QueryValue(keyQueryParamName)
-	if locale := firstNonEmpty(queryValue, pathValue); !ess.IsStrEmpty(locale) {
-		ctx.Req.Locale = ahttp.NewLocale(locale)
+	if AppI18n() != nil {
+		// i18n locale HTTP header `Accept-Language` value override via
+		// Path Variable and URL Query Param (config i18n { param_name { ... } }).
+		// Note: Query parameter takes precedence of all.
+		// Default parameter name is `lang`
+		if locale := firstNonZeroString(
+			ctx.Req.QueryValue(keyQueryParamName),
+			ctx.Req.PathValue(keyPathParamName)); !ess.IsStrEmpty(locale) {
+			ctx.Req.Locale = ahttp.NewLocale(locale)
+		}
+
+		// All the request parameters made available to templates via funcs.
+		ctx.AddViewArg(KeyViewArgRequestParams, ctx.Req.Params)
 	}
 
-	// All the request parameters made available to templates via funcs.
-	ctx.AddViewArg(KeyViewArgRequestParams, ctx.Req.Params)
 	return flowCont
 }
 

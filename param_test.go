@@ -14,6 +14,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/i18n.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -56,6 +57,7 @@ func TestParamParse(t *testing.T) {
 	}
 
 	e := &engine{}
+	appI18n = i18n.New()
 
 	assert.Nil(t, ctx1.Req.Locale)
 	e.parseRequestParams(ctx1)

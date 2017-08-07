@@ -106,7 +106,7 @@ func AppHTTPAddress() string {
 // AppHTTPPort method returns aah application HTTP port number based on `server.port`
 // value. Possible outcomes are user-defined port, `80`, `443` and `8080`.
 func AppHTTPPort() string {
-	port := firstNonEmpty(AppConfig().StringDefault("server.proxyport", ""),
+	port := firstNonZeroString(AppConfig().StringDefault("server.proxyport", ""),
 		AppConfig().StringDefault("server.port", appDefaultHTTPPort))
 	return parsePort(port)
 }

@@ -99,9 +99,9 @@ func isCharsetExists(value string) bool {
 	return strings.Contains(value, "charset")
 }
 
-// this method is candidate for essentials library
+// TODO this method is candidate for essentials library
 // move it when you get a time
-func firstNonEmpty(values ...string) string {
+func firstNonZeroString(values ...string) string {
 	for _, v := range values {
 		if !ess.IsStrEmpty(v) {
 			return v
