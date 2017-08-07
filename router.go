@@ -25,7 +25,7 @@ import (
 
 const (
 	// Version no. of aah framework router library
-	Version = "0.8"
+	Version = "0.9-dev"
 
 	wildcardSubdomainPrefix = "*."
 )
@@ -76,13 +76,14 @@ type (
 
 	// Route holds the single route details.
 	Route struct {
-		Name       string
-		Path       string
-		Method     string
-		Controller string
-		Action     string
-		ParentName string
-		Auth       string
+		Name        string
+		Path        string
+		Method      string
+		Controller  string
+		Action      string
+		ParentName  string
+		Auth        string
+		MaxBodySize int64
 
 		// static route fields in-addition to above
 		IsStatic bool
@@ -308,8 +309,8 @@ func (r *Router) processRoutesConfig() (err error) {
 				if !ess.IsStrEmpty(dr.ParentName) {
 					parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
 				}
-				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v, Auth: %v",
-					dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action, dr.Auth)
+				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v, Auth: %v, MaxBodySize: %v",
+					dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action, dr.Auth, dr.MaxBodySize)
 			}
 		}
 
@@ -685,16 +686,23 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		// getting route authentication scheme name
 		routeAuth := cfg.StringDefault(routeName+".auth", routeInfo.Auth)
 
+		// getting route max body size, Github go-aah/aah#83
+		routeMaxBodySize, er := ess.StrToBytes(cfg.StringDefault(routeName+".max_body_size", "0kb"))
+		if er != nil {
+			log.Warnf("'%v.max_body_size' value is not a valid size unit, fallback to global limit", routeName)
+		}
+
 		if notToSkip {
 			for _, m := range strings.Split(routeMethod, ",") {
 				routes = append(routes, &Route{
-					Name:       routeName,
-					Path:       routePath,
-					Method:     strings.TrimSpace(m),
-					Controller: routeController,
-					Action:     routeAction,
-					ParentName: routeInfo.ParentName,
-					Auth:       routeAuth,
+					Name:        routeName,
+					Path:        routePath,
+					Method:      strings.TrimSpace(m),
+					Controller:  routeController,
+					Action:      routeAction,
+					ParentName:  routeInfo.ParentName,
+					Auth:        routeAuth,
+					MaxBodySize: routeMaxBodySize,
 				})
 			}
 		}
