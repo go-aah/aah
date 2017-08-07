@@ -22,8 +22,12 @@ const (
 )
 
 var (
-	keyQueryParamName = keyOverrideI18nName
-	keyPathParamName  = keyOverrideI18nName
+	keyQueryParamName    = keyOverrideI18nName
+	keyPathParamName     = keyOverrideI18nName
+	isAcceptedExists     bool
+	acceptedContentTypes []string
+	isOfferedExists      bool
+	offeredContentTypes  []string
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -34,13 +38,25 @@ var (
 // parameters (Payload, Form, Query, Multi-part) stores into context. Request
 // params are made available in View via template functions.
 func (e *engine) parseRequestParams(ctx *Context) flowResult {
-	req := ctx.Req.Unwrap()
+	// Content Negotitaion - Accepted, refer to Github #75
+	if isAcceptedExists && !ess.IsSliceContainsString(acceptedContentTypes, ctx.Req.ContentType.Mime) {
+		log.Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType.Mime)
+		writeErrorInfo(ctx, http.StatusUnsupportedMediaType, "Unsupported Media Type")
+		return flowStop
+	}
 
+	// Content Negotitaion - Offered, refer to Github #75
+	if isOfferedExists && !ess.IsSliceContainsString(offeredContentTypes, ctx.Req.AcceptContentType.Mime) {
+		log.Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType.Mime)
+		writeErrorInfo(ctx, http.StatusUnsupportedMediaType, "Not Acceptable")
+		return flowStop
+	}
+
+	req := ctx.Req.Unwrap()
 	if ctx.Req.Method != ahttp.MethodGet {
 		contentType := ctx.Req.ContentType.Mime
 		log.Debugf("Request content type: %s", contentType)
 
-		// TODO add support for content-type restriction and return 415 status for that
 		// TODO HTML sanitizer for Form and Multipart Form
 
 		switch contentType {
@@ -117,8 +133,11 @@ func tmplQueryParam(viewArgs map[string]interface{}, key string) interface{} {
 }
 
 func paramInitialize(e *Event) {
-	keyPathParamName = AppConfig().StringDefault("i18n.param_name.path", keyOverrideI18nName)
-	keyQueryParamName = AppConfig().StringDefault("i18n.param_name.query", keyOverrideI18nName)
+	cfg := AppConfig()
+	keyPathParamName = cfg.StringDefault("i18n.param_name.path", keyOverrideI18nName)
+	keyQueryParamName = cfg.StringDefault("i18n.param_name.query", keyOverrideI18nName)
+	acceptedContentTypes, isAcceptedExists = cfg.StringList("request.content_negotiation.accepted")
+	offeredContentTypes, isOfferedExists = cfg.StringList("request.content_negotiation.offered")
 }
 
 func init() {
