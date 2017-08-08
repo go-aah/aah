@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"aahframework.org/essentials.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -89,6 +90,7 @@ func TestHTTPParseRequest(t *testing.T) {
 	assert.Nil(t, err)
 	assert.False(t, aahReq.IsJSONP())
 	assert.False(t, aahReq.IsAJAX())
+	assert.False(t, aahReq.IsWebSocket())
 
 	// Reset it
 	aahReq.Reset()
@@ -202,7 +204,7 @@ func setUpRequestSaveFile(t *testing.T) (*Request, string, func()) {
 	_, err := multipartWriter.CreateFormFile("framework", "aah")
 	assert.Nil(t, err)
 
-	multipartWriter.Close()
+	ess.CloseQuietly(multipartWriter)
 
 	req, _ := http.NewRequest("POST", "http://localhost:8080", buf)
 	req.Header.Add(HeaderContentType, multipartWriter.FormDataContentType())
@@ -217,7 +219,7 @@ func setUpRequestSaveFile(t *testing.T) (*Request, string, func()) {
 	path := "testdata/aah.txt"
 
 	return aahReq, path, func() {
-		os.Remove(path) //Teardown
+		_ = os.Remove(path) //Teardown
 	}
 }
 
@@ -266,7 +268,7 @@ func setUpRequestSaveFiles(t *testing.T) (*Request, string, func()) {
 	_, err = multipartWriter.CreateFormFile("framework2", "aah2")
 	assert.Nil(t, err)
 
-	multipartWriter.Close()
+	ess.CloseQuietly(multipartWriter)
 
 	req, _ := http.NewRequest("POST", "http://localhost:8080", buf)
 	req.Header.Add(HeaderContentType, multipartWriter.FormDataContentType())
@@ -282,9 +284,9 @@ func setUpRequestSaveFiles(t *testing.T) (*Request, string, func()) {
 
 	dir := "testdata/upload"
 
-	os.Mkdir(dir, 0755)
+	_ = ess.MkDirAll(dir, 0755)
 	return aahReq, dir, func() {
-		os.RemoveAll(dir)
+		_ = os.RemoveAll(dir)
 	}
 }
 
