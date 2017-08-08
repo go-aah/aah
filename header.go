@@ -58,6 +58,7 @@ const (
 	HeaderLocation                        = "Location"
 	HeaderOrigin                          = "Origin"
 	HeaderMethod                          = "Method"
+	HeaderPublicKeyPins                   = "Public-Key-Pins"
 	HeaderRange                           = "Range"
 	HeaderReferer                         = "Referer"
 	HeaderReferrerPolicy                  = "Referrer-Policy"
