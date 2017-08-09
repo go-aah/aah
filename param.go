@@ -57,6 +57,14 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 		contentType := ctx.Req.ContentType.Mime
 		log.Debugf("Request content type: %s", contentType)
 
+		// Prevent DDoS attacks by large HTTP request bodies by enforcing
+		// configured hard limit, Github #83.
+		if contentType != ahttp.ContentTypeMultipartForm.Mime {
+			req.Body = http.MaxBytesReader(ctx.Res, req.Body,
+				firstNonZeroInt64(ctx.route.MaxBodySize, appMaxBodyBytesSize))
+		}
+
+		// TODO add support for content-type restriction and return 415 status for that
 		// TODO HTML sanitizer for Form and Multipart Form
 
 		switch contentType {

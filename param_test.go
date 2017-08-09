@@ -14,6 +14,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/router.v0-unstable"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -51,7 +52,9 @@ func TestParamParse(t *testing.T) {
 	// Request Query String
 	r1 := httptest.NewRequest("GET", "http://localhost:8080/index.html?lang=en-CA", nil)
 	ctx1 := &Context{
-		Req:      ahttp.ParseRequest(r1, &ahttp.Request{}),
+		Req:      ahttp.AcquireRequest(r1),
+		Res:      ahttp.AcquireResponseWriter(httptest.NewRecorder()),
+		route:    &router.Route{MaxBodySize: 5 << 20},
 		viewArgs: make(map[string]interface{}),
 	}
 
@@ -73,7 +76,9 @@ func TestParamParse(t *testing.T) {
 	r2, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", strings.NewReader(form.Encode()))
 	r2.Header.Add(ahttp.HeaderContentType, ahttp.ContentTypeForm.String())
 	ctx2 := &Context{
-		Req:      ahttp.ParseRequest(r2, &ahttp.Request{}),
+		Req:      ahttp.AcquireRequest(r2),
+		Res:      ahttp.AcquireResponseWriter(httptest.NewRecorder()),
+		route:    &router.Route{MaxBodySize: 5 << 20},
 		viewArgs: make(map[string]interface{}),
 	}
 
