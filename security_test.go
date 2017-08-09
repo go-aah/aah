@@ -39,6 +39,18 @@ func TestSecurityInit(t *testing.T) {
 
 	authScheme = sec.GetAuthScheme("no_auth")
 	assert.Nil(t, authScheme)
+
+	// Validate Secure headers
+	assert.Equal(t, "SAMEORIGIN", sec.SecureHeaders.Common["X-Frame-Options"])
+	assert.Equal(t, "nosniff", sec.SecureHeaders.Common["X-Content-Type-Options"])
+	assert.Equal(t, "no-referrer-when-downgrade", sec.SecureHeaders.Common["Referrer-Policy"])
+	assert.Equal(t, "master-only", sec.SecureHeaders.Common["X-Permitted-Cross-Domain-Policies"])
+	assert.Equal(t, "max-age=31536000; includeSubDomains; preload", sec.SecureHeaders.STS)
+	assert.Equal(t, `pin-sha256="X3pGTSOuJeEVw989IJ/cEtXUEmy52zs1TZQrU06KUKg="; pin-sha256="MHJYVThihUrJcxW6wcqyOISTXIsInsdj3xK8QrZbHec="; pin-sha256="GGekerhihUrJcxW6wcqyOISTXIsInsdj3xK8QrZbHec="; max-age=2592000; includeSubdomains; report-uri=http://report.localhost`, sec.SecureHeaders.PKP)
+	assert.Equal(t, "1; mode=block", sec.SecureHeaders.XSSFilter)
+	assert.Equal(t, "default-src 'none'; report-uri http://report.localhost", sec.SecureHeaders.CSP)
+	assert.True(t, sec.SecureHeaders.CSPReportOnly)
+	assert.True(t, sec.SecureHeaders.PKPReportOnly)
 }
 
 func TestSecurityInitError(t *testing.T) {
