@@ -103,7 +103,7 @@ func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
 
 	r := httptest.NewRequest("GET", "http://localhost:8080/index.html?language=en-CA", nil)
 	ctx1 := &Context{
-		Req:      ahttp.ParseRequest(r, &ahttp.Request{}),
+		Req:      ahttp.AcquireRequest(r),
 		viewArgs: make(map[string]interface{}),
 	}
 
@@ -115,4 +115,36 @@ func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
 	assert.Equal(t, "en", ctx1.Req.Locale.Language)
 	assert.Equal(t, "CA", ctx1.Req.Locale.Region)
 	assert.Equal(t, "en-CA", ctx1.Req.Locale.String())
+}
+
+func TestParamContentNegotiation(t *testing.T) {
+	defer ess.DeleteFiles("testapp.pid")
+
+	e := engine{}
+
+	// Accepted
+	isAcceptedExists = true
+	acceptedContentTypes = []string{"application/json"}
+	r1 := httptest.NewRequest("POST", "http://localhost:8080/v1/userinfo", nil)
+	r1.Header.Set(ahttp.HeaderContentType, "application/xml")
+	ctx1 := &Context{
+		Req:   ahttp.AcquireRequest(r1),
+		reply: acquireReply(),
+	}
+	result1 := e.parseRequestParams(ctx1)
+	assert.True(t, result1 == 1)
+	isAcceptedExists = false
+
+	// Offered
+	isOfferedExists = true
+	offeredContentTypes = []string{"application/json"}
+	r2 := httptest.NewRequest("POST", "http://localhost:8080/v1/userinfo", nil)
+	r2.Header.Set(ahttp.HeaderAccept, "application/xml")
+	ctx2 := &Context{
+		Req:   ahttp.AcquireRequest(r2),
+		reply: acquireReply(),
+	}
+	result2 := e.parseRequestParams(ctx2)
+	assert.True(t, result2 == 1)
+	isOfferedExists = false
 }
