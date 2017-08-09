@@ -28,7 +28,6 @@ const (
 const (
 	aahServerName       = "aah-go-server"
 	gzipContentEncoding = "gzip"
-	hstsHeaderValue     = "max-age=31536000; includeSubDomains"
 )
 
 var (
@@ -331,10 +330,43 @@ func (e *engine) writeHeaders(ctx *Context) {
 
 	ctx.Res.Header().Set(ahttp.HeaderServer, aahServerName)
 
-	// Set the HSTS if SSL is enabled on aah server
-	// Know more: https://www.owasp.org/index.php/HTTP_Strict_Transport_Security_Cheat_Sheet
+	// Write application security headers with many safe defaults and
+	// configured header values.
+	secureHeaders := AppSecurityManager().SecureHeaders
+
+	// Write common secure headers for all request
+	for header, value := range secureHeaders.Common {
+		ctx.Res.Header().Set(header, value)
+	}
+
+	// Applied to all HTML Content-Type
+	if ahttp.ContentTypeHTML.IsEqual(ctx.Reply().ContType) {
+		// X-XSS-Protection
+		ctx.Res.Header().Set(ahttp.HeaderXXSSProtection, secureHeaders.XSSFilter)
+
+		// Content-Security-Policy (CSP) and applied only to environment `prod`
+		if appIsProfileProd && len(secureHeaders.CSP) > 0 {
+			if secureHeaders.CSPReportOnly {
+				ctx.Res.Header().Set(ahttp.HeaderContentSecurityPolicy+"-Report-Only", secureHeaders.CSP)
+			} else {
+				ctx.Res.Header().Set(ahttp.HeaderContentSecurityPolicy, secureHeaders.CSP)
+			}
+		}
+	}
+
+	// Apply only if HTTPS (SSL)
 	if AppIsSSLEnabled() {
-		ctx.Res.Header().Set(ahttp.HeaderStrictTransportSecurity, hstsHeaderValue)
+		// Public-Key-Pins PKP (aka HPKP) and applied only to environment `prod`
+		if appIsProfileProd && len(secureHeaders.PKP) > 0 {
+			if secureHeaders.PKPReportOnly {
+				ctx.Res.Header().Set(ahttp.HeaderPublicKeyPins+"-Report-Only", secureHeaders.PKP)
+			} else {
+				ctx.Res.Header().Set(ahttp.HeaderPublicKeyPins, secureHeaders.PKP)
+			}
+		}
+
+		// Strict-Transport-Security (STS, aka HSTS)
+		ctx.Res.Header().Set(ahttp.HeaderStrictTransportSecurity, secureHeaders.STS)
 	}
 }
 
