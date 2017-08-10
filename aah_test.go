@@ -6,7 +6,6 @@ package aah
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -199,7 +198,7 @@ func TestAahLogDir(t *testing.T) {
 	assert.Nil(t, err)
 	appBuildInfo = nil
 
-	appLogFatal = func(v ...interface{}) { fmt.Println(v) }
+	appLogFatal = func(v ...interface{}) { t.Log(v) }
 	logAsFatal(errors.New("test msg"))
 
 }
@@ -235,7 +234,6 @@ func TestAahBuildInfo(t *testing.T) {
 func TestAahConfigValidation(t *testing.T) {
 	err := checkSSLConfigValues(true, false, "/path/to/cert.pem", "/path/to/cert.key")
 	assert.Equal(t, "SSL cert file not found: /path/to/cert.pem", err.Error())
-	fmt.Println(err)
 
 	certPath := filepath.Join(getTestdataPath(), "cert.pem")
 	defer ess.DeleteFiles(certPath)

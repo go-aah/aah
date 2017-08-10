@@ -5,7 +5,6 @@
 package aah
 
 import (
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -15,15 +14,15 @@ import (
 
 func TestOnInitEvent(t *testing.T) {
 	onInitFunc1 := func(e *Event) {
-		fmt.Println("onInitFunc1:", e)
+		t.Log("onInitFunc1:", e)
 	}
 
 	onInitFunc2 := func(e *Event) {
-		fmt.Println("onInitFunc2:", e)
+		t.Log("onInitFunc2:", e)
 	}
 
 	onInitFunc3 := func(e *Event) {
-		fmt.Println("onInitFunc3:", e)
+		t.Log("onInitFunc3:", e)
 	}
 
 	appEventStore = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
@@ -68,15 +67,15 @@ func TestOnInitEvent(t *testing.T) {
 
 func TestOnStartEvent(t *testing.T) {
 	onStartFunc1 := func(e *Event) {
-		fmt.Println("onStartFunc1:", e)
+		t.Log("onStartFunc1:", e)
 	}
 
 	onStartFunc2 := func(e *Event) {
-		fmt.Println("onStartFunc2:", e)
+		t.Log("onStartFunc2:", e)
 	}
 
 	onStartFunc3 := func(e *Event) {
-		fmt.Println("onStartFunc3:", e)
+		t.Log("onStartFunc3:", e)
 	}
 
 	appEventStore = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
@@ -121,15 +120,15 @@ func TestOnStartEvent(t *testing.T) {
 
 func TestOnShutdownEvent(t *testing.T) {
 	onShutdownFunc1 := func(e *Event) {
-		fmt.Println("onShutdownFunc1:", e)
+		t.Log("onShutdownFunc1:", e)
 	}
 
 	onShutdownFunc2 := func(e *Event) {
-		fmt.Println("onShutdownFunc2:", e)
+		t.Log("onShutdownFunc2:", e)
 	}
 
 	onShutdownFunc3 := func(e *Event) {
-		fmt.Println("onShutdownFunc3:", e)
+		t.Log("onShutdownFunc3:", e)
 	}
 
 	appEventStore = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
@@ -245,15 +244,15 @@ func TestServerExtensionEvent(t *testing.T) {
 
 func TestSubscribeAndUnsubscribeAndPublish(t *testing.T) {
 	myEventFunc1 := func(e *Event) {
-		fmt.Println("myEventFunc1:", e)
+		t.Log("myEventFunc1:", e)
 	}
 
 	myEventFunc2 := func(e *Event) {
-		fmt.Println("myEventFunc2:", e)
+		t.Log("myEventFunc2:", e)
 	}
 
 	myEventFunc3 := func(e *Event) {
-		fmt.Println("myEventFunc3:", e)
+		t.Log("myEventFunc3:", e)
 	}
 
 	ecb1 := EventCallback{Callback: myEventFunc1, CallOnce: true}

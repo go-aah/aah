@@ -55,10 +55,9 @@ func (e *engine) serveStatic(ctx *Context) error {
 	f, err := httpDir.Open(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Errorf("file not found: %s", req.Path)
 			return errFileNotFound
 		} else if os.IsPermission(err) {
-			log.Warnf("permission issue: %s", req.Path)
+			log.Warnf("Static file permission issue: %s", req.Path)
 			res.WriteHeader(http.StatusForbidden)
 			fmt.Fprintf(res, "403 Forbidden")
 		} else {
@@ -76,7 +75,7 @@ func (e *engine) serveStatic(ctx *Context) error {
 		return nil
 	}
 
-	// Gzip, 1kb above
+	// Gzip, 1kb above, TODO make it configurable from aah.conf
 	if fi.Size() > 1024 {
 		ctx.Reply().gzip = checkGzipRequired(filePath)
 		e.wrapGzipWriter(ctx)
@@ -138,7 +137,7 @@ func (e *engine) serveStatic(ctx *Context) error {
 	}
 
 	// Flow reached here it means directory listing is not allowed
-	log.Warnf("directory listing not allowed: %s", req.Path)
+	log.Warnf("Directory listing not allowed: %s", req.Path)
 	res.WriteHeader(http.StatusForbidden)
 	fmt.Fprintf(res, "403 Directory listing not allowed")
 

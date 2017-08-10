@@ -5,7 +5,6 @@
 package aah
 
 import (
-	"fmt"
 	"html/template"
 	"io"
 	"net/http/httptest"
@@ -218,7 +217,7 @@ func TestViewDefaultContentType(t *testing.T) {
 
 func TestViewSetMinifier(t *testing.T) {
 	testMinifier := func(contentType string, w io.Writer, r io.Reader) error {
-		fmt.Println("called minifier func")
+		t.Log("called minifier func")
 		return nil
 	}
 
