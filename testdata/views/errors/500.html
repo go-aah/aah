@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ .Error.Code }} - {{ .Error.Message }}</title>
+  <link href="//fonts.googleapis.com/css?family=Open+Sans:300,400,700" rel="stylesheet" type="text/css">
+  <style>
+		html {-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
+    html, body {
+			margin: 0;
+      background-color: #fff;
+      color: #636b6f;
+      font-family: 'Open Sans', sans-serif;
+      font-weight: 100;
+      height: 80vh;
+    }
+    .flex {
+      align-items: center;
+      display: flex;
+      justify-content: center;
+			position: relative;
+			height: 80vh;
+    }
+    .content {
+      text-align: center;
+    }
+    .title {
+      font-size: 38px;
+      padding: 20px;
+    }
+  </style>
+	</head>
+  <body>
+    <div class="flex">
+      {{ with .Error -}}
+      <div class="content">
+        <div class="title">
+          {{ .Code }} - {{ .Message }}
+        </div>
+      </div>
+			{{- end }}
+    </div>
+  </body>
+</html>

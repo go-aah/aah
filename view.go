@@ -94,8 +94,12 @@ func GetEngine(name string) (Enginer, bool) {
 // TemplateKey returns the unique key for given path.
 func TemplateKey(path string) string {
 	path = path[strings.Index(path, "pages"):]
-	path = strings.Replace(path, "/", "_", -1)
-	path = strings.Replace(path, "\\", "_", -1)
+	if fSeparator == '/' {
+		path = strings.Replace(path, "/", "_", -1)
+	} else {
+		path = strings.Replace(path, "\\", "_", -1)
+	}
+
 	return path
 }
 

@@ -78,7 +78,7 @@ func (ge *GoViewEngine) Get(layout, path, tmplName string) (*template.Template, 
 	}
 
 	if l, found := ge.layouts[layout]; found {
-		key := TemplateKey(filepath.Join(path, tmplName))
+		key := parseKey("", filepath.Join(path, tmplName))
 		if layout == noLayout {
 			key = noLayout + key
 		}
@@ -110,51 +110,18 @@ func (ge *GoViewEngine) processTemplates(layouts, pageDirs []string, filePattern
 		}
 
 		for _, dir := range pageDirs {
-			files, err := filepath.Glob(filepath.Join(dir, filePattern))
-			if err != nil {
-				errs = append(errs, err)
-				continue
-			}
-
-			if len(files) == 0 {
-				continue
-			}
-
-			for _, tmplFile := range files {
-				files := append([]string{}, tmplFile, layout)
-
-				// create key and parse template with funcs
-				tmplKey := TemplateKey(tmplFile)
-				tmpl := ge.createTemplate(tmplKey)
-
-				log.Tracef("Parsing Templates[%s]: %s", tmplKey, ge.trimAppBaseDir(files...))
-				if _, err = tmpl.ParseFiles(files...); err != nil {
-					errs = append(errs, err)
-					continue
-				}
-
-				lTemplate.Template[tmplKey] = tmpl
-				lTemplate.TemplateLower[strings.ToLower(tmplKey)] = tmpl
-
-				if !ge.isDefaultLayoutEnabled {
-					ntmpl := ge.createTemplate(tmplKey)
-					log.Tracef("Parsing Template for nolayout [%s]: %s", tmplKey, ge.trimAppBaseDir(tmplFile))
-					tfile, _ := ioutil.ReadFile(tmplFile)
-					if _, err = ntmpl.Parse(string(tfile)); err != nil {
-						errs = append(errs, err)
-						continue
-					}
-					lTemplate.Template[noLayout+tmplKey] = ntmpl
-					lTemplate.TemplateLower[strings.ToLower(noLayout+tmplKey)] = ntmpl
-				}
-			}
+			ge.processDir(lTemplate, layout, dir, filePattern, errs)
 		}
+
 		ge.layouts[strings.ToLower(filepath.Base(layout))] = lTemplate
 
 		if !ge.isDefaultLayoutEnabled {
 			ge.layouts[noLayout] = lTemplate
 		}
 	}
+
+	// Error pages
+	ge.processErrorTemplates(errs)
 
 	if len(errs) > 0 {
 		for _, e := range errs {
@@ -183,10 +150,90 @@ func (ge *GoViewEngine) createTemplate(key string) *template.Template {
 
 func (ge *GoViewEngine) trimAppBaseDir(files ...string) string {
 	var fs []string
+	prefix := strings.TrimSuffix(ge.baseDir, "views")
 	for _, f := range files {
-		fs = append(fs, f[strings.Index(f, "views"):])
+		fs = append(fs, trimPathPrefix(f, prefix))
 	}
 	return strings.Join(fs, ", ")
+}
+
+func (ge *GoViewEngine) processDir(lTemplate *Templates, layout, dir, filePattern string, errs []error) {
+	files, err := filepath.Glob(filepath.Join(dir, filePattern))
+	if err != nil {
+		errs = append(errs, err)
+		return
+	}
+
+	if len(files) == 0 {
+		return
+	}
+
+	for _, tmplFile := range files {
+		files := append([]string{}, tmplFile, layout)
+
+		// create key and parse template with funcs
+		tmplKey := parseKey(ge.baseDir, tmplFile)
+		tmpl := ge.createTemplate(tmplKey)
+
+		log.Tracef("Parsing Templates[%s]: %s", tmplKey, ge.trimAppBaseDir(files...))
+		if _, err = tmpl.ParseFiles(files...); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		lTemplate.Template[tmplKey] = tmpl
+		lTemplate.TemplateLower[strings.ToLower(tmplKey)] = tmpl
+
+		if !ge.isDefaultLayoutEnabled {
+			log.Tracef("Parsing Template [%s]: %s", tmplKey, ge.trimAppBaseDir(tmplFile))
+			if err = ge.parseNoLayoutTmpl(lTemplate, tmplKey, tmplFile); err != nil {
+				errs = append(errs, err)
+				continue
+			}
+		}
+	}
+}
+
+func (ge *GoViewEngine) processErrorTemplates(errs []error) {
+	errorPagesDir := filepath.Join(ge.baseDir, "errors")
+	if !ess.IsFileExists(errorPagesDir) {
+		return
+	}
+
+	files, err := filepath.Glob(filepath.Join(errorPagesDir, "*"+ge.viewFileExt))
+	if err != nil {
+		errs = append(errs, err)
+		return
+	}
+
+	if _, found := ge.layouts[noLayout]; !found {
+		ge.layouts[noLayout] = &Templates{
+			Template:      make(map[string]*template.Template),
+			TemplateLower: make(map[string]*template.Template),
+		}
+	}
+
+	prefix := strings.TrimSuffix(ge.baseDir, "views")
+	for _, f := range files {
+		tmplKey := parseKey(ge.baseDir, f)
+		log.Tracef("Parsing Template[%s]: %s", tmplKey, trimPathPrefix(f, prefix))
+		if err = ge.parseNoLayoutTmpl(ge.layouts[noLayout], tmplKey, f); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+	}
+}
+
+func (ge *GoViewEngine) parseNoLayoutTmpl(lTemplate *Templates, tmplKey, tmplFile string) error {
+	tmpl := ge.createTemplate(tmplKey)
+	fileBytes, _ := ioutil.ReadFile(tmplFile)
+	if _, err := tmpl.Parse(string(fileBytes)); err != nil {
+		return err
+	}
+
+	lTemplate.Template[noLayout+tmplKey] = tmpl
+	lTemplate.TemplateLower[strings.ToLower(noLayout+tmplKey)] = tmpl
+	return nil
 }
 
 func init() {
