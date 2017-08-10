@@ -116,8 +116,9 @@ func defaultErrorHandler(ctx *Context, err *Error) {
 		ctx.Reply().XML(err)
 	case ahttp.ContentTypeHTML.Mime:
 		html := acquireHTML()
+		html.Filename = fmt.Sprintf("%d%s", err.Code, appViewExt)
 		if appViewEngine != nil {
-			tmpl, er := appViewEngine.Get("", "errors", fmt.Sprintf("%d%s", err.Code, appViewExt))
+			tmpl, er := appViewEngine.Get("", "errors", html.Filename)
 			if tmpl == nil || er != nil {
 				html.Template = defaultErrorHTMLTemplate
 			} else {

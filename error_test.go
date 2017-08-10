@@ -6,8 +6,11 @@ package aah
 
 import (
 	"net/http"
+	"path/filepath"
 	"testing"
 
+	"aahframework.org/ahttp.v0"
+	config "aahframework.org/config.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -43,4 +46,30 @@ func TestErrorHandler(t *testing.T) {
 	SetErrorHandler(func(ctx *Context, err *Error) {
 		t.Log(ctx, err)
 	})
+}
+
+func TestErrorDefaultHandler(t *testing.T) {
+	appCfg, _ := config.ParseString("")
+	viewDir := filepath.Join(getTestdataPath(), appViewsDir())
+	err := initViewEngine(viewDir, appCfg)
+	assert.Nil(t, err)
+	assert.NotNil(t, AppViewEngine())
+
+	// 400
+	ctx1 := &Context{reply: acquireReply()}
+	ctx1.Reply().ContentType(ahttp.ContentTypeHTML.String())
+	defaultErrorHandler(ctx1, &Error{Code: http.StatusNotFound, Message: "Test message"})
+	html := ctx1.Reply().Rdr.(*HTML)
+	t.Logf("%+v\n", html)
+	assert.True(t, defaultErrorHTMLTemplate == html.Template)
+	assert.Equal(t, "404.html", html.Filename)
+
+	// 500
+	ctx2 := &Context{reply: acquireReply()}
+	ctx2.Reply().ContentType(ahttp.ContentTypeHTML.String())
+	defaultErrorHandler(ctx2, &Error{Code: http.StatusInternalServerError, Message: "Test message"})
+	html = ctx2.Reply().Rdr.(*HTML)
+	t.Logf("%+v\n", html)
+	assert.True(t, defaultErrorHTMLTemplate == html.Template)
+	assert.Equal(t, "500.html", html.Filename)
 }
