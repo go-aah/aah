@@ -18,7 +18,7 @@ import (
 func TestViewAppPages(t *testing.T) {
 	_ = log.SetLevel("trace")
 	cfg, _ := config.ParseString(`view { }`)
-	ge := loadGoViewEngine(t, cfg)
+	ge := loadGoViewEngine(t, cfg, "views")
 
 	data := map[string]interface{}{
 		"GreetName": "aah framework",
@@ -47,7 +47,7 @@ func TestViewUserPages(t *testing.T) {
 	cfg, _ := config.ParseString(`view {
 		delimiters = "{{.}}"
 	}`)
-	ge := loadGoViewEngine(t, cfg)
+	ge := loadGoViewEngine(t, cfg, "views")
 
 	data := map[string]interface{}{
 		"GreetName": "aah framework",
@@ -80,7 +80,7 @@ func TestViewUserPagesNoLayout(t *testing.T) {
 		delimiters = "{{.}}"
 		default_layout = false
 	}`)
-	ge := loadGoViewEngine(t, cfg)
+	ge := loadGoViewEngine(t, cfg, "views")
 
 	data := map[string]interface{}{
 		"GreetName": "aah framework",
@@ -110,8 +110,31 @@ func TestViewBaseDirNotExists(t *testing.T) {
 	assert.True(t, strings.HasPrefix(err.Error(), "goviewengine: views base dir is not exists:"))
 }
 
-func loadGoViewEngine(t *testing.T, cfg *config.Config) *GoViewEngine {
-	viewsDir := filepath.Join(getTestdataPath(), "views")
+func TestViewErrors(t *testing.T) {
+	_ = log.SetLevel("trace")
+	cfg, _ := config.ParseString(`view {
+		default_layout = false
+	}`)
+
+	// Scenario 1
+	viewsDir := filepath.Join(getTestdataPath(), "views-error1")
+	ge := &GoViewEngine{}
+
+	err := ge.Init(cfg, viewsDir)
+	assert.NotNil(t, err)
+	assert.NotNil(t, ge)
+
+	// Scenario 2
+	viewsDir = filepath.Join(getTestdataPath(), "views-error2")
+	ge = &GoViewEngine{}
+
+	err = ge.Init(cfg, viewsDir)
+	assert.NotNil(t, err)
+	assert.NotNil(t, ge)
+}
+
+func loadGoViewEngine(t *testing.T, cfg *config.Config, dir string) *GoViewEngine {
+	viewsDir := filepath.Join(getTestdataPath(), dir)
 	ge := &GoViewEngine{}
 
 	err := ge.Init(cfg, viewsDir)
