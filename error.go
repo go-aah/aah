@@ -127,8 +127,8 @@ func defaultErrorHandler(ctx *Context, err *Error) {
 		} else {
 			html.Template = defaultErrorHTMLTemplate
 		}
-
 		html.ViewArgs = Data{"Error": err}
+		addFrameworkValuesIntoViewArgs(ctx, html)
 		ctx.Reply().Rdr = html
 	default:
 		ctx.Reply().Text("%d - %s", err.Code, err.Message)

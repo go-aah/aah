@@ -127,19 +127,7 @@ func (e *engine) resolveView(ctx *Context) {
 	}
 
 	// ViewArgs values from framework
-	htmlRdr.ViewArgs["Scheme"] = ctx.Req.Scheme
-	htmlRdr.ViewArgs["Host"] = ctx.Req.Host
-	htmlRdr.ViewArgs["HTTPMethod"] = ctx.Req.Method
-	htmlRdr.ViewArgs["RequestPath"] = ctx.Req.Path
-	htmlRdr.ViewArgs["Locale"] = ctx.Req.Locale
-	htmlRdr.ViewArgs["ClientIP"] = ctx.Req.ClientIP
-	htmlRdr.ViewArgs["IsJSONP"] = ctx.Req.IsJSONP()
-	htmlRdr.ViewArgs["IsAJAX"] = ctx.Req.IsAJAX()
-	htmlRdr.ViewArgs["HTTPReferer"] = ctx.Req.Referer
-	htmlRdr.ViewArgs["AahVersion"] = Version
-	htmlRdr.ViewArgs["EnvProfile"] = AppProfile()
-	htmlRdr.ViewArgs["AppBuildInfo"] = AppBuildInfo()
-	htmlRdr.ViewArgs[KeyViewArgSubject] = ctx.Subject()
+	addFrameworkValuesIntoViewArgs(ctx, htmlRdr)
 
 	// find view template by convention if not provided
 	findViewTemplate(ctx)
@@ -225,6 +213,22 @@ func tmplControllerName(ctx *Context) string {
 		cName = cName[:len(cName)-controllerNameSuffixLen]
 	}
 	return cName
+}
+
+func addFrameworkValuesIntoViewArgs(ctx *Context, html *HTML) {
+	html.ViewArgs["Scheme"] = ctx.Req.Scheme
+	html.ViewArgs["Host"] = ctx.Req.Host
+	html.ViewArgs["HTTPMethod"] = ctx.Req.Method
+	html.ViewArgs["RequestPath"] = ctx.Req.Path
+	html.ViewArgs["Locale"] = ctx.Req.Locale
+	html.ViewArgs["ClientIP"] = ctx.Req.ClientIP
+	html.ViewArgs["IsJSONP"] = ctx.Req.IsJSONP()
+	html.ViewArgs["IsAJAX"] = ctx.Req.IsAJAX()
+	html.ViewArgs["HTTPReferer"] = ctx.Req.Referer
+	html.ViewArgs["AahVersion"] = Version
+	html.ViewArgs["EnvProfile"] = AppProfile()
+	html.ViewArgs["AppBuildInfo"] = AppBuildInfo()
+	html.ViewArgs[KeyViewArgSubject] = ctx.Subject()
 }
 
 func init() {
