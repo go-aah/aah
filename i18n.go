@@ -42,7 +42,7 @@ import (
 )
 
 // Version no. of aah framework i18n library
-const Version = "0.2"
+const Version = "0.3-dev"
 
 // I18n holds the message store and related information for internationalization
 // and localization.
@@ -103,6 +103,11 @@ func (s *I18n) Load(paths ...string) error {
 // 	* language and language-id (e.g.: en-US)
 // 	* language (e.g.: en)
 func (s *I18n) Lookup(locale *ahttp.Locale, key string, args ...interface{}) string {
+	// assign default locale if nil
+	if locale == nil {
+		locale = ahttp.NewLocale(s.DefaultLocale)
+	}
+
 	// Lookup by language and language-id. For eg.: en-us
 	store := s.findStoreByLocale(locale.String())
 	if store == nil {
