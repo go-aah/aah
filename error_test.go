@@ -6,6 +6,7 @@ package aah
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
@@ -56,7 +57,8 @@ func TestErrorDefaultHandler(t *testing.T) {
 	assert.NotNil(t, AppViewEngine())
 
 	// 400
-	ctx1 := &Context{reply: acquireReply()}
+	r1 := httptest.NewRequest("GET", "http://localhost:8080/get-involved.html", nil)
+	ctx1 := &Context{Req: ahttp.AcquireRequest(r1), reply: acquireReply()}
 	ctx1.Reply().ContentType(ahttp.ContentTypeHTML.String())
 	defaultErrorHandler(ctx1, &Error{Code: http.StatusNotFound, Message: "Test message"})
 	html := ctx1.Reply().Rdr.(*HTML)
@@ -65,7 +67,8 @@ func TestErrorDefaultHandler(t *testing.T) {
 	assert.Equal(t, "404.html", html.Filename)
 
 	// 500
-	ctx2 := &Context{reply: acquireReply()}
+	r2 := httptest.NewRequest("GET", "http://localhost:8080/get-involved.html", nil)
+	ctx2 := &Context{Req: ahttp.AcquireRequest(r2), reply: acquireReply()}
 	ctx2.Reply().ContentType(ahttp.ContentTypeHTML.String())
 	defaultErrorHandler(ctx2, &Error{Code: http.StatusInternalServerError, Message: "Test message"})
 	html = ctx2.Reply().Rdr.(*HTML)
