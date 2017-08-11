@@ -73,7 +73,7 @@ type (
 
 	// ErrorHandler is function type used to register centralized error handling
 	// in aah framework.
-	ErrorHandler func(ctx *Context, err *Error)
+	ErrorHandler func(ctx *Context, err *Error) bool
 )
 
 // SetErrorHandler method is used to register centralized application error
@@ -91,12 +91,18 @@ func SetErrorHandler(handler ErrorHandler) {
 
 // handleError method is aah centralized error handler.
 func handleError(ctx *Context, err *Error) {
-	errorHandler(ctx, err)
+	if errorHandler == nil {
+		defaultErrorHandler(ctx, err)
+	} else {
+		if !errorHandler(ctx, err) {
+			defaultErrorHandler(ctx, err)
+		}
+	}
 }
 
 // defaultErrorHandler method is used when custom error handler is not register
 // in the aah. It writes the response based on HTTP Content-Type.
-func defaultErrorHandler(ctx *Context, err *Error) {
+func defaultErrorHandler(ctx *Context, err *Error) bool {
 	ct := ctx.Reply().ContType
 	if ess.IsStrEmpty(ct) {
 		if ict := identifyContentType(ctx); ict != nil {
@@ -133,8 +139,5 @@ func defaultErrorHandler(ctx *Context, err *Error) {
 	default:
 		ctx.Reply().Text("%d - %s", err.Code, err.Message)
 	}
-}
-
-func init() {
-	errorHandler = defaultErrorHandler
+	return true
 }

@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -44,9 +45,22 @@ func TestErrorHandler(t *testing.T) {
 	assert.Equal(t, 500, xmlr.Data.(*Error).Code)
 	assert.Equal(t, "Internal Server Error", xmlr.Data.(*Error).Message)
 
-	SetErrorHandler(func(ctx *Context, err *Error) {
+	SetErrorHandler(func(ctx *Context, err *Error) bool {
 		t.Log(ctx, err)
+		return false
 	})
+
+	// 403
+	ctx3 := &Context{reply: acquireReply()}
+	ctx3.Reply().ContentType("text/plain")
+	handleError(ctx3, &Error{
+		Code:    http.StatusForbidden,
+		Message: http.StatusText(http.StatusForbidden),
+	})
+	assert.NotNil(t, ctx3.Reply().Rdr)
+	plain := ctx3.Reply().Rdr.(*Text)
+	assert.NotNil(t, plain)
+	assert.Equal(t, "[403 Forbidden]", fmt.Sprint(plain.Values))
 }
 
 func TestErrorDefaultHandler(t *testing.T) {
