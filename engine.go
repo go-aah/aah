@@ -356,12 +356,11 @@ func (e *engine) setCookies(ctx *Context) {
 }
 
 func (e *engine) writeBody(ctx *Context) {
-	var err error
 	if minifier == nil || !appIsProfileProd || !ctHTML.IsEqual(ctx.Reply().ContType) {
-		if _, err = ctx.Reply().body.WriteTo(ctx.Res); err != nil {
+		if _, err := ctx.Reply().body.WriteTo(ctx.Res); err != nil {
 			log.Error(err)
 		}
-	} else if err = minifier(ctx.Reply().ContType, ctx.Res, ctx.Reply().body); err != nil {
+	} else if err := minifier(ctx.Reply().ContType, ctx.Res, ctx.Reply().body); err != nil {
 		log.Errorf("Minifier error: %s", err.Error())
 	}
 }

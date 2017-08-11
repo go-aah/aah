@@ -19,7 +19,7 @@ var errorHandler ErrorHandler
 var defaultErrorHTMLTemplate = template.Must(template.New("error_template").Parse(`<!DOCTYPE html>
 <html>
 <head>
-	<meta charset="utf-8" />
+  <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{ .Error.Code }} - {{ .Error.Message }}</title>
@@ -27,7 +27,7 @@ var defaultErrorHTMLTemplate = template.Must(template.New("error_template").Pars
   <style>
 		html {-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
     html, body {
-			margin: 0;
+      margin: 0;
       background-color: #fff;
       color: #636b6f;
       font-family: 'Open Sans', sans-serif;
@@ -38,19 +38,19 @@ var defaultErrorHTMLTemplate = template.Must(template.New("error_template").Pars
       align-items: center;
       display: flex;
       justify-content: center;
-			position: relative;
-			height: 80vh;
+      position: relative;
+      height: 80vh;
     }
     .content {
       text-align: center;
     }
     .title {
       font-size: 36px;
-			font-weight: bold;
+      font-weight: bold;
       padding: 20px;
     }
   </style>
-	</head>
+  </head>
   <body>
     <div class="container">{{ with .Error }}
       <div class="content">
