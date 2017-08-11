@@ -65,7 +65,6 @@ type (
 		Host                  string
 		Port                  string
 		IsSubDomain           bool
-		NotFoundRoute         *Route
 		MethodNotAllowed      bool
 		RedirectTrailingSlash bool
 		AutoOptions           bool
@@ -219,11 +218,6 @@ func (r *Router) RegisteredActions() map[string]map[string]uint8 {
 
 			addRegisteredAction(methods, route)
 		}
-
-		// adding not found controller if present
-		if d.NotFoundRoute != nil {
-			addRegisteredAction(methods, d.NotFoundRoute)
-		}
 	}
 
 	return methods
@@ -274,20 +268,9 @@ func (r *Router) processRoutesConfig() (err error) {
 			routes:                make(map[string]*Route),
 		}
 
-		// not found route
-		if domainCfg.IsExists("not_found") {
-			controller, found := domainCfg.String("not_found.controller")
-			if !found {
-				return errors.New("'not_found.controller' key is missing")
-			}
-
-			action, found := domainCfg.String("not_found.action")
-			if !found {
-				return errors.New("'not_found.action' key is missing")
-			}
-
-			domain.NotFoundRoute = &Route{Controller: controller, Action: action}
-		}
+		// Not Found route support is removed in aah v0.8 release,
+		// in-favor of Centralized Error Handler.
+		// Refer to https://docs.aahframework.org/centralized-error-handler.html
 
 		// processing static routes
 		if err = r.processStaticRoutes(domain, domainCfg); err != nil {

@@ -189,18 +189,6 @@ func TestRouterErrorControllerLoadConfiguration(t *testing.T) {
 	assert.Equal(t, "'app_index.controller' key is missing", err.Error())
 }
 
-func TestRouterErrorNotFoundLoadConfiguration(t *testing.T) {
-	router, err := createRouter("routes-notfound-controller-error.conf")
-	assert.NotNilf(t, err, "expected error loading '%v'", "routes-notfound-controller-error.conf")
-	assert.NotNil(t, router)
-	assert.Equal(t, "'not_found.controller' key is missing", err.Error())
-
-	router, err = createRouter("routes-notfound-action-error.conf")
-	assert.NotNilf(t, err, "expected error loading '%v'", "routes-notfound-action-error.conf")
-	assert.NotNil(t, router)
-	assert.Equal(t, "'not_found.action' key is missing", err.Error())
-}
-
 func TestRouterErrorStaticPathLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-static-path-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-path-error.conf")
