@@ -120,6 +120,7 @@ func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
 func TestParamContentNegotiation(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
 
+	errorHandler = defaultErrorHandler
 	e := engine{}
 
 	// Accepted
@@ -132,6 +133,7 @@ func TestParamContentNegotiation(t *testing.T) {
 		reply: acquireReply(),
 	}
 	result1 := e.parseRequestParams(ctx1)
+	assert.Equal(t, http.StatusUnsupportedMediaType, ctx1.Reply().err.Code)
 	assert.True(t, result1 == 1)
 	isAcceptedExists = false
 
@@ -139,12 +141,14 @@ func TestParamContentNegotiation(t *testing.T) {
 	isOfferedExists = true
 	offeredContentTypes = []string{"application/json"}
 	r2 := httptest.NewRequest("POST", "http://localhost:8080/v1/userinfo", nil)
+	r1.Header.Set(ahttp.HeaderContentType, "application/json")
 	r2.Header.Set(ahttp.HeaderAccept, "application/xml")
 	ctx2 := &Context{
 		Req:   ahttp.AcquireRequest(r2),
 		reply: acquireReply(),
 	}
 	result2 := e.parseRequestParams(ctx2)
+	assert.Equal(t, http.StatusNotAcceptable, ctx2.Reply().err.Code)
 	assert.True(t, result2 == 1)
 	isOfferedExists = false
 }

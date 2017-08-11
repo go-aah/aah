@@ -98,45 +98,6 @@ func TestAccessLogInitDefault(t *testing.T) {
 		`)
 }
 
-func TestEngineAccessLog(t *testing.T) {
-	// App Config
-	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
-	err := initConfig(cfgDir)
-	assert.Nil(t, err)
-	assert.NotNil(t, AppConfig())
-
-	AppConfig().SetString("server.port", "8080")
-
-	// Router
-	err = initRoutes(cfgDir, AppConfig())
-	assert.Nil(t, err)
-	assert.NotNil(t, AppRouter())
-
-	// Security
-	err = initSecurity(AppConfig())
-	assert.Nil(t, err)
-	assert.True(t, AppSessionManager().IsStateful())
-
-	// Controllers
-	cRegistry = controllerRegistry{}
-
-	AddController((*Site)(nil), []*MethodInfo{
-		{
-			Name:       "GetInvolved",
-			Parameters: []*ParameterInfo{},
-		},
-	})
-
-	AppConfig().SetBool("server.access_log.enable", true)
-
-	e := newEngine(AppConfig())
-	req := httptest.NewRequest("GET", "localhost:8080/get-involved.html", nil)
-	res := httptest.NewRecorder()
-	e.ServeHTTP(res, req)
-
-	assert.True(t, e.isAccessLogEnabled)
-}
-
 func testFormatter(t *testing.T, al *accessLog, pattern, expected string) {
 	var err error
 	appAccessLogFmtFlags, err = ess.ParseFmtFlag(pattern, accessLogFmtFlags)

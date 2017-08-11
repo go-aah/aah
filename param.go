@@ -41,14 +41,20 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 	// Content Negotitaion - Accepted, refer to Github #75
 	if isAcceptedExists && !ess.IsSliceContainsString(acceptedContentTypes, ctx.Req.ContentType.Mime) {
 		log.Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType.Mime)
-		writeErrorInfo(ctx, http.StatusUnsupportedMediaType, "Unsupported Media Type")
+		ctx.Reply().Error(&Error{
+			Code:    http.StatusUnsupportedMediaType,
+			Message: http.StatusText(http.StatusUnsupportedMediaType),
+		})
 		return flowStop
 	}
 
 	// Content Negotitaion - Offered, refer to Github #75
 	if isOfferedExists && !ess.IsSliceContainsString(offeredContentTypes, ctx.Req.AcceptContentType.Mime) {
 		log.Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType.Mime)
-		writeErrorInfo(ctx, http.StatusUnsupportedMediaType, "Not Acceptable")
+		ctx.Reply().Error(&Error{
+			Code:    http.StatusNotAcceptable,
+			Message: http.StatusText(http.StatusNotAcceptable),
+		})
 		return flowStop
 	}
 
@@ -74,7 +80,10 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 				ctx.Req.Payload = payloadBytes
 			} else {
 				log.Errorf("unable to read request body for '%s': %s", contentType, err)
-				writeErrorInfo(ctx, http.StatusBadRequest, "unable to read request body")
+				ctx.Reply().Error(&Error{
+					Code:    http.StatusBadRequest,
+					Message: http.StatusText(http.StatusBadRequest),
+				})
 				return flowStop
 			}
 		case ahttp.ContentTypeForm.Mime:

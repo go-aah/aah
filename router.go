@@ -10,7 +10,6 @@ import (
 	"html/template"
 	"net/http"
 	"path/filepath"
-	"reflect"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
@@ -148,51 +147,35 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 	// HTTP: OPTIONS
 	if reqMethod == ahttp.MethodOptions {
 		if domain.AutoOptions {
-			processAllowedMethods(reply, domain.Allowed(reqMethod, reqPath), "Auto 'OPTIONS', ")
-			writeErrorInfo(ctx, http.StatusOK, "'OPTIONS' allowed HTTP Methods")
-			return nil
+			if processAllowedMethods(reply, domain.Allowed(reqMethod, reqPath), "Auto 'OPTIONS', ") {
+				ctx.Reply().Text("")
+				return nil
+			}
 		}
 	}
 
 	// 405 Method Not Allowed
 	if domain.MethodNotAllowed {
-		processAllowedMethods(reply, domain.Allowed(reqMethod, reqPath), "405 response, ")
-		writeErrorInfo(ctx, http.StatusMethodNotAllowed, "Method Not Allowed")
-		return nil
+		if processAllowedMethods(reply, domain.Allowed(reqMethod, reqPath), "405 response, ") {
+			ctx.Reply().Error(&Error{
+				Code:    http.StatusMethodNotAllowed,
+				Message: http.StatusText(http.StatusMethodNotAllowed),
+			})
+			return nil
+		}
 	}
 
 	return errors.New("route not found")
 }
 
-func processAllowedMethods(reply *Reply, allowed, prefix string) {
+func processAllowedMethods(reply *Reply, allowed, prefix string) bool {
 	if !ess.IsStrEmpty(allowed) {
 		allowed += ", " + ahttp.MethodOptions
 		reply.Header(ahttp.HeaderAllow, allowed)
 		log.Debugf("%sAllowed HTTP Methods: %s", prefix, allowed)
+		return true
 	}
-}
-
-// handleRouteNotFound method is used for 1. route action not found, 2. route is
-// not found and 3. static file/directory.
-func handleRouteNotFound(ctx *Context, domain *router.Domain, route *router.Route) {
-	// handle effectively to reduce heap allocation
-	if domain.NotFoundRoute == nil {
-		log.Warnf("Route not found: %s, isStaticRoute: false", ctx.Req.Path)
-		writeErrorInfo(ctx, http.StatusNotFound, "Not Found")
-		return
-	}
-
-	log.Warnf("Route not found: %s, isStaticRoute: %v", ctx.Req.Path, route.IsStatic)
-	if err := ctx.setTarget(route); err == errTargetNotFound {
-		writeErrorInfo(ctx, http.StatusNotFound, "Not Found")
-		return
-	}
-
-	target := reflect.ValueOf(ctx.target)
-	notFoundAction := target.MethodByName(ctx.action.Name)
-
-	log.Debugf("Calling user defined not-found action: %s.%s", ctx.controller, ctx.action.Name)
-	notFoundAction.Call(emptyArg)
+	return false
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

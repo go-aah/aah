@@ -6,7 +6,6 @@ package aah
 
 import (
 	"compress/gzip"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -90,10 +89,10 @@ func TestEngineNew(t *testing.T) {
 	assert.NotNil(t, buf)
 	releaseBuffer(buf)
 
-	appLogFatal = func(v ...interface{}) { fmt.Println(v) }
+	appLogFatal = func(v ...interface{}) { t.Log(v) }
 	AppConfig().SetInt("render.gzip.level", 10)
 	e = newEngine(AppConfig())
-	fmt.Println(e)
+	assert.NotNil(t, e)
 }
 
 func TestEngineServeHTTP(t *testing.T) {
@@ -115,6 +114,13 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, AppSessionManager().IsStateful())
 
+	err = initLogs(getTestdataPath(), AppConfig())
+	assert.Nil(t, err)
+
+	err = initAccessLog(getTestdataPath(), AppConfig())
+	assert.Nil(t, err)
+	appAccessLog.SetWriter(os.Stdout)
+
 	// Controllers
 	cRegistry = controllerRegistry{}
 
@@ -135,6 +141,8 @@ func TestEngineServeHTTP(t *testing.T) {
 
 	// Middlewares
 	Middlewares(ToMiddleware(testEngineMiddleware))
+
+	AppConfig().SetBool("server.access_log.enable", true)
 
 	// Engine
 	e := newEngine(AppConfig())
@@ -180,7 +188,6 @@ func TestEngineServeHTTP(t *testing.T) {
 
 	resp4 := w4.Result()
 	assert.Equal(t, 404, resp4.StatusCode)
-	assert.True(t, strings.Contains(resp4.Status, "Not Found"))
 
 	// Request 5 RedirectTrailingSlash - 302 status
 	wd, _ := os.Getwd()
@@ -219,13 +226,15 @@ func TestEngineServeHTTP(t *testing.T) {
 
 	r8 := httptest.NewRequest("POST", "http://localhost:8080/credits", nil)
 	r8.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
+	r8.Header.Add(ahttp.HeaderAccept, ahttp.ContentTypeJSON.String())
 	w8 := httptest.NewRecorder()
 	e.ServeHTTP(w8, r8)
 
 	// Method Not Allowed 405 response
 	resp8 := w8.Result()
 	body8 := getResponseBody(resp8)
-	assert.Equal(t, "405 Method Not Allowed", body8)
+	assert.Equal(t, 405, resp8.StatusCode)
+	assert.Equal(t, `{"code":405,"message":"Method Not Allowed"}`, body8)
 	assert.Equal(t, "GET, OPTIONS", resp8.Header.Get("Allow"))
 
 	// Auto Options
@@ -235,8 +244,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	e.ServeHTTP(w9, r9)
 
 	resp9 := w9.Result()
-	body9 := getResponseBody(resp9)
-	assert.Equal(t, "200 'OPTIONS' allowed HTTP Methods", body9)
+	assert.Equal(t, 200, resp9.StatusCode)
 	assert.Equal(t, "GET, OPTIONS", resp9.Header.Get("Allow"))
 
 	appBaseDir = ""
