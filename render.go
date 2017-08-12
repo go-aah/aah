@@ -21,6 +21,15 @@ import (
 )
 
 var (
+	// JSONMarshal is used to register external JSON library for Marshalling.
+	JSONMarshal func(v interface{}) ([]byte, error)
+
+	// JSONUnmarshal is used to register external JSON library for Unmarshalling.
+	JSONUnmarshal func(data []byte, v interface{}) error
+
+	// JSONMarshalIndent is used to register external JSON library for Marshal indent.
+	JSONMarshalIndent func(v interface{}, prefix, indent string) ([]byte, error)
+
 	xmlHeaderBytes = []byte(xml.Header)
 	rdrHTMLPool    = &sync.Pool{New: func() interface{} { return &HTML{} }}
 	rdrJSONPool    = &sync.Pool{New: func() interface{} { return &JSON{} }}
@@ -95,9 +104,9 @@ func (j *JSON) Render(w io.Writer) error {
 	)
 
 	if appConfig.BoolDefault("render.pretty", false) {
-		bytes, err = json.MarshalIndent(j.Data, "", "    ")
+		bytes, err = JSONMarshalIndent(j.Data, "", "    ")
 	} else {
-		bytes, err = json.Marshal(j.Data)
+		bytes, err = JSONMarshal(j.Data)
 	}
 
 	if err != nil {
@@ -247,6 +256,10 @@ func (h *HTML) reset() {
 	h.ViewArgs = make(Data)
 }
 
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Render Unexported methods
+//___________________________________
+
 // doRender method renders and detects the errors earlier. Writes the
 // error info if any.
 func (e *engine) doRender(ctx *Context) {
@@ -289,4 +302,11 @@ func releaseRender(r Render) {
 			rdrXMLPool.Put(t)
 		}
 	}
+}
+
+func init() {
+	// Registering default standard JSON library
+	JSONMarshal = json.Marshal
+	JSONUnmarshal = json.Unmarshal
+	JSONMarshalIndent = json.MarshalIndent
 }

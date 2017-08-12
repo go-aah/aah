@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"aahframework.org/config.v0"
-	"aahframework.org/router.v0"
+	"aahframework.org/router.v0-unstable"
 	"aahframework.org/test.v0/assert"
 )
 

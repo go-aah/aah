@@ -110,6 +110,17 @@ func firstNonZeroString(values ...string) string {
 	return ""
 }
 
+// TODO this method is candidate for essentials library
+// move it when you get a time
+func firstNonZeroInt64(values ...int64) int64 {
+	for _, v := range values {
+		if v != 0 {
+			return v
+		}
+	}
+	return 0
+}
+
 func identifyContentType(ctx *Context) *ahttp.ContentType {
 	// based on 'Accept' Header
 	if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
