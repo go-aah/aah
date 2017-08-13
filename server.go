@@ -244,6 +244,6 @@ func initAutoCertManager(cfg *config.Config) error {
 }
 
 func printStartupNote() {
-	port := firstNonEmpty(AppConfig().StringDefault("server.port", appDefaultHTTPPort), AppConfig().StringDefault("server.proxyport", ""))
+	port := firstNonZeroString(AppConfig().StringDefault("server.port", appDefaultHTTPPort), AppConfig().StringDefault("server.proxyport", ""))
 	log.Infof("aah go server running on %s:%s", AppHTTPAddress(), parsePort(port))
 }

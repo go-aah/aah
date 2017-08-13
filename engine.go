@@ -69,7 +69,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	ctx := e.prepareContext(w, r)
-	ctx.values[appReqStartTimeKey] = startTime
+	ctx.Set(appReqStartTimeKey, startTime)
 	defer releaseContext(ctx)
 
 	// Recovery handling, capture every possible panic(s)

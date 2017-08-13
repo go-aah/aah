@@ -22,7 +22,7 @@ var defaultErrorHTMLTemplate = template.Must(template.New("error_template").Pars
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ .Error.Code }} - {{ .Error.Message }}</title>
+  <title>{{ .Error.Code }} {{ .Error.Message }}</title>
   <link href="//fonts.googleapis.com/css?family=Open+Sans:300,400,700" rel="stylesheet" type="text/css">
   <style>
 		html {-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
@@ -55,7 +55,7 @@ var defaultErrorHTMLTemplate = template.Must(template.New("error_template").Pars
     <div class="container">{{ with .Error }}
       <div class="content">
         <div class="title">
-          {{ .Code }} - {{ .Message }}
+          {{ .Code }} {{ .Message }}
         </div>
       </div>{{ end }}
     </div>

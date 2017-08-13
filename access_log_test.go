@@ -47,10 +47,11 @@ func TestAccessLogFormatter(t *testing.T) {
 	al.Request.Header = al.Request.Raw.Header
 	al.Request.Header.Add(ahttp.HeaderAccept, "text/html")
 	al.Request.Header.Set(ahttp.HeaderXRequestID, "5946ed129bf23409520736de")
+	al.RequestID = "5946ed129bf23409520736de"
 	al.Request.ClientIP = "127.0.0.1"
 	al.ResHdr.Add("content-type", "application/json")
 	allAvailablePatterns := "%clientip %reqid %reqtime %restime %resstatus %ressize %reqmethod %requrl %reqhdr:accept %querystr %reshdr"
-	expectedForAllAvailablePatterns := fmt.Sprintf(`%s "%s" %s %v %d %d %s %s "%s" "%s" %s`,
+	expectedForAllAvailablePatterns := fmt.Sprintf(`%s %s %s %v %d %d %s %s "%s" "%s" %s`,
 		al.Request.ClientIP, al.Request.Header.Get(ahttp.HeaderXRequestID),
 		al.StartTime.Format(time.RFC3339), fmt.Sprintf("%.4f", al.ElapsedDuration.Seconds()*1e3),
 		al.ResStatus, al.ResBytes, al.Request.Method,

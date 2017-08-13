@@ -215,6 +215,16 @@ func (ctx *Context) Reset() {
 	ctx.decorated = false
 }
 
+// Set method is used to set value for the given key in the current request flow.
+func (ctx *Context) Set(key string, value interface{}) {
+	ctx.values[key] = value
+}
+
+// Get method returns the value for the given key, otherwise it returns nil.
+func (ctx *Context) Get(key string) interface{} {
+	return ctx.values[key]
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Context Unexported methods
 //___________________________________

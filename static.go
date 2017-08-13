@@ -51,32 +51,23 @@ func (e *engine) serveStatic(ctx *Context) error {
 	httpDir, filePath := getHTTPDirAndFilePath(ctx)
 	log.Tracef("Dir: %s, Filepath: %s", httpDir, filePath)
 
-	res, req := ctx.Res, ctx.Req
 	f, err := httpDir.Open(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Errorf("file not found: %s", req.Path)
 			return errFileNotFound
-		} else if os.IsPermission(err) {
-			log.Warnf("permission issue: %s", req.Path)
-			res.WriteHeader(http.StatusForbidden)
-			fmt.Fprintf(res, "403 Forbidden")
-		} else {
-			res.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(res, "500 Internal Server Error")
 		}
+		writeStaticFileError(ctx.Res, ctx.Req, err)
 		return nil
 	}
 
 	defer ess.CloseQuietly(f)
 	fi, err := f.Stat()
 	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(res, "500 Internal Server Error")
+		writeStaticFileError(ctx.Res, ctx.Req, err)
 		return nil
 	}
 
-	// Gzip, 1kb above
+	// Gzip, 1kb above, TODO make it configurable from aah.conf
 	if fi.Size() > 1024 {
 		ctx.Reply().gzip = checkGzipRequired(filePath)
 		e.wrapGzipWriter(ctx)
@@ -116,16 +107,16 @@ func (e *engine) serveStatic(ctx *Context) error {
 	// Serve directory
 	if fi.Mode().IsDir() && ctx.route.ListDir {
 		// redirect if the directory name doesn't end in a slash
-		if req.Path[len(req.Path)-1] != '/' {
-			log.Debugf("redirecting to dir: %s", req.Path+"/")
-			http.Redirect(res, req.Raw, path.Base(req.Path)+"/", http.StatusMovedPermanently)
+		if ctx.Req.Path[len(ctx.Req.Path)-1] != '/' {
+			log.Debugf("redirecting to dir: %s", ctx.Req.Path+"/")
+			http.Redirect(ctx.Res, ctx.Req.Unwrap(), path.Base(ctx.Req.Path)+"/", http.StatusMovedPermanently)
 			return nil
 		}
 
 		// 'OnPreReply' server extension point
 		publishOnPreReplyEvent(ctx)
 
-		directoryList(res, req.Raw, f)
+		directoryList(ctx.Res, ctx.Req.Unwrap(), f)
 
 		// 'OnAfterReply' server extension point
 		publishOnAfterReplyEvent(ctx)
@@ -138,9 +129,9 @@ func (e *engine) serveStatic(ctx *Context) error {
 	}
 
 	// Flow reached here it means directory listing is not allowed
-	log.Warnf("directory listing not allowed: %s", req.Path)
-	res.WriteHeader(http.StatusForbidden)
-	fmt.Fprintf(res, "403 Directory listing not allowed")
+	log.Warnf("Directory listing not allowed: %s", ctx.Req.Path)
+	ctx.Res.WriteHeader(http.StatusForbidden)
+	fmt.Fprintf(ctx.Res, "403 Directory listing not allowed")
 
 	return nil
 }
@@ -150,17 +141,16 @@ func directoryList(res http.ResponseWriter, req *http.Request, f http.File) {
 	dirs, err := f.Readdir(-1)
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
-		_, _ = res.Write([]byte("Error reading directory"))
+		fmt.Fprintf(res, "Error reading directory")
 		return
 	}
 	sort.Sort(byName(dirs))
 
-	res.Header().Set(ahttp.HeaderContentType, ahttp.ContentTypeHTML.Raw())
-	reqPath := req.URL.Path
+	res.Header().Set(ahttp.HeaderContentType, ahttp.ContentTypeHTML.String())
 	fmt.Fprintf(res, "<html>\n")
-	fmt.Fprintf(res, "<head><title>Listing of %s</title></head>\n", reqPath)
+	fmt.Fprintf(res, "<head><title>Listing of %s</title></head>\n", req.URL.Path)
 	fmt.Fprintf(res, "<body bgcolor=\"white\">\n")
-	fmt.Fprintf(res, "<h1>Listing of %s</h1><hr>\n", reqPath)
+	fmt.Fprintf(res, "<h1>Listing of %s</h1><hr>\n", req.URL.Path)
 	fmt.Fprintf(res, "<pre><table border=\"0\">\n")
 	fmt.Fprintf(res, "<tr><td collapse=\"2\"><a href=\"../\">../</a></td></tr>\n")
 	for _, d := range dirs {
@@ -264,6 +254,17 @@ func parseCacheBustPart(name, part string) string {
 		return name
 	}
 	return name
+}
+
+func writeStaticFileError(res ahttp.ResponseWriter, req *ahttp.Request, err error) {
+	if os.IsPermission(err) {
+		log.Warnf("Static file permission issue: %s", req.Path)
+		res.WriteHeader(http.StatusForbidden)
+		fmt.Fprintf(res, "403 Forbidden")
+	} else {
+		res.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(res, "500 Internal Server Error")
+	}
 }
 
 func init() {
