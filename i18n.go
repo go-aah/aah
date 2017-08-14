@@ -100,7 +100,7 @@ func (s *I18n) Load(paths ...string) error {
 // Lookup method returns empty string.
 // 	Lookup(locale, "i.love.aah.framework", "yes")
 // The sequence and fallback order of message fetch from store is -
-// 	* language and language-id (e.g.: en-US)
+// 	* language and region-id (e.g.: en-US)
 // 	* language (e.g.: en)
 func (s *I18n) Lookup(locale *ahttp.Locale, key string, args ...interface{}) string {
 	// assign default locale if nil
@@ -108,40 +108,40 @@ func (s *I18n) Lookup(locale *ahttp.Locale, key string, args ...interface{}) str
 		locale = ahttp.NewLocale(s.DefaultLocale)
 	}
 
-	// Lookup by language and language-id. For eg.: en-us
+	// Lookup by language and region-id. For eg.: en-us
 	store := s.findStoreByLocale(locale.String())
 	if store == nil {
-		// Lookup by language. for eg.: en
-		store = s.findStoreByLocale(locale.Language)
-		if store == nil {
-			log.Warnf("Locale (%v, %v) doesn't exists in message store", locale.String(), locale.Language)
-			return ""
-		}
-
-		log.Tracef("Message is retrieved from locale: %v", locale.Language)
-		if msg, found := retriveValue(store, key, args...); found {
-			return msg
-		}
+		log.Tracef("Locale (%v) doesn't exists in message store", locale.String())
+		goto langStore
 	}
-
-	log.Tracef("Message is retrieved from locale: %v", locale.String())
+	log.Tracef("Message is retrieved from locale: %v, key: %v", locale.String(), key)
 	if msg, found := retriveValue(store, key, args...); found {
 		return msg
 	}
 
-	log.Tracef("Message is retrieved from locale: %v", locale.Language)
-	if msg, found := retriveValue(s.findStoreByLocale(locale.Language), key, args...); found {
+langStore:
+	store = s.findStoreByLocale(locale.Language)
+	if store == nil {
+		log.Tracef("Locale (%v) doesn't exists in message store", locale.Language)
+		goto defaultStore
+	}
+	log.Tracef("Message is retrieved from locale: %v, key: %v", locale.Language, key)
+	if msg, found := retriveValue(store, key, args...); found {
 		return msg
 	}
 
-	// fallback to `i18n.default` config value.
-	log.Tracef("Message is retrieved with `i18n.default`: %v", s.DefaultLocale)
-	if msg, found := retriveValue(s.findStoreByLocale(s.DefaultLocale), key, args...); found {
+defaultStore: // fallback to `i18n.default` config value.
+	store = s.findStoreByLocale(s.DefaultLocale)
+	if store == nil {
+		goto notExists
+	}
+	log.Tracef("Message is retrieved with 'i18n.default': %v, key: %v", s.DefaultLocale, key)
+	if msg, found := retriveValue(store, key, args...); found {
 		return msg
 	}
 
+notExists:
 	log.Warnf("i18n key not found: %s", key)
-
 	return ""
 }
 
