@@ -42,7 +42,7 @@ import (
 )
 
 // Version no. of aah framework i18n library
-const Version = "0.3-dev"
+const Version = "0.3"
 
 // I18n holds the message store and related information for internationalization
 // and localization.

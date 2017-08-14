@@ -81,7 +81,7 @@ func TestMsgRetrive_en(t *testing.T) {
 
 	locale := ahttp.Locale{Raw: "en", Language: "en"}
 
-	homeLabel := store.Lookup(&locale, "label.home")
+	homeLabel := store.Lookup(nil, "label.home")
 	assert.Equal(t, "", homeLabel)
 
 	addUserLabel := store.Lookup(&locale, "label.add", "User")
@@ -93,7 +93,7 @@ func TestMsgRetrive_en(t *testing.T) {
 	nextLabel := store.Lookup(&locale, "label.paginate.next")
 	assert.Equal(t, "Next", nextLabel)
 
-	lastLabel := store.Lookup(&locale, "label.paginate.last")
+	lastLabel := store.Lookup(nil, "label.paginate.last")
 	assert.Equal(t, "Last", lastLabel)
 }
 
@@ -143,7 +143,6 @@ func TestMsgRetrive_it(t *testing.T) {
 
 	nextLabel := store.Lookup(&locale, "label.paginate.next")
 	assert.Equal(t, "Successivo", nextLabel)
-
 }
 
 func TestMsgRetriveNotFoundLocale(t *testing.T) {
