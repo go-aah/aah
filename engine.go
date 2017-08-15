@@ -26,7 +26,6 @@ const (
 )
 
 const (
-	aahServerName       = "aah-go-server"
 	gzipContentEncoding = "gzip"
 	hstsHeaderValue     = "max-age=31536000; includeSubDomains"
 )
@@ -55,6 +54,8 @@ type (
 		isGzipEnabled            bool
 		isAccessLogEnabled       bool
 		isStaticAccessLogEnabled bool
+		isServerHeaderEnabled    bool
+		serverHeader             string
 	}
 )
 
@@ -332,7 +333,9 @@ func (e *engine) writeHeaders(ctx *Context) {
 		}
 	}
 
-	ctx.Res.Header().Set(ahttp.HeaderServer, aahServerName)
+	if e.isServerHeaderEnabled {
+		ctx.Res.Header().Set(ahttp.HeaderServer, e.serverHeader)
+	}
 
 	// Set the HSTS if SSL is enabled on aah server
 	// Know more: https://www.owasp.org/index.php/HTTP_Strict_Transport_Security_Cheat_Sheet
@@ -375,12 +378,16 @@ func newEngine(cfg *config.Config) *engine {
 		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel))
 	}
 
+	serverHeader := cfg.StringDefault("server.header", "")
+
 	return &engine{
 		isRequestIDEnabled:       cfg.BoolDefault("request.id.enable", true),
 		requestIDHeader:          cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
 		isGzipEnabled:            cfg.BoolDefault("render.gzip.enable", true),
 		isAccessLogEnabled:       cfg.BoolDefault("server.access_log.enable", false),
 		isStaticAccessLogEnabled: cfg.BoolDefault("server.access_log.static_file", true),
+		isServerHeaderEnabled:    !ess.IsStrEmpty(serverHeader),
+		serverHeader:             serverHeader,
 	}
 }
 
