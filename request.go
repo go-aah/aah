@@ -68,10 +68,6 @@ type (
 		// Most quailfied one based on quality factor.
 		AcceptEncoding *AcceptSpec
 
-		// Payload holds the value from HTTP request for `Content-Type`
-		// JSON and XML.
-		Payload []byte
-
 		// Params contains values from Path, Query, Form and File.
 		Params *Params
 
@@ -96,7 +92,7 @@ type (
 		// Raw an object of Go HTTP server, direct interaction with
 		// raw object is not encouraged.
 		//
-		// Raw field to be unexported on v1 release, use `Req.Unwarp()` instead.
+		// DEPRECATED: Raw field to be unexported on v1 release, use `Req.Unwarp()` instead.
 		Raw *http.Request
 	}
 
@@ -265,7 +261,6 @@ func (r *Request) Reset() {
 	r.ContentType = nil
 	r.AcceptContentType = nil
 	r.AcceptEncoding = nil
-	r.Payload = nil
 	r.Params = nil
 	r.Referer = ""
 	r.UserAgent = ""
