@@ -135,6 +135,7 @@ func TestHTTPRequestParams(t *testing.T) {
 	aahReq2.Params.Form = req2.Form
 
 	params2 := aahReq2.Params
+	assert.NotNil(t, aahReq2.Body())
 	assert.Equal(t, "welcome", params2.FormValue("username"))
 	assert.Equal(t, "welcome@welcome.com", params2.FormValue("email"))
 	assert.Equal(t, "Test1", params2.FormArrayValue("names")[0])

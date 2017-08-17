@@ -137,12 +137,12 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 
 // Cookie method returns a named cookie from HTTP request otherwise error.
 func (r *Request) Cookie(name string) (*http.Cookie, error) {
-	return r.Raw.Cookie(name)
+	return r.Unwrap().Cookie(name)
 }
 
 // Cookies method returns all the cookies from HTTP request.
 func (r *Request) Cookies() []*http.Cookie {
-	return r.Raw.Cookies()
+	return r.Unwrap().Cookies()
 }
 
 // IsJSONP method returns true if request URL query string has "callback=function_name".
@@ -197,7 +197,12 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
 	return r.Params.FormFile(key)
 }
 
-//Unwrap returns the underlying http.Request
+// Body method returns the HTTP request body.
+func (r *Request) Body() io.ReadCloser {
+	return r.Unwrap().Body
+}
+
+// Unwrap method returns the underlying *http.Request.
 func (r *Request) Unwrap() *http.Request {
 	return r.Raw
 }
