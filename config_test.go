@@ -215,6 +215,12 @@ func TestStringList(t *testing.T) {
 build {
   # Valid exclude patterns refer: https://golang.org/pkg/path/filepath/#Match
   excludes = ["*_test.go", ".*", "*.bak", "*.tmp", "vendor"]
+
+	keys = [
+		"X3pGTSOuJeEVw989IJ/cEtXUEmy52zs1TZQrU06KUKg=",
+		"MHJYVThihUrJcxW6wcqyOISTXIsInsdj3xK8QrZbHec=",
+		"GGekerhihUrJcxW6wcqyOISTXIsInsdj3xK8QrZbHec=",
+	]
 }`)
 
 	lst1, found1 := cfg.StringList("build.excludes")
@@ -225,6 +231,10 @@ build {
 	lst2, found2 := cfg.StringList("name")
 	assert.False(t, found2)
 	assert.True(t, len(lst2) == 0)
+
+	v, f := cfg.StringList("build.keys")
+	assert.True(t, f)
+	assert.True(t, len(v) == 3)
 }
 
 func TestIntAndInt64List(t *testing.T) {
