@@ -139,6 +139,9 @@ func Struct(key string, typ reflect.Type, params url.Values) (reflect.Value, err
 		if fname == "" { // take the field name
 			fname = ft.Name
 		}
+		if len(key) > 0 {
+			fname = key + "." + fname
+		}
 
 		var v reflect.Value
 		if vpFn, found := ValueParser(f.Type()); found {

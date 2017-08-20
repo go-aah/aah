@@ -175,7 +175,7 @@ func TestParserStruct(t *testing.T) {
 	StructTagName = "bind"
 	TimeFormats = []string{"2006-01-02T15:04:05Z07:00", "2006-01-02T15:04:05Z",
 		"2006-01-02 15:04:05", "2006-01-02"}
-	val, err := Struct("name", reflect.TypeOf(&sample{}), params)
+	val, err := Struct("", reflect.TypeOf(&sample{}), params)
 	assert.Nil(t, err)
 
 	s := val.Interface().(*sample)
@@ -223,4 +223,45 @@ func TestParserStruct(t *testing.T) {
 	assert.Equal(t, "welcome1", *s.IPSSlice[0])
 	assert.Equal(t, 101, *s.IPISlice[0])
 	assert.Equal(t, uint(101), *s.IPUSlice[0])
+}
+
+type address struct {
+	Address1 string `bind:"address1"`
+	Address2 string `bind:"address2"`
+	City     string `bind:"city"`
+	ZipCode  string `bind:"zip_code"`
+}
+
+type nestedSample struct {
+	FirstName        string  `bind:"first_name"`
+	LastName         string  `bind:"last_name"`
+	Email            string  `bind:"email"`
+	ShippingAddress  address `bind:"shipping"`
+	ResidenceAddress address `bind:"residence"`
+}
+
+func TestParserStructNested(t *testing.T) {
+	params, err := url.ParseQuery("first_name=Nested struct Firstname&last_name=Nested struct Lastname&email=email@email.com&shipping.address1=Shipping Address 1&shipping.address2=Shipping Address 2&shipping.city=Shipping City&shipping.zip_code=10001&residence.address1=Residence Address 1&residence.address2=Residence Address 2&residence.city=Residence City&residence.zip_code=10002")
+	assert.Nil(t, err)
+
+	StructTagName = "bind"
+	val, err := Struct("", reflect.TypeOf(&nestedSample{}), params)
+	assert.Nil(t, err)
+
+	s := val.Interface().(*nestedSample)
+	assert.Equal(t, "Nested struct Firstname", s.FirstName)
+	assert.Equal(t, "Nested struct Lastname", s.LastName)
+	assert.Equal(t, "email@email.com", s.Email)
+
+	assert.NotNil(t, s.ShippingAddress)
+	assert.Equal(t, "Shipping Address 1", s.ShippingAddress.Address1)
+	assert.Equal(t, "Shipping Address 2", s.ShippingAddress.Address2)
+	assert.Equal(t, "Shipping City", s.ShippingAddress.City)
+	assert.Equal(t, "10001", s.ShippingAddress.ZipCode)
+
+	assert.NotNil(t, s.ResidenceAddress)
+	assert.Equal(t, "Residence Address 1", s.ResidenceAddress.Address1)
+	assert.Equal(t, "Residence Address 2", s.ResidenceAddress.Address2)
+	assert.Equal(t, "Residence City", s.ResidenceAddress.City)
+	assert.Equal(t, "10002", s.ResidenceAddress.ZipCode)
 }
