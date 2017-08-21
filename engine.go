@@ -396,6 +396,7 @@ func acquireContext() *Context {
 }
 
 func releaseContext(ctx *Context) {
+	cleanup(ctx)
 	ahttp.ReleaseResponseWriter(ctx.Res)
 	ahttp.ReleaseRequest(ctx.Req)
 	security.ReleaseSubject(ctx.subject)
@@ -403,6 +404,15 @@ func releaseContext(ctx *Context) {
 
 	ctx.Reset()
 	ctxPool.Put(ctx)
+}
+
+func cleanup(ctx *Context) {
+	if ctx.Req.Unwrap().MultipartForm != nil {
+		log.Debug("MultipartForm file(s) clean up")
+		if err := ctx.Req.Unwrap().MultipartForm.RemoveAll(); err != nil {
+			log.Error(err)
+		}
+	}
 }
 
 func init() {

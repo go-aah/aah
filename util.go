@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -142,4 +143,18 @@ func parsePort(port string) string {
 	}
 
 	return "80"
+}
+
+func reverseSlice(s []string) []string {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+	return s
+}
+
+func kind(t reflect.Type) reflect.Kind {
+	if t.Kind() == reflect.Ptr {
+		return t.Elem().Kind()
+	}
+	return t.Kind()
 }

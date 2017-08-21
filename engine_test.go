@@ -5,12 +5,15 @@
 package aah
 
 import (
+	"bytes"
 	"compress/gzip"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -24,6 +27,22 @@ import (
 type (
 	Site struct {
 		*Context
+	}
+
+	sample struct {
+		ProductID   int    `bind:"id"`
+		ProductName string `bind:"product_name"`
+		Username    string `bind:"username"`
+		Email       string `bind:"email"`
+		Page        int    `bind:"page"`
+		Count       string `bind:"count"`
+	}
+
+	sampleJSON struct {
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+		Email     string `json:"email"`
+		Number    int    `json:"number"`
 	}
 )
 
@@ -61,6 +80,15 @@ func (s *Site) AfterGetInvolved() {
 	log.Info("After GetInvolved interceptor")
 }
 
+func (s *Site) AutoBind(id int, info *sample) {
+	log.Info("ID:", id)
+	log.Infof("Info: %+v", info)
+}
+
+func (s *Site) JSONRequest(info *sample) {
+	log.Infof("JSON Info: %+v", info)
+}
+
 func testEngineMiddleware(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("X-Custom-Name", "test engine middleware")
 }
@@ -80,7 +108,8 @@ func TestEngineNew(t *testing.T) {
 	assert.True(t, e.isGzipEnabled)
 
 	ctx := acquireContext()
-	ctx.Req = &ahttp.Request{}
+	req := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
+	ctx.Req = ahttp.AcquireRequest(req)
 	assert.NotNil(t, ctx)
 	assert.NotNil(t, ctx.Req)
 	releaseContext(ctx)
@@ -137,6 +166,19 @@ func TestEngineServeHTTP(t *testing.T) {
 			Name:       "Credits",
 			Parameters: []*ParameterInfo{},
 		},
+		{
+			Name: "AutoBind",
+			Parameters: []*ParameterInfo{
+				&ParameterInfo{Name: "id", Type: reflect.TypeOf((*int)(nil))},
+				&ParameterInfo{Name: "info", Type: reflect.TypeOf((**sample)(nil))},
+			},
+		},
+		{
+			Name: "JSONRequest",
+			Parameters: []*ParameterInfo{
+				&ParameterInfo{Name: "info", Type: reflect.TypeOf((**sampleJSON)(nil))},
+			},
+		},
 	})
 
 	// Middlewares
@@ -187,7 +229,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	e.ServeHTTP(w4, r4)
 
 	resp4 := w4.Result()
-	assert.Equal(t, 404, resp4.StatusCode)
+	assert.Equal(t, 500, resp4.StatusCode)
 
 	// Request 5 RedirectTrailingSlash - 302 status
 	wd, _ := os.Getwd()
@@ -246,6 +288,50 @@ func TestEngineServeHTTP(t *testing.T) {
 	resp9 := w9.Result()
 	assert.Equal(t, 200, resp9.StatusCode)
 	assert.Equal(t, "GET, OPTIONS", resp9.Header.Get("Allow"))
+
+	// Auto Bind request
+	autobindPriority = []string{"Q", "F", "P"}
+	requestParsers[ahttp.ContentTypeMultipartForm.Mime] = multipartFormParser
+	requestParsers[ahttp.ContentTypeForm.Mime] = formParser
+	form := url.Values{}
+	form.Add("product_name", "Test Product")
+	form.Add("username", "welcome")
+	form.Add("email", "welcome@welcome.com")
+	r10 := httptest.NewRequest("POST", "http://localhost:8080/products/100002?page=10&count=20",
+		strings.NewReader(form.Encode()))
+	r10.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeForm.String())
+	w10 := httptest.NewRecorder()
+	e.ServeHTTP(w10, r10)
+
+	resp10 := w10.Result()
+	assert.NotNil(t, resp10)
+
+	// multipart
+	r11 := httptest.NewRequest("POST", "http://localhost:8080/products/100002?page=10&count=20",
+		strings.NewReader(form.Encode()))
+	r11.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeMultipartForm.String())
+	w11 := httptest.NewRecorder()
+	e.ServeHTTP(w11, r11)
+
+	resp11 := w11.Result()
+	assert.NotNil(t, resp11)
+
+	// JSON request
+	jsonBytes := []byte(`{
+	"first_name":"My firstname",
+	"last_name": "My lastname",
+	"email": "email@myemail.com",
+	"number": 8253645635463
+}`)
+
+	r12 := httptest.NewRequest("POST", "http://localhost:8080/json-submit",
+		bytes.NewReader(jsonBytes))
+	r12.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeJSON.String())
+	w12 := httptest.NewRecorder()
+	e.ServeHTTP(w12, r12)
+
+	resp12 := w12.Result()
+	assert.NotNil(t, resp12)
 
 	appBaseDir = ""
 }
