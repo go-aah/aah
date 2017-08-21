@@ -229,6 +229,7 @@ func addFrameworkValuesIntoViewArgs(ctx *Context, html *HTML) {
 	html.ViewArgs["EnvProfile"] = AppProfile()
 	html.ViewArgs["AppBuildInfo"] = AppBuildInfo()
 	html.ViewArgs[KeyViewArgSubject] = ctx.Subject()
+	html.ViewArgs[KeyViewArgRequestParams] = ctx.Req.Params
 }
 
 func init() {

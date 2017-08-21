@@ -24,8 +24,7 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.Nil(t, err)
 
 	err = initAppVariables()
-	assert.NotNil(t, err)
-	assert.Equal(t, "profile doesn't exists: env.dev", err.Error())
+	assert.Nil(t, err)
 
 	AppConfig().SetString("env.dev.test_value", "dev test value")
 	err = initAppVariables()
@@ -35,8 +34,6 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.Equal(t, "aah framework test config", AppDesc())
 	assert.Equal(t, "127.0.0.1", AppHTTPAddress())
 	assert.Equal(t, "80", AppHTTPPort())
-	assert.Equal(t, "2006-01-02", AppDateFormat())
-	assert.Equal(t, "2006-01-02 15:04:05", AppDateTimeFormat())
 	assert.Equal(t, "en", AppDefaultI18nLang())
 	assert.True(t, ess.IsStrEmpty(AppImportPath()))
 	assert.False(t, AppIsSSLEnabled())
@@ -240,4 +237,15 @@ func TestAahConfigValidation(t *testing.T) {
 	_ = ioutil.WriteFile(certPath, []byte("cert.pem file"), 0755)
 	err = checkSSLConfigValues(true, false, certPath, "/path/to/cert.key")
 	assert.Equal(t, "SSL key file not found: /path/to/cert.key", err.Error())
+}
+
+func TestAahAppInit(t *testing.T) {
+	Init("aahframework.org/aah.v0-unstable/testdata")
+	assert.NotNil(t, appConfig)
+	assert.NotNil(t, appRouter)
+	assert.NotNil(t, appSecurityManager)
+
+	// reset it
+	appConfig = nil
+	appBaseDir = ""
 }

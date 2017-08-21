@@ -25,7 +25,7 @@ var defaultErrorHTMLTemplate = template.Must(template.New("error_template").Pars
   <title>{{ .Error.Code }} {{ .Error.Message }}</title>
   <link href="//fonts.googleapis.com/css?family=Open+Sans:300,400,700" rel="stylesheet" type="text/css">
   <style>
-		html {-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
+    html {-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
     html, body {
       margin: 0;
       background-color: #fff;

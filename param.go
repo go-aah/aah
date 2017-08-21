@@ -5,12 +5,16 @@
 package aah
 
 import (
-	"io/ioutil"
+	"errors"
 	"net/http"
+	"net/url"
+	"reflect"
+	"strings"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
+	"aahframework.org/valpar.v0-unstable"
 )
 
 const (
@@ -19,115 +23,178 @@ const (
 	KeyViewArgRequestParams = "_aahRequestParams"
 
 	keyOverrideI18nName = "lang"
+	allContentTypes     = "*/*"
 )
 
 var (
-	keyQueryParamName    = keyOverrideI18nName
-	keyPathParamName     = keyOverrideI18nName
-	isAcceptedExists     bool
-	acceptedContentTypes []string
-	isOfferedExists      bool
-	offeredContentTypes  []string
+	keyQueryParamName           = keyOverrideI18nName
+	keyPathParamName            = keyOverrideI18nName
+	requestParsers              = make(map[string]requestParser)
+	isContentNegotiationEnabled bool
+	acceptedContentTypes        []string
+	offeredContentTypes         []string
+	autobindPriority            []string
+
+	errInvalidParsedValue = errors.New("aah: parsed value is invalid")
 )
+
+type requestParser func(ctx *Context) flowResult
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Params Unexported method
 //___________________________________
 
 // parseRequestParams method parses the incoming HTTP request to collects request
-// parameters (Payload, Form, Query, Multi-part) stores into context. Request
+// parameters (Path, Form, Query, Multipart) stores into context. Request
 // params are made available in View via template functions.
 func (e *engine) parseRequestParams(ctx *Context) flowResult {
-	// Content Negotitaion - Accepted, refer to Github #75
-	if isAcceptedExists && !ess.IsSliceContainsString(acceptedContentTypes, ctx.Req.ContentType.Mime) {
-		log.Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType.Mime)
-		ctx.Reply().Error(&Error{
-			Code:    http.StatusUnsupportedMediaType,
-			Message: http.StatusText(http.StatusUnsupportedMediaType),
-		})
-		return flowStop
-	}
-
-	// Content Negotitaion - Offered, refer to Github #75
-	if isOfferedExists && !ess.IsSliceContainsString(offeredContentTypes, ctx.Req.AcceptContentType.Mime) {
-		log.Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType.Mime)
-		ctx.Reply().Error(&Error{
-			Code:    http.StatusNotAcceptable,
-			Message: http.StatusText(http.StatusNotAcceptable),
-		})
-		return flowStop
-	}
-
-	req := ctx.Req.Unwrap()
-	if ctx.Req.Method != ahttp.MethodGet {
-		contentType := ctx.Req.ContentType.Mime
-		log.Debugf("Request content type: %s", contentType)
-
-		// Prevent DDoS attacks by large HTTP request bodies by enforcing
-		// configured hard limit, Github #83.
-		if contentType != ahttp.ContentTypeMultipartForm.Mime {
-			req.Body = http.MaxBytesReader(ctx.Res, req.Body,
-				firstNonZeroInt64(ctx.route.MaxBodySize, appMaxBodyBytesSize))
-		}
-
-		// TODO add support for content-type restriction and return 415 status for that
-		// TODO HTML sanitizer for Form and Multipart Form
-
-		switch contentType {
-		case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeJSONText.Mime,
-			ahttp.ContentTypeXML.Mime, ahttp.ContentTypeXMLText.Mime:
-			if payloadBytes, err := ioutil.ReadAll(req.Body); err == nil {
-				ctx.Req.Payload = payloadBytes
-			} else {
-				log.Errorf("unable to read request body for '%s': %s", contentType, err)
-				ctx.Reply().Error(&Error{
-					Code:    http.StatusBadRequest,
-					Message: http.StatusText(http.StatusBadRequest),
-				})
-				return flowStop
-			}
-		case ahttp.ContentTypeForm.Mime:
-			if err := req.ParseForm(); err == nil {
-				ctx.Req.Params.Form = req.Form
-			} else {
-				log.Errorf("unable to parse form: %s", err)
-			}
-		case ahttp.ContentTypeMultipartForm.Mime:
-			if err := req.ParseMultipartForm(appMultipartMaxMemory); err == nil {
-				ctx.Req.Params.Form = req.MultipartForm.Value
-				ctx.Req.Params.File = req.MultipartForm.File
-			} else {
-				log.Errorf("unable to parse multipart form: %s", err)
-			}
-		} // switch end
-
-		// clean up
-		if req.MultipartForm != nil {
-			defer func(r *http.Request) {
-				log.Debug("multipart form file clean up")
-				if err := r.MultipartForm.RemoveAll(); err != nil {
-					log.Error(err)
-				}
-			}(req)
-		}
-	}
-
 	if AppI18n() != nil {
 		// i18n locale HTTP header `Accept-Language` value override via
 		// Path Variable and URL Query Param (config i18n { param_name { ... } }).
 		// Note: Query parameter takes precedence of all.
-		// Default parameter name is `lang`
 		if locale := firstNonZeroString(
 			ctx.Req.QueryValue(keyQueryParamName),
 			ctx.Req.PathValue(keyPathParamName)); !ess.IsStrEmpty(locale) {
 			ctx.Req.Locale = ahttp.NewLocale(locale)
 		}
+	}
 
-		// All the request parameters made available to templates via funcs.
-		ctx.AddViewArg(KeyViewArgRequestParams, ctx.Req.Params)
+	if ctx.Req.Method == ahttp.MethodGet {
+		return flowCont
+	}
+
+	log.Debugf("Request Content-Type mime: %s", ctx.Req.ContentType.Mime)
+
+	// Content Negotitaion - Accepted & Offered, refer to Github #75
+	if isContentNegotiationEnabled {
+		if len(acceptedContentTypes) > 0 &&
+			!ess.IsSliceContainsString(acceptedContentTypes, ctx.Req.ContentType.Mime) {
+			log.Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType.Mime)
+			ctx.Reply().Error(&Error{
+				Code:    http.StatusUnsupportedMediaType,
+				Message: http.StatusText(http.StatusUnsupportedMediaType),
+			})
+			return flowStop
+		}
+
+		if len(offeredContentTypes) > 0 &&
+			!ess.IsSliceContainsString(offeredContentTypes, ctx.Req.AcceptContentType.Mime) {
+			ctx.Reply().Error(&Error{
+				Code:    http.StatusNotAcceptable,
+				Message: http.StatusText(http.StatusNotAcceptable),
+			})
+			log.Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType.Mime)
+			return flowStop
+		}
+	}
+
+	// Prevent DDoS attacks by large HTTP request bodies by enforcing
+	// configured hard limit, Github #83.
+	if ctx.Req.ContentType.Mime != ahttp.ContentTypeMultipartForm.Mime {
+		ctx.Req.Unwrap().Body = http.MaxBytesReader(ctx.Res, ctx.Req.Unwrap().Body,
+			firstNonZeroInt64(ctx.route.MaxBodySize, appMaxBodyBytesSize))
+	}
+
+	// Parse request content by Content-Type
+	if parser, found := requestParsers[ctx.Req.ContentType.Mime]; found {
+		if res := parser(ctx); res == flowStop {
+			return flowStop
+		}
 	}
 
 	return flowCont
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Content Parser methods
+//___________________________________
+
+func multipartFormParser(ctx *Context) flowResult {
+	if err := ctx.Req.Unwrap().ParseMultipartForm(appMultipartMaxMemory); err != nil {
+		log.Errorf("Unable to parse multipart form: %s", err)
+	} else {
+		ctx.Req.Params.Form = ctx.Req.Unwrap().MultipartForm.Value
+		ctx.Req.Params.File = ctx.Req.Unwrap().MultipartForm.File
+	}
+	return flowCont
+}
+
+func formParser(ctx *Context) flowResult {
+	if err := ctx.Req.Unwrap().ParseForm(); err != nil {
+		log.Errorf("Unable to parse form: %s", err)
+	} else {
+		ctx.Req.Params.Form = ctx.Req.Unwrap().Form
+	}
+	return flowCont
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Action Parameters Auto Parse
+//___________________________________
+
+func parseParameters(ctx *Context) ([]reflect.Value, error) {
+	paramCnt := len(ctx.action.Parameters)
+
+	// If parameters not exists, return here
+	if paramCnt == 0 {
+		return emptyArg, nil
+	}
+
+	// Parse and Bind parameters
+	params := createParams(ctx)
+	var err error
+	actionArgs := make([]reflect.Value, paramCnt)
+	for idx, val := range ctx.action.Parameters {
+		var result reflect.Value
+		if vpFn, found := valpar.ValueParser(val.Type); found {
+			result, err = vpFn(val.Name, val.Type, params)
+		} else if kind(val.Type) == reflect.Struct {
+			ct := ctx.Req.ContentType.Mime
+			if ct == ahttp.ContentTypeJSON.Mime || ct == ahttp.ContentTypeJSONText.Mime ||
+				ct == ahttp.ContentTypeXML.Mime || ct == ahttp.ContentTypeXMLText.Mime {
+				// TODO replace body with `ctx.Req.Body()` after ahttp lib release
+				result, err = valpar.Body(ct, ctx.Req.Unwrap().Body, val.Type)
+			} else {
+				result, err = valpar.Struct("", val.Type, params)
+			}
+		}
+
+		// check error
+		if err != nil {
+			return actionArgs, err
+		} else if !result.IsValid() {
+			log.Errorf("Parsed result value is invalid or value parser not found [param: %s, type: %s]",
+				val.Name, val.Type)
+			return actionArgs, errInvalidParsedValue
+		}
+
+		// set action parameter value
+		actionArgs[idx] = result
+	}
+
+	return actionArgs, nil
+}
+
+// Create param values based on autobind priority
+func createParams(ctx *Context) url.Values {
+	params := make(url.Values)
+	for _, priority := range autobindPriority {
+		switch priority {
+		case "P": // Path Values
+			for k, v := range ctx.Req.Params.Path {
+				params.Set(k, v)
+			}
+		case "F": // Form Values
+			for k, v := range ctx.Req.Params.Form {
+				params[k] = v
+			}
+		case "Q": // Query Values
+			for k, v := range ctx.Req.Params.Query {
+				params[k] = v
+			}
+		}
+	}
+	return params
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -156,8 +223,45 @@ func paramInitialize(e *Event) {
 	cfg := AppConfig()
 	keyPathParamName = cfg.StringDefault("i18n.param_name.path", keyOverrideI18nName)
 	keyQueryParamName = cfg.StringDefault("i18n.param_name.query", keyOverrideI18nName)
-	acceptedContentTypes, isAcceptedExists = cfg.StringList("request.content_negotiation.accepted")
-	offeredContentTypes, isOfferedExists = cfg.StringList("request.content_negotiation.offered")
+
+	// Content Negotitaion, Github #75
+	isContentNegotiationEnabled = cfg.BoolDefault("request.content_negotiation.enable", false)
+	acceptedContentTypes, _ = cfg.StringList("request.content_negotiation.accepted")
+	for idx, v := range acceptedContentTypes {
+		acceptedContentTypes[idx] = strings.ToLower(v)
+		if v == allContentTypes {
+			// when `*/*` is mentioned, don't check the condition
+			// because every content type is allowed
+			acceptedContentTypes = []string{}
+			break
+		}
+	}
+
+	offeredContentTypes, _ = cfg.StringList("request.content_negotiation.offered")
+	for idx, v := range offeredContentTypes {
+		offeredContentTypes[idx] = strings.ToLower(v)
+		if v == allContentTypes {
+			// when `*/*` is mentioned, don't check the condition
+			// because every content type is allowed
+			offeredContentTypes = []string{}
+		}
+	}
+
+	// Auto Parse and Bind, Github #26
+	requestParsers[ahttp.ContentTypeMultipartForm.Mime] = multipartFormParser
+	requestParsers[ahttp.ContentTypeForm.Mime] = formParser
+
+	autobindPriority = reverseSlice(strings.Split(cfg.StringDefault("request.auto_bind.priority", "PFQ"), ""))
+	timeFormats, found := cfg.StringList("format.time")
+	if !found {
+		timeFormats = []string{
+			"2006-01-02T15:04:05Z07:00",
+			"2006-01-02T15:04:05Z",
+			"2006-01-02 15:04:05",
+			"2006-01-02"}
+	}
+	valpar.TimeFormats = timeFormats
+	valpar.StructTagName = cfg.StringDefault("auto_bind.tag_name", "bind")
 }
 
 func init() {
