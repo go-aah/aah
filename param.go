@@ -65,7 +65,7 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 
 	log.Debugf("Request Content-Type mime: %s", ctx.Req.ContentType.Mime)
 
-	// Content Negotitaion - Accepted, refer to Github #75
+	// Content Negotitaion - Accepted & Offered, refer to Github #75
 	if isContentNegotiationEnabled {
 		if len(acceptedContentTypes) > 0 &&
 			!ess.IsSliceContainsString(acceptedContentTypes, ctx.Req.ContentType.Mime) {
@@ -77,7 +77,6 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 			return flowStop
 		}
 
-		// Content Negotitaion - Offered, refer to Github #75
 		if len(offeredContentTypes) > 0 &&
 			!ess.IsSliceContainsString(offeredContentTypes, ctx.Req.AcceptContentType.Mime) {
 			ctx.Reply().Error(&Error{
