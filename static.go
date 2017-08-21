@@ -24,9 +24,10 @@ import (
 )
 
 const (
-	dirStatic       = "static"
-	sniffLen        = 512
-	noCacheHdrValue = "no-cache, no-store, must-revalidate"
+	dirStatic             = "static"
+	sniffLen              = 512
+	noCacheHdrValue       = "no-cache, no-store, must-revalidate"
+	dirListDateTimeFormat = "2006-01-02 15:04:05"
 )
 
 var (
@@ -165,7 +166,7 @@ func directoryList(res http.ResponseWriter, req *http.Request, f http.File) {
 		fmt.Fprintf(res, "<tr><td><a href=\"%s\">%s</a></td><td width=\"200px\" align=\"right\">%s</td></tr>\n",
 			url.String(),
 			template.HTMLEscapeString(name),
-			d.ModTime().Format(appDefaultDateTimeFormat),
+			d.ModTime().Format(dirListDateTimeFormat),
 		)
 	}
 	fmt.Fprintf(res, "</table></pre>\n")

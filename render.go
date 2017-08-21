@@ -24,9 +24,6 @@ var (
 	// JSONMarshal is used to register external JSON library for Marshalling.
 	JSONMarshal func(v interface{}) ([]byte, error)
 
-	// JSONUnmarshal is used to register external JSON library for Unmarshalling.
-	JSONUnmarshal func(data []byte, v interface{}) error
-
 	// JSONMarshalIndent is used to register external JSON library for Marshal indent.
 	JSONMarshalIndent func(v interface{}, prefix, indent string) ([]byte, error)
 
@@ -307,6 +304,5 @@ func releaseRender(r Render) {
 func init() {
 	// Registering default standard JSON library
 	JSONMarshal = json.Marshal
-	JSONUnmarshal = json.Unmarshal
 	JSONMarshalIndent = json.MarshalIndent
 }

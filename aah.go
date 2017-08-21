@@ -45,12 +45,10 @@ var (
 	appInitialized        bool
 	appBuildInfo          *BuildInfo
 
-	appDefaultProfile        = "dev"
-	appProfilePrefix         = "env."
-	appDefaultHTTPPort       = "8080"
-	appDefaultDateFormat     = "2006-01-02"
-	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
-	appLogFatal              = log.Fatal
+	appDefaultProfile  = "dev"
+	appProfilePrefix   = "env."
+	appDefaultHTTPPort = "8080"
+	appLogFatal        = log.Fatal
 
 	goPath   string
 	goSrcDir string
@@ -110,16 +108,6 @@ func AppHTTPPort() string {
 	port := firstNonZeroString(AppConfig().StringDefault("server.proxyport", ""),
 		AppConfig().StringDefault("server.port", appDefaultHTTPPort))
 	return parsePort(port)
-}
-
-// AppDateFormat method returns aah application date format
-func AppDateFormat() string {
-	return AppConfig().StringDefault("format.date", appDefaultDateFormat)
-}
-
-// AppDateTimeFormat method returns aah application date format
-func AppDateTimeFormat() string {
-	return AppConfig().StringDefault("format.datetime", appDefaultDateTimeFormat)
 }
 
 // AppBuildInfo method return user application version no.

@@ -7,6 +7,7 @@ package aah
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -83,10 +84,15 @@ func (s *Site) AfterGetInvolved() {
 func (s *Site) AutoBind(id int, info *sample) {
 	log.Info("ID:", id)
 	log.Infof("Info: %+v", info)
+	s.Reply().Text("Data have been recevied successfully")
 }
 
-func (s *Site) JSONRequest(info *sample) {
+func (s *Site) JSONRequest(info *sampleJSON) {
 	log.Infof("JSON Info: %+v", info)
+	s.Reply().JSON(Data{
+		"success": true,
+		"data":    info,
+	})
 }
 
 func testEngineMiddleware(w http.ResponseWriter, r *http.Request) {
@@ -230,6 +236,7 @@ func TestEngineServeHTTP(t *testing.T) {
 
 	resp4 := w4.Result()
 	assert.NotNil(t, resp4)
+	fmt.Println("StatusCode:", resp4.StatusCode)
 
 	// Request 5 RedirectTrailingSlash - 302 status
 	wd, _ := os.Getwd()
@@ -304,7 +311,11 @@ func TestEngineServeHTTP(t *testing.T) {
 	e.ServeHTTP(w10, r10)
 
 	resp10 := w10.Result()
+	body10 := getResponseBody(resp10)
 	assert.NotNil(t, resp10)
+	assert.Equal(t, http.StatusOK, resp10.StatusCode)
+	assert.Equal(t, "text/plain; charset=utf-8", resp10.Header.Get(ahttp.HeaderContentType))
+	assert.Equal(t, "Data have been recevied successfully", body10)
 
 	// multipart
 	r11 := httptest.NewRequest("POST", "http://localhost:8080/products/100002?page=10&count=20",
@@ -314,7 +325,11 @@ func TestEngineServeHTTP(t *testing.T) {
 	e.ServeHTTP(w11, r11)
 
 	resp11 := w11.Result()
+	body11 := getResponseBody(resp11)
 	assert.NotNil(t, resp11)
+	assert.Equal(t, http.StatusOK, resp11.StatusCode)
+	assert.Equal(t, "text/plain; charset=utf-8", resp11.Header.Get(ahttp.HeaderContentType))
+	assert.Equal(t, "Data have been recevied successfully", body11)
 
 	// JSON request
 	jsonBytes := []byte(`{
@@ -331,7 +346,11 @@ func TestEngineServeHTTP(t *testing.T) {
 	e.ServeHTTP(w12, r12)
 
 	resp12 := w12.Result()
+	body12 := getResponseBody(resp12)
 	assert.NotNil(t, resp12)
+	assert.Equal(t, http.StatusOK, resp12.StatusCode)
+	assert.Equal(t, "application/json; charset=utf-8", resp12.Header.Get(ahttp.HeaderContentType))
+	assert.True(t, strings.Contains(body12, `"success":true`))
 
 	appBaseDir = ""
 }

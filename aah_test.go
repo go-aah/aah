@@ -34,8 +34,6 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.Equal(t, "aah framework test config", AppDesc())
 	assert.Equal(t, "127.0.0.1", AppHTTPAddress())
 	assert.Equal(t, "80", AppHTTPPort())
-	assert.Equal(t, "2006-01-02", AppDateFormat())
-	assert.Equal(t, "2006-01-02 15:04:05", AppDateTimeFormat())
 	assert.Equal(t, "en", AppDefaultI18nLang())
 	assert.True(t, ess.IsStrEmpty(AppImportPath()))
 	assert.False(t, AppIsSSLEnabled())
