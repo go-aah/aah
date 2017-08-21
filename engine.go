@@ -265,17 +265,17 @@ func (e *engine) writeReply(ctx *Context) {
 	// Set Cookies
 	e.setCookies(ctx)
 
-	reply := ctx.Reply()
-	if reply.redirect { // handle redirects
-		log.Debugf("Redirecting to '%s' with status '%d'", reply.path, reply.Code)
-		http.Redirect(ctx.Res, ctx.Req.Unwrap(), reply.path, reply.Code)
+	// reply := ctx.Reply()
+	if ctx.Reply().redirect { // handle redirects
+		log.Debugf("Redirecting to '%s' with status '%d'", ctx.Reply().path, ctx.Reply().Code)
+		http.Redirect(ctx.Res, ctx.Req.Unwrap(), ctx.Reply().path, ctx.Reply().Code)
 		return
 	}
 
 	// ContentType
-	if !reply.IsContentTypeSet() {
+	if !ctx.Reply().IsContentTypeSet() {
 		if ct := identifyContentType(ctx); ct != nil {
-			reply.ContentType(ct.String())
+			ctx.Reply().ContentType(ct.String())
 		}
 	}
 
@@ -286,19 +286,19 @@ func (e *engine) writeReply(ctx *Context) {
 	// error info without messing with response on the wire.
 	e.doRender(ctx)
 
-	isBodyAllowed := isResponseBodyAllowed(reply.Code)
+	isBodyAllowed := isResponseBodyAllowed(ctx.Reply().Code)
 	// Gzip, 1kb above TODO make it configurable from aah.conf
-	if isBodyAllowed && reply.body.Len() > 1024 {
+	if isBodyAllowed && ctx.Reply().body.Len() > 1024 {
 		e.wrapGzipWriter(ctx)
 	}
 
 	// ContentType, if it's not set then auto detect later in the writer
-	if reply.IsContentTypeSet() {
-		ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
+	if ctx.Reply().IsContentTypeSet() {
+		ctx.Res.Header().Set(ahttp.HeaderContentType, ctx.Reply().ContType)
 	}
 
 	// HTTP status
-	ctx.Res.WriteHeader(reply.Code)
+	ctx.Res.WriteHeader(ctx.Reply().Code)
 
 	// Write response on the wire
 	if isBodyAllowed {
