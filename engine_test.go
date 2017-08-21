@@ -7,7 +7,6 @@ package aah
 import (
 	"bytes"
 	"compress/gzip"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -236,7 +235,6 @@ func TestEngineServeHTTP(t *testing.T) {
 
 	resp4 := w4.Result()
 	assert.NotNil(t, resp4)
-	fmt.Println("StatusCode:", resp4.StatusCode)
 
 	// Request 5 RedirectTrailingSlash - 302 status
 	wd, _ := os.Getwd()
