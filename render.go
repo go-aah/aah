@@ -37,10 +37,14 @@ type (
 	// Data type used for convenient data type of map[string]interface{}
 	Data map[string]interface{}
 
-	// Render interface
+	// Render interface to various rendering classifcation for HTTP responses.
 	Render interface {
 		Render(io.Writer) error
 	}
+
+	// RenderFunc type is an adapter to allow the use of regular function as
+	// custom Render.
+	RenderFunc func(w io.Writer) error
 
 	// Text renders the response as plain text
 	Text struct {
@@ -74,6 +78,15 @@ type (
 		ViewArgs Data
 	}
 )
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// RenderFunc methods
+//___________________________________
+
+// Render method is implementation of Render interface in the adapter type.
+func (rf RenderFunc) Render(w io.Writer) error {
+	return rf(w)
+}
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Plain Text Render methods

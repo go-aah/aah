@@ -304,6 +304,13 @@ func (r *Reply) Error(err *Error) *Reply {
 	return r
 }
 
+// Render method is used for custom rendering by implementing interface
+// `aah.Render`.
+func (r *Reply) Render(rdr Render) *Reply {
+	r.Rdr = rdr
+	return r
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Reply methods
 //___________________________________
