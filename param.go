@@ -41,6 +41,15 @@ var (
 type requestParser func(ctx *Context) flowResult
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Package method
+//___________________________________
+
+// AddValueParser method adds given custom value parser for the `reflect.Type`
+func AddValueParser(typ reflect.Type, parser valpar.Parser) error {
+	return valpar.AddValueParser(typ, parser)
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Params Unexported method
 //___________________________________
 
