@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
@@ -156,4 +158,12 @@ func TestParamContentNegotiation(t *testing.T) {
 	assert.True(t, result2 == 1)
 
 	isContentNegotiationEnabled = false
+}
+
+func TestParamAddValueParser(t *testing.T) {
+	err := AddValueParser(reflect.TypeOf(time.Time{}), func(key string, typ reflect.Type, params url.Values) (reflect.Value, error) {
+		return reflect.Value{}, nil
+	})
+	assert.NotNil(t, err)
+	assert.Equal(t, "valpar: value parser is already exists", err.Error())
 }

@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
@@ -67,10 +68,20 @@ func checkSSLConfigValues(isSSLEnabled, isLetsEncrypt bool, sslCert, sslKey stri
 	return nil
 }
 
-func writePID(appBinaryName, appBaseDir string) {
+func writePID(cfg *config.Config, appBinaryName, appBaseDir string) {
+	// Get the application PID
 	appPID = os.Getpid()
-	pidfile := filepath.Join(appBaseDir, appBinaryName+".pid")
-	if err := ioutil.WriteFile(pidfile, []byte(strconv.Itoa(appPID)), 0644); err != nil {
+
+	pidFile := cfg.StringDefault("pid_file", "")
+	if ess.IsStrEmpty(pidFile) {
+		pidFile = filepath.Join(appBaseDir, appBinaryName)
+	}
+
+	if !strings.HasSuffix(pidFile, ".pid") {
+		pidFile += ".pid"
+	}
+
+	if err := ioutil.WriteFile(pidFile, []byte(strconv.Itoa(appPID)), 0644); err != nil {
 		log.Error(err)
 	}
 }

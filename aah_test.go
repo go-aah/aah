@@ -201,15 +201,15 @@ func TestAahLogDir(t *testing.T) {
 }
 
 func TestWritePID(t *testing.T) {
-	pidfile := filepath.Join(getTestdataPath(), "test-app.pid")
-	defer ess.DeleteFiles(pidfile)
+	pidfile := filepath.Join(getTestdataPath(), "test-app")
+	defer ess.DeleteFiles(pidfile + ".pid")
 
 	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
 	err := initConfig(cfgDir)
 	assert.Nil(t, err)
 
-	writePID("test-app", getTestdataPath())
-	assert.True(t, ess.IsFileExists(pidfile))
+	writePID(AppConfig(), "test-app", getTestdataPath())
+	assert.True(t, ess.IsFileExists(pidfile+".pid"))
 }
 
 func TestAahBuildInfo(t *testing.T) {
