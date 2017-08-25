@@ -20,9 +20,6 @@ import (
 	"aahframework.org/essentials.v0"
 )
 
-// Version no. of aah framework view library
-const Version = "0.6-dev"
-
 var (
 	// TemplateFuncMap aah framework Go template function map.
 	TemplateFuncMap = make(template.FuncMap)
