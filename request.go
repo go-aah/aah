@@ -209,18 +209,18 @@ func (r *Request) Unwrap() *http.Request {
 
 // SaveFile method saves an uploaded multipart file for given key from the HTTP
 // request into given destination
-func (r *Request) SaveFile(key, dstFile string) error {
+func (r *Request) SaveFile(key, dstFile string) (int64, error) {
 	if ess.IsStrEmpty(dstFile) || ess.IsStrEmpty(key) {
-		return errors.New("ahttp: key or dstFile is empty")
+		return 0, errors.New("ahttp: key or dstFile is empty")
 	}
 
 	if ess.IsDir(dstFile) {
-		return errors.New("ahttp: dstFile should not be a directory")
+		return 0, errors.New("ahttp: dstFile should not be a directory")
 	}
 
 	uploadedFile, _, err := r.FormFile(key)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer ess.CloseQuietly(uploadedFile)
 
@@ -230,29 +230,32 @@ func (r *Request) SaveFile(key, dstFile string) error {
 // SaveFiles method saves an uploaded multipart file(s) for the given key
 // from the HTTP request into given destination directory. It uses the filename
 // as uploaded filename from the request
-func (r *Request) SaveFiles(key, dstPath string) []error {
+func (r *Request) SaveFiles(key, dstPath string) ([]int64, []error) {
 	if !ess.IsDir(dstPath) {
-		return []error{fmt.Errorf("ahttp: destination path, %s is not a directory", dstPath)}
+		return []int64{0}, []error{fmt.Errorf("ahttp: destination path, '%s' is not a directory", dstPath)}
 	}
 
 	if ess.IsStrEmpty(key) {
-		return []error{fmt.Errorf("ahttp: form file key, %s is empty", key)}
+		return []int64{0}, []error{fmt.Errorf("ahttp: form file key, '%s' is empty", key)}
 	}
 
 	var errs []error
+	var sizes []int64
 	for _, file := range r.Params.File[key] {
 		uploadedFile, err := file.Open()
 		if err != nil {
+			sizes = append(sizes, 0)
 			errs = append(errs, err)
 			continue
 		}
 
-		if err := saveFile(uploadedFile, filepath.Join(dstPath, file.Filename)); err != nil {
+		if size, err := saveFile(uploadedFile, filepath.Join(dstPath, file.Filename)); err != nil {
+			sizes = append(sizes, size)
 			errs = append(errs, err)
 		}
 		ess.CloseQuietly(uploadedFile)
 	}
-	return errs
+	return sizes, errs
 }
 
 // Reset method resets request instance for reuse.
@@ -415,13 +418,12 @@ func isGzipAccepted(req *Request, r *http.Request) bool {
 	return false
 }
 
-func saveFile(r io.Reader, destFile string) error {
+func saveFile(r io.Reader, destFile string) (int64, error) {
 	f, err := os.OpenFile(destFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
 	if err != nil {
-		return err
+		return 0, fmt.Errorf("ahttp: %s", err)
 	}
 	defer ess.CloseQuietly(f)
 
-	_, err = io.Copy(f, r)
-	return err
+	return io.Copy(f, r)
 }

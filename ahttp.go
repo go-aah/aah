@@ -11,9 +11,6 @@ import (
 	"net/http"
 )
 
-// Version no. of aah framework ahttp library
-const Version = "0.10-dev"
-
 // HTTP Method names
 const (
 	MethodGet     = http.MethodGet
