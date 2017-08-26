@@ -2,6 +2,9 @@
 // go-aah/view source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
+// Package view is implementation of aah framework view engine using Go
+// Template engine. It supports multi-layouts, no-layout, partial inheritance
+// and error pages.
 package view
 
 import (
@@ -16,9 +19,6 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 )
-
-// Version no. of aah framework view library
-const Version = "0.5"
 
 var (
 	// TemplateFuncMap aah framework Go template function map.
@@ -94,8 +94,12 @@ func GetEngine(name string) (Enginer, bool) {
 // TemplateKey returns the unique key for given path.
 func TemplateKey(path string) string {
 	path = path[strings.Index(path, "pages"):]
-	path = strings.Replace(path, "/", "_", -1)
-	path = strings.Replace(path, "\\", "_", -1)
+	if fSeparator == '/' {
+		path = strings.Replace(path, "/", "_", -1)
+	} else {
+		path = strings.Replace(path, "\\", "_", -1)
+	}
+
 	return path
 }
 

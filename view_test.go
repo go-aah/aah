@@ -51,6 +51,19 @@ func TestViewCommonTemplateInit(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestViewTemplateKey(t *testing.T) {
+	key1 := TemplateKey(getTestdataPath() + "/views/pages/app/index.html")
+	assert.Equal(t, "pages_app_index.html", key1)
+
+	fSeparator = '\\'
+	key2 := TemplateKey(strings.Replace(getTestdataPath()+"/views/pages/app/index.html", "/", "\\", -1))
+	assert.Equal(t, "pages_app_index.html", key2)
+
+	key3 := parseKey(strings.Replace(getTestdataPath(), "/", "\\", -1),
+		strings.Replace(getTestdataPath()+"/views/pages/app/index.html", "/", "\\", -1))
+	assert.Equal(t, "views_pages_app_index.html", key3)
+}
+
 func getTestdataPath() string {
 	wd, _ := os.Getwd()
 	return filepath.Join(wd, "testdata")

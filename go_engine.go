@@ -68,7 +68,24 @@ func (ge *GoViewEngine) Init(appCfg *config.Config, baseDir string) error {
 		return err
 	}
 
-	return ge.processTemplates(layouts, pageDirs, "*"+ge.viewFileExt)
+	if err = ge.processLayoutTemplates(layouts, pageDirs); err != nil {
+		return err
+	}
+
+	if !ge.isDefaultLayoutEnabled {
+		if err = ge.processNolayoutTemplates(pageDirs); err != nil {
+			return err
+		}
+	}
+
+	errorPagesDir := filepath.Join(ge.baseDir, "errors")
+	if ess.IsFileExists(errorPagesDir) {
+		if err = ge.processNolayoutTemplates([]string{errorPagesDir}); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Get method returns the template based given name if found, otherwise nil.
@@ -78,7 +95,7 @@ func (ge *GoViewEngine) Get(layout, path, tmplName string) (*template.Template, 
 	}
 
 	if l, found := ge.layouts[layout]; found {
-		key := TemplateKey(filepath.Join(path, tmplName))
+		key := parseKey("", filepath.Join(path, tmplName))
 		if layout == noLayout {
 			key = noLayout + key
 		}
@@ -100,8 +117,7 @@ func (ge *GoViewEngine) Get(layout, path, tmplName string) (*template.Template, 
 // GoViewEngine unexported methods
 //___________________________________
 
-// processTemplates method process the layouts and pages dir wise.
-func (ge *GoViewEngine) processTemplates(layouts, pageDirs []string, filePattern string) error {
+func (ge *GoViewEngine) processLayoutTemplates(layouts, dirs []string) error {
 	var errs []error
 	for _, layout := range layouts {
 		lTemplate := &Templates{
@@ -109,61 +125,69 @@ func (ge *GoViewEngine) processTemplates(layouts, pageDirs []string, filePattern
 			TemplateLower: make(map[string]*template.Template),
 		}
 
-		for _, dir := range pageDirs {
-			files, err := filepath.Glob(filepath.Join(dir, filePattern))
+		for _, dir := range dirs {
+			files, err := filepath.Glob(filepath.Join(dir, "*"+ge.viewFileExt))
 			if err != nil {
 				errs = append(errs, err)
 				continue
 			}
 
-			if len(files) == 0 {
-				continue
-			}
-
-			for _, tmplFile := range files {
-				files := append([]string{}, tmplFile, layout)
-
-				// create key and parse template with funcs
-				tmplKey := TemplateKey(tmplFile)
+			for _, file := range files {
+				tfiles := []string{file, layout}
+				tmplKey := parseKey(ge.baseDir, file)
 				tmpl := ge.createTemplate(tmplKey)
 
-				log.Tracef("Parsing Templates[%s]: %s", tmplKey, ge.trimAppBaseDir(files...))
-				if _, err = tmpl.ParseFiles(files...); err != nil {
+				log.Tracef("Parsing files [%s]: %s", tmplKey, ge.trimAppBaseDir(tfiles...))
+				if tmpl, err = tmpl.ParseFiles(tfiles...); err != nil {
 					errs = append(errs, err)
 					continue
 				}
 
 				lTemplate.Template[tmplKey] = tmpl
 				lTemplate.TemplateLower[strings.ToLower(tmplKey)] = tmpl
-
-				if !ge.isDefaultLayoutEnabled {
-					ntmpl := ge.createTemplate(tmplKey)
-					log.Tracef("Parsing Template for nolayout [%s]: %s", tmplKey, ge.trimAppBaseDir(tmplFile))
-					tfile, _ := ioutil.ReadFile(tmplFile)
-					if _, err = ntmpl.Parse(string(tfile)); err != nil {
-						errs = append(errs, err)
-						continue
-					}
-					lTemplate.Template[noLayout+tmplKey] = ntmpl
-					lTemplate.TemplateLower[strings.ToLower(noLayout+tmplKey)] = ntmpl
-				}
 			}
 		}
+
 		ge.layouts[strings.ToLower(filepath.Base(layout))] = lTemplate
+	}
 
-		if !ge.isDefaultLayoutEnabled {
-			ge.layouts[noLayout] = lTemplate
+	return handleParseError(errs)
+}
+
+func (ge *GoViewEngine) processNolayoutTemplates(dirs []string) error {
+	if _, found := ge.layouts[noLayout]; !found {
+		ge.layouts[noLayout] = &Templates{
+			Template:      make(map[string]*template.Template),
+			TemplateLower: make(map[string]*template.Template),
 		}
 	}
 
-	if len(errs) > 0 {
-		for _, e := range errs {
-			log.Error(e)
+	var errs []error
+	prefix := strings.TrimSuffix(ge.baseDir, "views")
+	for _, dir := range dirs {
+		files, err := filepath.Glob(filepath.Join(dir, "*"+ge.viewFileExt))
+		if err != nil {
+			errs = append(errs, err)
+			continue
 		}
-		return errors.New("goviewengine: error processing templates, check the log")
+
+		for _, file := range files {
+			tmplKey := parseKey(ge.baseDir, file)
+			tmpl := ge.createTemplate(tmplKey)
+			fileBytes, _ := ioutil.ReadFile(file)
+
+			log.Tracef("Parsing file [%s]: %s", tmplKey, trimPathPrefix(file, prefix))
+			if tmpl, err = tmpl.Parse(string(fileBytes)); err != nil {
+				errs = append(errs, err)
+				continue
+			}
+
+			ge.layouts[noLayout].Template[noLayout+tmplKey] = tmpl
+			ge.layouts[noLayout].TemplateLower[strings.ToLower(noLayout+tmplKey)] = tmpl
+		}
 	}
 
-	return nil
+	return handleParseError(errs)
 }
 
 func (ge *GoViewEngine) createTemplate(key string) *template.Template {
@@ -183,10 +207,21 @@ func (ge *GoViewEngine) createTemplate(key string) *template.Template {
 
 func (ge *GoViewEngine) trimAppBaseDir(files ...string) string {
 	var fs []string
+	prefix := strings.TrimSuffix(ge.baseDir, "views")
 	for _, f := range files {
-		fs = append(fs, f[strings.Index(f, "views"):])
+		fs = append(fs, trimPathPrefix(f, prefix))
 	}
 	return strings.Join(fs, ", ")
+}
+
+func handleParseError(errs []error) error {
+	if len(errs) > 0 {
+		for _, e := range errs {
+			log.Error(e)
+		}
+		return errors.New("goviewengine: error processing templates, check the log")
+	}
+	return nil
 }
 
 func init() {
