@@ -137,22 +137,24 @@ func TestViewResolveView(t *testing.T) {
 	e.resolveView(ctx)
 	htmlRdr = ctx.Reply().Rdr.(*HTML)
 	assert.Equal(t, "/admin/index.html", htmlRdr.Filename)
-	assert.Equal(t, "views/pages/admin/index.html", htmlRdr.ViewArgs["ViewNotFound"])
+	assert.Equal(t, "View Not Found: views/pages/admin/index.html", htmlRdr.ViewArgs["ViewNotFound"])
 
 	// User provided template file with controller context
 	ctx.Reply().HTMLf("user/index.html", Data{})
 	e.resolveView(ctx)
 	htmlRdr = ctx.Reply().Rdr.(*HTML)
 	assert.Equal(t, "user/index.html", htmlRdr.Filename)
-	assert.Equal(t, "views/pages/app/user/index.html", htmlRdr.ViewArgs["ViewNotFound"])
+	assert.Equal(t, "View Not Found: views/pages/app/user/index.html", htmlRdr.ViewArgs["ViewNotFound"])
 
 	// Namespace/Sub-package
+	appIsProfileProd = true
 	ctx.controller = &controllerInfo{Type: reflect.TypeOf(AppController{}), Namespace: "frontend"}
 	ctx.Reply().HTMLf("index.html", Data{})
 	e.resolveView(ctx)
 	htmlRdr = ctx.Reply().Rdr.(*HTML)
 	assert.Equal(t, "index.html", htmlRdr.Filename)
-	assert.Equal(t, "views/pages/frontend/app/index.html", htmlRdr.ViewArgs["ViewNotFound"])
+	assert.Equal(t, "View Not Found", htmlRdr.ViewArgs["ViewNotFound"])
+	appIsProfileProd = false
 
 	ctx.Req.AcceptContentType.Mime = ""
 	appConfig = appCfg

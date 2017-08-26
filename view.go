@@ -25,7 +25,7 @@ var (
 	appViewFileCaseSensitive  bool
 	appIsExternalTmplEngine   bool
 	viewNotFoundTemplate      = template.Must(template.New("not_found").Parse(`
-		<strong>View not found: {{ .ViewNotFound }}</strong>
+		<strong>{{ .ViewNotFound }}</strong>
 	`))
 )
 
@@ -186,7 +186,11 @@ func findViewTemplate(ctx *Context) {
 			}
 
 			log.Errorf("template not found: %s", tmplFile)
-			htmlRdr.ViewArgs["ViewNotFound"] = tmplFile
+			if appIsProfileProd {
+				htmlRdr.ViewArgs["ViewNotFound"] = "View Not Found"
+			} else {
+				htmlRdr.ViewArgs["ViewNotFound"] = "View Not Found: " + tmplFile
+			}
 			htmlRdr.Layout = ""
 			htmlRdr.Template = viewNotFoundTemplate
 		} else {
