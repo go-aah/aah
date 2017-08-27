@@ -23,9 +23,6 @@ import (
 	"aahframework.org/security.v0/session"
 )
 
-// Version is security library version no. of aah framework
-const Version = "0.7-dev"
-
 var (
 	// ErrAuthSchemeIsNil returned when given auth scheme instance is nil.
 	ErrAuthSchemeIsNil = errors.New("security: auth scheme is nil")
