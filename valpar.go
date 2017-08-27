@@ -136,9 +136,6 @@ func Struct(key string, typ reflect.Type, params url.Values) (reflect.Value, err
 			continue
 		}
 
-		if fname == "" { // take the field name
-			fname = ft.Name
-		}
 		if len(key) > 0 {
 			fname = key + "." + fname
 		}
@@ -146,7 +143,7 @@ func Struct(key string, typ reflect.Type, params url.Values) (reflect.Value, err
 		var v reflect.Value
 		if vpFn, found := ValueParser(f.Type()); found {
 			v, err = vpFn(fname, f.Type(), params)
-		} else if f.Kind() == reflect.Struct {
+		} else if fft, _ := checkPtr(f.Type()); fft.Kind() == reflect.Struct {
 			v, err = Struct(fname, f.Type(), params)
 		}
 
