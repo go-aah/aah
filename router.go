@@ -23,12 +23,7 @@ import (
 	"aahframework.org/log.v0"
 )
 
-const (
-	// Version no. of aah framework router library
-	Version = "0.9-dev"
-
-	wildcardSubdomainPrefix = "*."
-)
+const wildcardSubdomainPrefix = "*."
 
 var (
 	// HTTPMethodActionMap is default Controller Action name for corresponding
