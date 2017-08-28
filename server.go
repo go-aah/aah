@@ -64,8 +64,10 @@ func Start() {
 	log.Infof("App Session Mode: %v", sessionMode)
 
 	if log.IsLevelDebug() {
-		log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
 		log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
+		if AppI18n() != nil {
+			log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
+		}
 
 		for event := range AppEventStore().subscribers {
 			for _, c := range AppEventStore().subscribers[event] {

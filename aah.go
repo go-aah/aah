@@ -20,9 +20,6 @@ import (
 	"aahframework.org/log.v0"
 )
 
-// Version no. of aah framework
-const Version = "0.8-dev"
-
 // aah application variables
 var (
 	appName               string

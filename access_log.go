@@ -169,7 +169,8 @@ func initAccessLog(logsDir string, appCfg *config.Config) error {
 
 func listenForAccessLog() {
 	for {
-		appAccessLog.Print(accessLogFormatter(<-appAccessLogChan))
+		al := <-appAccessLogChan
+		appAccessLog.Print(accessLogFormatter(al))
 	}
 }
 
