@@ -7,4 +7,4 @@
 package valpar
 
 // Version bind library version no.
-var Version = "0.1"
+var Version = "0.2"
