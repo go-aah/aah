@@ -240,8 +240,8 @@ func paramInitialize(e *Event) {
 		acceptedContentTypes[idx] = strings.ToLower(v)
 		if v == allContentTypes {
 			// when `*/*` is mentioned, don't check the condition
-			// because every content type is allowed
-			acceptedContentTypes = []string{}
+			// because it means every content type is allowed
+			acceptedContentTypes = make([]string, 0)
 			break
 		}
 	}
@@ -251,8 +251,9 @@ func paramInitialize(e *Event) {
 		offeredContentTypes[idx] = strings.ToLower(v)
 		if v == allContentTypes {
 			// when `*/*` is mentioned, don't check the condition
-			// because every content type is allowed
-			offeredContentTypes = []string{}
+			// because it means every content type is allowed
+			offeredContentTypes = make([]string, 0)
+			break
 		}
 	}
 
@@ -270,7 +271,7 @@ func paramInitialize(e *Event) {
 			"2006-01-02"}
 	}
 	valpar.TimeFormats = timeFormats
-	valpar.StructTagName = cfg.StringDefault("auto_bind.tag_name", "bind")
+	valpar.StructTagName = cfg.StringDefault("request.auto_bind.tag_name", "bind")
 }
 
 func init() {
