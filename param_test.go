@@ -158,6 +158,16 @@ func TestParamContentNegotiation(t *testing.T) {
 	assert.True(t, result2 == 1)
 
 	isContentNegotiationEnabled = false
+
+	appConfig, _ = config.ParseString(`
+		request {
+			content_negotiation {
+				accepted = ["*/*"]
+				offered = ["*/*"]
+			}
+		}`)
+	paramInitialize(&Event{})
+	appConfig = nil
 }
 
 func TestParamAddValueParser(t *testing.T) {
