@@ -74,7 +74,7 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 
 	log.Debugf("Request Content-Type mime: %s", ctx.Req.ContentType.Mime)
 
-	// Content Negotitaion - Accepted & Offered, refer to Github #75
+	// Content Negotitaion - Accepted & Offered, refer to GitHub #75
 	if isContentNegotiationEnabled {
 		if len(acceptedContentTypes) > 0 &&
 			!ess.IsSliceContainsString(acceptedContentTypes, ctx.Req.ContentType.Mime) {
@@ -98,7 +98,7 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 	}
 
 	// Prevent DDoS attacks by large HTTP request bodies by enforcing
-	// configured hard limit, Github #83.
+	// configured hard limit, GitHub #83.
 	if ctx.Req.ContentType.Mime != ahttp.ContentTypeMultipartForm.Mime {
 		ctx.Req.Unwrap().Body = http.MaxBytesReader(ctx.Res, ctx.Req.Unwrap().Body,
 			firstNonZeroInt64(ctx.route.MaxBodySize, appMaxBodyBytesSize))
@@ -233,7 +233,7 @@ func paramInitialize(e *Event) {
 	keyPathParamName = cfg.StringDefault("i18n.param_name.path", keyOverrideI18nName)
 	keyQueryParamName = cfg.StringDefault("i18n.param_name.query", keyOverrideI18nName)
 
-	// Content Negotitaion, Github #75
+	// Content Negotitaion, GitHub #75
 	isContentNegotiationEnabled = cfg.BoolDefault("request.content_negotiation.enable", false)
 	acceptedContentTypes, _ = cfg.StringList("request.content_negotiation.accepted")
 	for idx, v := range acceptedContentTypes {
@@ -257,7 +257,7 @@ func paramInitialize(e *Event) {
 		}
 	}
 
-	// Auto Parse and Bind, Github #26
+	// Auto Parse and Bind, GitHub #26
 	requestParsers[ahttp.ContentTypeMultipartForm.Mime] = multipartFormParser
 	requestParsers[ahttp.ContentTypeForm.Mime] = formParser
 
