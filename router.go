@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// go-aah/router source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 // Package router provides routes implementation for aah framework application.
@@ -664,7 +664,7 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		// getting route authentication scheme name
 		routeAuth := cfg.StringDefault(routeName+".auth", routeInfo.Auth)
 
-		// getting route max body size, Github go-aah/aah#83
+		// getting route max body size, GitHub go-aah/aah#83
 		routeMaxBodySize, er := ess.StrToBytes(cfg.StringDefault(routeName+".max_body_size", "0kb"))
 		if er != nil {
 			log.Warnf("'%v.max_body_size' value is not a valid size unit, fallback to global limit", routeName)
