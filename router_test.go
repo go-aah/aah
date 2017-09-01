@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"aahframework.org/config.v0"
+	"aahframework.org/router.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -42,4 +43,10 @@ func TestRouterTemplateFuncs(t *testing.T) {
 	assert.Equal(t, "//localhost:8080", string(url4))
 
 	ctx.Reset()
+}
+
+func TestRouterMisc(t *testing.T) {
+	domain := &router.Domain{Host: "localhost"}
+	result := composeRouteURL(domain, "/path", "my-head")
+	assert.Equal(t, "//localhost/path#my-head", result)
 }

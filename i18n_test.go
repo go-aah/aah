@@ -20,7 +20,6 @@ func TestI18nAll(t *testing.T) {
 	err := initI18n(i18nDir)
 	assert.FailNowOnError(t, err, "")
 	assert.NotNil(t, AppI18n())
-
 	assert.True(t, ess.IsSliceContainsString(AppI18nLocales(), "en"))
 
 	viewArgs := map[string]interface{}{}
@@ -35,4 +34,8 @@ func TestI18nAll(t *testing.T) {
 
 	v3 := tmplI18n(viewArgs, "label.pages.site.with_args.title", "My Page", 1)
 	assert.Equal(t, "en-US: My Page no 1 - aah web framework for Go", string(v3))
+
+	appI18n = nil
+	assert.True(t, len(AppI18nLocales()) == 0)
+	assert.Nil(t, initI18n(filepath.Join(i18nDir, "not-exists")))
 }

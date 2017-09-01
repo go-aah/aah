@@ -241,4 +241,10 @@ func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
 	ctx1.Req = ahttp.ParseRequest(r2, &ahttp.Request{})
 	result2 := e.handleAuthcAndAuthz(ctx1)
 	assert.True(t, result2 == flowStop)
+
+	r3 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
+	r3.SetBasicAuth("jeeva", "welcome123")
+	ctx1.Req = ahttp.ParseRequest(r3, &ahttp.Request{})
+	result3 := e.handleAuthcAndAuthz(ctx1)
+	assert.True(t, result3 == flowCont)
 }

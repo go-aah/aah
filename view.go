@@ -25,7 +25,7 @@ var (
 	appViewFileCaseSensitive  bool
 	appIsExternalTmplEngine   bool
 	viewNotFoundTemplate      = template.Must(template.New("not_found").Parse(`
-		<strong>View not found: {{ .ViewNotFound }}</strong>
+		<strong>{{ .ViewNotFound }}</strong>
 	`))
 )
 
@@ -99,49 +99,38 @@ func initViewEngine(viewDir string, appCfg *config.Config) error {
 //   1) Prepare ViewArgs
 //   2) If HTML content type find appropriate template
 func (e *engine) resolveView(ctx *Context) {
-	reply := ctx.Reply()
-
-	// HTML response
-	if ctHTML.IsEqual(reply.ContType) && appViewEngine != nil {
-		if reply.Rdr == nil {
-			reply.Rdr = &HTML{}
-		}
-
-		htmlRdr := reply.Rdr.(*HTML)
-
-		if ess.IsStrEmpty(htmlRdr.Layout) && appIsDefaultLayoutEnabled {
-			htmlRdr.Layout = appDefaultTmplLayout
-		}
-
-		if htmlRdr.ViewArgs == nil {
-			htmlRdr.ViewArgs = make(map[string]interface{})
-		}
-
-		for k, v := range ctx.ViewArgs() {
-			if _, found := htmlRdr.ViewArgs[k]; found {
-				continue
-			}
-			htmlRdr.ViewArgs[k] = v
-		}
-
-		// ViewArgs values from framework
-		htmlRdr.ViewArgs["Scheme"] = ctx.Req.Scheme
-		htmlRdr.ViewArgs["Host"] = ctx.Req.Host
-		htmlRdr.ViewArgs["HTTPMethod"] = ctx.Req.Method
-		htmlRdr.ViewArgs["RequestPath"] = ctx.Req.Path
-		htmlRdr.ViewArgs["Locale"] = ctx.Req.Locale
-		htmlRdr.ViewArgs["ClientIP"] = ctx.Req.ClientIP
-		htmlRdr.ViewArgs["IsJSONP"] = ctx.Req.IsJSONP()
-		htmlRdr.ViewArgs["IsAJAX"] = ctx.Req.IsAJAX()
-		htmlRdr.ViewArgs["HTTPReferer"] = ctx.Req.Referer
-		htmlRdr.ViewArgs["AahVersion"] = Version
-		htmlRdr.ViewArgs["EnvProfile"] = AppProfile()
-		htmlRdr.ViewArgs["AppBuildInfo"] = AppBuildInfo()
-		htmlRdr.ViewArgs[KeyViewArgSubject] = ctx.Subject()
-
-		// find view template by convention if not provided
-		findViewTemplate(ctx)
+	if appViewEngine == nil || ctx.Reply().err != nil || !ctHTML.IsEqual(ctx.Reply().ContType) {
+		return
 	}
+
+	// Resolving view by convention and configuration
+	reply := ctx.Reply()
+	if reply.Rdr == nil {
+		reply.Rdr = &HTML{}
+	}
+
+	htmlRdr := reply.Rdr.(*HTML)
+
+	if ess.IsStrEmpty(htmlRdr.Layout) && appIsDefaultLayoutEnabled {
+		htmlRdr.Layout = appDefaultTmplLayout
+	}
+
+	if htmlRdr.ViewArgs == nil {
+		htmlRdr.ViewArgs = make(map[string]interface{})
+	}
+
+	for k, v := range ctx.ViewArgs() {
+		if _, found := htmlRdr.ViewArgs[k]; found {
+			continue
+		}
+		htmlRdr.ViewArgs[k] = v
+	}
+
+	// ViewArgs values from framework
+	addFrameworkValuesIntoViewArgs(ctx, htmlRdr)
+
+	// find view template by convention if not provided
+	findViewTemplate(ctx)
 }
 
 // defaultContentType method returns the Content-Type based on 'render.default'
@@ -197,7 +186,11 @@ func findViewTemplate(ctx *Context) {
 			}
 
 			log.Errorf("template not found: %s", tmplFile)
-			htmlRdr.ViewArgs["ViewNotFound"] = tmplFile
+			if appIsProfileProd {
+				htmlRdr.ViewArgs["ViewNotFound"] = "View Not Found"
+			} else {
+				htmlRdr.ViewArgs["ViewNotFound"] = "View Not Found: " + tmplFile
+			}
 			htmlRdr.Layout = ""
 			htmlRdr.Template = viewNotFoundTemplate
 		} else {
@@ -224,6 +217,23 @@ func tmplControllerName(ctx *Context) string {
 		cName = cName[:len(cName)-controllerNameSuffixLen]
 	}
 	return cName
+}
+
+func addFrameworkValuesIntoViewArgs(ctx *Context, html *HTML) {
+	html.ViewArgs["Scheme"] = ctx.Req.Scheme
+	html.ViewArgs["Host"] = ctx.Req.Host
+	html.ViewArgs["HTTPMethod"] = ctx.Req.Method
+	html.ViewArgs["RequestPath"] = ctx.Req.Path
+	html.ViewArgs["Locale"] = ctx.Req.Locale
+	html.ViewArgs["ClientIP"] = ctx.Req.ClientIP
+	html.ViewArgs["IsJSONP"] = ctx.Req.IsJSONP()
+	html.ViewArgs["IsAJAX"] = ctx.Req.IsAJAX()
+	html.ViewArgs["HTTPReferer"] = ctx.Req.Referer
+	html.ViewArgs["AahVersion"] = Version
+	html.ViewArgs["EnvProfile"] = AppProfile()
+	html.ViewArgs["AppBuildInfo"] = AppBuildInfo()
+	html.ViewArgs[KeyViewArgSubject] = ctx.Subject()
+	html.ViewArgs[KeyViewArgRequestParams] = ctx.Req.Params
 }
 
 func init() {

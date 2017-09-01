@@ -69,7 +69,10 @@ func (e engine) handleAuthcAndAuthz(ctx *Context) flowResult {
 		// and routes `auth` attribute is not defined then framework treats that route as `403 Forbidden`.
 		if AppSecurityManager().IsAuthSchemesConfigured() {
 			log.Warnf("Auth schemes are configured in security.conf, however attribute 'auth' or 'default_auth' is not defined in routes.conf, so treat it as 403 forbidden: %v", ctx.Req.Path)
-			writeErrorInfo(ctx, http.StatusForbidden, "Forbidden")
+			ctx.Reply().Error(&Error{
+				Code:    http.StatusForbidden,
+				Message: http.StatusText(http.StatusForbidden),
+			})
 			return flowStop
 		}
 
@@ -169,7 +172,10 @@ func (e *engine) doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResul
 			ctx.Reply().Header(ahttp.HeaderWWWAuthenticate, `Basic realm="`+basicAuth.RealmName+`"`)
 		}
 
-		writeErrorInfo(ctx, http.StatusUnauthorized, "Unauthorized")
+		ctx.Reply().Error(&Error{
+			Code:    http.StatusUnauthorized,
+			Message: http.StatusText(http.StatusUnauthorized),
+		})
 		return flowStop
 	}
 
@@ -192,17 +198,8 @@ func (e *engine) doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResul
 //___________________________________
 
 func initSecurity(appCfg *config.Config) error {
-	if err := appSecurityManager.Init(appCfg); err != nil {
-		return err
-	}
-
-	// Based on aah server SSL configuration `http.Cookie.Secure` value is set, even
-	// though it's true in aah.conf at `security.session.secure = true`.
-	if AppSessionManager() != nil {
-		AppSessionManager().Options.Secure = AppIsSSLEnabled()
-	}
-
-	return nil
+	appSecurityManager.IsSSLEnabled = AppIsSSLEnabled()
+	return appSecurityManager.Init(appCfg)
 }
 
 func isFormAuthLoginRoute(ctx *Context) bool {

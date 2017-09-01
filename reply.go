@@ -32,6 +32,7 @@ type Reply struct {
 	path     string
 	done     bool
 	gzip     bool
+	err      *Error
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -171,8 +172,6 @@ func (r *Reply) JSON(data interface{}) *Reply {
 // JSONP method renders given data as JSONP response with callback.
 // Also it sets HTTP 'Content-Type' as 'application/json; charset=utf-8'.
 // Response rendered pretty if 'render.pretty' is true.
-// Note: If `callback` param is empty and `callback` query param is exists then
-// query param value will be used.
 func (r *Reply) JSONP(data interface{}, callback string) *Reply {
 	j := acquireJSON()
 	j.Data = data
@@ -298,6 +297,20 @@ func (r *Reply) RedirectSts(redirectURL string, code int) *Reply {
 	return r
 }
 
+// Error method is used send an error reply, which is handled by centralized
+// error handler.
+func (r *Reply) Error(err *Error) *Reply {
+	r.err = err
+	return r
+}
+
+// Render method is used for custom rendering by implementing interface
+// `aah.Render`.
+func (r *Reply) Render(rdr Render) *Reply {
+	r.Rdr = rdr
+	return r
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Reply methods
 //___________________________________
@@ -387,6 +400,7 @@ func (r *Reply) Reset() {
 	r.path = ""
 	r.done = false
 	r.gzip = true
+	r.err = nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

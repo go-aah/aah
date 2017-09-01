@@ -12,10 +12,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
@@ -66,10 +68,20 @@ func checkSSLConfigValues(isSSLEnabled, isLetsEncrypt bool, sslCert, sslKey stri
 	return nil
 }
 
-func writePID(appBinaryName, appBaseDir string) {
+func writePID(cfg *config.Config, appBinaryName, appBaseDir string) {
+	// Get the application PID
 	appPID = os.Getpid()
-	pidfile := filepath.Join(appBaseDir, appBinaryName+".pid")
-	if err := ioutil.WriteFile(pidfile, []byte(strconv.Itoa(appPID)), 0644); err != nil {
+
+	pidFile := cfg.StringDefault("pid_file", "")
+	if ess.IsStrEmpty(pidFile) {
+		pidFile = filepath.Join(appBaseDir, appBinaryName)
+	}
+
+	if !strings.HasSuffix(pidFile, ".pid") {
+		pidFile += ".pid"
+	}
+
+	if err := ioutil.WriteFile(pidFile, []byte(strconv.Itoa(appPID)), 0644); err != nil {
 		log.Error(err)
 	}
 }
@@ -99,15 +111,26 @@ func isCharsetExists(value string) bool {
 	return strings.Contains(value, "charset")
 }
 
-// this method is candidate for essentials library
+// TODO this method is candidate for essentials library
 // move it when you get a time
-func firstNonEmpty(values ...string) string {
+func firstNonZeroString(values ...string) string {
 	for _, v := range values {
 		if !ess.IsStrEmpty(v) {
 			return v
 		}
 	}
 	return ""
+}
+
+// TODO this method is candidate for essentials library
+// move it when you get a time
+func firstNonZeroInt64(values ...int64) int64 {
+	for _, v := range values {
+		if v != 0 {
+			return v
+		}
+	}
+	return 0
 }
 
 func identifyContentType(ctx *Context) *ahttp.ContentType {
@@ -131,4 +154,18 @@ func parsePort(port string) string {
 	}
 
 	return "80"
+}
+
+func reverseSlice(s []string) []string {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+	return s
+}
+
+func kind(t reflect.Type) reflect.Kind {
+	if t.Kind() == reflect.Ptr {
+		return t.Elem().Kind()
+	}
+	return t.Kind()
 }

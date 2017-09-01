@@ -6,7 +6,6 @@ package aah
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -25,8 +24,7 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.Nil(t, err)
 
 	err = initAppVariables()
-	assert.NotNil(t, err)
-	assert.Equal(t, "profile doesn't exists: env.dev", err.Error())
+	assert.Nil(t, err)
 
 	AppConfig().SetString("env.dev.test_value", "dev test value")
 	err = initAppVariables()
@@ -36,8 +34,6 @@ func TestAahInitAppVariables(t *testing.T) {
 	assert.Equal(t, "aah framework test config", AppDesc())
 	assert.Equal(t, "127.0.0.1", AppHTTPAddress())
 	assert.Equal(t, "80", AppHTTPPort())
-	assert.Equal(t, "2006-01-02", AppDateFormat())
-	assert.Equal(t, "2006-01-02 15:04:05", AppDateTimeFormat())
 	assert.Equal(t, "en", AppDefaultI18nLang())
 	assert.True(t, ess.IsStrEmpty(AppImportPath()))
 	assert.False(t, AppIsSSLEnabled())
@@ -199,21 +195,21 @@ func TestAahLogDir(t *testing.T) {
 	assert.Nil(t, err)
 	appBuildInfo = nil
 
-	appLogFatal = func(v ...interface{}) { fmt.Println(v) }
+	appLogFatal = func(v ...interface{}) { t.Log(v) }
 	logAsFatal(errors.New("test msg"))
 
 }
 
 func TestWritePID(t *testing.T) {
-	pidfile := filepath.Join(getTestdataPath(), "test-app.pid")
-	defer ess.DeleteFiles(pidfile)
+	pidfile := filepath.Join(getTestdataPath(), "test-app")
+	defer ess.DeleteFiles(pidfile + ".pid")
 
 	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
 	err := initConfig(cfgDir)
 	assert.Nil(t, err)
 
-	writePID("test-app", getTestdataPath())
-	assert.True(t, ess.IsFileExists(pidfile))
+	writePID(AppConfig(), "test-app", getTestdataPath())
+	assert.True(t, ess.IsFileExists(pidfile+".pid"))
 }
 
 func TestAahBuildInfo(t *testing.T) {
@@ -235,11 +231,21 @@ func TestAahBuildInfo(t *testing.T) {
 func TestAahConfigValidation(t *testing.T) {
 	err := checkSSLConfigValues(true, false, "/path/to/cert.pem", "/path/to/cert.key")
 	assert.Equal(t, "SSL cert file not found: /path/to/cert.pem", err.Error())
-	fmt.Println(err)
 
 	certPath := filepath.Join(getTestdataPath(), "cert.pem")
 	defer ess.DeleteFiles(certPath)
 	_ = ioutil.WriteFile(certPath, []byte("cert.pem file"), 0755)
 	err = checkSSLConfigValues(true, false, certPath, "/path/to/cert.key")
 	assert.Equal(t, "SSL key file not found: /path/to/cert.key", err.Error())
+}
+
+func TestAahAppInit(t *testing.T) {
+	Init("aahframework.org/aah.v0-unstable/testdata")
+	assert.NotNil(t, appConfig)
+	assert.NotNil(t, appRouter)
+	assert.NotNil(t, appSecurityManager)
+
+	// reset it
+	appConfig = nil
+	appBaseDir = ""
 }

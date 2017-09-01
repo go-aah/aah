@@ -5,7 +5,9 @@
 package aah
 
 import (
+	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -366,6 +368,44 @@ func TestReplyCookie(t *testing.T) {
 	cookie := re1.cookies[0]
 	assert.Equal(t, "aah-test-cookie", cookie.Name)
 	releaseReply(re1)
+}
+
+// customRender implements the interface `aah.Render`.
+type customRender struct {
+	// ... your fields goes here
+}
+
+func (cr *customRender) Render(w io.Writer) error {
+	fmt.Fprint(w, "This is custom render struct")
+	return nil
+}
+
+func TestReplyCustomRender(t *testing.T) {
+	re := acquireReply()
+	buf := acquireBuffer()
+
+	re.Render(&customRender{})
+	err := re.Rdr.Render(buf)
+	assert.Nil(t, err)
+	assert.Equal(t, "This is custom render struct", buf.String())
+
+	releaseBuffer(buf)
+	releaseReply(re)
+
+	// Render func
+	re = acquireReply()
+	buf = acquireBuffer()
+
+	re.Render(RenderFunc(func(w io.Writer) error {
+		fmt.Fprint(w, "This is custom render func")
+		return nil
+	}))
+	err = re.Rdr.Render(buf)
+	assert.Nil(t, err)
+	assert.Equal(t, "This is custom render func", buf.String())
+
+	releaseBuffer(buf)
+	releaseReply(re)
 }
 
 func getReplyRenderCfg() *config.Config {

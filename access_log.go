@@ -66,6 +66,7 @@ type (
 		StartTime       time.Time
 		ElapsedDuration time.Duration
 		Request         *ahttp.Request
+		RequestID       string
 		ResStatus       int
 		ResBytes        int
 		ResHdr          http.Header
@@ -168,13 +169,14 @@ func initAccessLog(logsDir string, appCfg *config.Config) error {
 
 func listenForAccessLog() {
 	for {
-		appAccessLog.Print(accessLogFormatter(<-appAccessLogChan))
+		al := <-appAccessLogChan
+		appAccessLog.Print(accessLogFormatter(al))
 	}
 }
 
 func sendToAccessLog(ctx *Context) {
 	al := acquireAccessLog()
-	al.StartTime = ctx.values[appReqStartTimeKey].(time.Time)
+	al.StartTime = ctx.Get(appReqStartTimeKey).(time.Time)
 
 	// All the bytes have been written on the wire
 	// so calculate elapsed time
@@ -182,6 +184,7 @@ func sendToAccessLog(ctx *Context) {
 
 	req := *ctx.Req
 	al.Request = &req
+	al.RequestID = firstNonZeroString(req.Header.Get(appReqIDHdrKey), "-")
 	al.ResStatus = ctx.Res.Status()
 	al.ResBytes = ctx.Res.BytesWritten()
 	al.ResHdr = ctx.Res.Header()
@@ -207,7 +210,7 @@ func accessLogFormatter(al *accessLog) string {
 		case fmtFlagRequestProto:
 			buf.WriteString(al.Request.Unwrap().Proto)
 		case fmtFlagRequestID:
-			buf.WriteString(al.GetRequestHdr(appReqIDHdrKey))
+			buf.WriteString(al.RequestID)
 		case fmtFlagRequestHeader:
 			buf.WriteString(al.GetRequestHdr(part.Format))
 		case fmtFlagQueryString:

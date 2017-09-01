@@ -6,7 +6,6 @@ package aah
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"net/http/httptest"
 	"os"
@@ -139,7 +138,7 @@ func testStaticServe(t *testing.T, e *engine, reqURL, dir, filePath, file, resul
 	appBaseDir = ""
 	assert.Nil(t, err)
 	if !strings.Contains(w.Body.String(), result) {
-		fmt.Println(w.Body.String(), result)
+		t.Log(w.Body.String(), result)
 	}
 
 	assert.True(t, strings.Contains(w.Body.String(), result))
