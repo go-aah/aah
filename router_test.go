@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// go-aah/router source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package router
@@ -187,18 +187,6 @@ func TestRouterErrorControllerLoadConfiguration(t *testing.T) {
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-controller-error.conf")
 	assert.NotNil(t, router)
 	assert.Equal(t, "'app_index.controller' key is missing", err.Error())
-}
-
-func TestRouterErrorNotFoundLoadConfiguration(t *testing.T) {
-	router, err := createRouter("routes-notfound-controller-error.conf")
-	assert.NotNilf(t, err, "expected error loading '%v'", "routes-notfound-controller-error.conf")
-	assert.NotNil(t, router)
-	assert.Equal(t, "'not_found.controller' key is missing", err.Error())
-
-	router, err = createRouter("routes-notfound-action-error.conf")
-	assert.NotNilf(t, err, "expected error loading '%v'", "routes-notfound-action-error.conf")
-	assert.NotNil(t, router)
-	assert.Equal(t, "'not_found.action' key is missing", err.Error())
 }
 
 func TestRouterErrorStaticPathLoadConfiguration(t *testing.T) {

@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// go-aah/router source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 // Package router provides routes implementation for aah framework application.
@@ -23,12 +23,7 @@ import (
 	"aahframework.org/log.v0"
 )
 
-const (
-	// Version no. of aah framework router library
-	Version = "0.8"
-
-	wildcardSubdomainPrefix = "*."
-)
+const wildcardSubdomainPrefix = "*."
 
 var (
 	// HTTPMethodActionMap is default Controller Action name for corresponding
@@ -65,7 +60,6 @@ type (
 		Host                  string
 		Port                  string
 		IsSubDomain           bool
-		NotFoundRoute         *Route
 		MethodNotAllowed      bool
 		RedirectTrailingSlash bool
 		AutoOptions           bool
@@ -76,13 +70,14 @@ type (
 
 	// Route holds the single route details.
 	Route struct {
-		Name       string
-		Path       string
-		Method     string
-		Controller string
-		Action     string
-		ParentName string
-		Auth       string
+		Name        string
+		Path        string
+		Method      string
+		Controller  string
+		Action      string
+		ParentName  string
+		Auth        string
+		MaxBodySize int64
 
 		// static route fields in-addition to above
 		IsStatic bool
@@ -218,11 +213,6 @@ func (r *Router) RegisteredActions() map[string]map[string]uint8 {
 
 			addRegisteredAction(methods, route)
 		}
-
-		// adding not found controller if present
-		if d.NotFoundRoute != nil {
-			addRegisteredAction(methods, d.NotFoundRoute)
-		}
 	}
 
 	return methods
@@ -273,20 +263,9 @@ func (r *Router) processRoutesConfig() (err error) {
 			routes:                make(map[string]*Route),
 		}
 
-		// not found route
-		if domainCfg.IsExists("not_found") {
-			controller, found := domainCfg.String("not_found.controller")
-			if !found {
-				return errors.New("'not_found.controller' key is missing")
-			}
-
-			action, found := domainCfg.String("not_found.action")
-			if !found {
-				return errors.New("'not_found.action' key is missing")
-			}
-
-			domain.NotFoundRoute = &Route{Controller: controller, Action: action}
-		}
+		// Not Found route support is removed in aah v0.8 release,
+		// in-favor of Centralized Error Handler.
+		// Refer to https://docs.aahframework.org/centralized-error-handler.html
 
 		// processing static routes
 		if err = r.processStaticRoutes(domain, domainCfg); err != nil {
@@ -308,8 +287,8 @@ func (r *Router) processRoutesConfig() (err error) {
 				if !ess.IsStrEmpty(dr.ParentName) {
 					parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
 				}
-				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v, Auth: %v",
-					dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action, dr.Auth)
+				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v, Auth: %v, MaxBodySize: %v",
+					dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action, dr.Auth, dr.MaxBodySize)
 			}
 		}
 
@@ -685,16 +664,23 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		// getting route authentication scheme name
 		routeAuth := cfg.StringDefault(routeName+".auth", routeInfo.Auth)
 
+		// getting route max body size, GitHub go-aah/aah#83
+		routeMaxBodySize, er := ess.StrToBytes(cfg.StringDefault(routeName+".max_body_size", "0kb"))
+		if er != nil {
+			log.Warnf("'%v.max_body_size' value is not a valid size unit, fallback to global limit", routeName)
+		}
+
 		if notToSkip {
 			for _, m := range strings.Split(routeMethod, ",") {
 				routes = append(routes, &Route{
-					Name:       routeName,
-					Path:       routePath,
-					Method:     strings.TrimSpace(m),
-					Controller: routeController,
-					Action:     routeAction,
-					ParentName: routeInfo.ParentName,
-					Auth:       routeAuth,
+					Name:        routeName,
+					Path:        routePath,
+					Method:      strings.TrimSpace(m),
+					Controller:  routeController,
+					Action:      routeAction,
+					ParentName:  routeInfo.ParentName,
+					Auth:        routeAuth,
+					MaxBodySize: routeMaxBodySize,
 				})
 			}
 		}
