@@ -26,7 +26,6 @@ const (
 )
 
 const (
-	aahServerName       = "aah-go-server"
 	gzipContentEncoding = "gzip"
 )
 
@@ -54,6 +53,8 @@ type (
 		isGzipEnabled            bool
 		isAccessLogEnabled       bool
 		isStaticAccessLogEnabled bool
+		isServerHeaderEnabled    bool
+		serverHeader             string
 	}
 )
 
@@ -68,7 +69,7 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
 	ctx := e.prepareContext(w, r)
-	ctx.values[appReqStartTimeKey] = startTime
+	ctx.Set(appReqStartTimeKey, startTime)
 	defer releaseContext(ctx)
 
 	// Recovery handling, capture every possible panic(s)
@@ -99,9 +100,6 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		goto wReply
 	}
 
-	// Set defaults when actual value not found
-	e.setDefaults(ctx)
-
 	// Middlewares, interceptors, targeted controller
 	e.executeMiddlewares(ctx)
 
@@ -123,7 +121,12 @@ func (e *engine) handleRecovery(ctx *Context) {
 		st.Print(buf)
 		log.Error(buf.String())
 
-		writeErrorInfo(ctx, http.StatusInternalServerError, "Internal Server Error")
+		ctx.Reply().Error(&Error{
+			Code:    http.StatusInternalServerError,
+			Message: http.StatusText(http.StatusInternalServerError),
+			Data:    r,
+		})
+
 		e.writeReply(ctx)
 	}
 }
@@ -167,7 +170,11 @@ func (e *engine) prepareContext(w http.ResponseWriter, r *http.Request) *Context
 func (e *engine) handleRoute(ctx *Context) flowResult {
 	domain := AppRouter().FindDomain(ctx.Req)
 	if domain == nil {
-		writeErrorInfo(ctx, http.StatusNotFound, "Not Found")
+		log.Warnf("Domain not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
+		ctx.Reply().Error(&Error{
+			Code:    http.StatusNotFound,
+			Message: http.StatusText(http.StatusNotFound),
+		})
 		return flowStop
 	}
 
@@ -177,8 +184,11 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 			return flowStop
 		}
 
-		ctx.route = domain.NotFoundRoute
-		handleRouteNotFound(ctx, domain, domain.NotFoundRoute)
+		log.Warnf("Route not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
+		ctx.Reply().Error(&Error{
+			Code:    http.StatusNotFound,
+			Message: http.StatusText(http.StatusNotFound),
+		})
 		return flowStop
 	}
 
@@ -201,15 +211,20 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 	// Serving static file
 	if route.IsStatic {
 		if err := e.serveStatic(ctx); err == errFileNotFound {
-			handleRouteNotFound(ctx, domain, route)
-			ctx.Reply().done = false // override
+			log.Warnf("Static file not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
+			ctx.Reply().done = false
+			ctx.Reply().NotFound().body = acquireBuffer()
 		}
 		return flowStop
 	}
 
 	// No controller or action found for the route
 	if err := ctx.setTarget(route); err == errTargetNotFound {
-		handleRouteNotFound(ctx, domain, route)
+		log.Warnf("Target not found, Controller: %s, Action: %s", route.Controller, route.Action)
+		ctx.Reply().Error(&Error{
+			Code:    http.StatusNotFound,
+			Message: http.StatusText(http.StatusNotFound),
+		})
 		return flowStop
 	}
 
@@ -223,14 +238,6 @@ func (e *engine) loadSession(ctx *Context) {
 	}
 }
 
-// setDefaults method sets default value based on aah app configuration
-// when actual value is not found.
-func (e *engine) setDefaults(ctx *Context) {
-	if ctx.Req.Locale == nil {
-		ctx.Req.Locale = ahttp.NewLocale(AppConfig().StringDefault("i18n.default", "en"))
-	}
-}
-
 // executeMiddlewares method executes the configured middlewares.
 func (e *engine) executeMiddlewares(ctx *Context) {
 	mwChain[0].Next(ctx)
@@ -238,6 +245,10 @@ func (e *engine) executeMiddlewares(ctx *Context) {
 
 // writeReply method writes the response on the wire based on `Reply` instance.
 func (e *engine) writeReply(ctx *Context) {
+	if ctx.Reply().err != nil {
+		handleError(ctx, ctx.Reply().err)
+	}
+
 	// Response already written on the wire, don't go forward.
 	// refer to `Reply().Done()` method.
 	if ctx.Reply().done {
@@ -253,17 +264,17 @@ func (e *engine) writeReply(ctx *Context) {
 	// Set Cookies
 	e.setCookies(ctx)
 
-	reply := ctx.Reply()
-	if reply.redirect { // handle redirects
-		log.Debugf("Redirecting to '%s' with status '%d'", reply.path, reply.Code)
-		http.Redirect(ctx.Res, ctx.Req.Unwrap(), reply.path, reply.Code)
+	// reply := ctx.Reply()
+	if ctx.Reply().redirect { // handle redirects
+		log.Debugf("Redirecting to '%s' with status '%d'", ctx.Reply().path, ctx.Reply().Code)
+		http.Redirect(ctx.Res, ctx.Req.Unwrap(), ctx.Reply().path, ctx.Reply().Code)
 		return
 	}
 
 	// ContentType
-	if !reply.IsContentTypeSet() {
+	if !ctx.Reply().IsContentTypeSet() {
 		if ct := identifyContentType(ctx); ct != nil {
-			reply.ContentType(ct.String())
+			ctx.Reply().ContentType(ct.String())
 		}
 	}
 
@@ -274,30 +285,23 @@ func (e *engine) writeReply(ctx *Context) {
 	// error info without messing with response on the wire.
 	e.doRender(ctx)
 
-	isBodyAllowed := isResponseBodyAllowed(reply.Code)
-	// Gzip, 1kb above TODO make it configurable for bytes size value
-	if isBodyAllowed && reply.body.Len() > 1024 {
+	isBodyAllowed := isResponseBodyAllowed(ctx.Reply().Code)
+	// Gzip, 1kb above TODO make it configurable from aah.conf
+	if isBodyAllowed && ctx.Reply().body.Len() > 1024 {
 		e.wrapGzipWriter(ctx)
 	}
 
 	// ContentType, if it's not set then auto detect later in the writer
-	if reply.IsContentTypeSet() {
-		ctx.Res.Header().Set(ahttp.HeaderContentType, reply.ContType)
+	if ctx.Reply().IsContentTypeSet() {
+		ctx.Res.Header().Set(ahttp.HeaderContentType, ctx.Reply().ContType)
 	}
 
 	// HTTP status
-	ctx.Res.WriteHeader(reply.Code)
+	ctx.Res.WriteHeader(ctx.Reply().Code)
 
+	// Write response on the wire
 	if isBodyAllowed {
-		// Write response on the wire
-		var err error
-		if minifier == nil || !appIsProfileProd || !ctHTML.IsEqual(reply.ContType) {
-			if _, err = reply.body.WriteTo(ctx.Res); err != nil {
-				log.Error(err)
-			}
-		} else if err = minifier(reply.ContType, ctx.Res, reply.body); err != nil {
-			log.Errorf("Minifier error: %s", err.Error())
-		}
+		e.writeBody(ctx)
 	}
 
 	// 'OnAfterReply' server extension point
@@ -328,7 +332,9 @@ func (e *engine) writeHeaders(ctx *Context) {
 		}
 	}
 
-	ctx.Res.Header().Set(ahttp.HeaderServer, aahServerName)
+	if e.isServerHeaderEnabled {
+		ctx.Res.Header().Set(ahttp.HeaderServer, e.serverHeader)
+	}
 
 	// Write application security headers with many safe defaults and
 	// configured header values.
@@ -384,6 +390,16 @@ func (e *engine) setCookies(ctx *Context) {
 	}
 }
 
+func (e *engine) writeBody(ctx *Context) {
+	if minifier == nil || !appIsProfileProd || !ctHTML.IsEqual(ctx.Reply().ContType) {
+		if _, err := ctx.Reply().body.WriteTo(ctx.Res); err != nil {
+			log.Error(err)
+		}
+	} else if err := minifier(ctx.Reply().ContType, ctx.Res, ctx.Reply().body); err != nil {
+		log.Errorf("Minifier error: %s", err.Error())
+	}
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
@@ -394,12 +410,16 @@ func newEngine(cfg *config.Config) *engine {
 		logAsFatal(fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel))
 	}
 
+	serverHeader := cfg.StringDefault("server.header", "")
+
 	return &engine{
 		isRequestIDEnabled:       cfg.BoolDefault("request.id.enable", true),
 		requestIDHeader:          cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
 		isGzipEnabled:            cfg.BoolDefault("render.gzip.enable", true),
 		isAccessLogEnabled:       cfg.BoolDefault("server.access_log.enable", false),
 		isStaticAccessLogEnabled: cfg.BoolDefault("server.access_log.static_file", true),
+		isServerHeaderEnabled:    !ess.IsStrEmpty(serverHeader),
+		serverHeader:             serverHeader,
 	}
 }
 
@@ -408,6 +428,7 @@ func acquireContext() *Context {
 }
 
 func releaseContext(ctx *Context) {
+	cleanup(ctx)
 	ahttp.ReleaseResponseWriter(ctx.Res)
 	ahttp.ReleaseRequest(ctx.Req)
 	security.ReleaseSubject(ctx.subject)
@@ -415,6 +436,15 @@ func releaseContext(ctx *Context) {
 
 	ctx.Reset()
 	ctxPool.Put(ctx)
+}
+
+func cleanup(ctx *Context) {
+	if ctx.Req.Unwrap().MultipartForm != nil {
+		log.Debug("MultipartForm file(s) clean up")
+		if err := ctx.Req.Unwrap().MultipartForm.RemoveAll(); err != nil {
+			log.Error(err)
+		}
+	}
 }
 
 func init() {

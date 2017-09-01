@@ -24,9 +24,6 @@ var (
 	// JSONMarshal is used to register external JSON library for Marshalling.
 	JSONMarshal func(v interface{}) ([]byte, error)
 
-	// JSONUnmarshal is used to register external JSON library for Unmarshalling.
-	JSONUnmarshal func(data []byte, v interface{}) error
-
 	// JSONMarshalIndent is used to register external JSON library for Marshal indent.
 	JSONMarshalIndent func(v interface{}, prefix, indent string) ([]byte, error)
 
@@ -40,10 +37,14 @@ type (
 	// Data type used for convenient data type of map[string]interface{}
 	Data map[string]interface{}
 
-	// Render interface
+	// Render interface to various rendering classifcation for HTTP responses.
 	Render interface {
 		Render(io.Writer) error
 	}
+
+	// RenderFunc type is an adapter to allow the use of regular function as
+	// custom Render.
+	RenderFunc func(w io.Writer) error
 
 	// Text renders the response as plain text
 	Text struct {
@@ -79,18 +80,26 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// RenderFunc methods
+//___________________________________
+
+// Render method is implementation of Render interface in the adapter type.
+func (rf RenderFunc) Render(w io.Writer) error {
+	return rf(w)
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Plain Text Render methods
 //___________________________________
 
 // Render method writes Text into HTTP response.
-func (t *Text) Render(w io.Writer) error {
+func (t *Text) Render(w io.Writer) (err error) {
 	if len(t.Values) > 0 {
-		fmt.Fprintf(w, t.Format, t.Values...)
+		_, err = fmt.Fprintf(w, t.Format, t.Values...)
 	} else {
-		_, _ = io.WriteString(w, t.Format)
+		_, err = fmt.Fprint(w, t.Format)
 	}
-
-	return nil
+	return
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -265,20 +274,14 @@ func (h *HTML) reset() {
 // error info if any.
 func (e *engine) doRender(ctx *Context) {
 	if ctx.Reply().Rdr != nil {
-		reply := ctx.Reply()
-		reply.body = acquireBuffer()
-		if jsonp, ok := reply.Rdr.(*JSON); ok && jsonp.IsJSONP {
-			if ess.IsStrEmpty(jsonp.Callback) {
-				jsonp.Callback = ctx.Req.QueryValue("callback")
-			}
-		}
-
-		if err := reply.Rdr.Render(reply.body); err != nil {
+		ctx.Reply().body = acquireBuffer()
+		if err := ctx.Reply().Rdr.Render(ctx.Reply().body); err != nil {
 			log.Error("Render response body error: ", err)
-			// TODO handle response based on content type
-			reply.InternalServerError()
-			reply.body.Reset()
-			reply.body.WriteString("500 Internal Server Error\n")
+
+			// panic would be appropriate here, since it handle by centralized error
+			// handler. Funny though this is second spot in entire aah framework
+			// the `panic` used other then panic interceptor for propagtion.
+			panic(err)
 		}
 	}
 }
@@ -297,13 +300,14 @@ func acquireXML() *XML {
 
 func releaseRender(r Render) {
 	if r != nil {
-		if t, ok := r.(*JSON); ok {
+		switch t := r.(type) {
+		case *JSON:
 			t.reset()
 			rdrJSONPool.Put(t)
-		} else if t, ok := r.(*HTML); ok {
+		case *HTML:
 			t.reset()
 			rdrHTMLPool.Put(t)
-		} else if t, ok := r.(*XML); ok {
+		case *XML:
 			t.reset()
 			rdrXMLPool.Put(t)
 		}
@@ -313,6 +317,5 @@ func releaseRender(r Render) {
 func init() {
 	// Registering default standard JSON library
 	JSONMarshal = json.Marshal
-	JSONUnmarshal = json.Unmarshal
 	JSONMarshalIndent = json.MarshalIndent
 }

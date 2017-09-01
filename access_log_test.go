@@ -47,10 +47,11 @@ func TestAccessLogFormatter(t *testing.T) {
 	al.Request.Header = al.Request.Raw.Header
 	al.Request.Header.Add(ahttp.HeaderAccept, "text/html")
 	al.Request.Header.Set(ahttp.HeaderXRequestID, "5946ed129bf23409520736de")
+	al.RequestID = "5946ed129bf23409520736de"
 	al.Request.ClientIP = "127.0.0.1"
 	al.ResHdr.Add("content-type", "application/json")
 	allAvailablePatterns := "%clientip %reqid %reqtime %restime %resstatus %ressize %reqmethod %requrl %reqhdr:accept %querystr %reshdr"
-	expectedForAllAvailablePatterns := fmt.Sprintf(`%s "%s" %s %v %d %d %s %s "%s" "%s" %s`,
+	expectedForAllAvailablePatterns := fmt.Sprintf(`%s %s %s %v %d %d %s %s "%s" "%s" %s`,
 		al.Request.ClientIP, al.Request.Header.Get(ahttp.HeaderXRequestID),
 		al.StartTime.Format(time.RFC3339), fmt.Sprintf("%.4f", al.ElapsedDuration.Seconds()*1e3),
 		al.ResStatus, al.ResBytes, al.Request.Method,
@@ -96,45 +97,6 @@ func TestAccessLogInitDefault(t *testing.T) {
 		  }
 		}
 		`)
-}
-
-func TestEngineAccessLog(t *testing.T) {
-	// App Config
-	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
-	err := initConfig(cfgDir)
-	assert.Nil(t, err)
-	assert.NotNil(t, AppConfig())
-
-	AppConfig().SetString("server.port", "8080")
-
-	// Router
-	err = initRoutes(cfgDir, AppConfig())
-	assert.Nil(t, err)
-	assert.NotNil(t, AppRouter())
-
-	// Security
-	err = initSecurity(AppConfig())
-	assert.Nil(t, err)
-	assert.True(t, AppSessionManager().IsStateful())
-
-	// Controllers
-	cRegistry = controllerRegistry{}
-
-	AddController((*Site)(nil), []*MethodInfo{
-		{
-			Name:       "GetInvolved",
-			Parameters: []*ParameterInfo{},
-		},
-	})
-
-	AppConfig().SetBool("server.access_log.enable", true)
-
-	e := newEngine(AppConfig())
-	req := httptest.NewRequest("GET", "localhost:8080/get-involved.html", nil)
-	res := httptest.NewRecorder()
-	e.ServeHTTP(res, req)
-
-	assert.True(t, e.isAccessLogEnabled)
 }
 
 func testFormatter(t *testing.T, al *accessLog, pattern, expected string) {

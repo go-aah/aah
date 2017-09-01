@@ -13,7 +13,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
+	"aahframework.org/router.v0-unstable"
 	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/session"
 )
@@ -213,6 +213,16 @@ func (ctx *Context) Reset() {
 	ctx.values = make(map[string]interface{})
 	ctx.abort = false
 	ctx.decorated = false
+}
+
+// Set method is used to set value for the given key in the current request flow.
+func (ctx *Context) Set(key string, value interface{}) {
+	ctx.values[key] = value
+}
+
+// Get method returns the value for the given key, otherwise it returns nil.
+func (ctx *Context) Get(key string) interface{} {
+	return ctx.values[key]
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

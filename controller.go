@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"aahframework.org/essentials.v0"
-	"aahframework.org/router.v0"
+	"aahframework.org/router.v0-unstable"
 )
 
 const (
@@ -66,7 +66,7 @@ func AddController(c interface{}, methods []*MethodInfo) {
 	methodMapping := map[string]*MethodInfo{}
 	for _, method := range methods {
 		for _, param := range method.Parameters {
-			param.Type = actualType(param.Type)
+			param.Type = param.Type.Elem()
 		}
 		methodMapping[strings.ToLower(method.Name)] = method
 	}

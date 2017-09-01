@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/i18n.v0"
 )
 
@@ -33,7 +34,10 @@ func AppI18n() *i18n.I18n {
 
 // AppI18nLocales returns all the loaded locales from i18n store
 func AppI18nLocales() []string {
-	return appI18n.Locales()
+	if AppI18n() != nil {
+		return appI18n.Locales()
+	}
+	return []string{}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -45,9 +49,12 @@ func appI18nDir() string {
 }
 
 func initI18n(cfgDir string) error {
-	appI18n = i18n.New()
-	appI18n.DefaultLocale = AppDefaultI18nLang()
-	return appI18n.Load(cfgDir)
+	if ess.IsFileExists(cfgDir) {
+		appI18n = i18n.New()
+		appI18n.DefaultLocale = AppDefaultI18nLang()
+		return appI18n.Load(cfgDir)
+	}
+	return nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

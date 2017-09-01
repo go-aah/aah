@@ -64,8 +64,10 @@ func Start() {
 	log.Infof("App Session Mode: %v", sessionMode)
 
 	if log.IsLevelDebug() {
-		log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
 		log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
+		if AppI18n() != nil {
+			log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
+		}
 
 		for event := range AppEventStore().subscribers {
 			for _, c := range AppEventStore().subscribers[event] {
@@ -87,7 +89,7 @@ func Start() {
 
 	aahServer.SetKeepAlivesEnabled(AppConfig().BoolDefault("server.keep_alive", true))
 
-	go writePID(getBinaryFileName(), AppBaseDir())
+	go writePID(AppConfig(), getBinaryFileName(), AppBaseDir())
 	go listenSignals()
 
 	// Unix Socket
@@ -244,6 +246,6 @@ func initAutoCertManager(cfg *config.Config) error {
 }
 
 func printStartupNote() {
-	port := firstNonEmpty(AppConfig().StringDefault("server.port", appDefaultHTTPPort), AppConfig().StringDefault("server.proxyport", ""))
+	port := firstNonZeroString(AppConfig().StringDefault("server.port", appDefaultHTTPPort), AppConfig().StringDefault("server.proxyport", ""))
 	log.Infof("aah go server running on %s:%s", AppHTTPAddress(), parsePort(port))
 }

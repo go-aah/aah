@@ -20,9 +20,6 @@ import (
 	"aahframework.org/log.v0"
 )
 
-// Version no. of aah framework
-const Version = "0.8-dev"
-
 // aah application variables
 var (
 	appName               string
@@ -40,16 +37,15 @@ var (
 	appIsLetsEncrypt      bool
 	appIsProfileProd      bool
 	appMultipartMaxMemory int64
+	appMaxBodyBytesSize   int64
 	appPID                int
 	appInitialized        bool
 	appBuildInfo          *BuildInfo
 
-	appDefaultProfile        = "dev"
-	appProfilePrefix         = "env."
-	appDefaultHTTPPort       = "8080"
-	appDefaultDateFormat     = "2006-01-02"
-	appDefaultDateTimeFormat = "2006-01-02 15:04:05"
-	appLogFatal              = log.Fatal
+	appDefaultProfile  = "dev"
+	appProfilePrefix   = "env."
+	appDefaultHTTPPort = "8080"
+	appLogFatal        = log.Fatal
 
 	goPath   string
 	goSrcDir string
@@ -106,19 +102,9 @@ func AppHTTPAddress() string {
 // AppHTTPPort method returns aah application HTTP port number based on `server.port`
 // value. Possible outcomes are user-defined port, `80`, `443` and `8080`.
 func AppHTTPPort() string {
-	port := firstNonEmpty(AppConfig().StringDefault("server.proxyport", ""),
+	port := firstNonZeroString(AppConfig().StringDefault("server.proxyport", ""),
 		AppConfig().StringDefault("server.port", appDefaultHTTPPort))
 	return parsePort(port)
-}
-
-// AppDateFormat method returns aah application date format
-func AppDateFormat() string {
-	return AppConfig().StringDefault("format.date", appDefaultDateFormat)
-}
-
-// AppDateTimeFormat method returns aah application date format
-func AppDateTimeFormat() string {
-	return AppConfig().StringDefault("format.datetime", appDefaultDateTimeFormat)
 }
 
 // AppBuildInfo method return user application version no.
@@ -291,6 +277,11 @@ func initAppVariables() error {
 
 	if err = initAutoCertManager(cfg); err != nil {
 		return err
+	}
+
+	maxBodySizeStr := cfg.StringDefault("request.max_body_size", "5mb")
+	if appMaxBodyBytesSize, err = ess.StrToBytes(maxBodySizeStr); err != nil {
+		return errors.New("'request.max_body_size' value is not a valid size unit")
 	}
 
 	multipartMemoryStr := cfg.StringDefault("request.multipart_size", "32mb")

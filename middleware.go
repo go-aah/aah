@@ -176,23 +176,36 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 // ActionMiddleware calls the requested action on controller
 func actionMiddleware(ctx *Context, m *Middleware) {
 	target := reflect.ValueOf(ctx.target)
+	controllerName := resolveControllerName(ctx)
 	action := target.MethodByName(ctx.action.Name)
 
 	if !action.IsValid() {
+		log.Errorf("Action '%s' doesn't exists on controller '%s'", ctx.action.Name, controllerName)
+		ctx.Reply().Error(&Error{
+			Code:    http.StatusNotFound,
+			Message: http.StatusText(http.StatusNotFound),
+		})
 		return
 	}
 
-	actionArgs := make([]reflect.Value, len(ctx.action.Parameters))
+	log.Debugf("Calling controller: %s.%s", controllerName, ctx.action.Name)
 
-	// TODO Auto Binder for arguments
+	// Parse Action Parameters
+	actionArgs, err := parseParameters(ctx)
+	if err != nil {
+		// Any error of parameter parsing result in 400 Bad Request
+		ctx.Reply().Error(&Error{
+			Code:    http.StatusBadRequest,
+			Message: http.StatusText(http.StatusBadRequest),
+		})
+		return
+	}
 
-	log.Debugf("Calling controller: %s.%s", resolveControllerName(ctx), ctx.action.Name)
 	if action.Type().IsVariadic() {
 		action.CallSlice(actionArgs)
 	} else {
 		action.Call(actionArgs)
 	}
-
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

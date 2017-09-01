@@ -13,7 +13,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
-	"aahframework.org/router.v0"
+	"aahframework.org/router.v0-unstable"
 	"aahframework.org/security.v0"
 	"aahframework.org/test.v0/assert"
 )
@@ -94,7 +94,7 @@ func TestContextMsg(t *testing.T) {
 	}
 
 	msg := ctx.Msg("label.pages.site.get_involved.title")
-	assert.Equal(t, "", msg)
+	assert.Equal(t, "en: Get Involved - aah web framework for Go", msg)
 
 	msg = ctx.Msgl(ahttp.ToLocale(&ahttp.AcceptSpec{Value: "en", Raw: "en"}), "label.pages.site.get_involved.title")
 	assert.Equal(t, "en: Get Involved - aah web framework for Go", msg)
