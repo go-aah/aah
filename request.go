@@ -5,11 +5,15 @@
 package ahttp
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -17,8 +21,9 @@ import (
 )
 
 const (
-	jsonpReqParamKey = "callback"
-	ajaxHeaderValue  = "XMLHttpRequest"
+	jsonpReqParamKey     = "callback"
+	ajaxHeaderValue      = "XMLHttpRequest"
+	websocketHeaderValue = "websocket"
 )
 
 var requestPool = &sync.Pool{New: func() interface{} { return &Request{} }}
@@ -34,6 +39,9 @@ type (
 
 		// Host value of the HTTP 'Host' header (e.g. 'example.com:8080').
 		Host string
+
+		// Proto value of the current HTTP request protocol. (e.g. HTTP/1.1, HTTP/2.0)
+		Proto string
 
 		// Method request method e.g. `GET`, `POST`, etc.
 		Method string
@@ -60,10 +68,6 @@ type (
 		// Most quailfied one based on quality factor.
 		AcceptEncoding *AcceptSpec
 
-		// Payload holds the value from HTTP request for `Content-Type`
-		// JSON and XML.
-		Payload []byte
-
 		// Params contains values from Path, Query, Form and File.
 		Params *Params
 
@@ -88,7 +92,7 @@ type (
 		// Raw an object of Go HTTP server, direct interaction with
 		// raw object is not encouraged.
 		//
-		// Raw field to be unexported on v1 release, use `Req.Unwarp()` instead.
+		// DEPRECATED: Raw field to be unexported on v1 release, use `Req.Unwarp()` instead.
 		Raw *http.Request
 	}
 
@@ -110,6 +114,7 @@ type (
 func ParseRequest(r *http.Request, req *Request) *Request {
 	req.Scheme = identifyScheme(r)
 	req.Host = host(r)
+	req.Proto = r.Proto
 	req.Method = r.Method
 	req.Path = r.URL.Path
 	req.Header = r.Header
@@ -132,12 +137,12 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 
 // Cookie method returns a named cookie from HTTP request otherwise error.
 func (r *Request) Cookie(name string) (*http.Cookie, error) {
-	return r.Raw.Cookie(name)
+	return r.Unwrap().Cookie(name)
 }
 
 // Cookies method returns all the cookies from HTTP request.
 func (r *Request) Cookies() []*http.Cookie {
-	return r.Raw.Cookies()
+	return r.Unwrap().Cookies()
 }
 
 // IsJSONP method returns true if request URL query string has "callback=function_name".
@@ -146,10 +151,15 @@ func (r *Request) IsJSONP() bool {
 	return !ess.IsStrEmpty(r.QueryValue(jsonpReqParamKey))
 }
 
-// IsAJAX methods returns true if the request header `X-Requested-With` is
+// IsAJAX method returns true if request header `X-Requested-With` is
 // `XMLHttpRequest` otherwise false.
 func (r *Request) IsAJAX() bool {
 	return r.Header.Get(HeaderXRequestedWith) == ajaxHeaderValue
+}
+
+// IsWebSocket method returns true if request is WebSocket otherwise false.
+func (r *Request) IsWebSocket() bool {
+	return r.Header.Get(HeaderUpgrade) == websocketHeaderValue
 }
 
 // PathValue method returns value for given Path param key otherwise empty string.
@@ -187,22 +197,78 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
 	return r.Params.FormFile(key)
 }
 
-//Unwrap returns the underlying http.Request
+// Body method returns the HTTP request body.
+func (r *Request) Body() io.ReadCloser {
+	return r.Unwrap().Body
+}
+
+// Unwrap method returns the underlying *http.Request.
 func (r *Request) Unwrap() *http.Request {
 	return r.Raw
+}
+
+// SaveFile method saves an uploaded multipart file for given key from the HTTP
+// request into given destination
+func (r *Request) SaveFile(key, dstFile string) (int64, error) {
+	if ess.IsStrEmpty(dstFile) || ess.IsStrEmpty(key) {
+		return 0, errors.New("ahttp: key or dstFile is empty")
+	}
+
+	if ess.IsDir(dstFile) {
+		return 0, errors.New("ahttp: dstFile should not be a directory")
+	}
+
+	uploadedFile, _, err := r.FormFile(key)
+	if err != nil {
+		return 0, err
+	}
+	defer ess.CloseQuietly(uploadedFile)
+
+	return saveFile(uploadedFile, dstFile)
+}
+
+// SaveFiles method saves an uploaded multipart file(s) for the given key
+// from the HTTP request into given destination directory. It uses the filename
+// as uploaded filename from the request
+func (r *Request) SaveFiles(key, dstPath string) ([]int64, []error) {
+	if !ess.IsDir(dstPath) {
+		return []int64{0}, []error{fmt.Errorf("ahttp: destination path, '%s' is not a directory", dstPath)}
+	}
+
+	if ess.IsStrEmpty(key) {
+		return []int64{0}, []error{fmt.Errorf("ahttp: form file key, '%s' is empty", key)}
+	}
+
+	var errs []error
+	var sizes []int64
+	for _, file := range r.Params.File[key] {
+		uploadedFile, err := file.Open()
+		if err != nil {
+			sizes = append(sizes, 0)
+			errs = append(errs, err)
+			continue
+		}
+
+		if size, err := saveFile(uploadedFile, filepath.Join(dstPath, file.Filename)); err != nil {
+			sizes = append(sizes, size)
+			errs = append(errs, err)
+		}
+		ess.CloseQuietly(uploadedFile)
+	}
+	return sizes, errs
 }
 
 // Reset method resets request instance for reuse.
 func (r *Request) Reset() {
 	r.Scheme = ""
 	r.Host = ""
+	r.Proto = ""
 	r.Method = ""
 	r.Path = ""
 	r.Header = nil
 	r.ContentType = nil
 	r.AcceptContentType = nil
 	r.AcceptEncoding = nil
-	r.Payload = nil
 	r.Params = nil
 	r.Referer = ""
 	r.UserAgent = ""
@@ -269,7 +335,7 @@ func (p *Params) FormFile(key string) (multipart.File, *multipart.FileHeader, er
 			f, err := fh[0].Open()
 			return f, fh[0], err
 		}
-		return nil, nil, fmt.Errorf("error file is missing: %s", key)
+		return nil, nil, fmt.Errorf("ahttp: no such key/file: %s", key)
 	}
 	return nil, nil, nil
 }
@@ -350,4 +416,14 @@ func isGzipAccepted(req *Request, r *http.Request) bool {
 		}
 	}
 	return false
+}
+
+func saveFile(r io.Reader, destFile string) (int64, error) {
+	f, err := os.OpenFile(destFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+	if err != nil {
+		return 0, fmt.Errorf("ahttp: %s", err)
+	}
+	defer ess.CloseQuietly(f)
+
+	return io.Copy(f, r)
 }

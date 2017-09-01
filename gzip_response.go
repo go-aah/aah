@@ -46,7 +46,7 @@ var (
 
 // GetGzipResponseWriter wraps `http.ResponseWriter`, returns aah framework response
 // writer that allows to advantage of response process.
-// Deprecated use `AcquireResponseWriter` instead.
+// Deprecated use `WrapGzipWriter` instead.
 func GetGzipResponseWriter(w ResponseWriter) ResponseWriter {
 	gr := grPool.Get().(*GzipResponse)
 	gr.gw = acquireGzipWriter(w)

@@ -55,7 +55,7 @@ type (
 //    E.g.:
 //      contentType.IsEqual("application/json")
 func (c *ContentType) IsEqual(contentType string) bool {
-	return strings.HasPrefix(c.Raw(), strings.ToLower(contentType))
+	return strings.HasPrefix(c.String(), strings.ToLower(contentType))
 }
 
 // Charset method returns charset of content-type
