@@ -198,17 +198,8 @@ func (e *engine) doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResul
 //___________________________________
 
 func initSecurity(appCfg *config.Config) error {
-	if err := appSecurityManager.Init(appCfg); err != nil {
-		return err
-	}
-
-	// Based on aah server SSL configuration `http.Cookie.Secure` value is set, even
-	// though it's true in aah.conf at `security.session.secure = true`.
-	if AppSessionManager() != nil {
-		AppSessionManager().Options.Secure = AppIsSSLEnabled()
-	}
-
-	return nil
+	appSecurityManager.IsSSLEnabled = AppIsSSLEnabled()
+	return appSecurityManager.Init(appCfg)
 }
 
 func isFormAuthLoginRoute(ctx *Context) bool {
