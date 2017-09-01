@@ -125,6 +125,11 @@ func (b *BasicAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*auth
 		return nil, authc.ErrAuthenticationFailed
 	}
 
+	if authcInfo.IsLocked || authcInfo.IsExpired {
+		log.Error("Subject is locked or expired")
+		return nil, authc.ErrAuthenticationFailed
+	}
+
 	return authcInfo, nil
 }
 

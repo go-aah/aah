@@ -10,8 +10,11 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
+	"time"
 
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/security.v0/authc"
@@ -19,9 +22,6 @@ import (
 	"aahframework.org/security.v0/scheme"
 	"aahframework.org/security.v0/session"
 )
-
-// Version is security library version no. of aah framework
-const Version = "0.6"
 
 var (
 	// ErrAuthSchemeIsNil returned when given auth scheme instance is nil.
@@ -34,8 +34,26 @@ type (
 	// Manager holds aah security management and its implementation.
 	Manager struct {
 		SessionManager *session.Manager
+		SecureHeaders  *SecureHeaders
+		IsSSLEnabled   bool
 		appCfg         *config.Config
 		authSchemes    map[string]scheme.Schemer
+	}
+
+	// SecureHeaders holds the composed values of HTTP security headers
+	// based on config `security.http_header.*` from `security.conf`.
+	SecureHeaders struct {
+		Common map[string]string
+
+		// Applied to all HTTPS response.
+		STS           string
+		PKP           string
+		PKPReportOnly bool
+
+		// Applied to all HTML Content-Type
+		XSSFilter     string
+		CSP           string
+		CSPReportOnly bool
 	}
 )
 
@@ -53,7 +71,11 @@ func New() *Manager {
 // Init method initialize the application security configuration `security { ... }`.
 // Which is mainly Session, CORS, CSRF, Security Headers, etc.
 func (m *Manager) Init(appCfg *config.Config) error {
+	var err error
 	m.appCfg = appCfg
+
+	// Initialize Secure Headers
+	m.initializeSecureHeaders()
 
 	// Initialize Auth Schemes
 	keyPrefixAuthScheme := "security.auth_schemes"
@@ -73,17 +95,20 @@ func (m *Manager) Init(appCfg *config.Config) error {
 		}
 
 		// Initialize the auth scheme
-		if err := authScheme.Init(m.appCfg, keyAuthScheme); err != nil {
+		if err = authScheme.Init(m.appCfg, keyAuthScheme); err != nil {
 			return err
 		}
 	}
 
 	// Initialize session manager
-	var err error
 	if m.SessionManager, err = session.NewManager(m.appCfg); err != nil {
 		return err
 	}
-	_ = m
+
+	// Based on aah server SSL configuration `http.Cookie.Secure` value is set, even
+	// though it's true in the aah.conf at `security.session.secure = true`.
+	m.SessionManager.Options.Secure = m.IsSSLEnabled
+
 	return nil
 }
 
@@ -117,6 +142,93 @@ func (m *Manager) IsAuthSchemesConfigured() bool {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Manager Unexported methods
+//___________________________________
+
+func (m *Manager) initializeSecureHeaders() {
+	keyPrefix := "security.http_header."
+	cfg := m.appCfg
+
+	m.SecureHeaders = new(SecureHeaders)
+
+	// Common
+	common := make(map[string]string)
+
+	// Header: X-Frame-Options
+	if xfo := cfg.StringDefault(keyPrefix+"xfo", "SAMEORIGIN"); !ess.IsStrEmpty(xfo) {
+		common[ahttp.HeaderXFrameOptions] = strings.TrimSpace(xfo)
+	}
+
+	// Header: X-Content-Type-Options
+	if xcto := cfg.StringDefault(keyPrefix+"xcto", "nosniff"); !ess.IsStrEmpty(xcto) {
+		common[ahttp.HeaderXContentTypeOptions] = strings.TrimSpace(xcto)
+	}
+
+	// Header: Referrer-Policy
+	if rp := cfg.StringDefault(keyPrefix+"rp", "no-referrer-when-downgrade"); !ess.IsStrEmpty(rp) {
+		common[ahttp.HeaderReferrerPolicy] = strings.TrimSpace(rp)
+	}
+
+	// Header: X-Permitted-Cross-Domain-Policies
+	if xpcdp := cfg.StringDefault(keyPrefix+"xpcdp", "master-only"); !ess.IsStrEmpty(xpcdp) {
+		common[ahttp.HeaderXPermittedCrossDomainPolicies] = strings.TrimSpace(xpcdp)
+	}
+
+	// Set common headers
+	m.SecureHeaders.Common = common
+
+	// Header: X-XSS-Protection, applied to all HTML Content-Type
+	m.SecureHeaders.XSSFilter = strings.TrimSpace(cfg.StringDefault(keyPrefix+"xxssp", "1; mode=block"))
+
+	// Header: Strict-Transport-Security, applied to all HTTPS response.
+	sts := "max-age=" + parseToSecondsString(
+		cfg.StringDefault(keyPrefix+"sts.max_age", "720h"),
+		2592000) // 30 days
+	if cfg.BoolDefault(keyPrefix+"sts.include_subdomains", false) {
+		sts += "; includeSubDomains"
+	}
+	if cfg.BoolDefault(keyPrefix+"sts.preload", false) {
+		sts += "; preload"
+	}
+	m.SecureHeaders.STS = strings.TrimSpace(sts)
+
+	// Header: Content-Security-Policy, to all HTML Content-Type
+	if csp := cfg.StringDefault(keyPrefix+"csp.directives", ""); !ess.IsStrEmpty(csp) {
+		// Add Report URI
+		if reportURI := cfg.StringDefault(keyPrefix+"csp.report_uri", "false"); !ess.IsStrEmpty(reportURI) {
+			csp += "; report-uri " + strings.TrimSpace(reportURI)
+		}
+		m.SecureHeaders.CSP = strings.TrimSpace(csp)
+		m.SecureHeaders.CSPReportOnly = cfg.BoolDefault(keyPrefix+"csp.report_only", false)
+	}
+
+	// Header: Public-Key-Pins, applied to all HTTPS response.
+	if pkpKeys, found := cfg.StringList(keyPrefix + "pkp.keys"); found && len(pkpKeys) > 0 {
+		pkp := []string{}
+		for _, key := range pkpKeys {
+			pkp = append(pkp, ` pin-sha256="`+key+`"`)
+		}
+
+		// Max Age
+		pkp = append(pkp, " max-age="+parseToSecondsString(
+			cfg.StringDefault(keyPrefix+"pkp.max_age", "720h"), 2592000))
+
+		// Include Subdomains
+		if cfg.BoolDefault(keyPrefix+"pkp.include_subdomains", false) {
+			pkp = append(pkp, " includeSubdomains")
+		}
+
+		// Add Report URI
+		if reportURI := cfg.StringDefault(keyPrefix+"pkp.report_uri", ""); !ess.IsStrEmpty(reportURI) {
+			pkp = append(pkp, " report-uri="+reportURI)
+		}
+
+		m.SecureHeaders.PKP = strings.TrimSpace(strings.Join(pkp, ";"))
+		m.SecureHeaders.PKPReportOnly = cfg.BoolDefault(keyPrefix+"pkp.report_only", false)
+	}
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
 //___________________________________
 
@@ -141,6 +253,14 @@ func ReleaseSubject(s *Subject) {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
+
+func parseToSecondsString(durationStr string, defaultOnErr int64) string {
+	value, err := time.ParseDuration(durationStr)
+	if err != nil {
+		value = time.Second * time.Duration(defaultOnErr)
+	}
+	return fmt.Sprintf("%v", int64(value.Seconds()))
+}
 
 func init() {
 	gob.Register(&authc.AuthenticationInfo{})
