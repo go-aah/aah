@@ -50,9 +50,6 @@ const (
 )
 
 var (
-	// Version no. of aahframework.org/log library
-	Version = "0.5"
-
 	// ErrLogReceiverIsNil returned when suppiled receiver is nil.
 	ErrLogReceiverIsNil = errors.New("log: receiver is nil")
 
