@@ -30,7 +30,7 @@ func TestConsoleLoggerTextJSON(t *testing.T) {
   log {
     receiver = "console"
     level = "debug"
-    pattern = "%time:2006-01-02 15:04:05.000 %appname %reqid %principal %level:-5 %shortfile %line %custom:- %message"
+    pattern = "%time:2006-01-02 15:04:05.000 %appname %insname %reqid %principal %level:-5 %shortfile %line %custom:- %message"
   }
   `
 	testConsoleLogger(t, textConfigStr2)
@@ -113,10 +113,12 @@ func testConsoleLogger(t *testing.T, cfgStr string) {
 	logger.Trace("I shoudn't see this msg, because standard logger level is DEBUG")
 	logger.Tracef("I shoudn't see this msg, because standard logger level is DEBUG: %v", 4)
 
-	logger.WithField("appname", "testlogapp").Debug("I would like to see this message, debug is useful for dev")
+	logger.WithField("appname", "testlogapp").WithField("insname", "app-sfo-cn-01").
+		Debug("I would like to see this message, debug is useful for dev")
 	logger.Debugf("I would like to see this message, debug is useful for %v", "dev")
 
-	logger.WithField("reqid", "40139CA6368607085BF6").Info("Yes, I would love to see")
+	logger.WithField("reqid", "40139CA6368607085BF6").WithField("insname", "app-sfo-cn-01").
+		Info("Yes, I would love to see")
 	logger.Infof("Yes, I would love to %v", "see")
 
 	logger.WithField("principal", "jeevanandam").Warn("Yes, yes it's an warning")

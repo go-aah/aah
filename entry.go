@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -24,15 +25,16 @@ type Fields map[string]interface{}
 // Entry represents a log entry and contains the timestamp when the entry
 // was created, level, etc.
 type Entry struct {
-	AppName   string    `json:"appname,omitempty"`
-	RequestID string    `json:"reqid,omitempty"`
-	Principal string    `json:"principal,omitempty"`
-	Level     level     `json:"-"`
-	Time      time.Time `json:"-"`
-	Message   string    `json:"message,omitempty"`
-	File      string    `json:"file,omitempty"`
-	Line      int       `json:"line,omitempty"`
-	Fields    Fields    `json:"fields,omitempty"`
+	AppName      string    `json:"app_name,omitempty"`
+	InstanceName string    `json:"instance_name,omitempty"`
+	RequestID    string    `json:"request_id,omitempty"`
+	Principal    string    `json:"principal,omitempty"`
+	Level        level     `json:"-"`
+	Time         time.Time `json:"-"`
+	Message      string    `json:"message,omitempty"`
+	File         string    `json:"file,omitempty"`
+	Line         int       `json:"line,omitempty"`
+	Fields       Fields    `json:"fields,omitempty"`
 
 	logger *Logger
 }
@@ -44,15 +46,22 @@ type Entry struct {
 // MarshalJSON method for formating entry to JSON.
 func (e *Entry) MarshalJSON() ([]byte, error) {
 	type alias Entry
-	return json.Marshal(&struct {
+	ne := &struct {
 		Level string `json:"level,omitempty"`
 		Time  string `json:"timestamp,omitempty"`
 		*alias
 	}{
-		Level: levelToLevelName[e.Level],
+		Level: e.Level.String(),
 		Time:  formatTime(e.Time),
 		alias: (*alias)(e),
-	})
+	}
+
+	// delete skip fields
+	for _, v := range strings.Fields("appname insname reqid principal") {
+		delete(ne.Fields, v)
+	}
+
+	return json.Marshal(ne)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -217,6 +226,17 @@ func (e *Entry) Reset() {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Fields Unexported methods
+//___________________________________
+
+func (f Fields) str(key string) string {
+	if v, found := f[key]; found {
+		return fmt.Sprint(v)
+	}
+	return ""
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
 
@@ -224,23 +244,26 @@ func (e *Entry) output(lvl level, msg string) {
 	e.Time = time.Now()
 	e.Level = lvl
 	e.Message = msg
-	e.addFields(e.logger.ctx)
+	e.processFields()
 	e.logger.output(e)
 }
 
 func (e *Entry) addFields(fields Fields) {
 	for k, v := range fields {
-		switch k {
-		case "appname":
-			e.AppName = fmt.Sprint(v)
-		case "reqid":
-			e.RequestID = fmt.Sprint(v)
-		case "principal":
-			e.Principal = fmt.Sprint(v)
-		default:
-			e.Fields[k] = v
-		}
+		e.Fields[k] = v
 	}
+}
+
+func (e *Entry) processFields() {
+	e.addFields(e.logger.ctx)
+	e.AppName = e.Fields.str("appname")
+	e.InstanceName = e.Fields.str("insname")
+	e.RequestID = e.Fields.str("reqid")
+	e.Principal = e.Fields.str("principal")
+}
+
+func (e *Entry) isSkipField(key string) bool {
+	return (key == "appname" || key == "insname" || key == "reqid" || key == "principal")
 }
 
 func newEntry() *Entry {

@@ -126,8 +126,18 @@ func TestDefaultContextLogging(t *testing.T) {
 
 func TestDefaultFieldsLogging(t *testing.T) {
 	_ = SetPattern("%time:2006-01-02 15:04:05.000 %level:-5 %appname %reqid %principal %message %fields")
-	WithField("appname", "value1").Info("Logging value 1")
-	WithFields(Fields{"appname": "value1", "key1": "key1value"}).Info("Logging value 1")
+
+	e1 := WithFields(Fields{"appname": "value1", "key1": "value 1"})
+	e1.Info("e1 logger")
+
+	e2 := e1.WithField("key2", "value 2")
+	e2.Info("e2 logger")
+
+	e3 := e1.WithFields(Fields{"key3": "value 3"})
+	e3.Info("e3 logger")
+
+	old := Writer()
+	SetWriter(old)
 }
 
 func testStdPanic(method, msg string) {
