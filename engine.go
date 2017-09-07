@@ -16,7 +16,7 @@ import (
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
+	"aahframework.org/log.v0-unstable"
 	"aahframework.org/security.v0"
 )
 
@@ -411,10 +411,11 @@ func newEngine(cfg *config.Config) *engine {
 	}
 
 	serverHeader := cfg.StringDefault("server.header", "")
+	appReqIDHdrKey = cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID)
 
 	return &engine{
 		isRequestIDEnabled:       cfg.BoolDefault("request.id.enable", true),
-		requestIDHeader:          cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
+		requestIDHeader:          appReqIDHdrKey,
 		isGzipEnabled:            cfg.BoolDefault("render.gzip.enable", true),
 		isAccessLogEnabled:       cfg.BoolDefault("server.access_log.enable", false),
 		isStaticAccessLogEnabled: cfg.BoolDefault("server.access_log.static_file", true),

@@ -17,7 +17,7 @@ import (
 	"sync"
 
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
+	"aahframework.org/log.v0-unstable"
 )
 
 var (

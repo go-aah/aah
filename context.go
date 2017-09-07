@@ -12,7 +12,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
+	"aahframework.org/log.v0-unstable"
 	"aahframework.org/router.v0"
 	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/session"
@@ -223,6 +223,15 @@ func (ctx *Context) Set(key string, value interface{}) {
 // Get method returns the value for the given key, otherwise it returns nil.
 func (ctx *Context) Get(key string) interface{} {
 	return ctx.values[key]
+}
+
+// Log method addeds `Request ID`, `Primary Principal` into current log entry.
+func (ctx *Context) Log() *log.Entry {
+	fields := log.Fields{"reqid": ctx.Req.Header.Get(appReqIDHdrKey)}
+	if ctx.Subject().AuthenticationInfo != nil {
+		fields["principal"] = ctx.Subject().PrimaryPrincipal().Value
+	}
+	return log.WithFields(fields)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	"aahframework.org/config.v0"
-	"aahframework.org/log.v0"
+	"aahframework.org/log.v0-unstable"
 )
 
 var appConfig *config.Config

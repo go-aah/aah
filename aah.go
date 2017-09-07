@@ -17,12 +17,13 @@ import (
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
+	"aahframework.org/log.v0-unstable"
 )
 
 // aah application variables
 var (
 	appName               string
+	appInstanceName       string
 	appDesc               string
 	appImportPath         string
 	appProfile            string
@@ -63,10 +64,16 @@ type BuildInfo struct {
 // Package methods
 //___________________________________
 
-// AppName method returns aah application name from app config otherwise app name
+// AppName method returns aah application name from app config `name` otherwise app name
 // of the base directory.
 func AppName() string {
 	return appName
+}
+
+// AppInstanceName method returns aah application instane name from app config `instance_name`
+// otherwise empty string.
+func AppInstanceName() string {
+	return appInstanceName
 }
 
 // AppDesc method returns aah application friendly description from app config
@@ -239,6 +246,7 @@ func initAppVariables() error {
 	cfg := AppConfig()
 
 	appName = cfg.StringDefault("name", filepath.Base(AppBaseDir()))
+	appInstanceName = cfg.StringDefault("instance_name", "")
 	appDesc = cfg.StringDefault("desc", "")
 
 	appProfile = cfg.StringDefault("env.active", appDefaultProfile)
@@ -307,11 +315,19 @@ func initLogs(logsDir string, appCfg *config.Config) error {
 		}
 	}
 
+	if !appCfg.IsExists("log.pattern") {
+		appCfg.SetString("log.pattern", "%time:2006-01-02 15:04:05.000 %level:-5 %appname %insname %reqid %principal %message %fields")
+	}
+
 	logger, err := log.New(appCfg)
 	if err != nil {
 		return err
 	}
 
+	logger.AddContext(log.Fields{
+		"appname": AppName(),
+		"insname": AppInstanceName(),
+	})
 	log.SetDefaultLogger(logger)
 	return nil
 }
