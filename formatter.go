@@ -68,7 +68,7 @@ var (
 	//    shortfile - outputs final file name element: d.go
 	//    line      - outputs file line number: L23
 	//    message   - outputs given message along supplied arguments if they present
-	// 		fields		- outputs field values into log entry
+	//    fields    - outputs field values into log entry
 	//    custom    - outputs string as-is into log entry
 	FmtFlags = map[string]ess.FmtFlag{
 		"level":     FmtFlagLevel,
