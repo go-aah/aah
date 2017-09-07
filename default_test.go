@@ -70,6 +70,8 @@ func TestDefaultContextLogging(t *testing.T) {
 	_ = SetPattern("%utctime:2006-01-02 15:04:05.000 %level:-5 %longfile %line %custom:- %message %fields")
 	_ = SetLevel("trace")
 
+	AddContext(Fields{"myname": "default logger"})
+
 	Trace("I would like to see this message, trace is more fine grained for dev")
 	Tracef("I would like to see this message, trace is more fine grained for dev: %v", 4)
 
@@ -79,7 +81,7 @@ func TestDefaultContextLogging(t *testing.T) {
 	Info("Yes, I would love to see")
 	Infof("Yes, I would love to %v", "see")
 
-	Warn("Yes, yes it's an warning")
+	WithField("warnkey1", "warn value 1").WithField("warnkey2", "warn value 2").Warn("Yes, yes it's an warning")
 	Warnf("Yes, yes it's an %v", "warning")
 
 	Error("Yes, yes, yes - finally an error")
@@ -92,12 +94,15 @@ func TestDefaultContextLogging(t *testing.T) {
 	exit = os.Exit
 
 	// With Context
-	ctx := WithField("ctx1", "ctx1 value").WithFields(Fields{"ctx2": "ctx 2 value"})
+	ctx := dl.New(Fields{
+		"key1": "key 1 value",
+		"key2": "key 2 value",
+	})
 
 	ctx.Trace("I would like to see this message, trace is more fine grained for dev")
 	ctx.Tracef("I would like to see this message, trace is more fine grained for dev: %v", 4)
 
-	ctx.Debug("I would like to see this message, debug is useful for dev")
+	ctx.WithField("key3", "key 3 value").Debug("I would like to see this message, debug is useful for dev")
 	ctx.Debugf("I would like to see this message, debug is useful for %v", "dev")
 
 	ctx.Info("Yes, I would love to see")
@@ -117,6 +122,12 @@ func TestDefaultContextLogging(t *testing.T) {
 
 	ctx2 := WithFields(Fields{"ctx2": "ctx 2 value"})
 	ctx2.Print("hi fields")
+}
+
+func TestDefaultFieldsLogging(t *testing.T) {
+	_ = SetPattern("%time:2006-01-02 15:04:05.000 %level:-5 %appname %reqid %principal %message %fields")
+	WithField("appname", "value1").Info("Logging value 1")
+	WithFields(Fields{"appname": "value1", "key1": "key1value"}).Info("Logging value 1")
 }
 
 func testStdPanic(method, msg string) {

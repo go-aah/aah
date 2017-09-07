@@ -192,60 +192,14 @@ func (e *Entry) Panicln(v ...interface{}) {
 // WithFields method to add multiple key-value pairs into log.
 func (e *Entry) WithFields(fields Fields) *Entry {
 	ne := acquireEntry(e.logger)
-	for k, v := range e.Fields {
-		ne.Fields[k] = v
-	}
-	for k, v := range fields {
-		if k == "appname" {
-			ne.AppName = fmt.Sprint(v)
-			continue
-		}
-		if k == "reqid" {
-			ne.RequestID = fmt.Sprint(v)
-			continue
-		}
-		if k == "principal" {
-			ne.Principal = fmt.Sprint(v)
-			continue
-		}
-
-		ne.Fields[k] = v
-	}
+	ne.addFields(e.Fields)
+	ne.addFields(fields)
 	return ne
 }
 
 // WithField method to add single key-value into log
 func (e *Entry) WithField(key string, value interface{}) *Entry {
 	return e.WithFields(Fields{key: value})
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Entry level methods
-//___________________________________
-
-// IsLevelInfo method returns true if log level is INFO otherwise false.
-func (e *Entry) IsLevelInfo() bool {
-	return e.logger.level == LevelInfo
-}
-
-// IsLevelError method returns true if log level is ERROR otherwise false.
-func (e *Entry) IsLevelError() bool {
-	return e.logger.level == LevelError
-}
-
-// IsLevelWarn method returns true if log level is WARN otherwise false.
-func (e *Entry) IsLevelWarn() bool {
-	return e.logger.level == LevelWarn
-}
-
-// IsLevelDebug method returns true if log level is DEBUG otherwise false.
-func (e *Entry) IsLevelDebug() bool {
-	return e.logger.level == LevelDebug
-}
-
-// IsLevelTrace method returns true if log level is TRACE otherwise false.
-func (e *Entry) IsLevelTrace() bool {
-	return e.logger.level == LevelTrace
 }
 
 // Reset method resets the `Entry` values for reuse.
@@ -258,7 +212,7 @@ func (e *Entry) Reset() {
 	e.Message = ""
 	e.File = ""
 	e.Line = 0
-	e.Fields = make(map[string]interface{})
+	e.Fields = make(Fields)
 	e.logger = nil
 }
 
@@ -270,12 +224,28 @@ func (e *Entry) output(lvl level, msg string) {
 	e.Time = time.Now()
 	e.Level = lvl
 	e.Message = msg
+	e.addFields(e.logger.ctx)
 	e.logger.output(e)
+}
+
+func (e *Entry) addFields(fields Fields) {
+	for k, v := range fields {
+		switch k {
+		case "appname":
+			e.AppName = fmt.Sprint(v)
+		case "reqid":
+			e.RequestID = fmt.Sprint(v)
+		case "principal":
+			e.Principal = fmt.Sprint(v)
+		default:
+			e.Fields[k] = v
+		}
+	}
 }
 
 func newEntry() *Entry {
 	return &Entry{
-		Fields: make(map[string]interface{}),
+		Fields: make(Fields),
 	}
 }
 

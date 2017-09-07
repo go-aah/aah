@@ -61,6 +61,17 @@ var (
 )
 
 type (
+	// Logger is the object which logs the given message into recevier as per deifned
+	// format flags. Logger can be used simultaneously from multiple goroutines;
+	// it guarantees to serialize access to the Receivers.
+	Logger struct {
+		cfg      *config.Config
+		m        *sync.Mutex
+		level    level
+		receiver Receiver
+		ctx      Fields
+	}
+
 	// Receiver is the interface for pluggable log receiver.
 	// For e.g: Console, File
 	Receiver interface {
@@ -70,16 +81,6 @@ type (
 		IsCallerInfo() bool
 		Writer() io.Writer
 		Log(e *Entry)
-	}
-
-	// Logger is the object which logs the given message into recevier as per deifned
-	// format flags. Logger can be used simultaneously from multiple goroutines;
-	// it guarantees to serialize access to the Receivers.
-	Logger struct {
-		cfg      *config.Config
-		m        *sync.Mutex
-		level    level
-		receiver Receiver
 	}
 
 	// Logger and Entry log method compliance.
@@ -140,12 +141,33 @@ func New(cfg *config.Config) (*Logger, error) {
 		return nil, err
 	}
 
+	logger.ctx = make(Fields)
+
 	return logger, nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Logger methods
 //___________________________________
+
+// New method creates a child logger and adds structured context to it. Child
+// logger inherits parent logger context value on creation. Fields added
+// to the child don't affect the parent logger and vice versa. These context
+// values gets logged with each log entry.
+//
+// Also you can use method `AddContext` to context to the current logger.
+func (l *Logger) New(fields Fields) *Logger {
+	nl := *l
+	nl.AddContext(fields)
+	return &nl
+}
+
+// AddContext method to add context values into current logger.
+func (l *Logger) AddContext(fields Fields) {
+	for k, v := range fields {
+		l.ctx[k] = v
+	}
+}
 
 // Level method returns currently enabled logging level.
 func (l *Logger) Level() string {
@@ -307,7 +329,9 @@ func (l *Logger) WithFields(fields Fields) *Entry {
 
 // WithField method to add single key-value into log
 func (l *Logger) WithField(key string, value interface{}) *Entry {
-	return l.WithFields(Fields{key: value})
+	e := acquireEntry(l)
+	defer releaseEntry(e)
+	return e.WithField(key, value)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

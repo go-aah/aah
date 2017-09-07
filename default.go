@@ -117,6 +117,12 @@ func Panicln(v ...interface{}) {
 	dl.Panicln(v...)
 }
 
+// AddContext method to add context values into default logger.
+// These context values gets logged with each log entry.
+func AddContext(fields Fields) {
+	dl.AddContext(fields)
+}
+
 // WithFields method to add multiple key-value pairs into log.
 func WithFields(fields Fields) *Entry {
 	return dl.WithFields(fields)
@@ -130,6 +136,11 @@ func WithField(key string, value interface{}) *Entry {
 // Writer method returns the writer of default logger.
 func Writer() io.Writer {
 	return dl.receiver.Writer()
+}
+
+// SetWriter method sets the given writer into logger instance.
+func SetWriter(w io.Writer) {
+	dl.SetWriter(w)
 }
 
 // ToGoLogger method wraps the current log writer into Go Logger instance.

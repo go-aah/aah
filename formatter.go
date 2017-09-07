@@ -59,7 +59,7 @@ var (
 	// Usage of flag order is up to format composition.
 	//    level     - outputs INFO, DEBUG, ERROR, so on
 	//    appname   - outputs Application Name (aka instance name)
-	//    reqid     - outputs Request ID HTTP header value
+	//    reqid     - outputs Request ID from HTTP header
 	//    principal - outputs Logged-In subject primary principal
 	//    level     - outputs INFO, DEBUG, ERROR, so on
 	//    time      - outputs local time as per format supplied
@@ -143,7 +143,7 @@ func textFormatter(flags []ess.FmtFlagPart, entry *Entry) []byte {
 				buf.WriteString("fields[")
 				for k, v := range entry.Fields {
 					cnt--
-					buf.WriteString(fmt.Sprintf("%v=%v", k, v))
+					buf.WriteString(fmt.Sprintf("%v: %v", k, v))
 					if cnt != 0 {
 						buf.WriteString(", ")
 					}
