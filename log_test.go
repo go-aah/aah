@@ -28,7 +28,7 @@ func TestLogDefault(t *testing.T) {
 
 	logger.Print("This is print")
 	logger.Printf("This is print - %s", "yes")
-	logger.Println("This is print - %s", "yes")
+	logger.Println("This is print", "yes")
 
 	testPanic(logger, "panic", "this is panic")
 	testPanic(logger, "panicf", "this is panicf")
@@ -88,7 +88,7 @@ func testPanic(logger *Logger, method, msg string) {
 	} else if method == "panicf" {
 		logger.Panicf("%s", msg)
 	} else if method == "panicln" {
-		logger.Panicln("%s", msg)
+		logger.Panicln(msg)
 	}
 }
 

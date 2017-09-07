@@ -5,6 +5,7 @@
 package log
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -105,6 +106,8 @@ func (f *FileReceiver) IsCallerInfo() bool {
 // Log method logs the given entry values into file.
 func (f *FileReceiver) Log(entry *Entry) {
 	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	if f.isRotate() {
 		_ = f.rotateFile()
 
@@ -113,10 +116,12 @@ func (f *FileReceiver) Log(entry *Entry) {
 		f.stats.lines = 0
 		f.stats.bytes = 0
 	}
-	f.mu.Unlock()
 
-	msg := applyFormatter(f.formatter, f.flags, entry)
-	if len(msg) == 0 || msg[len(msg)-1] != '\n' {
+	var msg []byte
+	if f.formatter == textFmt {
+		msg = textFormatter(f.flags, entry)
+	} else {
+		msg, _ = json.Marshal(entry)
 		msg = append(msg, '\n')
 	}
 

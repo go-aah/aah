@@ -14,11 +14,11 @@
 // with features.
 //
 // 	log.Info("Welcome ", "to ", "aah ", "logger")
-// 	log.Infof("%v, %v, %v", "simple", "flexible", "non-blocking logger")
+// 	log.Infof("%v, %v, %v", "simple", "flexible", "logger")
 //
 // 	// Output:
 // 	2016-07-03 19:22:11.504 INFO  Welcome to aah logger
-// 	2016-07-03 19:22:11.504 INFO  simple, flexible, non-blocking logger
+// 	2016-07-03 19:22:11.504 INFO  simple, flexible, logger
 package log
 
 import (
@@ -29,7 +29,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"aahframework.org/config.v0"
 )
@@ -57,6 +56,8 @@ var (
 
 	// abstract it, can be unit tested
 	exit = os.Exit
+
+	_ loggerInterface = (*Logger)(nil)
 )
 
 type (
@@ -79,6 +80,35 @@ type (
 		m        *sync.Mutex
 		level    level
 		receiver Receiver
+	}
+
+	// Logger and Entry log method compliance.
+	loggerInterface interface {
+		Error(v ...interface{})
+		Errorf(format string, v ...interface{})
+		Warn(v ...interface{})
+		Warnf(format string, v ...interface{})
+		Info(v ...interface{})
+		Infof(format string, v ...interface{})
+		Debug(v ...interface{})
+		Debugf(format string, v ...interface{})
+		Trace(v ...interface{})
+		Tracef(format string, v ...interface{})
+
+		// Context/Field methods
+		WithFields(fields Fields) *Entry
+		WithField(key string, value interface{}) *Entry
+
+		// For standard logger drop-in replacement
+		Print(v ...interface{})
+		Printf(format string, v ...interface{})
+		Println(v ...interface{})
+		Fatal(v ...interface{})
+		Fatalf(format string, v ...interface{})
+		Fatalln(v ...interface{})
+		Panic(v ...interface{})
+		Panicf(format string, v ...interface{})
+		Panicln(v ...interface{})
 	}
 )
 
@@ -176,52 +206,108 @@ func (l *Logger) ToGoLogger() *slog.Logger {
 
 // Error logs message as `ERROR`. Arguments handled in the mananer of `fmt.Print`.
 func (l *Logger) Error(v ...interface{}) {
-	l.output(LevelError, 3, nil, v...)
+	if l.level >= LevelError {
+		e := acquireEntry(l)
+		e.Error(v...)
+		releaseEntry(e)
+	}
 }
 
 // Errorf logs message as `ERROR`. Arguments handled in the mananer of `fmt.Printf`.
 func (l *Logger) Errorf(format string, v ...interface{}) {
-	l.output(LevelError, 3, &format, v...)
+	if l.level >= LevelError {
+		e := acquireEntry(l)
+		e.Errorf(format, v...)
+		releaseEntry(e)
+	}
 }
 
 // Warn logs message as `WARN`. Arguments handled in the mananer of `fmt.Print`.
 func (l *Logger) Warn(v ...interface{}) {
-	l.output(LevelWarn, 3, nil, v...)
+	if l.level >= LevelWarn {
+		e := acquireEntry(l)
+		e.Warn(v...)
+		releaseEntry(e)
+	}
 }
 
 // Warnf logs message as `WARN`. Arguments handled in the mananer of `fmt.Printf`.
 func (l *Logger) Warnf(format string, v ...interface{}) {
-	l.output(LevelWarn, 3, &format, v...)
+	if l.level >= LevelWarn {
+		e := acquireEntry(l)
+		e.Warnf(format, v...)
+		releaseEntry(e)
+	}
 }
 
 // Info logs message as `INFO`. Arguments handled in the mananer of `fmt.Print`.
 func (l *Logger) Info(v ...interface{}) {
-	l.output(LevelInfo, 3, nil, v...)
+	if l.level >= LevelInfo {
+		e := acquireEntry(l)
+		e.Info(v...)
+		releaseEntry(e)
+	}
 }
 
 // Infof logs message as `INFO`. Arguments handled in the mananer of `fmt.Printf`.
 func (l *Logger) Infof(format string, v ...interface{}) {
-	l.output(LevelInfo, 3, &format, v...)
+	if l.level >= LevelInfo {
+		e := acquireEntry(l)
+		e.Infof(format, v...)
+		releaseEntry(e)
+	}
 }
 
 // Debug logs message as `DEBUG`. Arguments handled in the mananer of `fmt.Print`.
 func (l *Logger) Debug(v ...interface{}) {
-	l.output(LevelDebug, 3, nil, v...)
+	if l.level >= LevelDebug {
+		e := acquireEntry(l)
+		e.Debug(v...)
+		releaseEntry(e)
+	}
 }
 
 // Debugf logs message as `DEBUG`. Arguments handled in the mananer of `fmt.Printf`.
 func (l *Logger) Debugf(format string, v ...interface{}) {
-	l.output(LevelDebug, 3, &format, v...)
+	if l.level >= LevelDebug {
+		e := acquireEntry(l)
+		e.Debugf(format, v...)
+		releaseEntry(e)
+	}
 }
 
 // Trace logs message as `TRACE`. Arguments handled in the mananer of `fmt.Print`.
 func (l *Logger) Trace(v ...interface{}) {
-	l.output(LevelTrace, 3, nil, v...)
+	if l.level >= LevelTrace {
+		e := acquireEntry(l)
+		e.Trace(v...)
+		releaseEntry(e)
+	}
 }
 
 // Tracef logs message as `TRACE`. Arguments handled in the mananer of `fmt.Printf`.
 func (l *Logger) Tracef(format string, v ...interface{}) {
-	l.output(LevelTrace, 3, &format, v...)
+	if l.level >= LevelTrace {
+		e := acquireEntry(l)
+		e.Tracef(format, v...)
+		releaseEntry(e)
+	}
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Logger context/field methods
+//_______________________________________
+
+// WithFields method to add multiple key-value pairs into log.
+func (l *Logger) WithFields(fields Fields) *Entry {
+	e := acquireEntry(l)
+	defer releaseEntry(e)
+	return e.WithFields(fields)
+}
+
+// WithField method to add single key-value into log
+func (l *Logger) WithField(key string, value interface{}) *Entry {
+	return l.WithFields(Fields{key: value})
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -231,53 +317,65 @@ func (l *Logger) Tracef(format string, v ...interface{}) {
 
 // Print logs message as `INFO`. Arguments handled in the mananer of `fmt.Print`.
 func (l *Logger) Print(v ...interface{}) {
-	l.output(LevelInfo, 3, nil, v...)
+	e := acquireEntry(l)
+	e.Print(v...)
+	releaseEntry(e)
 }
 
 // Printf logs message as `INFO`. Arguments handled in the mananer of `fmt.Printf`.
 func (l *Logger) Printf(format string, v ...interface{}) {
-	l.output(LevelInfo, 3, &format, v...)
+	e := acquireEntry(l)
+	e.Printf(format, v...)
+	releaseEntry(e)
 }
 
 // Println logs message as `INFO`. Arguments handled in the mananer of `fmt.Printf`.
-func (l *Logger) Println(format string, v ...interface{}) {
-	l.output(LevelInfo, 3, &format, v...)
+func (l *Logger) Println(v ...interface{}) {
+	e := acquireEntry(l)
+	e.Println(v...)
+	releaseEntry(e)
 }
 
 // Fatal logs message as `FATAL` and call to os.Exit(1).
 func (l *Logger) Fatal(v ...interface{}) {
-	l.output(levelFatal, 3, nil, v...)
-	exit(1)
+	e := acquireEntry(l)
+	e.Fatal(v...)
+	releaseEntry(e)
 }
 
 // Fatalf logs message as `FATAL` and call to os.Exit(1).
 func (l *Logger) Fatalf(format string, v ...interface{}) {
-	l.output(levelFatal, 3, &format, v...)
-	exit(1)
+	e := acquireEntry(l)
+	e.Fatalf(format, v...)
+	releaseEntry(e)
 }
 
 // Fatalln logs message as `FATAL` and call to os.Exit(1).
 func (l *Logger) Fatalln(v ...interface{}) {
-	l.output(levelFatal, 3, nil, v...)
-	exit(1)
+	e := acquireEntry(l)
+	e.Fatalln(v...)
+	releaseEntry(e)
 }
 
 // Panic logs message as `PANIC` and call to panic().
 func (l *Logger) Panic(v ...interface{}) {
-	l.output(levelPanic, 3, nil, v...)
-	panic("")
+	e := acquireEntry(l)
+	e.Panic(v...)
+	releaseEntry(e)
 }
 
 // Panicf logs message as `PANIC` and call to panic().
 func (l *Logger) Panicf(format string, v ...interface{}) {
-	l.output(levelPanic, 3, &format, v...)
-	panic(fmt.Sprintf(format, v...))
+	e := acquireEntry(l)
+	e.Panicf(format, v...)
+	releaseEntry(e)
 }
 
 // Panicln logs message as `PANIC` and call to panic().
-func (l *Logger) Panicln(format string, v ...interface{}) {
-	l.output(levelPanic, 3, &format, v...)
-	panic(fmt.Sprintf(format, v...))
+func (l *Logger) Panicln(v ...interface{}) {
+	e := acquireEntry(l)
+	e.Panicln(v...)
+	releaseEntry(e)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -313,29 +411,12 @@ func (l *Logger) IsLevelTrace() bool {
 // Unexported methods
 //___________________________________
 
-// output method checks the level, formats the arguments and call to configured
-// Log receivers.
-func (l *Logger) output(level level, calldepth int, format *string, v ...interface{}) {
-	if level > l.level {
-		return
-	}
-
-	entry := acquireEntry()
-	defer releaseEntry(entry)
-	entry.Time = time.Now()
-	entry.Level = level
-	if format == nil {
-		entry.Message = fmt.Sprint(v...)
-	} else {
-		entry.Message = fmt.Sprintf(*format, v...)
-	}
-
+func (l *Logger) output(e *Entry) {
 	if l.receiver.IsCallerInfo() {
-		entry.File, entry.Line = fetchCallerInfo(calldepth)
+		e.File, e.Line = fetchCallerInfo()
 	}
-
-	l.receiver.Log(entry)
+	l.receiver.Log(e)
 
 	// Execute logger hooks
-	go executeHooks(*entry)
+	go executeHooks(*e)
 }

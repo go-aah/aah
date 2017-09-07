@@ -38,6 +38,11 @@ var (
 // Unexported methods
 //___________________________________
 
+// String level string interface.
+func (l level) String() string {
+	return levelToLevelName[l]
+}
+
 func levelByName(name string) level {
 	if level, ok := levelNameToLevel[strings.ToUpper(name)]; ok {
 		return level
@@ -55,13 +60,32 @@ func isFmtFlagExists(flags []ess.FmtFlagPart, flag ess.FmtFlag) bool {
 	return false
 }
 
-func fetchCallerInfo(calldepth int) (string, int) {
-	_, file, line, ok := runtime.Caller(calldepth)
-	if !ok {
-		file = "???"
-		line = 0
+func fetchCallerInfo() (string, int) {
+	// dynamic call depth calculation; skip 3 known path and get
+	// maximum 5 which would cover log package.
+	pc := make([]uintptr, 5)
+	n := runtime.Callers(3, pc)
+	if n == 0 {
+		// No pcs available. Stop now.
+		// This can happen if the first argument to runtime.Callers is large.
+		return "???", 0
 	}
-	return file, line
+
+	pc = pc[:n] // pass only valid pcs to runtime.CallersFrames
+	frames := runtime.CallersFrames(pc)
+
+	// Loop to get frames.
+	// A fixed number of pcs can expand to an indefinite number of Frames.
+	for {
+		frame, _ := frames.Next()
+
+		// Unwinding for aah log pkg otherwise stop.
+		if strings.Contains(frame.File, "aahframework.org/log") {
+			continue
+		}
+
+		return frame.File, frame.Line
+	}
 }
 
 // isCallerInfo method to identify to fetch caller or not.

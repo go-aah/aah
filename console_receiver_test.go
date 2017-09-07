@@ -20,6 +20,7 @@ func TestConsoleLoggerTextJSON(t *testing.T) {
     receiver = "console"
     level = "debug"
     pattern = "%utctime:2006-01-02 15:04:05.000 %level:-5 %longfile %line %custom:- %message"
+		color = true
   }
   `
 	testConsoleLogger(t, textConfigStr1)
@@ -29,7 +30,7 @@ func TestConsoleLoggerTextJSON(t *testing.T) {
   log {
     receiver = "console"
     level = "debug"
-    pattern = "%time:2006-01-02 15:04:05.000 %level:-5 %shortfile %line %custom:- %message"
+    pattern = "%time:2006-01-02 15:04:05.000 %appname %reqid %principal %level:-5 %shortfile %line %custom:- %message"
   }
   `
 	testConsoleLogger(t, textConfigStr2)
@@ -112,13 +113,13 @@ func testConsoleLogger(t *testing.T, cfgStr string) {
 	logger.Trace("I shoudn't see this msg, because standard logger level is DEBUG")
 	logger.Tracef("I shoudn't see this msg, because standard logger level is DEBUG: %v", 4)
 
-	logger.Debug("I would like to see this message, debug is useful for dev")
+	logger.WithField("appname", "testlogapp").Debug("I would like to see this message, debug is useful for dev")
 	logger.Debugf("I would like to see this message, debug is useful for %v", "dev")
 
-	logger.Info("Yes, I would love to see")
+	logger.WithField("reqid", "40139CA6368607085BF6").Info("Yes, I would love to see")
 	logger.Infof("Yes, I would love to %v", "see")
 
-	logger.Warn("Yes, yes it's an warning")
+	logger.WithField("principal", "jeevanandam").Warn("Yes, yes it's an warning")
 	logger.Warnf("Yes, yes it's an %v", "warning")
 
 	logger.Error("Yes, yes, yes - finally an error")
@@ -127,7 +128,7 @@ func testConsoleLogger(t *testing.T, cfgStr string) {
 	exit = func(code int) {}
 	logger.Fatal("Yes, yes, yes - at last fatal")
 	logger.Fatalf("Yes, yes, yes - %v", "at last fatal")
-	logger.Fatalln("Yes, yes, yes - %v", "at last fatal")
+	logger.Fatalln("Yes, yes, yes ", "at last fatal")
 	exit = os.Exit
 
 	assert.NotNil(t, logger.ToGoLogger())

@@ -5,14 +5,13 @@
 package log
 
 import (
-	"fmt"
 	"io"
 	slog "log"
 
 	"aahframework.org/config.v0"
 )
 
-var std *Logger
+var dl *Logger
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Logger methods
@@ -20,52 +19,52 @@ var std *Logger
 
 // Error logs message as `ERROR`. Arguments handled in the mananer of `fmt.Print`.
 func Error(v ...interface{}) {
-	std.output(LevelError, 3, nil, v...)
+	dl.Error(v...)
 }
 
 // Errorf logs message as `ERROR`. Arguments handled in the mananer of `fmt.Printf`.
 func Errorf(format string, v ...interface{}) {
-	std.output(LevelError, 3, &format, v...)
+	dl.Errorf(format, v...)
 }
 
 // Warn logs message as `WARN`. Arguments handled in the mananer of `fmt.Print`.
 func Warn(v ...interface{}) {
-	std.output(LevelWarn, 3, nil, v...)
+	dl.Warn(v...)
 }
 
 // Warnf logs message as `WARN`. Arguments handled in the mananer of `fmt.Printf`.
 func Warnf(format string, v ...interface{}) {
-	std.output(LevelWarn, 3, &format, v...)
+	dl.Warnf(format, v...)
 }
 
 // Info logs message as `INFO`. Arguments handled in the mananer of `fmt.Print`.
 func Info(v ...interface{}) {
-	std.output(LevelInfo, 3, nil, v...)
+	dl.Info(v...)
 }
 
 // Infof logs message as `INFO`. Arguments handled in the mananer of `fmt.Printf`.
 func Infof(format string, v ...interface{}) {
-	std.output(LevelInfo, 3, &format, v...)
+	dl.Infof(format, v...)
 }
 
 // Debug logs message as `DEBUG`. Arguments handled in the mananer of `fmt.Print`.
 func Debug(v ...interface{}) {
-	std.output(LevelDebug, 3, nil, v...)
+	dl.Debug(v...)
 }
 
 // Debugf logs message as `DEBUG`. Arguments handled in the mananer of `fmt.Printf`.
 func Debugf(format string, v ...interface{}) {
-	std.output(LevelDebug, 3, &format, v...)
+	dl.Debugf(format, v...)
 }
 
 // Trace logs message as `TRACE`. Arguments handled in the mananer of `fmt.Print`.
 func Trace(v ...interface{}) {
-	std.output(LevelTrace, 3, nil, v...)
+	dl.Trace(v...)
 }
 
 // Tracef logs message as `TRACE`. Arguments handled in the mananer of `fmt.Printf`.
 func Tracef(format string, v ...interface{}) {
-	std.output(LevelTrace, 3, &format, v...)
+	dl.Tracef(format, v...)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -75,78 +74,82 @@ func Tracef(format string, v ...interface{}) {
 
 // Print logs message as `INFO`. Arguments handled in the mananer of `fmt.Print`.
 func Print(v ...interface{}) {
-	std.output(LevelInfo, 3, nil, v...)
+	dl.Print(v...)
 }
 
 // Printf logs message as `INFO`. Arguments handled in the mananer of `fmt.Printf`.
 func Printf(format string, v ...interface{}) {
-	std.output(LevelInfo, 3, &format, v...)
+	dl.Printf(format, v...)
 }
 
 // Println logs message as `INFO`. Arguments handled in the mananer of `fmt.Printf`.
-func Println(format string, v ...interface{}) {
-	std.output(LevelInfo, 3, &format, v...)
+func Println(v ...interface{}) {
+	dl.Println(v...)
 }
 
 // Fatal logs message as `FATAL` and call to os.Exit(1).
 func Fatal(v ...interface{}) {
-	std.output(levelFatal, 3, nil, v...)
-	exit(1)
+	dl.Fatal(v...)
 }
 
 // Fatalf logs message as `FATAL` and call to os.Exit(1).
 func Fatalf(format string, v ...interface{}) {
-	std.output(levelFatal, 3, &format, v...)
-	exit(1)
+	dl.Fatalf(format, v...)
 }
 
 // Fatalln logs message as `FATAL` and call to os.Exit(1).
 func Fatalln(v ...interface{}) {
-	std.output(levelFatal, 3, nil, v...)
-	exit(1)
+	dl.Fatalln(v...)
 }
 
 // Panic logs message as `PANIC` and call to panic().
 func Panic(v ...interface{}) {
-	std.output(levelPanic, 3, nil, v...)
-	panic("")
+	dl.Panic(v...)
 }
 
 // Panicf logs message as `PANIC` and call to panic().
 func Panicf(format string, v ...interface{}) {
-	std.output(levelPanic, 3, &format, v...)
-	panic(fmt.Sprintf(format, v...))
+	dl.Panicf(format, v...)
 }
 
 // Panicln logs message as `PANIC` and call to panic().
-func Panicln(format string, v ...interface{}) {
-	std.output(levelPanic, 3, &format, v...)
-	panic(fmt.Sprintf(format, v...))
+func Panicln(v ...interface{}) {
+	dl.Panicln(v...)
+}
+
+// WithFields method to add multiple key-value pairs into log.
+func WithFields(fields Fields) *Entry {
+	return dl.WithFields(fields)
+}
+
+// WithField method to add single key-value into log
+func WithField(key string, value interface{}) *Entry {
+	return dl.WithField(key, value)
 }
 
 // Writer method returns the writer of default logger.
 func Writer() io.Writer {
-	return std.receiver.Writer()
+	return dl.receiver.Writer()
 }
 
 // ToGoLogger method wraps the current log writer into Go Logger instance.
 func ToGoLogger() *slog.Logger {
-	return std.ToGoLogger()
+	return dl.ToGoLogger()
 }
 
 // SetDefaultLogger method sets the given logger instance as default logger.
 func SetDefaultLogger(l *Logger) {
-	std = l
+	dl = l
 }
 
 // SetLevel method sets log level for default logger.
 func SetLevel(level string) error {
-	return std.SetLevel(level)
+	return dl.SetLevel(level)
 }
 
 // SetPattern method sets the log format pattern for default logger.
 func SetPattern(pattern string) error {
-	return std.SetPattern(pattern)
+	return dl.SetPattern(pattern)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -155,35 +158,35 @@ func SetPattern(pattern string) error {
 
 // Level method returns currently enabled logging level.
 func Level() string {
-	return std.Level()
+	return dl.Level()
 }
 
 // IsLevelInfo method returns true if log level is INFO otherwise false.
 func IsLevelInfo() bool {
-	return std.IsLevelInfo()
+	return dl.IsLevelInfo()
 }
 
 // IsLevelError method returns true if log level is ERROR otherwise false.
 func IsLevelError() bool {
-	return std.IsLevelError()
+	return dl.IsLevelError()
 }
 
 // IsLevelWarn method returns true if log level is WARN otherwise false.
 func IsLevelWarn() bool {
-	return std.IsLevelWarn()
+	return dl.IsLevelWarn()
 }
 
 // IsLevelDebug method returns true if log level is DEBUG otherwise false.
 func IsLevelDebug() bool {
-	return std.IsLevelDebug()
+	return dl.IsLevelDebug()
 }
 
 // IsLevelTrace method returns true if log level is TRACE otherwise false.
 func IsLevelTrace() bool {
-	return std.IsLevelTrace()
+	return dl.IsLevelTrace()
 }
 
 func init() {
 	cfg, _ := config.ParseString("log { }")
-	std, _ = New(cfg)
+	dl, _ = New(cfg)
 }

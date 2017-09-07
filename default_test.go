@@ -13,12 +13,8 @@ import (
 )
 
 func TestDefaultLogger(t *testing.T) {
-	cfg, _ := config.ParseString(`
-  log {
-    pattern = "%utctime:2006-01-02 15:04:05.000 %level:-5 %longfile %line %custom:- %message"
-  }
-  `)
-	std, _ = New(cfg)
+	err := dl.SetPattern("%utctime:2006-01-02 15:04:05.000 %level:-5 %longfile %line %custom:- %message")
+	assert.Nil(t, err)
 
 	Print("welcome print")
 	Printf("welcome printf")
@@ -52,7 +48,7 @@ func TestDefaultLogger(t *testing.T) {
 
 	exit = func(code int) {}
 	Fatal("fatal msg 1")
-	Fatalln("fatal msg %v", 2)
+	Fatalln("fatal msg", 2)
 	Fatalf("fatal msg %v", 3)
 	exit = os.Exit
 }
@@ -70,6 +66,59 @@ func TestDefaultLoggerMisc(t *testing.T) {
 	assert.Nil(t, SetPattern("%level:-5 %message"))
 }
 
+func TestDefaultContextLogging(t *testing.T) {
+	_ = SetPattern("%utctime:2006-01-02 15:04:05.000 %level:-5 %longfile %line %custom:- %message %fields")
+	_ = SetLevel("trace")
+
+	Trace("I would like to see this message, trace is more fine grained for dev")
+	Tracef("I would like to see this message, trace is more fine grained for dev: %v", 4)
+
+	Debug("I would like to see this message, debug is useful for dev")
+	Debugf("I would like to see this message, debug is useful for %v", "dev")
+
+	Info("Yes, I would love to see")
+	Infof("Yes, I would love to %v", "see")
+
+	Warn("Yes, yes it's an warning")
+	Warnf("Yes, yes it's an %v", "warning")
+
+	Error("Yes, yes, yes - finally an error")
+	Errorf("Yes, yes, yes - %v", "finally an error")
+
+	exit = func(code int) {}
+	Fatal("Yes, yes, yes - at last fatal")
+	Fatalf("Yes, yes, yes - %v", "at last fatal")
+	Fatalln("Yes, yes, yes ", "at last fatal")
+	exit = os.Exit
+
+	// With Context
+	ctx := WithField("ctx1", "ctx1 value").WithFields(Fields{"ctx2": "ctx 2 value"})
+
+	ctx.Trace("I would like to see this message, trace is more fine grained for dev")
+	ctx.Tracef("I would like to see this message, trace is more fine grained for dev: %v", 4)
+
+	ctx.Debug("I would like to see this message, debug is useful for dev")
+	ctx.Debugf("I would like to see this message, debug is useful for %v", "dev")
+
+	ctx.Info("Yes, I would love to see")
+	ctx.Infof("Yes, I would love to %v", "see")
+
+	ctx.Warn("Yes, yes it's an warning")
+	ctx.Warnf("Yes, yes it's an %v", "warning")
+
+	ctx.Error("Yes, yes, yes - finally an error")
+	ctx.Errorf("Yes, yes, yes - %v", "finally an error")
+
+	exit = func(code int) {}
+	ctx.Fatal("Yes, yes, yes - at last fatal")
+	ctx.Fatalf("Yes, yes, yes - %v", "at last fatal")
+	ctx.Fatalln("Yes, yes, yes ", "at last fatal")
+	exit = os.Exit
+
+	ctx2 := WithFields(Fields{"ctx2": "ctx 2 value"})
+	ctx2.Print("hi fields")
+}
+
 func testStdPanic(method, msg string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -82,6 +131,6 @@ func testStdPanic(method, msg string) {
 	} else if method == "panicf" {
 		Panicf("%s", msg)
 	} else if method == "panicln" {
-		Panicln("%s", msg)
+		Panicln(msg)
 	}
 }
