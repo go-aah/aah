@@ -52,15 +52,18 @@ func (s *Site) GetInvolved() {
 }
 
 func (s *Site) Credits() {
-	s.Reply().Header("X-Custom-Header", "custom value").
+	s.Log().Info("Credits action called")
+	s.Reply().
+		Header("X-Custom-Header", "custom value").
 		DisableGzip().
-		JSON(map[string]interface{}{
+		JSON(Data{
 			"message": "This is credits page",
 			"code":    1000001,
 		})
 }
 
 func (s *Site) ContributeCode() {
+	s.Log().Info("ContributeCode action called")
 	panic("panic flow testing")
 }
 
@@ -81,12 +84,14 @@ func (s *Site) AfterGetInvolved() {
 }
 
 func (s *Site) AutoBind(id int, info *sample) {
+	s.Log().Info("AutoBind action called")
 	log.Info("ID:", id)
 	log.Infof("Info: %+v", info)
 	s.Reply().Text("Data have been recevied successfully")
 }
 
 func (s *Site) JSONRequest(info *sampleJSON) {
+	s.Log().Info("JSONRequest action called")
 	log.Infof("JSON Info: %+v", info)
 	s.Reply().JSON(Data{
 		"success": true,
