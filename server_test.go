@@ -87,8 +87,8 @@ func TestServerHTTPRedirect(t *testing.T) {
 	cfg.SetString("server.ssl.redirect_http.port", "8080")
 	go startHTTPRedirect(cfg)
 
-	// http.NewRequest("GET", "http://localhost:8080/", nil)
-	resp, err := http.Get("http://localhost:8080/contactus.html?utm_source=footer")
+	// send request to redirect server
+	resp, err := http.Get("http://localhost:8080/contact-us.html?utm_source=footer")
 	assert.Nil(t, resp)
 	assert.True(t, strings.Contains(err.Error(), "localhost:8443"))
 }
