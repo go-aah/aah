@@ -11,7 +11,6 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
-	"aahframework.org/security.v0/acrypto"
 	"aahframework.org/security.v0/authc"
 	"aahframework.org/security.v0/authz"
 )
@@ -77,9 +76,8 @@ func (b *BasicAuth) Init(cfg *config.Config, keyName string) error {
 		}
 	}
 
-	pencoder := b.appCfg.StringDefault(b.keyPrefix+".password_encoder.type", "bcrypt")
 	var err error
-	b.passwordEncoder, err = acrypto.CreatePasswordEncoder(pencoder)
+	b.passwordEncoder, err = passwordAlgorithm(b.appCfg, b.keyPrefix)
 
 	return err
 }

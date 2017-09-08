@@ -12,6 +12,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
+	"aahframework.org/security.v0-unstable/acrypto"
 	"aahframework.org/security.v0/authc"
 	"aahframework.org/security.v0/authz"
 	"aahframework.org/test.v0/assert"
@@ -37,6 +38,8 @@ func TestSchemeBasicAuthFileRealm(t *testing.T) {
 	// BasicAuth initialize and assertion
 	basicAuth := BasicAuth{}
 	cfg, _ := config.ParseString(securityAuthConfigStr)
+
+	_ = acrypto.InitPasswordEncoders(cfg)
 
 	err := basicAuth.Init(cfg, "basic_auth")
 	assert.NotNil(t, err)

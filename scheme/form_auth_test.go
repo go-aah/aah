@@ -12,6 +12,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
+	"aahframework.org/security.v0-unstable/acrypto"
 	"aahframework.org/security.v0/authc"
 	"aahframework.org/security.v0/authz"
 	"aahframework.org/test.v0/assert"
@@ -67,6 +68,10 @@ func TestSchemeFormAuth(t *testing.T) {
         # Authorizer is used to get Subject authorization information,
         # such as Roles and Permissions
         authorizer = "security/Authorization"
+
+				password_encoder {
+					type = "bcrypt"
+				}
       }
     }
   }
@@ -75,6 +80,9 @@ func TestSchemeFormAuth(t *testing.T) {
 	// FormAuth initialize and assertion
 	formAuth := FormAuth{}
 	cfg, _ := config.ParseString(securityAuthConfigStr)
+
+	_ = acrypto.InitPasswordEncoders(cfg)
+
 	err := formAuth.Init(cfg, "form_auth")
 
 	assert.Nil(t, err)
@@ -137,4 +145,37 @@ func TestSchemeFormAuth(t *testing.T) {
 	authcInfo, err = formAuth.DoAuthenticate(authcToken)
 	assert.NotNil(t, err)
 	assert.True(t, err == authc.ErrAuthenticationFailed)
+}
+
+func TestSchemeEnablePasswordAlgorithm(t *testing.T) {
+	securityAuthConfigStr := `
+  security {
+    auth_schemes {
+      # HTTP Form Auth Scheme
+      form_auth {
+        scheme = "form"
+
+        # Authenticator is used to validate the subject (aka User)
+        authenticator = "security/Authentication"
+
+        # Authorizer is used to get Subject authorization information,
+        # such as Roles and Permissions
+        authorizer = "security/Authorization"
+
+				password_encoder {
+					type = "scrypt"
+				}
+      }
+    }
+  }
+  `
+
+	// FormAuth initialize and assertion
+	formAuth := FormAuth{}
+	cfg, _ := config.ParseString(securityAuthConfigStr)
+
+	_ = acrypto.InitPasswordEncoders(cfg)
+
+	err := formAuth.Init(cfg, "form_auth")
+	assert.True(t, strings.HasPrefix(err.Error(), "'scrypt' password algorithm is not enabled"))
 }

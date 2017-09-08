@@ -5,10 +5,13 @@
 package scheme
 
 import (
+	"fmt"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
+	"aahframework.org/log.v0"
+	"aahframework.org/security.v0-unstable/acrypto"
 	"aahframework.org/security.v0/authc"
 	"aahframework.org/security.v0/authz"
 )
@@ -57,4 +60,25 @@ func New(authSchemeType string) Schemer {
 		return &GenericAuth{}
 	}
 	return nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//___________________________________
+
+func passwordAlgorithm(cfg *config.Config, keyPrefix string) (acrypto.PasswordEncoder, error) {
+	var passAlg string
+	if alg, found := cfg.String(keyPrefix + ".password_encoder.type"); found {
+		// DEPRECATED, to be removed in v1.0
+		log.Warnf("Config '%s.password_encoder.type' is deprecated in v0.9, use '%s.password_encoder = \"%s\"' instead", keyPrefix, keyPrefix, alg)
+		passAlg = alg
+	} else {
+		passAlg = cfg.StringDefault(keyPrefix+".password_encoder", "bcrypt")
+	}
+
+	passwordEncoder := acrypto.PasswordAlgorithm(passAlg)
+	if passwordEncoder == nil {
+		return nil, fmt.Errorf("'%s' password algorithm is not enabled, please refer to https://docs.aahframework.org/password_encoders.html", passAlg)
+	}
+	return passwordEncoder, nil
 }
