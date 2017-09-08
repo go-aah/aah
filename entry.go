@@ -16,7 +16,7 @@ import (
 var (
 	entryPool *sync.Pool
 	bufPool   *sync.Pool
-	_         loggerInterface = (*Entry)(nil)
+	_         Loggerer = (*Entry)(nil)
 )
 
 // Fields type is used to log fields values in the logger.
@@ -199,7 +199,7 @@ func (e *Entry) Panicln(v ...interface{}) {
 //_______________________________________
 
 // WithFields method to add multiple key-value pairs into log.
-func (e *Entry) WithFields(fields Fields) *Entry {
+func (e *Entry) WithFields(fields Fields) Loggerer {
 	ne := acquireEntry(e.logger)
 	ne.addFields(e.Fields)
 	ne.addFields(fields)
@@ -207,7 +207,7 @@ func (e *Entry) WithFields(fields Fields) *Entry {
 }
 
 // WithField method to add single key-value into log
-func (e *Entry) WithField(key string, value interface{}) *Entry {
+func (e *Entry) WithField(key string, value interface{}) Loggerer {
 	return e.WithFields(Fields{key: value})
 }
 

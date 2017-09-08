@@ -57,7 +57,7 @@ var (
 	// abstract it, can be unit tested
 	exit = os.Exit
 
-	_ loggerInterface = (*Logger)(nil)
+	_ Loggerer = (*Logger)(nil)
 )
 
 type (
@@ -83,8 +83,8 @@ type (
 		Log(e *Entry)
 	}
 
-	// Logger and Entry log method compliance.
-	loggerInterface interface {
+	// Loggerer interface is for Logger and Entry log method implementation.
+	Loggerer interface {
 		Error(v ...interface{})
 		Errorf(format string, v ...interface{})
 		Warn(v ...interface{})
@@ -97,8 +97,8 @@ type (
 		Tracef(format string, v ...interface{})
 
 		// Context/Field methods
-		WithFields(fields Fields) *Entry
-		WithField(key string, value interface{}) *Entry
+		WithFields(fields Fields) Loggerer
+		WithField(key string, value interface{}) Loggerer
 
 		// For standard logger drop-in replacement
 		Print(v ...interface{})
@@ -320,15 +320,15 @@ func (l *Logger) Tracef(format string, v ...interface{}) {
 // Logger context/field methods
 //_______________________________________
 
-// WithFields method to add multiple key-value pairs into log.
-func (l *Logger) WithFields(fields Fields) *Entry {
+// WithFields method to add multiple key-value pairs into log entry.
+func (l *Logger) WithFields(fields Fields) Loggerer {
 	e := acquireEntry(l)
 	defer releaseEntry(e)
 	return e.WithFields(fields)
 }
 
-// WithField method to add single key-value into log
-func (l *Logger) WithField(key string, value interface{}) *Entry {
+// WithField method to add single key-value into log entry.
+func (l *Logger) WithField(key string, value interface{}) Loggerer {
 	e := acquireEntry(l)
 	defer releaseEntry(e)
 	return e.WithField(key, value)

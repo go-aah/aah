@@ -124,12 +124,12 @@ func AddContext(fields Fields) {
 }
 
 // WithFields method to add multiple key-value pairs into log.
-func WithFields(fields Fields) *Entry {
+func WithFields(fields Fields) Loggerer {
 	return dl.WithFields(fields)
 }
 
 // WithField method to add single key-value into log
-func WithField(key string, value interface{}) *Entry {
+func WithField(key string, value interface{}) Loggerer {
 	return dl.WithField(key, value)
 }
 
