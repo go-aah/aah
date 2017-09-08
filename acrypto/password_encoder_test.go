@@ -5,26 +5,21 @@
 package acrypto
 
 import (
-	"strings"
 	"testing"
 
 	"aahframework.org/test.v0/assert"
 )
 
-func TestCryptoPasswordEncoder(t *testing.T) {
-	encoder, err := CreatePasswordEncoder("bcrypt")
+func TestCryptoPasswordAlgrothim(t *testing.T) {
+	passEncoders = make(map[string]PasswordEncoder)
+	err := AddPasswordAlgorithm("test1", nil)
+	assert.Equal(t, ErrPasswordEncoderIsNil, err)
+
+	err = AddPasswordAlgorithm("bcrypt", &BcryptEncoder{})
 	assert.Nil(t, err)
-	assert.NotNil(t, encoder)
 
-	result := encoder.Compare([]byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6"), []byte("welcome123"))
-	assert.True(t, result)
+	err = AddPasswordAlgorithm("bcrypt", &BcryptEncoder{})
+	assert.Equal(t, "acrypto: password encoder 'bcrypt' is already added", err.Error())
 
-	result = encoder.Compare([]byte("$2y$10$2A4GsJ6SmLAMvDe8XmTam.MSkKojdobBVJfIU7GiyoM.lWt.XV3H6"), []byte("nomatch"))
-	assert.False(t, result)
-
-	// Unsupport password encoder type
-	encoder, err = CreatePasswordEncoder("sha256")
-	assert.NotNil(t, err)
-	assert.True(t, strings.Contains(err.Error(), "acrypto: unsupported encoder type"))
-	assert.Nil(t, encoder)
+	assert.Nil(t, PasswordAlgorithm("notexists"))
 }

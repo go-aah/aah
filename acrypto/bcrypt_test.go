@@ -7,14 +7,31 @@ package acrypto
 import (
 	"testing"
 
-	"golang.org/x/crypto/bcrypt"
-
+	"aahframework.org/config.v0"
 	"aahframework.org/test.v0/assert"
 )
 
 func TestBcryptHashing(t *testing.T) {
-	bcryptEncoder := BcryptEncoder{}
-	hashPassword, _ := bcrypt.GenerateFromPassword([]byte("welcome@123"), 10)
-	result := bcryptEncoder.Compare(hashPassword, []byte("welcome@123"))
+	passEncoders = make(map[string]PasswordEncoder)
+	cfg, _ := config.ParseString(`
+		security {
+			password_encoder {
+		    bcrypt {
+		      cost = 10
+		    }
+			}
+		}
+	`)
+
+	err := InitPasswordEncoders(cfg)
+	assert.Nil(t, err)
+
+	encoder := PasswordAlgorithm("bcrypt")
+	assert.NotNil(t, encoder)
+
+	hashPassword, err := encoder.Generate([]byte("welcome@123"))
+	assert.Nil(t, err)
+
+	result := encoder.Compare(hashPassword, []byte("welcome@123"))
 	assert.True(t, result)
 }
