@@ -5,10 +5,13 @@
 package aah
 
 import (
+	"net/http"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/test.v0/assert"
 )
@@ -67,4 +70,25 @@ func TestServerStart2(t *testing.T) {
 	})
 	AppConfig().SetString("server.port", "80")
 	Start()
+}
+
+func TestServerHTTPRedirect(t *testing.T) {
+	cfg, _ := config.ParseString("")
+
+	// redirect not enabled
+	startHTTPRedirect(cfg)
+
+	// redirect enabled but port not provided
+	cfg.SetBool("server.ssl.redirect_http.enable", true)
+	cfg.SetString("server.port", "8443")
+	startHTTPRedirect(cfg)
+
+	// redirect enabled with port
+	cfg.SetString("server.ssl.redirect_http.port", "8080")
+	go startHTTPRedirect(cfg)
+
+	// http.NewRequest("GET", "http://localhost:8080/", nil)
+	resp, err := http.Get("http://localhost:8080/contactus.html?utm_source=footer")
+	assert.Nil(t, resp)
+	assert.True(t, strings.Contains(err.Error(), "localhost:8443"))
 }

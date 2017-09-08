@@ -189,6 +189,9 @@ func startHTTPS() {
 		aahServer.TLSConfig.NextProtos = append(aahServer.TLSConfig.NextProtos, "h2")
 	}
 
+	// start HTTP redirect server if enabled
+	go startHTTPRedirect(AppConfig())
+
 	printStartupNote()
 	if err := aahServer.ListenAndServeTLS(appSSLCert, appSSLKey); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
@@ -198,6 +201,34 @@ func startHTTPS() {
 func startHTTP() {
 	printStartupNote()
 	if err := aahServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Error(err)
+	}
+}
+
+func startHTTPRedirect(cfg *config.Config) {
+	keyPrefix := "server.ssl.redirect_http"
+	if !cfg.BoolDefault(keyPrefix+".enable", false) {
+		return
+	}
+
+	address := cfg.StringDefault("server.address", "")
+	toPort := parsePort(cfg.StringDefault("server.port", appDefaultHTTPPort))
+	fromPort, found := cfg.String(keyPrefix + ".port")
+	if !found {
+		log.Errorf("'%s.port' is required value, unable to start redirect server", keyPrefix)
+		return
+	}
+	redirectCode := cfg.IntDefault(keyPrefix+".code", http.StatusTemporaryRedirect)
+
+	log.Infof("aah go redirect server running on %s:%s", address, fromPort)
+	if err := http.ListenAndServe(address+":"+fromPort, http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			target := "https://" + parseHost(r.Host, toPort) + r.URL.Path
+			if len(r.URL.RawQuery) > 0 {
+				target += "?" + r.URL.RawQuery
+			}
+			http.Redirect(w, r, target, redirectCode)
+		})); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
 }

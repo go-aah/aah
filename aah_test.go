@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -248,4 +249,16 @@ func TestAahAppInit(t *testing.T) {
 	// reset it
 	appConfig = nil
 	appBaseDir = ""
+}
+
+func TestAahMisc(t *testing.T) {
+	assert.Equal(t, int64(0), firstNonZeroInt64(0))
+
+	assert.True(t, kind(reflect.TypeOf(sample{})) == reflect.Struct)
+
+	host := parseHost("localhost:::8080", "")
+	assert.Equal(t, "localhost:::8080", host)
+
+	host = parseHost("localhost:8080", "")
+	assert.Equal(t, "localhost", host)
 }
