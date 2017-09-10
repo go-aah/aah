@@ -176,6 +176,8 @@ func NewWithContext(cfg *config.Config, ctx Fields) (*Logger, error) {
 // Also you can use method `AddContext` to context to the current logger.
 func (l *Logger) New(fields Fields) *Logger {
 	nl := *l
+	nl.ctx = make(Fields)
+	nl.AddContext(l.ctx)
 	nl.AddContext(fields)
 	return &nl
 }
@@ -476,6 +478,7 @@ func (l *Logger) output(e *Entry) {
 	l.receiver.Log(e)
 
 	// Execute logger hooks
+	fmt.Println("Hooks:", l.hooks)
 	go l.executeHooks(*e)
 }
 
