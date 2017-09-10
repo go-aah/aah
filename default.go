@@ -202,6 +202,16 @@ func IsLevelTrace() bool {
 	return dl.IsLevelTrace()
 }
 
+// IsLevelFatal method returns true if log level is FATAL otherwise false.
+func IsLevelFatal() bool {
+	return dl.IsLevelFatal()
+}
+
+// IsLevelPanic method returns true if log level is PANIC otherwise false.
+func IsLevelPanic() bool {
+	return dl.IsLevelPanic()
+}
+
 func init() {
 	cfg, _ := config.ParseString("log { }")
 	dl, _ = New(cfg)

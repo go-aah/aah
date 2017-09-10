@@ -20,8 +20,8 @@ var (
 	// ANSI color codes
 	resetColor   = []byte("\033[0m")
 	levelToColor = [][]byte{
-		levelFatal: []byte("\033[0;31m"), // red
-		levelPanic: []byte("\033[0;31m"), // red
+		LevelFatal: []byte("\033[0;31m"), // red
+		LevelPanic: []byte("\033[0;31m"), // red
 		LevelError: []byte("\033[0;31m"), // red
 		LevelWarn:  []byte("\033[0;33m"), // yellow
 		LevelInfo:  []byte("\033[0;37m"), // white

@@ -41,8 +41,8 @@ type HookFunc func(e Entry)
 
 // Log Level definition
 const (
-	levelFatal level = iota
-	levelPanic
+	LevelFatal level = iota
+	LevelPanic
 	LevelError
 	LevelWarn
 	LevelInfo
@@ -467,6 +467,16 @@ func (l *Logger) IsLevelTrace() bool {
 	return l.level == LevelTrace
 }
 
+// IsLevelFatal method returns true if log level is FATAL otherwise false.
+func (l *Logger) IsLevelFatal() bool {
+	return l.level == LevelFatal
+}
+
+// IsLevelPanic method returns true if log level is PANIC otherwise false.
+func (l *Logger) IsLevelPanic() bool {
+	return l.level == LevelPanic
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
@@ -478,7 +488,6 @@ func (l *Logger) output(e *Entry) {
 	l.receiver.Log(e)
 
 	// Execute logger hooks
-	fmt.Println("Hooks:", l.hooks)
 	go l.executeHooks(*e)
 }
 

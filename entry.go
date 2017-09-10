@@ -160,37 +160,37 @@ func (e *Entry) Println(v ...interface{}) {
 
 // Fatal logs message as `FATAL` and call to os.Exit(1).
 func (e *Entry) Fatal(v ...interface{}) {
-	e.output(levelFatal, fmt.Sprint(v...))
+	e.output(LevelFatal, fmt.Sprint(v...))
 	exit(1)
 }
 
 // Fatalf logs message as `FATAL` and call to os.Exit(1).
 func (e *Entry) Fatalf(format string, v ...interface{}) {
-	e.output(levelFatal, fmt.Sprintf(format, v...))
+	e.output(LevelFatal, fmt.Sprintf(format, v...))
 	exit(1)
 }
 
 // Fatalln logs message as `FATAL` and call to os.Exit(1).
 func (e *Entry) Fatalln(v ...interface{}) {
-	e.output(levelFatal, fmt.Sprint(v...))
+	e.output(LevelFatal, fmt.Sprint(v...))
 	exit(1)
 }
 
 // Panic logs message as `PANIC` and call to panic().
 func (e *Entry) Panic(v ...interface{}) {
-	e.output(levelPanic, fmt.Sprint(v...))
+	e.output(LevelPanic, fmt.Sprint(v...))
 	panic(e)
 }
 
 // Panicf logs message as `PANIC` and call to panic().
 func (e *Entry) Panicf(format string, v ...interface{}) {
-	e.output(levelPanic, fmt.Sprintf(format, v...))
+	e.output(LevelPanic, fmt.Sprintf(format, v...))
 	panic(e)
 }
 
 // Panicln logs message as `PANIC` and call to panic().
 func (e *Entry) Panicln(v ...interface{}) {
-	e.output(levelPanic, fmt.Sprint(v...))
+	e.output(LevelPanic, fmt.Sprint(v...))
 	panic(e)
 }
 

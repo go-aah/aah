@@ -45,6 +45,8 @@ func TestDefaultLogger(t *testing.T) {
 	assert.False(t, IsLevelInfo())
 	assert.False(t, IsLevelWarn())
 	assert.False(t, IsLevelTrace())
+	assert.False(t, IsLevelFatal())
+	assert.False(t, IsLevelPanic())
 
 	exit = func(code int) {}
 	Fatal("fatal msg 1")

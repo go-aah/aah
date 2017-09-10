@@ -14,8 +14,8 @@ import (
 
 var (
 	levelNameToLevel = map[string]level{
-		"FATAL": levelFatal,
-		"PANIC": levelPanic,
+		"FATAL": LevelFatal,
+		"PANIC": LevelPanic,
 		"ERROR": LevelError,
 		"WARN":  LevelWarn,
 		"INFO":  LevelInfo,
@@ -24,8 +24,8 @@ var (
 	}
 
 	levelToLevelName = map[level]string{
-		levelFatal: "FATAL",
-		levelPanic: "PANIC",
+		LevelFatal: "FATAL",
+		LevelPanic: "PANIC",
 		LevelError: "ERROR",
 		LevelWarn:  "WARN",
 		LevelInfo:  "INFO",
