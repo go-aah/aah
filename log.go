@@ -36,6 +36,9 @@ import (
 // Level type definition
 type level uint8
 
+// HookFunc type is aah framework logger custom hook.
+type HookFunc func(e Entry)
+
 // Log Level definition
 const (
 	levelFatal level = iota
@@ -52,6 +55,9 @@ var (
 	// ErrLogReceiverIsNil returned when suppiled receiver is nil.
 	ErrLogReceiverIsNil = errors.New("log: receiver is nil")
 
+	// ErrHookFuncIsNil is returned when hook function is nil.
+	ErrHookFuncIsNil = errors.New("log: hook func is nil")
+
 	filePermission = os.FileMode(0755)
 
 	// abstract it, can be unit tested
@@ -66,10 +72,11 @@ type (
 	// it guarantees to serialize access to the Receivers.
 	Logger struct {
 		cfg      *config.Config
-		m        *sync.Mutex
+		m        *sync.RWMutex
 		level    level
 		receiver Receiver
 		ctx      Fields
+		hooks    map[string]HookFunc
 	}
 
 	// Receiver is the interface for pluggable log receiver.
@@ -123,7 +130,7 @@ func New(cfg *config.Config) (*Logger, error) {
 		return nil, errors.New("log: config is nil")
 	}
 
-	logger := &Logger{m: &sync.Mutex{}, cfg: cfg}
+	logger := &Logger{m: &sync.RWMutex{}, cfg: cfg}
 
 	// Receiver
 	receiverType := strings.ToUpper(cfg.StringDefault("log.receiver", "CONSOLE"))
@@ -142,8 +149,19 @@ func New(cfg *config.Config) (*Logger, error) {
 	}
 
 	logger.ctx = make(Fields)
+	logger.hooks = make(map[string]HookFunc)
 
 	return logger, nil
+}
+
+// NewWithContext method creates the aah logger based on supplied `config.Config`.
+func NewWithContext(cfg *config.Config, ctx Fields) (*Logger, error) {
+	l, err := New(cfg)
+	if err != nil {
+		return nil, err
+	}
+	l.AddContext(ctx)
+	return l, nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -167,6 +185,22 @@ func (l *Logger) AddContext(fields Fields) {
 	for k, v := range fields {
 		l.ctx[k] = v
 	}
+}
+
+// AddHook method is to add logger hook function.
+func (l *Logger) AddHook(name string, hook HookFunc) error {
+	if hook == nil {
+		return ErrHookFuncIsNil
+	}
+
+	l.m.Lock()
+	defer l.m.Unlock()
+	if _, found := l.hooks[name]; found {
+		return fmt.Errorf("log: hook name '%v' is already added, skip it", name)
+	}
+
+	l.hooks[name] = hook
+	return nil
 }
 
 // Level method returns currently enabled logging level.
@@ -442,5 +476,13 @@ func (l *Logger) output(e *Entry) {
 	l.receiver.Log(e)
 
 	// Execute logger hooks
-	go executeHooks(*e)
+	go l.executeHooks(*e)
+}
+
+func (l *Logger) executeHooks(e Entry) {
+	l.m.RLock()
+	defer l.m.RUnlock()
+	for _, fn := range l.hooks {
+		go fn(e)
+	}
 }

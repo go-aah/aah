@@ -94,9 +94,11 @@ func TestDefaultContextLogging(t *testing.T) {
 	exit = os.Exit
 
 	// With Context
-	ctx := dl.New(Fields{
-		"key1": "key 1 value",
-		"key2": "key 2 value",
+	cfg, _ := config.ParseString("log { }")
+	ctx, _ := NewWithContext(cfg, Fields{
+		"myname": "logger with context",
+		"key1":   "key 1 value",
+		"key2":   "key 2 value",
 	})
 
 	ctx.Trace("I would like to see this message, trace is more fine grained for dev")
@@ -120,7 +122,7 @@ func TestDefaultContextLogging(t *testing.T) {
 	ctx.Fatalln("Yes, yes, yes ", "at last fatal")
 	exit = os.Exit
 
-	ctx2 := WithFields(Fields{"ctx2": "ctx 2 value"})
+	ctx2 := dl.New(Fields{"ctx2": "ctx 2 value"})
 	ctx2.Print("hi fields")
 }
 

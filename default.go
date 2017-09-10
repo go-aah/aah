@@ -123,6 +123,11 @@ func AddContext(fields Fields) {
 	dl.AddContext(fields)
 }
 
+// AddHook method is to add logger hook function.
+func AddHook(name string, hook HookFunc) error {
+	return dl.AddHook(name, hook)
+}
+
 // WithFields method to add multiple key-value pairs into log.
 func WithFields(fields Fields) Loggerer {
 	return dl.WithFields(fields)

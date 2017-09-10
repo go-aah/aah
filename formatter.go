@@ -58,14 +58,13 @@ var (
 	//    2006-01-02 15:04:05.000 INFO  This is my message
 	DefaultPattern = "%time:2006-01-02 15:04:05.000 %level:-5 %message"
 
-	// FmtFlags is the list of log format flags supported by aah/log library
+	// FmtFlags is the list of log format flags supported by aah log library
 	// Usage of flag order is up to format composition.
-	//    level     - outputs INFO, DEBUG, ERROR, so on
+	//    level     - outputs ERROR, WARN, INFO, DEBUG, TRACE
 	//    appname   - outputs Application Name
 	//    insname   - outputs Application Instance Name
 	//    reqid     - outputs Request ID from HTTP header
-	//    principal - outputs Logged-In subject primary principal
-	//    level     - outputs INFO, DEBUG, ERROR, so on
+	//    principal - outputs Logged-In subject primary principal value
 	//    time      - outputs local time as per format supplied
 	//    utctime   - outputs UTC time as per format supplied
 	//    longfile  - outputs full file name: /a/b/c/d.go

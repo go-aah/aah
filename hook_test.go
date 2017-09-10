@@ -37,12 +37,6 @@ func TestLogAddHook(t *testing.T) {
 }
 
 func TestLogHook(t *testing.T) {
-	// Add hook
-	_ = AddHook("hook1", func(e Entry) {
-		assert.NotNil(t, e)
-		fmt.Println(e)
-	})
-
 	configStr := `
   log {
     receiver = "console"
@@ -50,14 +44,15 @@ func TestLogHook(t *testing.T) {
     pattern = "%utctime:2006-01-02 15:04:05.000 %level:-5 %line %custom:- %message"
   }
   `
-	testHooks(t, configStr)
-	time.Sleep(1 * time.Millisecond)
-}
-
-func testHooks(t *testing.T, cfgStr string) {
-	cfg, _ := config.ParseString(cfgStr)
+	cfg, _ := config.ParseString(configStr)
 	logger, err := New(cfg)
 	assert.FailNowOnError(t, err, "unexpected error")
+
+	// Add hook
+	_ = logger.AddHook("hook1", func(e Entry) {
+		assert.NotNil(t, e)
+		fmt.Println(e)
+	})
 
 	logger.Trace("I shoudn't see this msg, because standard logger level is DEBUG")
 	logger.Debug("I would like to see this message, debug is useful for dev")
@@ -69,5 +64,5 @@ func testHooks(t *testing.T, cfgStr string) {
 	logger.Fatal("Yes, yes, yes - at last fatal")
 	exit = os.Exit
 
-	assert.NotNil(t, logger.ToGoLogger())
+	time.Sleep(1 * time.Millisecond)
 }
