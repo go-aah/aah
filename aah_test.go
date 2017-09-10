@@ -169,6 +169,10 @@ func TestAahLogDir(t *testing.T) {
 	cfg, _ := config.ParseString("")
 	logger, _ := log.New(cfg)
 	log.SetDefaultLogger(logger)
+	err = AddLoggerHook("defaulthook", func(e log.Entry) {
+		logger.Info(e)
+	})
+	assert.Nil(t, err)
 
 	// relative path filename
 	cfgRelativeFile, _ := config.ParseString(`
@@ -198,6 +202,10 @@ func TestAahLogDir(t *testing.T) {
 	appLogFatal = func(v ...interface{}) { t.Log(v) }
 	logAsFatal(errors.New("test msg"))
 
+	logger2 := NewChildLogger(log.Fields{
+		"myname": "I'm child logger",
+	})
+	logger2.Info("Hi child logger")
 }
 
 func TestWritePID(t *testing.T) {

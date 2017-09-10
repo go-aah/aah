@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"aahframework.org/aruntime.v0"
-	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0-unstable"
 )
@@ -163,6 +162,11 @@ func SetAppPackaged(pack bool) {
 	appIsPackaged = pack
 }
 
+// NewChildLogger method create a child logger from aah application default logger.
+func NewChildLogger(ctx log.Fields) *log.Logger {
+	return appLogger.New(ctx)
+}
+
 // Init method initializes `aah` application, if anything goes wrong during
 // initialize process, it will log it as fatal msg and exit.
 func Init(importPath string) {
@@ -297,37 +301,5 @@ func initAppVariables() error {
 		return errors.New("'request.multipart_size' value is not a valid size unit")
 	}
 
-	return nil
-}
-
-func initLogs(logsDir string, appCfg *config.Config) error {
-	if !appCfg.IsExists("log") {
-		log.Debug("Section 'log {...}' configuration not exists, move on.")
-		return nil
-	}
-
-	if appCfg.StringDefault("log.receiver", "") == "file" {
-		file := appCfg.StringDefault("log.file", "")
-		if ess.IsStrEmpty(file) {
-			appCfg.SetString("log.file", filepath.Join(logsDir, getBinaryFileName()+".log"))
-		} else if !filepath.IsAbs(file) {
-			appCfg.SetString("log.file", filepath.Join(logsDir, file))
-		}
-	}
-
-	if !appCfg.IsExists("log.pattern") {
-		appCfg.SetString("log.pattern", "%time:2006-01-02 15:04:05.000 %level:-5 %appname %insname %reqid %principal %message %fields")
-	}
-
-	logger, err := log.New(appCfg)
-	if err != nil {
-		return err
-	}
-
-	logger.AddContext(log.Fields{
-		"appname": AppName(),
-		"insname": AppInstanceName(),
-	})
-	log.SetDefaultLogger(logger)
 	return nil
 }
