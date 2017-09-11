@@ -16,6 +16,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
+	security "aahframework.org/security.v0"
 	"aahframework.org/test.v0/assert"
 	"aahframework.org/view.v0"
 )
@@ -178,7 +179,8 @@ func TestViewResolveViewNotFound(t *testing.T) {
 			Name:       "Index",
 			Parameters: []*ParameterInfo{},
 		},
-		reply: NewReply(),
+		reply:   NewReply(),
+		subject: security.AcquireSubject(),
 	}
 	ctx.Reply().ContentType(ahttp.ContentTypeHTML.Raw())
 	appViewExt = ".html"

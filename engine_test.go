@@ -20,7 +20,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
+	"aahframework.org/log.v0-unstable"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -52,15 +52,18 @@ func (s *Site) GetInvolved() {
 }
 
 func (s *Site) Credits() {
-	s.Reply().Header("X-Custom-Header", "custom value").
+	s.Log().Info("Credits action called")
+	s.Reply().
+		Header("X-Custom-Header", "custom value").
 		DisableGzip().
-		JSON(map[string]interface{}{
+		JSON(Data{
 			"message": "This is credits page",
 			"code":    1000001,
 		})
 }
 
 func (s *Site) ContributeCode() {
+	s.Log().Info("ContributeCode action called")
 	panic("panic flow testing")
 }
 
@@ -81,12 +84,14 @@ func (s *Site) AfterGetInvolved() {
 }
 
 func (s *Site) AutoBind(id int, info *sample) {
+	s.Log().Info("AutoBind action called")
 	log.Info("ID:", id)
 	log.Infof("Info: %+v", info)
 	s.Reply().Text("Data have been recevied successfully")
 }
 
 func (s *Site) JSONRequest(info *sampleJSON) {
+	s.Log().Info("JSONRequest action called")
 	log.Infof("JSON Info: %+v", info)
 	s.Reply().JSON(Data{
 		"success": true,
@@ -248,7 +253,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.True(t, strings.Contains(resp5.Status, "Found"))
 	assert.Equal(t, "http://localhost:8080/testdata/", resp5.Header.Get(ahttp.HeaderLocation))
 
-	// Directory Listing
+	// Request 6 Directory Listing
 	appIsSSLEnabled = true
 	appIsProfileProd = true
 	AppSecurityManager().SecureHeaders.CSP = "default-erc 'self'"
@@ -266,7 +271,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	appIsSSLEnabled = false
 	appIsProfileProd = false
 
-	// Custom Headers
+	// Request 7 Custom Headers
 	r7 := httptest.NewRequest("GET", "http://localhost:8080/credits", nil)
 	r7.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
 	w7 := httptest.NewRecorder()
@@ -277,6 +282,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Equal(t, `{"code":1000001,"message":"This is credits page"}`, body7)
 	assert.Equal(t, "custom value", resp7.Header.Get("X-Custom-Header"))
 
+	// Request 8
 	r8 := httptest.NewRequest("POST", "http://localhost:8080/credits", nil)
 	r8.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
 	r8.Header.Add(ahttp.HeaderAccept, ahttp.ContentTypeJSON.String())
@@ -290,7 +296,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Equal(t, `{"code":405,"message":"Method Not Allowed"}`, body8)
 	assert.Equal(t, "GET, OPTIONS", resp8.Header.Get("Allow"))
 
-	// Auto Options
+	// Request 9 Auto Options
 	r9 := httptest.NewRequest("OPTIONS", "http://localhost:8080/credits", nil)
 	r9.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
 	w9 := httptest.NewRecorder()
@@ -300,7 +306,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Equal(t, 200, resp9.StatusCode)
 	assert.Equal(t, "GET, OPTIONS", resp9.Header.Get("Allow"))
 
-	// Auto Bind request
+	// Request 10 Auto Bind request
 	autobindPriority = []string{"Q", "F", "P"}
 	requestParsers[ahttp.ContentTypeMultipartForm.Mime] = multipartFormParser
 	requestParsers[ahttp.ContentTypeForm.Mime] = formParser
@@ -321,7 +327,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Equal(t, "text/plain; charset=utf-8", resp10.Header.Get(ahttp.HeaderContentType))
 	assert.Equal(t, "Data have been recevied successfully", body10)
 
-	// multipart
+	// Request 11 multipart
 	r11 := httptest.NewRequest("POST", "http://localhost:8080/products/100002?page=10&count=20",
 		strings.NewReader(form.Encode()))
 	r11.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeMultipartForm.String())
@@ -335,7 +341,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Equal(t, "text/plain; charset=utf-8", resp11.Header.Get(ahttp.HeaderContentType))
 	assert.Equal(t, "Data have been recevied successfully", body11)
 
-	// JSON request
+	// Request 12 JSON request
 	jsonBytes := []byte(`{
 	"first_name":"My firstname",
 	"last_name": "My lastname",
@@ -355,6 +361,15 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp12.StatusCode)
 	assert.Equal(t, "application/json; charset=utf-8", resp12.Header.Get(ahttp.HeaderContentType))
 	assert.True(t, strings.Contains(body12, `"success":true`))
+
+	// Request 13 domain not found
+	r13 := httptest.NewRequest("GET", "http://localhost:7070/index.html", nil)
+	w13 := httptest.NewRecorder()
+	e.ServeHTTP(w13, r13)
+
+	resp13 := w13.Result()
+	assert.Equal(t, 404, resp13.StatusCode)
+	assert.True(t, strings.Contains(resp13.Status, "Not Found"))
 
 	appBaseDir = ""
 }

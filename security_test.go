@@ -111,8 +111,9 @@ func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 	// anonymous
 	r1 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
 	ctx1 := &Context{
-		Req:   ahttp.ParseRequest(r1, &ahttp.Request{}),
-		route: &router.Route{Auth: "anonymous"},
+		Req:     ahttp.ParseRequest(r1, &ahttp.Request{}),
+		route:   &router.Route{Auth: "anonymous"},
+		subject: security.AcquireSubject(),
 	}
 	result1 := e.handleAuthcAndAuthz(ctx1)
 	assert.True(t, result1 == flowCont)
@@ -143,7 +144,7 @@ func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 		Req:     ahttp.ParseRequest(r2, &ahttp.Request{}),
 		Res:     ahttp.GetResponseWriter(w2),
 		route:   &router.Route{Auth: "form_auth"},
-		subject: &security.Subject{},
+		subject: security.AcquireSubject(),
 		reply:   NewReply(),
 	}
 	result2 := e.handleAuthcAndAuthz(ctx2)
@@ -225,7 +226,7 @@ func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
 		Req:     ahttp.ParseRequest(r1, &ahttp.Request{}),
 		Res:     ahttp.GetResponseWriter(w1),
 		route:   &router.Route{Auth: "basic_auth"},
-		subject: &security.Subject{},
+		subject: security.AcquireSubject(),
 		reply:   NewReply(),
 	}
 	result1 := e.handleAuthcAndAuthz(ctx1)
