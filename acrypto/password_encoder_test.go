@@ -19,7 +19,7 @@ func TestCryptoPasswordAlgrothim(t *testing.T) {
 	assert.Nil(t, err)
 
 	err = AddPasswordAlgorithm("bcrypt", &BcryptEncoder{})
-	assert.Equal(t, "acrypto: password encoder 'bcrypt' is already added", err.Error())
+	assert.Nil(t, err)
 
 	assert.Nil(t, PasswordAlgorithm("notexists"))
 }

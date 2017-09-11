@@ -98,19 +98,3 @@ func testSessionStoreSave(t *testing.T, cfgStr string) {
 	assert.Equal(t, true, resultSession.GetBool("my-key-5"))
 	t.Log(resultSession.String())
 }
-
-func TestSessionNewCookie(t *testing.T) {
-	m := createTestManager(t, `
-	security {
-	  session {
-	    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
-	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
-	  }
-	}
-  `)
-
-	opts := *m.Options
-	opts.MaxAge = 3600
-	cookie := newCookie("This is my cookie for maxage", &opts)
-	assert.Equal(t, 3600, cookie.MaxAge)
-}

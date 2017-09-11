@@ -12,7 +12,7 @@ type BcryptEncoder struct {
 	cost int
 }
 
-// Generate method returns the bcrypt password hash based on configured
+// Generate method returns the `bcrypt` password hash based on configured
 // cost at `security.password_encoder.bcrypt.*`.
 func (be *BcryptEncoder) Generate(password []byte) ([]byte, error) {
 	return bcrypt.GenerateFromPassword(password, be.cost)

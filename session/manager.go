@@ -36,8 +36,10 @@ import (
 	"time"
 
 	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
+	"aahframework.org/essentials.v0-unstable"
 	"aahframework.org/log.v0"
+	"aahframework.org/security.v0-unstable/acrypto"
+	"aahframework.org/security.v0-unstable/cookie"
 )
 
 // Cookie errors
@@ -49,7 +51,6 @@ var (
 	ErrCookieTimestampIsTooNew  = errors.New("session: cookie timestamp is too new")
 	ErrCookieTimestampIsExpired = errors.New("session: cookie timestamp expried")
 	ErrSignVerificationIsFailed = errors.New("session: sign verification is failed")
-	ErrUnableToDecrypt          = errors.New("session: given value unable to decrypt")
 	ErrBase64Decode             = errors.New("session: base64 decode error")
 
 	registerStores = make(map[string]Storer)
@@ -71,13 +72,14 @@ type (
 	// Manager is a session manager to manage sessions.
 	Manager struct {
 		cfg     *config.Config
-		Options *Options
+		Options *cookie.Options
 
 		mode            string
 		store           Storer
 		storeName       string
 		isSignKey       bool
 		signKey         []byte
+		sha             string
 		isEncKey        bool
 		encKey          []byte
 		cipBlock        cipher.Block
@@ -119,7 +121,7 @@ func AddStore(name string, store Storer) error {
 // NewManager method initializes the session manager and store based on
 // configuration from aah.conf section `session { ... }`.
 func NewManager(appCfg *config.Config) (*Manager, error) {
-	m := &Manager{cfg: appCfg}
+	m := &Manager{cfg: appCfg, sha: "sha-256"}
 
 	// Session mode
 	m.mode = m.cfg.StringDefault("security.session.mode", "stateless")
@@ -158,7 +160,7 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 	m.idLength = m.cfg.IntDefault("security.session.id_length", 32)
 
 	// Cookie Options
-	m.Options = &Options{
+	m.Options = &cookie.Options{
 		Name:     m.cfg.StringDefault("security.session.prefix", "aah") + "_session",
 		Domain:   m.cfg.StringDefault("security.session.domain", ""),
 		Path:     m.cfg.StringDefault("security.session.path", "/"),
@@ -198,7 +200,7 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 // NewSession method creates a new session for the request.
 func (m *Manager) NewSession() *Session {
 	s := sessionPool.Get().(*Session)
-	s.ID = ess.RandomString(m.idLength)
+	s.ID = ess.SecureRandomString(m.idLength)
 	s.IsNew = true
 	t := time.Now()
 	s.CreatedTime = &t
@@ -210,7 +212,7 @@ func (m *Manager) NewSession() *Session {
 func (m *Manager) GetSession(r *http.Request) *Session {
 	cookie, err := r.Cookie(m.Options.Name)
 	if err == http.ErrNoCookie {
-		log.Debug("aah application session is not yet created or unavailable")
+		log.Trace("aah application session is not yet created or unavailable")
 		return nil
 	}
 
@@ -280,7 +282,7 @@ func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
 	}
 
 	log.Debugf("Session saved, ID: %v", s.ID)
-	http.SetCookie(w, newCookie(encodedStr, m.Options))
+	http.SetCookie(w, cookie.NewWithOptions(encodedStr, m.Options))
 	return nil
 }
 
@@ -297,7 +299,7 @@ func (m *Manager) DeleteSession(w http.ResponseWriter, s *Session) error {
 	opts := *m.Options
 	opts.MaxAge = -1
 	log.Debugf("Session deleted, ID: %v", s.ID)
-	http.SetCookie(w, newCookie("", &opts))
+	http.SetCookie(w, cookie.NewWithOptions("", &opts))
 	return nil
 }
 
@@ -337,7 +339,7 @@ func (m *Manager) Encode(name string, value interface{}) (string, error) {
 
 	// Encrypt it
 	if m.isEncKey {
-		b = encrypt(m.cipBlock, b)
+		b = acrypto.AESEncrypt(m.cipBlock, b)
 	}
 
 	// Encode and sign it
@@ -348,7 +350,7 @@ func (m *Manager) Encode(name string, value interface{}) (string, error) {
 
 	// Sign it if enabled
 	if m.isSignKey {
-		signed := sign(m.signKey, b[:len(b)-1])
+		signed := acrypto.Sign(m.signKey, b[:len(b)-1], m.sha)
 
 		// Append signed value
 		b = append(b, signed...)
@@ -399,7 +401,7 @@ func (m *Manager) Decode(name, value string, dst interface{}) error {
 
 	// Verify signed data, if enabled
 	if m.isSignKey {
-		if !verify(m.signKey, b, parts[2]) {
+		if !acrypto.Verify(m.signKey, b, parts[2], m.sha) {
 			return ErrSignVerificationIsFailed
 		}
 	}
@@ -423,7 +425,7 @@ func (m *Manager) Decode(name, value string, dst interface{}) error {
 		return err
 	}
 	if m.isEncKey {
-		if b, err = decrypt(m.cipBlock, b); err != nil {
+		if b, err = acrypto.AESDecrypt(m.cipBlock, b); err != nil {
 			return err
 		}
 	}

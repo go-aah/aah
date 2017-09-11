@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"aahframework.org/config.v0"
+	"aahframework.org/log.v0"
 )
 
 const hashDelim = "$"
@@ -36,6 +37,7 @@ func PasswordAlgorithm(alg string) PasswordEncoder {
 	if pe, found := passEncoders[alg]; found {
 		return pe
 	}
+	log.Warnf("acrypto: password algorithm '%s' not found", alg)
 	return nil
 }
 
@@ -47,7 +49,8 @@ func AddPasswordAlgorithm(name string, pe PasswordEncoder) error {
 	}
 
 	if _, found := passEncoders[name]; found {
-		return fmt.Errorf("acrypto: password encoder '%v' is already added", name)
+		log.Warnf("acrypto: password encoder '%v' is already added", name)
+		return nil
 	}
 
 	passEncoders[name] = pe
@@ -60,10 +63,41 @@ func AddPasswordAlgorithm(name string, pe PasswordEncoder) error {
 func InitPasswordEncoders(cfg *config.Config) error {
 	keyPrefix := "security.password_encoder"
 
-	// bcrypt algorithm config
+	// bcrypt algorithm
 	if cfg.BoolDefault(keyPrefix+".bcrypt.enable", true) {
-		bcryptCost := cfg.IntDefault("key", 10)
+		bcryptCost := cfg.IntDefault("key", 12)
 		if err := AddPasswordAlgorithm("bcrypt", &BcryptEncoder{cost: bcryptCost}); err != nil {
+			return err
+		}
+	}
+
+	// scrypt algorithm
+	if cfg.BoolDefault(keyPrefix+".scrypt.enable", false) {
+		n := cfg.IntDefault(keyPrefix+".scrypt.cpu_memory_cost", 32768)
+		r := cfg.IntDefault(keyPrefix+".scrypt.block_size", 8)
+		p := cfg.IntDefault(keyPrefix+".scrypt.parallelization", 1)
+		dkLen := cfg.IntDefault(keyPrefix+".scrypt.derived_key_length", 32)
+		saltLen := cfg.IntDefault(keyPrefix+".scrypt.salt_length", 24)
+
+		if err := AddPasswordAlgorithm("scrypt", &ScryptEncoder{
+			n: n, r: r, p: p, saltLen: saltLen, dkLen: dkLen}); err != nil {
+			return err
+		}
+	}
+
+	// pbkdf2 algorithm
+	if cfg.BoolDefault(keyPrefix+".pbkdf2.enable", false) {
+		iter := cfg.IntDefault(keyPrefix+".pbkdf2.iteration", 10000)
+		dkLen := cfg.IntDefault(keyPrefix+".pbkdf2.derived_key_length", 32)
+		saltLen := cfg.IntDefault(keyPrefix+".pbkdf2.salt_length", 24)
+		hashAlg := cfg.StringDefault(keyPrefix+".pbkdf2.hash_algorithm", "sha-512")
+
+		if hashFunc(hashAlg) == nil {
+			return fmt.Errorf("acrypto/pbkdf2: invalid sha algorithm '%s'", hashAlg)
+		}
+
+		if err := AddPasswordAlgorithm("pbkdf2", &Pbkdf2Encoder{
+			iter: iter, dkLen: dkLen, saltLen: saltLen, hashAlg: hashAlg}); err != nil {
 			return err
 		}
 	}

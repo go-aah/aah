@@ -2,21 +2,33 @@
 // go-aah/security source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package session
+package cookie
 
 import (
 	"net/http"
 	"time"
 )
 
+type (
+	// Options to hold session cookie options.
+	Options struct {
+		Name     string
+		Domain   string
+		Path     string
+		MaxAge   int64
+		HTTPOnly bool
+		Secure   bool
+	}
+)
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
+// Package methods
 //___________________________________
 
-// newCookie method returns http.Cookie with the options set from
+// NewWithOptions method returns http.Cookie with the options set from
 // `session {...}`. It also sets the `Expires` field calculated based on the
 // MaxAge value, for Internet Explorer compatibility.
-func newCookie(value string, opts *Options) *http.Cookie {
+func NewWithOptions(value string, opts *Options) *http.Cookie {
 	cookie := &http.Cookie{
 		Name:     opts.Name,
 		Value:    value,

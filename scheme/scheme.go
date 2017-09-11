@@ -70,7 +70,7 @@ func passwordAlgorithm(cfg *config.Config, keyPrefix string) (acrypto.PasswordEn
 	var passAlg string
 	if alg, found := cfg.String(keyPrefix + ".password_encoder.type"); found {
 		// DEPRECATED, to be removed in v1.0
-		log.Warnf("Config '%s.password_encoder.type' is deprecated in v0.9, use '%s.password_encoder = \"%s\"' instead", keyPrefix, keyPrefix, alg)
+		log.Warnf("DEPRECATED: Config '%s.password_encoder.type' is deprecated in v0.9, use '%s.password_encoder = \"%s\"' instead. Deprecated config will not break your functionality, its good to update to latest config.", keyPrefix, keyPrefix, alg)
 		passAlg = alg
 	} else {
 		passAlg = cfg.StringDefault(keyPrefix+".password_encoder", "bcrypt")
@@ -78,7 +78,7 @@ func passwordAlgorithm(cfg *config.Config, keyPrefix string) (acrypto.PasswordEn
 
 	passwordEncoder := acrypto.PasswordAlgorithm(passAlg)
 	if passwordEncoder == nil {
-		return nil, fmt.Errorf("'%s' password algorithm is not enabled, please refer to https://docs.aahframework.org/password_encoders.html", passAlg)
+		return nil, fmt.Errorf("'%s' password algorithm is not enabled, please refer to https://docs.aahframework.org/password-encoders.html", passAlg)
 	}
 	return passwordEncoder, nil
 }

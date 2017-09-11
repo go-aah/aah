@@ -17,6 +17,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/security.v0-unstable/acrypto"
 	"aahframework.org/security.v0/authc"
 	"aahframework.org/security.v0/authz"
 	"aahframework.org/security.v0/scheme"
@@ -26,6 +27,18 @@ import (
 var (
 	// ErrAuthSchemeIsNil returned when given auth scheme instance is nil.
 	ErrAuthSchemeIsNil = errors.New("security: auth scheme is nil")
+
+	// Bcrypt password algorithm instance for Password generate and compare.
+	// By default it is enabled.
+	Bcrypt = acrypto.PasswordAlgorithm("bcrypt")
+
+	// Scrypt password algorithm instance for Password generate and compare.
+	// Enable `scrypt` algorithm in `security.conf` otherwise it might be nil.
+	Scrypt = acrypto.PasswordAlgorithm("scrypt")
+
+	// Pbkdf2 password algorithm instance for Password generate and compare.
+	// Enable `pbkdf2` algorithm in `security.conf` otherwise it might be nil.
+	Pbkdf2 = acrypto.PasswordAlgorithm("pbkdf2")
 
 	subjectPool = &sync.Pool{New: func() interface{} { return &Subject{} }}
 )
@@ -73,6 +86,11 @@ func New() *Manager {
 func (m *Manager) Init(appCfg *config.Config) error {
 	var err error
 	m.appCfg = appCfg
+
+	// Initializing password encoders
+	if err = acrypto.InitPasswordEncoders(m.appCfg); err != nil {
+		return err
+	}
 
 	// Initialize Secure Headers
 	m.initializeSecureHeaders()
