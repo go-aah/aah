@@ -18,6 +18,7 @@ import (
 	"aahframework.org/essentials.v0"
 	"aahframework.org/i18n.v0"
 	"aahframework.org/router.v0"
+	"aahframework.org/security.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -59,6 +60,7 @@ func TestParamParse(t *testing.T) {
 	ctx1 := &Context{
 		Req:      ahttp.AcquireRequest(r1),
 		Res:      ahttp.AcquireResponseWriter(httptest.NewRecorder()),
+		subject:  security.AcquireSubject(),
 		route:    &router.Route{MaxBodySize: 5 << 20},
 		viewArgs: make(map[string]interface{}),
 	}
@@ -84,6 +86,7 @@ func TestParamParse(t *testing.T) {
 	ctx2 := &Context{
 		Req:      ahttp.AcquireRequest(r2),
 		Res:      ahttp.AcquireResponseWriter(httptest.NewRecorder()),
+		subject:  security.AcquireSubject(),
 		route:    &router.Route{MaxBodySize: 5 << 20},
 		viewArgs: make(map[string]interface{}),
 	}
@@ -137,8 +140,9 @@ func TestParamContentNegotiation(t *testing.T) {
 	r1 := httptest.NewRequest("POST", "http://localhost:8080/v1/userinfo", nil)
 	r1.Header.Set(ahttp.HeaderContentType, "application/xml")
 	ctx1 := &Context{
-		Req:   ahttp.AcquireRequest(r1),
-		reply: acquireReply(),
+		Req:     ahttp.AcquireRequest(r1),
+		reply:   acquireReply(),
+		subject: security.AcquireSubject(),
 	}
 	result1 := e.parseRequestParams(ctx1)
 	assert.Equal(t, http.StatusUnsupportedMediaType, ctx1.Reply().err.Code)
@@ -150,8 +154,9 @@ func TestParamContentNegotiation(t *testing.T) {
 	r2.Header.Set(ahttp.HeaderContentType, "application/json")
 	r2.Header.Set(ahttp.HeaderAccept, "application/xml")
 	ctx2 := &Context{
-		Req:   ahttp.AcquireRequest(r2),
-		reply: acquireReply(),
+		Req:     ahttp.AcquireRequest(r2),
+		reply:   acquireReply(),
+		subject: security.AcquireSubject(),
 	}
 	result2 := e.parseRequestParams(ctx2)
 	assert.Equal(t, http.StatusNotAcceptable, ctx2.Reply().err.Code)

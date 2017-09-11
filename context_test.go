@@ -13,6 +13,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
+	"aahframework.org/log.v0-unstable"
 	"aahframework.org/router.v0"
 	"aahframework.org/security.v0"
 	"aahframework.org/test.v0/assert"
@@ -195,7 +196,8 @@ func TestContextEmbeddedAndController(t *testing.T) {
 
 func TestContextSetURL(t *testing.T) {
 	ctx := &Context{
-		Req: getAahRequest("POST", "http://localhost:8080/users/edit", ""),
+		Req:     getAahRequest("POST", "http://localhost:8080/users/edit", ""),
+		subject: security.AcquireSubject(),
 	}
 
 	assert.Equal(t, "localhost:8080", ctx.Req.Host)
@@ -210,6 +212,8 @@ func TestContextSetURL(t *testing.T) {
 
 	// now it affects
 	ctx.decorated = true
+	cfg, _ := config.ParseString("")
+	appLogger, _ = log.New(cfg)
 	ctx.SetURL("http://status.localhost:8080/maintenance")
 	assert.True(t, ctx.decorated)
 	assert.Equal(t, "status.localhost:8080", ctx.Req.Host)
@@ -225,7 +229,8 @@ func TestContextSetURL(t *testing.T) {
 
 func TestContextSetMethod(t *testing.T) {
 	ctx := &Context{
-		Req: getAahRequest("POST", "http://localhost:8080/users/edit", ""),
+		Req:     getAahRequest("POST", "http://localhost:8080/users/edit", ""),
+		subject: security.AcquireSubject(),
 	}
 
 	assert.Equal(t, "localhost:8080", ctx.Req.Host)
@@ -239,6 +244,8 @@ func TestContextSetMethod(t *testing.T) {
 
 	// now it affects
 	ctx.decorated = true
+	cfg, _ := config.ParseString("")
+	appLogger, _ = log.New(cfg)
 	ctx.SetMethod("get")
 	assert.Equal(t, "GET", ctx.Req.Method)
 	assert.Equal(t, "localhost:8080", ctx.Req.Host) // no change expected
