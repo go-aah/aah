@@ -185,7 +185,7 @@ func TestAahConfigValidation(t *testing.T) {
 }
 
 func TestAahAppInit(t *testing.T) {
-	Init("aahframework.org/aah.v0-unstable/testdata")
+	Init("aahframework.org/aah.v0/testdata")
 	assert.NotNil(t, appConfig)
 	assert.NotNil(t, appRouter)
 	assert.NotNil(t, appSecurityManager)
