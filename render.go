@@ -17,7 +17,6 @@ import (
 	"sync"
 
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0-unstable"
 )
 
 var (
@@ -276,7 +275,7 @@ func (e *engine) doRender(ctx *Context) {
 	if ctx.Reply().Rdr != nil {
 		ctx.Reply().body = acquireBuffer()
 		if err := ctx.Reply().Rdr.Render(ctx.Reply().body); err != nil {
-			log.Error("Render response body error: ", err)
+			ctx.Log().Error("Render response body error: ", err)
 
 			// panic would be appropriate here, since it handle by centralized error
 			// handler. Funny though this is second spot in entire aah framework

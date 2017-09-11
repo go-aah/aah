@@ -105,12 +105,12 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 	// Finally action and method. Always executed if present
 	defer func() {
 		if finallyActionMethod := target.MethodByName(incpFinallyActionName + ctx.action.Name); finallyActionMethod.IsValid() {
-			log.Debugf("Calling interceptor: %s.%s", controller, incpFinallyActionName+ctx.action.Name)
+			ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpFinallyActionName+ctx.action.Name)
 			finallyActionMethod.Call(emptyArg)
 		}
 
 		if finallyAction := target.MethodByName(incpFinallyActionName); finallyAction.IsValid() {
-			log.Debugf("Calling interceptor: %s.%s", controller, incpFinallyActionName)
+			ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpFinallyActionName)
 			finallyAction.Call(emptyArg)
 		}
 	}()
@@ -123,11 +123,11 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 			}
 
 			if panicActionMethod := target.MethodByName(incpPanicActionName + ctx.action.Name); panicActionMethod.IsValid() {
-				log.Debugf("Calling interceptor: %s.%s", controller, incpPanicActionName+ctx.action.Name)
+				ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpPanicActionName+ctx.action.Name)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicActionMethod.Call(rv)
 			} else if panicAction := target.MethodByName(incpPanicActionName); panicAction.IsValid() {
-				log.Debugf("Calling interceptor: %s.%s", controller, incpPanicActionName)
+				ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpPanicActionName)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicAction.Call(rv)
 			} else { // propagate it
@@ -138,14 +138,14 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 
 	// Before action
 	if beforeAction := target.MethodByName(incpBeforeActionName); beforeAction.IsValid() {
-		log.Debugf("Calling interceptor: %s.%s", controller, incpBeforeActionName)
+		ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpBeforeActionName)
 		beforeAction.Call(emptyArg)
 	}
 
 	// Before action method
 	if !ctx.abort {
 		if beforeActionMethod := target.MethodByName(incpBeforeActionName + ctx.action.Name); beforeActionMethod.IsValid() {
-			log.Debugf("Calling interceptor: %s.%s", controller, incpBeforeActionName+ctx.action.Name)
+			ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpBeforeActionName+ctx.action.Name)
 			beforeActionMethod.Call(emptyArg)
 		}
 	}
@@ -155,7 +155,7 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 	// After action method
 	if !ctx.abort {
 		if afterActionMethod := target.MethodByName(incpAfterActionName + ctx.action.Name); afterActionMethod.IsValid() {
-			log.Debugf("Calling interceptor: %s.%s", controller, incpAfterActionName+ctx.action.Name)
+			ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpAfterActionName+ctx.action.Name)
 			afterActionMethod.Call(emptyArg)
 		}
 	}
@@ -163,7 +163,7 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 	// After action
 	if !ctx.abort {
 		if afterAction := target.MethodByName(incpAfterActionName); afterAction.IsValid() {
-			log.Debugf("Calling interceptor: %s.%s", controller, incpAfterActionName)
+			ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpAfterActionName)
 			afterAction.Call(emptyArg)
 		}
 	}
@@ -180,7 +180,7 @@ func actionMiddleware(ctx *Context, m *Middleware) {
 	action := target.MethodByName(ctx.action.Name)
 
 	if !action.IsValid() {
-		log.Errorf("Action '%s' doesn't exists on controller '%s'", ctx.action.Name, controllerName)
+		ctx.Log().Errorf("Action '%s' doesn't exists on controller '%s'", ctx.action.Name, controllerName)
 		ctx.Reply().Error(&Error{
 			Code:    http.StatusNotFound,
 			Message: http.StatusText(http.StatusNotFound),
@@ -188,7 +188,7 @@ func actionMiddleware(ctx *Context, m *Middleware) {
 		return
 	}
 
-	log.Debugf("Calling controller: %s.%s", controllerName, ctx.action.Name)
+	ctx.Log().Debugf("Calling controller: %s.%s", controllerName, ctx.action.Name)
 
 	// Parse Action Parameters
 	actionArgs, err := parseParameters(ctx)

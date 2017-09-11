@@ -159,18 +159,18 @@ func (ctx *Context) SetURL(pathURL string) {
 
 	u, err := url.Parse(pathURL)
 	if err != nil {
-		log.Errorf("invalid URL provided: %s", err)
+		ctx.Log().Errorf("invalid URL provided: %s", err)
 		return
 	}
 
 	rawReq := ctx.Req.Unwrap()
 	if !ess.IsStrEmpty(u.Host) {
-		log.Debugf("Host have been updated from '%s' to '%s'", ctx.Req.Host, u.Host)
+		ctx.Log().Debugf("Host have been updated from '%s' to '%s'", ctx.Req.Host, u.Host)
 		rawReq.Host = u.Host
 		rawReq.URL.Host = u.Host
 	}
 
-	log.Debugf("URL path have been updated from '%s' to '%s'", ctx.Req.Path, u.Path)
+	ctx.Log().Debugf("URL path have been updated from '%s' to '%s'", ctx.Req.Path, u.Path)
 	rawReq.URL.Path = u.Path
 
 	// Update the context
@@ -189,11 +189,11 @@ func (ctx *Context) SetMethod(method string) {
 
 	method = strings.ToUpper(method)
 	if _, found := router.HTTPMethodActionMap[method]; !found {
-		log.Errorf("given method '%s' is not valid", method)
+		ctx.Log().Errorf("given method '%s' is not valid", method)
 		return
 	}
 
-	log.Debugf("Request method have been updated from '%s' to '%s'", ctx.Req.Method, method)
+	ctx.Log().Debugf("Request method have been updated from '%s' to '%s'", ctx.Req.Method, method)
 	ctx.Req.Unwrap().Method = method
 	ctx.Req.Method = method
 }

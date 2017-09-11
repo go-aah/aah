@@ -13,7 +13,6 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0-unstable"
 	"aahframework.org/valpar.v0"
 )
 
@@ -72,13 +71,13 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 		return flowCont
 	}
 
-	log.Debugf("Request Content-Type mime: %s", ctx.Req.ContentType.Mime)
+	ctx.Log().Debugf("Request Content-Type mime: %s", ctx.Req.ContentType.Mime)
 
 	// Content Negotitaion - Accepted & Offered, refer to GitHub #75
 	if isContentNegotiationEnabled {
 		if len(acceptedContentTypes) > 0 &&
 			!ess.IsSliceContainsString(acceptedContentTypes, ctx.Req.ContentType.Mime) {
-			log.Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType.Mime)
+			ctx.Log().Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType.Mime)
 			ctx.Reply().Error(&Error{
 				Code:    http.StatusUnsupportedMediaType,
 				Message: http.StatusText(http.StatusUnsupportedMediaType),
@@ -92,7 +91,7 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 				Code:    http.StatusNotAcceptable,
 				Message: http.StatusText(http.StatusNotAcceptable),
 			})
-			log.Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType.Mime)
+			ctx.Log().Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType.Mime)
 			return flowStop
 		}
 	}
@@ -120,7 +119,7 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 
 func multipartFormParser(ctx *Context) flowResult {
 	if err := ctx.Req.Unwrap().ParseMultipartForm(appMultipartMaxMemory); err != nil {
-		log.Errorf("Unable to parse multipart form: %s", err)
+		ctx.Log().Errorf("Unable to parse multipart form: %s", err)
 	} else {
 		ctx.Req.Params.Form = ctx.Req.Unwrap().MultipartForm.Value
 		ctx.Req.Params.File = ctx.Req.Unwrap().MultipartForm.File
@@ -130,7 +129,7 @@ func multipartFormParser(ctx *Context) flowResult {
 
 func formParser(ctx *Context) flowResult {
 	if err := ctx.Req.Unwrap().ParseForm(); err != nil {
-		log.Errorf("Unable to parse form: %s", err)
+		ctx.Log().Errorf("Unable to parse form: %s", err)
 	} else {
 		ctx.Req.Params.Form = ctx.Req.Unwrap().Form
 	}
@@ -172,7 +171,7 @@ func parseParameters(ctx *Context) ([]reflect.Value, error) {
 		if err != nil {
 			return actionArgs, err
 		} else if !result.IsValid() {
-			log.Errorf("Parsed result value is invalid or value parser not found [param: %s, type: %s]",
+			ctx.Log().Errorf("Parsed result value is invalid or value parser not found [param: %s, type: %s]",
 				val.Name, val.Type)
 			return actionArgs, errInvalidParsedValue
 		}
