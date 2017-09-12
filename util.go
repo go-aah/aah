@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -154,6 +155,18 @@ func parsePort(port string) string {
 	}
 
 	return "80"
+}
+
+func parseHost(address, toPort string) string {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return address
+	}
+
+	if ess.IsStrEmpty(toPort) {
+		return host
+	}
+	return host + ":" + toPort
 }
 
 func reverseSlice(s []string) []string {
