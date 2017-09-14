@@ -41,9 +41,6 @@ import (
 	"aahframework.org/log.v0"
 )
 
-// Version no. of aah framework i18n library
-const Version = "0.3"
-
 // I18n holds the message store and related information for internationalization
 // and localization.
 type I18n struct {
