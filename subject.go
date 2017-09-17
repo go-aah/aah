@@ -7,9 +7,9 @@ package security
 import (
 	"fmt"
 
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/authz"
-	"aahframework.org/security.v0/session"
+	"aahframework.org/security.v0-unstable/authc"
+	"aahframework.org/security.v0-unstable/authz"
+	"aahframework.org/security.v0-unstable/session"
 )
 
 // Subject instance represents state and security operations for a single

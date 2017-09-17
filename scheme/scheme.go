@@ -12,8 +12,8 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/security.v0-unstable/acrypto"
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/authz"
+	"aahframework.org/security.v0-unstable/authc"
+	"aahframework.org/security.v0-unstable/authz"
 )
 
 type (
@@ -68,10 +68,12 @@ func New(authSchemeType string) Schemer {
 
 func passwordAlgorithm(cfg *config.Config, keyPrefix string) (acrypto.PasswordEncoder, error) {
 	var passAlg string
-	if alg, found := cfg.String(keyPrefix + ".password_encoder.type"); found {
+	pe, _ := cfg.Get(keyPrefix + ".password_encoder")
+	if _, ok := pe.(string); !ok {
+		passAlg = cfg.StringDefault(keyPrefix+".password_encoder.type", "bcrypt")
+
 		// DEPRECATED, to be removed in v1.0
-		log.Warnf("DEPRECATED: Config '%s.password_encoder.type' is deprecated in v0.9, use '%s.password_encoder = \"%s\"' instead. Deprecated config will not break your functionality, its good to update to latest config.", keyPrefix, keyPrefix, alg)
-		passAlg = alg
+		log.Warnf("DEPRECATED: Config '%s.password_encoder.type' is deprecated in v0.9, use '%s.password_encoder = \"%s\"' instead. Deprecated config will not break your functionality, its good to update to latest config.", keyPrefix, keyPrefix, passAlg)
 	} else {
 		passAlg = cfg.StringDefault(keyPrefix+".password_encoder", "bcrypt")
 	}

@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"aahframework.org/config.v0"
-	"aahframework.org/security.v0/authc"
+	"aahframework.org/security.v0-unstable/authc"
 )
 
 var (

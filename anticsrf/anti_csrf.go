@@ -1,0 +1,153 @@
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
+// go-aah/security source code and usage is governed by a MIT style
+// license that can be found in the LICENSE file.
+
+package anticsrf
+
+import (
+	"crypto/subtle"
+	"errors"
+	"net/http"
+
+	"aahframework.org/ahttp.v0"
+	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/log.v0"
+	"aahframework.org/security.v0-unstable/cookie"
+)
+
+// Anti-CSRF errors
+var (
+	ErrNoReferer        = errors.New("security/anticsrf: no referer")
+	ErrMalformedReferer = errors.New("security/anticsrf: malformed referer")
+	ErrBadReferer       = errors.New("security/anticsrf: bad referer")
+	ErrNoCookieFound    = errors.New("security/anticsrf: no cookie found")
+)
+
+// AntiCSRF struct hold the implementation of Anti CSRF (aka XSRF) protection.
+type AntiCSRF struct {
+	Enabled       bool
+	cfg           *config.Config
+	cookieMgr     *cookie.Manager
+	secretLength  int
+	cookieName    string
+	headerName    string
+	formFieldName string
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Package methods
+//___________________________________
+
+// New method initializes the Anti-CSRF based on security configuration.
+func New(cfg *config.Config) (*AntiCSRF, error) {
+	c := &AntiCSRF{cfg: cfg}
+	keyPrefix := "security.anti_csrf"
+
+	c.Enabled = c.cfg.BoolDefault(keyPrefix+".enable", true)
+	log.Debugf("Anti-CSRF protection enabled: %v", c.Enabled)
+
+	c.secretLength = c.cfg.IntDefault(keyPrefix+".secret_length", 32)
+	c.headerName = c.cfg.StringDefault(keyPrefix+".header_name", "X-Anti-CSRF-Token")
+	c.formFieldName = c.cfg.StringDefault(keyPrefix+".form_field_name", "anti_csrf_token")
+
+	// Anit CSRF cookie options
+	c.cookieName = c.cfg.StringDefault(keyPrefix+".prefix", "aah") + "_anti_csrf"
+	opts := &cookie.Options{
+		Name:     c.cookieName,
+		Domain:   c.cfg.StringDefault(keyPrefix+".domain", ""),
+		Path:     c.cfg.StringDefault(keyPrefix+".path", "/"),
+		HTTPOnly: true,
+		Secure:   c.cfg.BoolDefault("server.ssl.enable", false),
+	}
+
+	// Anti-CSRF cookie TTL, default is 24 hours
+	var err error
+	ttl := c.cfg.StringDefault(keyPrefix+".ttl", "24h")
+	if opts.MaxAge, err = toSeconds(ttl); err != nil {
+		return nil, err
+	}
+
+	c.cookieMgr, err = cookie.NewManager(opts,
+		c.cfg.StringDefault(keyPrefix+".sign_key", ""),
+		c.cfg.StringDefault(keyPrefix+".enc_key", ""))
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// AntiCSRF methods
+//___________________________________
+
+// GenerateSecret method generates new secure secret by configured length.
+func (ac *AntiCSRF) GenerateSecret() []byte {
+	return ess.GenerateSecureRandomKey(ac.secretLength)
+}
+
+// CipherSecret method returns the Anti-CSRF secert from the cookie if not available
+// generates new secret.
+func (ac *AntiCSRF) CipherSecret(r *ahttp.Request) []byte {
+	cookie, err := r.Cookie(ac.cookieName)
+	if err != nil {
+		return ac.GenerateSecret()
+	}
+
+	chiperSecret, err := ac.cookieMgr.Decode(cookie.Value)
+	if err != nil {
+		return ac.GenerateSecret()
+	}
+
+	return chiperSecret
+}
+
+// RequestCipherSecret method returns aah request secret (aka anti-csrf token)
+// from the request. The order of secret retrival is HTTP Header,
+// Form (Regular and Multipart).
+func (ac *AntiCSRF) RequestCipherSecret(r *ahttp.Request) []byte {
+	token := r.Header.Get(ac.headerName)
+	if ess.IsStrEmpty(token) {
+		token = r.FormValue(ac.formFieldName)
+	}
+
+	tokenBytes, err := ess.DecodeBase64([]byte(token))
+	if err != nil || len(tokenBytes) != ac.secretLength*2 {
+		return nil
+	}
+
+	return ac.unsaltChiperToken(tokenBytes)
+}
+
+// IsAuthentic method compares the given secret and request secret.
+func (ac *AntiCSRF) IsAuthentic(secret, requestSecret []byte) bool {
+	return subtle.ConstantTimeCompare(secret, requestSecret) == 1
+}
+
+// SaltChiperSecret method returns salted chiper secret.
+func (ac *AntiCSRF) SaltChiperSecret(secret []byte) string {
+	salt := ess.GenerateSecureRandomKey(ac.secretLength)
+	return string(ess.EncodeToBase64(append(salt, xorBytes(salt, secret)...)))
+}
+
+// SetCookie method write/refresh the Anti-CSRF cookie value and expriy.
+func (ac *AntiCSRF) SetCookie(w http.ResponseWriter, secret []byte) error {
+	value, err := ac.cookieMgr.Encode(secret)
+	if err != nil {
+		return err
+	}
+
+	http.SetCookie(w, cookie.NewWithOptions(value, ac.cookieMgr.Options))
+	return nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// AntiCSRF Unexported methods
+//_________________________________________
+
+func (ac *AntiCSRF) unsaltChiperToken(token []byte) []byte {
+	salt := token[:ac.secretLength]
+	secret := token[ac.secretLength:]
+	return xorBytes(salt, secret)
+}

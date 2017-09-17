@@ -7,6 +7,7 @@ package acrypto
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/log.v0"
@@ -21,7 +22,7 @@ var (
 	passEncoders = make(map[string]PasswordEncoder)
 )
 
-// PasswordEncoder interface is used to generate password hash and compare given hash & password
+// PasswordEncoder interface is used to implement generate password hash and compare given hash & password
 // based chosen hashing type. Such as `bcrypt`, `scrypt` and `pbkdf2`.
 //
 // Good read about hashing security https://crackstation.net/hashing-security.htm
@@ -37,7 +38,6 @@ func PasswordAlgorithm(alg string) PasswordEncoder {
 	if pe, found := passEncoders[alg]; found {
 		return pe
 	}
-	log.Warnf("acrypto: password algorithm '%s' not found", alg)
 	return nil
 }
 
@@ -94,6 +94,10 @@ func InitPasswordEncoders(cfg *config.Config) error {
 
 		if hashFunc(hashAlg) == nil {
 			return fmt.Errorf("acrypto/pbkdf2: invalid sha algorithm '%s'", hashAlg)
+		}
+
+		if !strings.Contains("sha-512 sha-256", hashAlg) {
+			log.Warn("It is recommended to use PBKDF2 with SHA-256 or SHA-512, so that it reduces the security risk on password hash.")
 		}
 
 		if err := AddPasswordAlgorithm("pbkdf2", &Pbkdf2Encoder{

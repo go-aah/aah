@@ -11,31 +11,33 @@ import (
 	"testing"
 
 	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/security.v0-unstable/cookie"
 	"aahframework.org/test.v0/assert"
 )
 
 func TestSessionEncodeAndDecodeNoSignEnc(t *testing.T) {
 	m := createTestManager(t, `
 		security {
-				session {
-
+			session {
+				#prefix = "test-name"
 			}
 		}
-		`)
+	`)
 
 	// string value
-	name := "test-name"
+	// name := "test-name"
 	value := "This is testing of encode and decode value without sign and encryption"
 
 	assert.False(t, m.IsStateful())
 	assert.True(t, m.IsCookieStore())
 
-	encodedStr, err := m.Encode(name, value)
+	encodedStr, err := m.Encode(value)
 	assert.Nil(t, err)
 	assert.False(t, encodedStr == value)
 
 	var result string
-	err = m.Decode(name, encodedStr, &result)
+	err = m.Decode(encodedStr, &result)
 	assert.Nil(t, err)
 	assert.Equal(t, value, result)
 
@@ -48,13 +50,13 @@ func TestSessionEncodeAndDecodeNoSignEnc(t *testing.T) {
 	// register custom type
 	gob.Register(map[interface{}]interface{}{})
 
-	encodedStr, err = m.Encode(m.Options.Name, session)
+	encodedStr, err = m.Encode(session)
 	assert.FailNowOnError(t, err, "unexpected")
 	assert.Nil(t, err)
 	assert.False(t, encodedStr == "")
 
 	var resultSession Session
-	err = m.Decode(m.Options.Name, encodedStr, &resultSession)
+	err = m.Decode(encodedStr, &resultSession)
 	assert.Nil(t, err)
 	assertSessionValue(t, &resultSession)
 	ReleaseSession(&resultSession)
@@ -79,13 +81,13 @@ func TestSessionEncodeAndDecodeWithSignEnc(t *testing.T) {
 	// register custom type
 	gob.Register(map[interface{}]interface{}{})
 
-	encodedStr, err := m.Encode(m.Options.Name, session)
+	encodedStr, err := m.Encode(session)
 	assert.FailNowOnError(t, err, "unexpected")
 	assert.Nil(t, err)
 	assert.False(t, encodedStr == "")
 
 	var resultSession Session
-	err = m.Decode(m.Options.Name, encodedStr, &resultSession)
+	err = m.Decode(encodedStr, &resultSession)
 	assert.Nil(t, err)
 	assertSessionValue(t, &resultSession)
 	ReleaseSession(&resultSession)
@@ -130,10 +132,10 @@ func TestSessionManagerMisc(t *testing.T) {
 
 	session, err := m.DecodeToSession("MTQ5MTM2OTI4NXxpV1l2SHZrc0tZaXprdlA5Ql9ZS3RWOC1yOFVoWElack1VTGJIM01aV2dGdmJvamJOR2Rmc05KQW1SeHNTS2FoNEJLY2NFN2MyenVCbGllaU1NRFV88hn8MIb0L5HFU6GAkvwYjQ1rvmaL3lG3am2ZageHxQ0=")
 	assert.Nil(t, session)
-	assert.True(t, err == ErrCookieTimestampIsExpired)
+	assert.True(t, err == cookie.ErrCookieTimestampIsExpired)
 
 	str, err := m.DecodeToString("Expecting base64 decode error")
-	assert.True(t, err == ErrBase64Decode)
+	assert.True(t, err == ess.ErrBase64Decode)
 	assert.True(t, str == "")
 
 	result, err := toBytes([]byte("bytes test"))
@@ -155,6 +157,12 @@ func TestSessionManagerMisc(t *testing.T) {
 	_, err = encodeGob(es)
 	assert.NotNil(t, err)
 	assert.Equal(t, "gob: type not registered for interface: map[interface {}]string", err.Error())
+	assert.Equal(t, 0, es.GetInt("not-exists"))
+	assert.Equal(t, int64(0), es.GetInt64("not-exists"))
+	assert.Equal(t, "", es.GetString("not-exists"))
+	assert.False(t, es.GetBool("not-exists"))
+	assert.Equal(t, float32(0.0), es.GetFloat32("not-exists"))
+	assert.Equal(t, float64(0.0), es.GetFloat64("not-exists"))
 }
 
 func assertSessionValue(t *testing.T, s *Session) {

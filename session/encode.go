@@ -6,7 +6,6 @@ package session
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/gob"
 )
 
@@ -28,25 +27,4 @@ func encodeGob(v interface{}) ([]byte, error) {
 func decodeGob(dst interface{}, src []byte) error {
 	dec := gob.NewDecoder(bytes.NewBuffer(src))
 	return dec.Decode(dst)
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Encode/Decode Base64 methods
-//___________________________________
-
-// encodeBase64 method encodes a value using base64.
-func encodeBase64(v []byte) []byte {
-	encoded := make([]byte, base64.URLEncoding.EncodedLen(len(v)))
-	base64.URLEncoding.Encode(encoded, v)
-	return encoded
-}
-
-// decodeBase64 method decodes a value using base64.
-func decodeBase64(v []byte) ([]byte, error) {
-	decoded := make([]byte, base64.URLEncoding.DecodedLen(len(v)))
-	b, err := base64.URLEncoding.Decode(decoded, v)
-	if err != nil {
-		return nil, ErrBase64Decode
-	}
-	return decoded[:b], nil
 }

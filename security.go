@@ -18,10 +18,11 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/security.v0-unstable/acrypto"
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/authz"
-	"aahframework.org/security.v0/scheme"
-	"aahframework.org/security.v0/session"
+	"aahframework.org/security.v0-unstable/anticsrf"
+	"aahframework.org/security.v0-unstable/authc"
+	"aahframework.org/security.v0-unstable/authz"
+	"aahframework.org/security.v0-unstable/scheme"
+	"aahframework.org/security.v0-unstable/session"
 )
 
 var (
@@ -30,15 +31,15 @@ var (
 
 	// Bcrypt password algorithm instance for Password generate and compare.
 	// By default it is enabled.
-	Bcrypt = acrypto.PasswordAlgorithm("bcrypt")
+	Bcrypt acrypto.PasswordEncoder
 
 	// Scrypt password algorithm instance for Password generate and compare.
 	// Enable `scrypt` algorithm in `security.conf` otherwise it might be nil.
-	Scrypt = acrypto.PasswordAlgorithm("scrypt")
+	Scrypt acrypto.PasswordEncoder
 
 	// Pbkdf2 password algorithm instance for Password generate and compare.
 	// Enable `pbkdf2` algorithm in `security.conf` otherwise it might be nil.
-	Pbkdf2 = acrypto.PasswordAlgorithm("pbkdf2")
+	Pbkdf2 acrypto.PasswordEncoder
 
 	subjectPool = &sync.Pool{New: func() interface{} { return &Subject{} }}
 )
@@ -48,6 +49,7 @@ type (
 	Manager struct {
 		SessionManager *session.Manager
 		SecureHeaders  *SecureHeaders
+		AntiCSRF       *anticsrf.AntiCSRF
 		IsSSLEnabled   bool
 		appCfg         *config.Config
 		authSchemes    map[string]scheme.Schemer
@@ -94,6 +96,15 @@ func (m *Manager) Init(appCfg *config.Config) error {
 
 	// Initialize Secure Headers
 	m.initializeSecureHeaders()
+	Bcrypt = acrypto.PasswordAlgorithm("bcrypt")
+	Scrypt = acrypto.PasswordAlgorithm("scrypt")
+	Pbkdf2 = acrypto.PasswordAlgorithm("pbkdf2")
+
+	// Initialize Anti-CSRF
+	m.AntiCSRF, err = anticsrf.New(m.appCfg)
+	if err != nil {
+		return err
+	}
 
 	// Initialize Auth Schemes
 	keyPrefixAuthScheme := "security.auth_schemes"
@@ -119,15 +130,8 @@ func (m *Manager) Init(appCfg *config.Config) error {
 	}
 
 	// Initialize session manager
-	if m.SessionManager, err = session.NewManager(m.appCfg); err != nil {
-		return err
-	}
-
-	// Based on aah server SSL configuration `http.Cookie.Secure` value is set, even
-	// though it's true in the aah.conf at `security.session.secure = true`.
-	m.SessionManager.Options.Secure = m.IsSSLEnabled
-
-	return nil
+	m.SessionManager, err = session.NewManager(m.appCfg)
+	return err
 }
 
 // GetAuthScheme ...
