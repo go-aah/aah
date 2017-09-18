@@ -59,6 +59,7 @@ func New(cfg *config.Config) (*AntiCSRF, error) {
 		Path:     c.cfg.StringDefault(keyPrefix+".path", "/"),
 		HTTPOnly: true,
 		Secure:   c.cfg.BoolDefault("server.ssl.enable", false),
+		SameSite: c.cfg.StringDefault(keyPrefix+".same_site", "Lax"),
 	}
 
 	// Anti-CSRF cookie TTL, default is 24 hours
@@ -90,7 +91,7 @@ func (ac *AntiCSRF) GenerateSecret() []byte {
 // CipherSecret method returns the Anti-CSRF secert from the cookie if not available
 // generates new secret.
 func (ac *AntiCSRF) CipherSecret(r *ahttp.Request) []byte {
-	cookie, err := r.Cookie(ac.cookieName)
+	cookie, err := r.Cookie(ac.cookieMgr.Options.Name)
 	if err != nil {
 		return ac.GenerateSecret()
 	}
@@ -117,7 +118,7 @@ func (ac *AntiCSRF) RequestCipherSecret(r *ahttp.Request) []byte {
 		return nil
 	}
 
-	return ac.unsaltChiperToken(tokenBytes)
+	return ac.unsaltCipherToken(tokenBytes)
 }
 
 // IsAuthentic method compares the given secret and request secret.
@@ -125,28 +126,39 @@ func (ac *AntiCSRF) IsAuthentic(secret, requestSecret []byte) bool {
 	return subtle.ConstantTimeCompare(secret, requestSecret) == 1
 }
 
-// SaltChiperSecret method returns salted chiper secret.
-func (ac *AntiCSRF) SaltChiperSecret(secret []byte) string {
+// SaltCipherSecret method returns salted chiper secret.
+func (ac *AntiCSRF) SaltCipherSecret(secret []byte) string {
 	salt := ess.GenerateSecureRandomKey(ac.secretLength)
 	return string(ess.EncodeToBase64(append(salt, xorBytes(salt, secret)...)))
 }
 
 // SetCookie method write/refresh the Anti-CSRF cookie value and expriy.
 func (ac *AntiCSRF) SetCookie(w http.ResponseWriter, secret []byte) error {
-	value, err := ac.cookieMgr.Encode(secret)
+	s := make([]byte, len(secret))
+	copy(s, secret)
+	value, err := ac.cookieMgr.Encode(s)
 	if err != nil {
 		return err
 	}
 
-	http.SetCookie(w, cookie.NewWithOptions(value, ac.cookieMgr.Options))
+	ac.cookieMgr.Write(w, value)
 	return nil
+}
+
+// ClearCookie method is to clear Anti-CSRF cookie when disabled.
+func (ac *AntiCSRF) ClearCookie(w http.ResponseWriter, r *ahttp.Request) {
+	if _, err := r.Cookie(ac.cookieMgr.Options.Name); err == nil {
+		opts := *ac.cookieMgr.Options
+		opts.MaxAge = -1
+		http.SetCookie(w, cookie.NewWithOptions("", &opts))
+	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // AntiCSRF Unexported methods
 //_________________________________________
 
-func (ac *AntiCSRF) unsaltChiperToken(token []byte) []byte {
+func (ac *AntiCSRF) unsaltCipherToken(token []byte) []byte {
 	salt := token[:ac.secretLength]
 	secret := token[ac.secretLength:]
 	return xorBytes(salt, secret)

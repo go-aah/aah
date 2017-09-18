@@ -5,6 +5,8 @@
 package cookie
 
 import (
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"aahframework.org/essentials.v0-unstable"
@@ -17,6 +19,7 @@ func TestCookieNew(t *testing.T) {
 		Path:     "/",
 		HTTPOnly: true,
 		Secure:   true,
+		SameSite: "Lax",
 	}
 
 	opts.MaxAge = 3600
@@ -30,6 +33,7 @@ func TestCookieNew(t *testing.T) {
 
 func TestCookieManager(t *testing.T) {
 	opts := &Options{
+		Name:   "aah",
 		MaxAge: 1800,
 	}
 
@@ -46,9 +50,24 @@ func TestCookieManager(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, value, string(obj))
 
+	w := httptest.NewRecorder()
+	cm.Write(w, value)
+	hdr := w.Header().Get("Set-Cookie")
+	assert.True(t, strings.Contains(hdr, value))
+
+	cookie := cm.New(value)
+	assert.NotNil(t, cookie)
+
 	_, err = cm.Decode("MTQ5MTM2OTI4NXxpV1l2SHZrc0tZaXprdlA5Ql9ZS3RWOC1yOFVoWElack1VTGJIM01aV2dGdmJvamJOR2Rmc05KQW1SeHNTS2FoNEJLY2NFN2MyenVCbGllaU1NRFV88hn8MIb0L5HFU6GAkvwYjQ1rvmaL3lG3am2ZageHxQ0=")
 	assert.Equal(t, ErrSignVerificationIsFailed, err)
 
 	_, err = cm.Decode("Base64 decode error")
 	assert.Equal(t, ess.ErrBase64Decode, err)
+
+	bvalue, _ := ess.DecodeBase64([]byte(value))
+	_, err = cm.Decode(string(bvalue))
+	assert.Equal(t, ErrCookieValueIsInvalid, err)
+
+	_, err = cm.Decode(value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value)
+	assert.Equal(t, ErrCookieValueIsTooLarge, err)
 }

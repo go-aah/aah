@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"aahframework.org/essentials.v0-unstable"
@@ -50,6 +51,7 @@ type (
 		MaxAge   int64
 		HTTPOnly bool
 		Secure   bool
+		SameSite string
 	}
 )
 
@@ -108,6 +110,27 @@ func NewWithOptions(value string, opts *Options) *http.Cookie {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Manager methods
 //___________________________________
+
+// New method creates new cookie instance for given value with cookie manager options.
+func (m *Manager) New(value string) *http.Cookie {
+	return NewWithOptions(value, m.Options)
+}
+
+// Write method writes the given cookie value into response.
+func (m *Manager) Write(w http.ResponseWriter, value string) {
+	c := m.New(value)
+	if v := c.String(); !ess.IsStrEmpty(v) {
+		// Adding `SameSite` setting
+		// https://tools.ietf.org/html/draft-west-first-party-cookies-07
+		//
+		// Currently Go doesn't have this attribute in `http.Cookie`, for future proof
+		// check and then add `SameSite` setting.
+		if !strings.Contains(v, "SameSite") && !ess.IsStrEmpty(m.Options.SameSite) {
+			v += "; SameSite=" + m.Options.SameSite
+		}
+		w.Header().Add("Set-Cookie", v)
+	}
+}
 
 // Encode method encodes given value.
 //

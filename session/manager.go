@@ -235,7 +235,8 @@ func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
 	}
 
 	log.Debugf("Session saved, ID: %v", s.ID)
-	http.SetCookie(w, cookie.NewWithOptions(encodedStr, m.cookieMgr.Options))
+	m.cookieMgr.Write(w, encodedStr)
+	// http.SetCookie(w, cookie.NewWithOptions(encodedStr, m.cookieMgr.Options))
 	return nil
 }
 

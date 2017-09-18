@@ -5,6 +5,7 @@
 package anticsrf
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,15 +14,16 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0-unstable"
 	"aahframework.org/test.v0/assert"
 )
 
-func TestCSRFSecret(t *testing.T) {
+func TestAntiCSRFSecret(t *testing.T) {
 	cfgStr := `
 	security {
 		anti_csrf {
-			#sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
-	    #enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
+			sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
+	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
 		}
 	}
 	`
@@ -29,40 +31,48 @@ func TestCSRFSecret(t *testing.T) {
 	cfg, err := config.ParseString(cfgStr)
 	assert.Nil(t, err)
 
-	anitCSRF, err := New(cfg)
+	antiCSRF, err := New(cfg)
 	assert.Nil(t, err)
 
-	newsecert := anitCSRF.GenerateSecret()
-	assert.NotNil(t, newsecert)
-
-	secretstr := anitCSRF.SaltChiperSecret(newsecert)
+	newsecret := antiCSRF.GenerateSecret()
+	secretstr := antiCSRF.SaltCipherSecret(newsecret)
+	decodesecret, _ := ess.DecodeBase64([]byte(secretstr))
+	testsecret := antiCSRF.unsaltCipherToken(decodesecret)
+	assert.NotNil(t, newsecret)
 	assert.NotEqual(t, "", secretstr)
+	assert.True(t, bytes.Equal(testsecret, newsecret))
 
 	// Request and Validate
+	cookieValue, _ := antiCSRF.cookieMgr.Encode(newsecret)
 	form := url.Values{}
-	form.Set("anti_csrf_token", "XJ3J3I86pzNfHuHW3StkzhtSh_v88le6uXFrsOVxA-eYU8x82XearRHz0wN0SAjJKtBTtC3U_QOk1dpoDd87VA==")
-
+	form.Set("anti_csrf_token", secretstr)
 	req, _ := http.NewRequest("POST", "http://localhost:8080/login", strings.NewReader(form.Encode()))
 	req.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeForm.String())
-	req.Header.Set("Cookie", "aah_anti_csrf=MTUwNTYwMjUyMHx4TTRGb0ZaTlBaNU83VExWcVdOc0J6R0MxRV9SSnFxNUhhU3gyT2l1T0xNPXw=")
+	req.Header.Set(ahttp.HeaderCookie, "aah_anti_csrf="+cookieValue)
 	req.Header.Set(ahttp.HeaderReferer, "http://localhost:8080/login.html")
 	_ = req.ParseForm()
 
 	areq := ahttp.AcquireRequest(req)
 	areq.Params.Form = req.Form
 
-	assert.False(t, IsSafeHTTPMethod(areq.Method))
+	secret := antiCSRF.CipherSecret(areq)
+	requestSecret := antiCSRF.RequestCipherSecret(areq)
+	assert.True(t, bytes.Equal(secret, requestSecret))
 
-	b, _ := url.Parse(req.Header.Get(ahttp.HeaderReferer))
-	assert.True(t, IsSameOrigin(req.URL, b))
-
-	secret := anitCSRF.CipherSecret(areq)
-	requestSecret := anitCSRF.RequestCipherSecret(areq)
-	passed := anitCSRF.IsAuthentic(secret, requestSecret)
-	assert.True(t, passed)
+	result := antiCSRF.IsAuthentic(secret, requestSecret)
+	assert.True(t, result)
 
 	// Write Anti-CSRF cookie
 	w := httptest.NewRecorder()
-	err = anitCSRF.SetCookie(w, newsecert)
+	err = antiCSRF.SetCookie(w, newsecret)
 	assert.Nil(t, err)
+
+	antiCSRF.ClearCookie(w, areq)
+
+	// Safe method check
+	assert.False(t, IsSafeHTTPMethod(areq.Method))
+
+	// same origin check
+	b, _ := url.Parse(req.Header.Get(ahttp.HeaderReferer))
+	assert.True(t, IsSameOrigin(req.URL, b))
 }
