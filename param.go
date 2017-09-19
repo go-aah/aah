@@ -49,13 +49,13 @@ func AddValueParser(typ reflect.Type, parser valpar.Parser) error {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Params Unexported method
+// Params Middleware
 //___________________________________
 
-// parseRequestParams method parses the incoming HTTP request to collects request
+// requestParamsMiddleware method parses the incoming HTTP request to collects request
 // parameters (Path, Form, Query, Multipart) stores into context. Request
 // params are made available in View via template functions.
-func (e *engine) parseRequestParams(ctx *Context) flowResult {
+func requestParamsMiddleware(ctx *Context, m *Middleware) {
 	if AppI18n() != nil {
 		// i18n locale HTTP header `Accept-Language` value override via
 		// Path Variable and URL Query Param (config i18n { param_name { ... } }).
@@ -68,7 +68,8 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 	}
 
 	if ctx.Req.Method == ahttp.MethodGet {
-		return flowCont
+		m.Next(ctx)
+		return
 	}
 
 	ctx.Log().Debugf("Request Content-Type mime: %s", ctx.Req.ContentType.Mime)
@@ -82,7 +83,7 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 				Code:    http.StatusUnsupportedMediaType,
 				Message: http.StatusText(http.StatusUnsupportedMediaType),
 			})
-			return flowStop
+			return
 		}
 
 		if len(offeredContentTypes) > 0 &&
@@ -92,7 +93,7 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 				Message: http.StatusText(http.StatusNotAcceptable),
 			})
 			ctx.Log().Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType.Mime)
-			return flowStop
+			return
 		}
 	}
 
@@ -106,11 +107,11 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 	// Parse request content by Content-Type
 	if parser, found := requestParsers[ctx.Req.ContentType.Mime]; found {
 		if res := parser(ctx); res == flowStop {
-			return flowStop
+			return
 		}
 	}
 
-	return flowCont
+	m.Next(ctx)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

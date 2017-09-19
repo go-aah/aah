@@ -230,6 +230,9 @@ func invalidateMwChain() {
 
 func init() {
 	mwStack = append(mwStack,
+		requestParamsMiddleware,
+		antiCSRFMiddleware,
+		authcAndAuthzMiddleware,
 		interceptorMiddleware,
 		actionMiddleware,
 	)

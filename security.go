@@ -7,14 +7,17 @@ package aah
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/security.v0"
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/scheme"
-	"aahframework.org/security.v0/session"
+	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/security.v0-unstable"
+	"aahframework.org/security.v0-unstable/acrypto"
+	"aahframework.org/security.v0-unstable/anticsrf"
+	"aahframework.org/security.v0-unstable/authc"
+	"aahframework.org/security.v0-unstable/scheme"
+	"aahframework.org/security.v0-unstable/session"
 )
 
 const (
@@ -23,6 +26,8 @@ const (
 
 	// KeyViewArgSubject key name is used to store `Subject` instance into `ViewArgs`.
 	KeyViewArgSubject = "_aahSubject"
+
+	keyAntiCSRFSecret = "_AntiCSRFSecret"
 )
 
 var appSecurityManager = security.New()
@@ -50,16 +55,25 @@ func AddSessionStore(name string, store session.Storer) error {
 	return session.AddStore(name, store)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Authentication and Authorization methods
-//__________________________________________
+// AddPasswordAlgorithm method adds given password algorithm to encoders list.
+// Implementation have to implement interface `PasswordEncoder`.
+//
+/// Then you can use it `security.auth_schemes.*`.
+func AddPasswordAlgorithm(name string, encoder acrypto.PasswordEncoder) error {
+	return acrypto.AddPasswordAlgorithm(name, encoder)
+}
 
-func (e engine) handleAuthcAndAuthz(ctx *Context) flowResult {
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Authentication and Authorization Middleware
+//_____________________________________________
+
+func authcAndAuthzMiddleware(ctx *Context, m *Middleware) {
 	// If route auth is `anonymous` then continue the request flow
 	// No authentication or authorization is required for that route.
 	if ctx.route.Auth == "anonymous" {
 		ctx.Log().Debugf("Route auth is anonymous: %v", ctx.Req.Path)
-		return flowCont
+		m.Next(ctx)
+		return
 	}
 
 	authScheme := AppSecurityManager().GetAuthScheme(ctx.route.Auth)
@@ -72,25 +86,31 @@ func (e engine) handleAuthcAndAuthz(ctx *Context) flowResult {
 				Code:    http.StatusForbidden,
 				Message: http.StatusText(http.StatusForbidden),
 			})
-			return flowStop
+			return
 		}
 
 		// If auth scheme is not configured in security.conf then treat it as `anonymous`.
 		ctx.Log().Tracef("Route auth scheme is not configured, so treat it as anonymous: %v", ctx.Req.Path)
-		return flowCont
+		m.Next(ctx)
+		return
 	}
 
 	ctx.Log().Debugf("Route auth scheme: %s", authScheme.Scheme())
+	var result flowResult
 	switch authScheme.Scheme() {
 	case "form":
-		return e.doFormAuthcAndAuthz(authScheme, ctx)
+		result = doFormAuthcAndAuthz(authScheme, ctx)
 	default:
-		return e.doAuthcAndAuthz(authScheme, ctx)
+		result = doAuthcAndAuthz(authScheme, ctx)
+	}
+
+	if result == flowCont {
+		m.Next(ctx)
 	}
 }
 
 // doFormAuthcAndAuthz method does Form Authentication and Authorization.
-func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
+func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 	formAuth := ascheme.(*scheme.FormAuth)
 
 	// In Form authentication check session is already authentication if yes
@@ -140,6 +160,10 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 	ctx.Subject().AuthorizationInfo = formAuth.DoAuthorizationInfo(authcInfo)
 	ctx.Session().IsAuthenticated = true
 
+	// Change the Anti-CSRF token in use for a request after login for security purposes.
+	ctx.Log().Debug("Change Anti-CSRF secret after login for security purpose")
+	ctx.AddViewArg(keyAntiCSRFSecret, AppSecurityManager().AntiCSRF.GenerateSecret())
+
 	// Remove the credential
 	ctx.Subject().AuthenticationInfo.Credential = nil
 	ctx.Session().Set(KeyViewArgAuthcInfo, ctx.Subject().AuthenticationInfo)
@@ -158,7 +182,7 @@ func (e *engine) doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowR
 }
 
 // doAuthcAndAuthz method does Authentication and Authorization.
-func (e *engine) doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
+func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 	publishOnPreAuthEvent(ctx)
 
 	// Do Authentication
@@ -190,6 +214,107 @@ func (e *engine) doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResul
 	publishOnPostAuthEvent(ctx)
 
 	return flowCont
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Anti-CSRF Middleware
+//___________________________________
+
+func antiCSRFMiddleware(ctx *Context, m *Middleware) {
+	// If Anti-CSRF is not enabled, move on.
+	// It is highly recommended to enable for web application.
+	if !AppSecurityManager().AntiCSRF.Enabled {
+		ctx.Log().Trace("Anti CSRF protection is not enabled, clear the cookie if present.")
+		AppSecurityManager().AntiCSRF.ClearCookie(ctx.Res, ctx.Req)
+		m.Next(ctx)
+		return
+	}
+
+	// Get cipher secret from anti-csrf cookie
+	secret := AppSecurityManager().AntiCSRF.CipherSecret(ctx.Req)
+	ctx.AddViewArg(keyAntiCSRFSecret, secret)
+
+	// HTTP Method is safe per defined in
+	// https://tools.ietf.org/html/rfc7231#section-4.2.1
+	if anticsrf.IsSafeHTTPMethod(ctx.Req.Method) {
+		ctx.Log().Tracef("HTTP method[%s] safe method per RFC7231", ctx.Req.Method)
+		m.Next(ctx)
+		writeAntiCSRFCookie(ctx, secret)
+		return
+	}
+
+	// Below comment graciously borrowed from django
+	// Suppose user visits http://example.com/
+	// An active network attacker (man-in-the-middle, MITM) sends a
+	// POST form that targets https://example.com/detonate-bomb/ and
+	// submits it via JavaScript.
+	//
+	// The attacker will need to provide a CSRF cookie and token, but
+	// that's no problem for a MITM and the session-independent
+	// secret we're using. So the MITM can circumvent the CSRF
+	// protection. This is true for any HTTP connection, but anyone
+	// using HTTPS expects better! For this reason, for
+	// https://example.com/ we need additional protection that treats
+	// http://example.com/ as completely untrusted. Under HTTPS,
+	// Barth et al. found that the Referer header is missing for
+	// same-domain requests in only about 0.2% of cases or less, so
+	// we can use strict Referer checking.
+	if ctx.Req.Scheme == "https" {
+		referer, err := url.Parse(ctx.Req.Referer)
+		if err != nil {
+			ctx.Log().Errorf("Anti-CSRF: malformed referer %s", ctx.Req.Referer)
+			ctx.Reply().Error(&Error{
+				Reason:  anticsrf.ErrMalformedReferer,
+				Code:    http.StatusForbidden,
+				Message: http.StatusText(http.StatusForbidden),
+			})
+			return
+		}
+
+		if ess.IsStrEmpty(referer.String()) {
+			ctx.Log().Errorf("Anti-CSRF: no referer %s", ctx.Req.Referer)
+			ctx.Reply().Error(&Error{
+				Reason:  anticsrf.ErrNoReferer,
+				Code:    http.StatusForbidden,
+				Message: http.StatusText(http.StatusForbidden),
+			})
+			return
+		}
+
+		if !anticsrf.IsSameOrigin(ctx.Req.Unwrap().URL, referer) {
+			ctx.Log().Errorf("Anti-CSRF: bad referer %s", ctx.Req.Referer)
+			ctx.Reply().Error(&Error{
+				Reason:  anticsrf.ErrBadReferer,
+				Code:    http.StatusForbidden,
+				Message: http.StatusText(http.StatusForbidden),
+			})
+			return
+		}
+	}
+
+	// Get request cipher secret from HTTP header or Form
+	requestSecret := AppSecurityManager().AntiCSRF.RequestCipherSecret(ctx.Req)
+	if requestSecret == nil || !AppSecurityManager().AntiCSRF.IsAuthentic(secret, requestSecret) {
+		ctx.Log().Error("Anti-CSRF: bad request, invalid cipher secret")
+		ctx.Reply().Error(&Error{
+			Reason:  anticsrf.ErrNoCookieFound,
+			Code:    http.StatusForbidden,
+			Message: http.StatusText(http.StatusForbidden),
+		})
+		return
+	}
+	ctx.Log().Trace("Anti-CSRF cipher secret verification passed")
+
+	m.Next(ctx)
+
+	writeAntiCSRFCookie(ctx, ctx.viewArgs[keyAntiCSRFSecret].([]byte))
+}
+
+func writeAntiCSRFCookie(ctx *Context, secret []byte) {
+	if err := AppSecurityManager().AntiCSRF.SetCookie(ctx.Res, secret); err != nil {
+		ctx.Log().Error("Unable to write Anti-CSRF cookie")
+	}
+	ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderCookie)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -284,6 +409,15 @@ func tmplIsPermittedAll(viewArgs map[string]interface{}, permissions ...string) 
 		return sub.IsPermittedAll(permissions...)
 	}
 	return false
+}
+
+// tmplAntiCSRFToken method returns the salted Anti-CSRF secret for the view,
+// if enabled otherwise empty string.
+func tmplAntiCSRFToken(viewArgs map[string]interface{}) string {
+	if AppSecurityManager().AntiCSRF.Enabled {
+		return AppSecurityManager().AntiCSRF.SaltCipherSecret(viewArgs[keyAntiCSRFSecret].([]byte))
+	}
+	return ""
 }
 
 func getSubjectFromViewArgs(viewArgs map[string]interface{}) *security.Subject {

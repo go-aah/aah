@@ -19,7 +19,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
+	"aahframework.org/essentials.v0-unstable"
 	"aahframework.org/log.v0-unstable"
 	"aahframework.org/test.v0/assert"
 )
@@ -310,14 +310,22 @@ func TestEngineServeHTTP(t *testing.T) {
 	autobindPriority = []string{"Q", "F", "P"}
 	requestParsers[ahttp.ContentTypeMultipartForm.Mime] = multipartFormParser
 	requestParsers[ahttp.ContentTypeForm.Mime] = formParser
+	secret := AppSecurityManager().AntiCSRF.GenerateSecret()
+	secretstr := AppSecurityManager().AntiCSRF.SaltCipherSecret(secret)
 	form := url.Values{}
 	form.Add("product_name", "Test Product")
 	form.Add("username", "welcome")
 	form.Add("email", "welcome@welcome.com")
+	form.Add("anti_csrf_token", secretstr)
 	r10 := httptest.NewRequest("POST", "http://localhost:8080/products/100002?page=10&count=20",
 		strings.NewReader(form.Encode()))
 	r10.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeForm.String())
+
 	w10 := httptest.NewRecorder()
+	_ = AppSecurityManager().AntiCSRF.SetCookie(w10, secret)
+	cookieValue := w10.Header().Get("Set-Cookie")
+	r10.Header.Set(ahttp.HeaderCookie, cookieValue)
+
 	e.ServeHTTP(w10, r10)
 
 	resp10 := w10.Result()
@@ -330,8 +338,10 @@ func TestEngineServeHTTP(t *testing.T) {
 	// Request 11 multipart
 	r11 := httptest.NewRequest("POST", "http://localhost:8080/products/100002?page=10&count=20",
 		strings.NewReader(form.Encode()))
-	r11.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeMultipartForm.String())
+	r11.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeForm.String())
 	w11 := httptest.NewRecorder()
+	r11.Header.Set(ahttp.HeaderCookie, cookieValue)
+
 	e.ServeHTTP(w11, r11)
 
 	resp11 := w11.Result()
@@ -352,6 +362,8 @@ func TestEngineServeHTTP(t *testing.T) {
 	r12 := httptest.NewRequest("POST", "http://localhost:8080/json-submit",
 		bytes.NewReader(jsonBytes))
 	r12.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeJSON.String())
+	r12.Header.Set("X-Anti-CSRF-Token", secretstr)
+	r12.Header.Set(ahttp.HeaderCookie, cookieValue)
 	w12 := httptest.NewRecorder()
 	e.ServeHTTP(w12, r12)
 

@@ -18,7 +18,7 @@ import (
 	"aahframework.org/essentials.v0"
 	"aahframework.org/i18n.v0"
 	"aahframework.org/router.v0"
-	"aahframework.org/security.v0"
+	"aahframework.org/security.v0-unstable"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -65,11 +65,10 @@ func TestParamParse(t *testing.T) {
 		viewArgs: make(map[string]interface{}),
 	}
 
-	e := &engine{}
 	appI18n = i18n.New()
 
 	assert.Nil(t, ctx1.Req.Locale)
-	e.parseRequestParams(ctx1)
+	requestParamsMiddleware(ctx1, &Middleware{})
 	assert.NotNil(t, ctx1.Req.Locale)
 	assert.Equal(t, "en", ctx1.Req.Locale.Language)
 	assert.Equal(t, "CA", ctx1.Req.Locale.Region)
@@ -91,7 +90,7 @@ func TestParamParse(t *testing.T) {
 		viewArgs: make(map[string]interface{}),
 	}
 
-	e.parseRequestParams(ctx2)
+	requestParamsMiddleware(ctx2, &Middleware{})
 	assert.NotNil(t, ctx2.Req.Params.Form)
 	assert.True(t, len(ctx2.Req.Params.Form) == 3)
 }
@@ -117,10 +116,8 @@ func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
 		viewArgs: make(map[string]interface{}),
 	}
 
-	e := &engine{}
-
 	assert.Nil(t, ctx1.Req.Locale)
-	e.parseRequestParams(ctx1)
+	requestParamsMiddleware(ctx1, &Middleware{})
 	assert.NotNil(t, ctx1.Req.Locale)
 	assert.Equal(t, "en", ctx1.Req.Locale.Language)
 	assert.Equal(t, "CA", ctx1.Req.Locale.Region)
@@ -131,8 +128,6 @@ func TestParamContentNegotiation(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
 
 	errorHandler = defaultErrorHandler
-	e := engine{}
-
 	isContentNegotiationEnabled = true
 
 	// Accepted
@@ -144,9 +139,8 @@ func TestParamContentNegotiation(t *testing.T) {
 		reply:   acquireReply(),
 		subject: security.AcquireSubject(),
 	}
-	result1 := e.parseRequestParams(ctx1)
+	requestParamsMiddleware(ctx1, &Middleware{})
 	assert.Equal(t, http.StatusUnsupportedMediaType, ctx1.Reply().err.Code)
-	assert.True(t, result1 == 1)
 
 	// Offered
 	offeredContentTypes = []string{"application/json"}
@@ -158,9 +152,8 @@ func TestParamContentNegotiation(t *testing.T) {
 		reply:   acquireReply(),
 		subject: security.AcquireSubject(),
 	}
-	result2 := e.parseRequestParams(ctx2)
+	requestParamsMiddleware(ctx2, &Middleware{})
 	assert.Equal(t, http.StatusNotAcceptable, ctx2.Reply().err.Code)
-	assert.True(t, result2 == 1)
 
 	isContentNegotiationEnabled = false
 

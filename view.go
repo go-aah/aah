@@ -253,5 +253,6 @@ func init() {
 		"hasanyrole":      tmplHasAnyRole,
 		"ispermitted":     tmplIsPermitted,
 		"ispermittedall":  tmplIsPermittedAll,
+		"anitcsrftoken":   tmplAntiCSRFToken,
 	})
 }

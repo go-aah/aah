@@ -66,6 +66,7 @@ var defaultErrorHTMLTemplate = template.Must(template.New("error_template").Pars
 type (
 	// Error structure used to represent the error details in the aah framework.
 	Error struct {
+		Reason  error       `json:"-" xml:"-"`
 		Code    int         `json:"code,omitempty" xml:"code,omitempty"`
 		Message string      `json:"message,omitempty" xml:"message,omitempty"`
 		Data    interface{} `json:"data,omitempty" xml:"data,omitempty"`
