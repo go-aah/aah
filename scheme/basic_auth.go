@@ -114,17 +114,15 @@ func (b *BasicAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*auth
 		return nil, err
 	}
 
-	log.Info(authcInfo)
-
 	// Compare passwords
 	isPasswordOk := b.passwordEncoder.Compare(authcInfo.Credential, []byte(authcToken.Credential))
 	if !isPasswordOk {
-		log.Error("Subject credentials do not match")
+		log.Errorf("Subject [%s] credentials do not match", authcToken.Identity)
 		return nil, authc.ErrAuthenticationFailed
 	}
 
 	if authcInfo.IsLocked || authcInfo.IsExpired {
-		log.Error("Subject is locked or expired")
+		log.Errorf("Subject [%s] is locked or expired", authcToken.Identity)
 		return nil, authc.ErrAuthenticationFailed
 	}
 

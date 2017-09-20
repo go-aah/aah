@@ -165,7 +165,7 @@ func (m *Manager) NewSession() *Session {
 func (m *Manager) GetSession(r *http.Request) *Session {
 	scookie, err := r.Cookie(m.cookieMgr.Options.Name)
 	if err == http.ErrNoCookie {
-		log.Trace("aah application session is not yet created or unavailable")
+		log.Trace("aah application session cookie is not yet created or unavailable")
 		return nil
 	}
 
@@ -190,7 +190,7 @@ func (m *Manager) GetSession(r *http.Request) *Session {
 		// clean expried session
 		if err == cookie.ErrCookieTimestampIsExpired && !m.IsCookieStore() {
 			if id, err := m.DecodeToString(scookie.Value); err == nil {
-				log.Info("Cleaning expried session: %v", id)
+				log.Debugf("Cleaning expried session: %s", id)
 				_ = m.store.Delete(id)
 			}
 		}
@@ -234,7 +234,7 @@ func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
 		}
 	}
 
-	log.Debugf("Session saved, ID: %v", s.ID)
+	log.Debugf("Session saved, ID: %s", s.ID)
 	m.cookieMgr.Write(w, encodedStr)
 	return nil
 }
@@ -251,7 +251,7 @@ func (m *Manager) DeleteSession(w http.ResponseWriter, s *Session) error {
 
 	opts := *m.cookieMgr.Options
 	opts.MaxAge = -1
-	log.Debugf("Session deleted, ID: %v", s.ID)
+	log.Debugf("Session deleted, ID: %s", s.ID)
 	http.SetCookie(w, cookie.NewWithOptions("", &opts))
 	return nil
 }
