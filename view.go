@@ -14,7 +14,7 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0-unstable"
-	"aahframework.org/view.v0"
+	"aahframework.org/view.v0-unstable"
 )
 
 var (
