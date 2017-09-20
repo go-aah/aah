@@ -262,7 +262,7 @@ func antiCSRFMiddleware(ctx *Context, m *Middleware) {
 	if ctx.Req.Scheme == "https" {
 		referer, err := url.Parse(ctx.Req.Referer)
 		if err != nil {
-			ctx.Log().Errorf("Anti-CSRF: malformed referer %s", ctx.Req.Referer)
+			ctx.Log().Warnf("Anti-CSRF: malformed referer %s", ctx.Req.Referer)
 			ctx.Reply().Error(&Error{
 				Reason:  anticsrf.ErrMalformedReferer,
 				Code:    http.StatusForbidden,
@@ -272,7 +272,7 @@ func antiCSRFMiddleware(ctx *Context, m *Middleware) {
 		}
 
 		if ess.IsStrEmpty(referer.String()) {
-			ctx.Log().Errorf("Anti-CSRF: no referer %s", ctx.Req.Referer)
+			ctx.Log().Warnf("Anti-CSRF: no referer %s", ctx.Req.Referer)
 			ctx.Reply().Error(&Error{
 				Reason:  anticsrf.ErrNoReferer,
 				Code:    http.StatusForbidden,
@@ -282,7 +282,7 @@ func antiCSRFMiddleware(ctx *Context, m *Middleware) {
 		}
 
 		if !anticsrf.IsSameOrigin(ctx.Req.Unwrap().URL, referer) {
-			ctx.Log().Errorf("Anti-CSRF: bad referer %s", ctx.Req.Referer)
+			ctx.Log().Warnf("Anti-CSRF: bad referer %s", ctx.Req.Referer)
 			ctx.Reply().Error(&Error{
 				Reason:  anticsrf.ErrBadReferer,
 				Code:    http.StatusForbidden,
@@ -295,7 +295,7 @@ func antiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// Get request cipher secret from HTTP header or Form
 	requestSecret := AppSecurityManager().AntiCSRF.RequestCipherSecret(ctx.Req)
 	if requestSecret == nil || !AppSecurityManager().AntiCSRF.IsAuthentic(secret, requestSecret) {
-		ctx.Log().Error("Anti-CSRF: bad request, invalid cipher secret")
+		ctx.Log().Warn("Anti-CSRF: verification failed, invalid cipher secret")
 		ctx.Reply().Error(&Error{
 			Reason:  anticsrf.ErrNoCookieFound,
 			Code:    http.StatusForbidden,
