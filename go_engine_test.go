@@ -6,6 +6,7 @@ package view
 
 import (
 	"bytes"
+	"html/template"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -17,6 +18,12 @@ import (
 
 func TestViewAppPages(t *testing.T) {
 	_ = log.SetLevel("trace")
+	AddTemplateFunc(template.FuncMap{
+		"anitcsrftoken": func(arg interface{}) string {
+			return ""
+		},
+	})
+
 	cfg, _ := config.ParseString(`view { }`)
 	ge := loadGoViewEngine(t, cfg, "views")
 
@@ -108,6 +115,18 @@ func TestViewBaseDirNotExists(t *testing.T) {
 	err := ge.Init(cfg, viewsDir)
 	assert.NotNil(t, err)
 	assert.True(t, strings.HasPrefix(err.Error(), "goviewengine: views base dir is not exists:"))
+}
+
+func TestViewDelimitersError(t *testing.T) {
+	viewsDir := filepath.Join(getTestdataPath(), "views")
+	ge := &GoViewEngine{}
+	cfg, _ := config.ParseString(`view {
+		delimiters = "{{."
+	}`)
+
+	err := ge.Init(cfg, viewsDir)
+	assert.NotNil(t, err)
+	assert.Equal(t, "goviewengine: config 'view.delimiters' value is invalid", err.Error())
 }
 
 func TestViewErrors(t *testing.T) {
