@@ -120,7 +120,7 @@ func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 			ctx.Subject().AuthenticationInfo = ctx.Session().Get(KeyViewArgAuthcInfo).(*authc.AuthenticationInfo)
 			ctx.Subject().AuthorizationInfo = formAuth.DoAuthorizationInfo(ctx.Subject().AuthenticationInfo)
 		} else {
-			ctx.Log().Warn("It seems there is an issue with session data of AuthenticationInfo")
+			ctx.Log().Warn("It seems there is an issue with session data - AuthenticationInfo")
 		}
 
 		return flowCont
@@ -155,10 +155,12 @@ func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 	}
 
 	ctx.Log().Info("Authentication successful")
-
 	ctx.Subject().AuthenticationInfo = authcInfo
 	ctx.Subject().AuthorizationInfo = formAuth.DoAuthorizationInfo(authcInfo)
 	ctx.Session().IsAuthenticated = true
+
+	ctx.Log().Debug(ctx.Subject().AuthenticationInfo)
+	ctx.Log().Debug(ctx.Subject().AuthorizationInfo)
 
 	// Change the Anti-CSRF token in use for a request after login for security purposes.
 	ctx.Log().Debug("Change Anti-CSRF secret after login for security purpose")
@@ -203,10 +205,12 @@ func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 	}
 
 	ctx.Log().Info("Authentication successful")
-
 	ctx.Subject().AuthenticationInfo = authcInfo
 	ctx.Subject().AuthorizationInfo = ascheme.DoAuthorizationInfo(authcInfo)
 	ctx.Session().IsAuthenticated = true
+
+	ctx.Log().Debug(ctx.Subject().AuthenticationInfo)
+	ctx.Log().Debug(ctx.Subject().AuthorizationInfo)
 
 	// Remove the credential
 	ctx.Subject().AuthenticationInfo.Credential = nil
