@@ -16,7 +16,7 @@ import (
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/security.v0"
+	"aahframework.org/security.v0-unstable"
 )
 
 const (
@@ -88,16 +88,6 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Load session
 	e.loadSession(ctx)
-
-	// Authentication and Authorization
-	if e.handleAuthcAndAuthz(ctx) == flowStop {
-		goto wReply
-	}
-
-	// Parsing request params
-	if e.parseRequestParams(ctx) == flowStop {
-		goto wReply
-	}
 
 	// Middlewares, interceptors, targeted controller
 	e.executeMiddlewares(ctx)
