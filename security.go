@@ -154,12 +154,11 @@ func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 		return flowStop
 	}
 
+	ctx.Log().Debug(ctx.Subject().AuthenticationInfo)
 	ctx.Log().Info("Authentication successful")
 	ctx.Subject().AuthenticationInfo = authcInfo
 	ctx.Subject().AuthorizationInfo = formAuth.DoAuthorizationInfo(authcInfo)
 	ctx.Session().IsAuthenticated = true
-
-	ctx.Log().Debug(ctx.Subject().AuthenticationInfo)
 	ctx.Log().Debug(ctx.Subject().AuthorizationInfo)
 
 	// Change the Anti-CSRF token in use for a request after login for security purposes.
@@ -204,12 +203,11 @@ func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 		return flowStop
 	}
 
+	ctx.Log().Debug(ctx.Subject().AuthenticationInfo)
 	ctx.Log().Info("Authentication successful")
 	ctx.Subject().AuthenticationInfo = authcInfo
 	ctx.Subject().AuthorizationInfo = ascheme.DoAuthorizationInfo(authcInfo)
 	ctx.Session().IsAuthenticated = true
-
-	ctx.Log().Debug(ctx.Subject().AuthenticationInfo)
 	ctx.Log().Debug(ctx.Subject().AuthorizationInfo)
 
 	// Remove the credential
@@ -227,7 +225,7 @@ func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 func antiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// If Anti-CSRF is not enabled, move on.
 	// It is highly recommended to enable for web application.
-	if !AppSecurityManager().AntiCSRF.Enabled {
+	if !AppSecurityManager().AntiCSRF.Enabled || AppViewEngine() == nil {
 		ctx.Log().Trace("Anti CSRF protection is not enabled, clear the cookie if present.")
 		AppSecurityManager().AntiCSRF.ClearCookie(ctx.Res, ctx.Req)
 		m.Next(ctx)
