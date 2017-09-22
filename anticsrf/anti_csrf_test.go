@@ -76,3 +76,30 @@ func TestAntiCSRFSecret(t *testing.T) {
 	b, _ := url.Parse(req.Header.Get(ahttp.HeaderReferer))
 	assert.True(t, IsSameOrigin(req.URL, b))
 }
+
+func TestAntiCSRFCipherSecret(t *testing.T) {
+	cfgStr := `
+	security {
+		anti_csrf {
+			sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
+	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
+		}
+	}
+	`
+
+	cfg, err := config.ParseString(cfgStr)
+	assert.Nil(t, err)
+
+	antiCSRF, err := New(cfg)
+	assert.Nil(t, err)
+
+	req, _ := http.NewRequest("GET", "http://localhost:8080/login.html", nil)
+	areq := ahttp.AcquireRequest(req)
+
+	secret := antiCSRF.CipherSecret(areq)
+	assert.NotNil(t, secret)
+
+	areq.Unwrap().Header.Set("Cookie", "aah_anti_csrf=This is cookie value")
+	secret = antiCSRF.CipherSecret(areq)
+	assert.NotNil(t, secret)
+}
