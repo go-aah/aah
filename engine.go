@@ -300,6 +300,11 @@ func (e *engine) writeReply(ctx *Context) {
 	if e.isAccessLogEnabled {
 		sendToAccessLog(ctx)
 	}
+
+	// Dump request and response
+	if isDumpLogEnabled {
+		dump(ctx)
+	}
 }
 
 // wrapGzipWriter method writes respective header for gzip and wraps write into
@@ -380,6 +385,10 @@ func (e *engine) setCookies(ctx *Context) {
 }
 
 func (e *engine) writeBody(ctx *Context) {
+	if isDumpLogEnabled && dumpResponseBody {
+		addResBodyIntoCtx(ctx)
+	}
+
 	if minifier == nil || !appIsProfileProd || !ctHTML.IsEqual(ctx.Reply().ContType) {
 		if _, err := ctx.Reply().body.WriteTo(ctx.Res); err != nil {
 			ctx.Log().Error(err)
