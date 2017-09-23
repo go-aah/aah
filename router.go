@@ -160,6 +160,7 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 	if domain.MethodNotAllowed {
 		if processAllowedMethods(reply, domain.Allowed(reqMethod, reqPath), "405 response, ") {
 			ctx.Reply().Error(&Error{
+				Reason:  ErrHTTPMethodNotAllowed,
 				Code:    http.StatusMethodNotAllowed,
 				Message: http.StatusText(http.StatusMethodNotAllowed),
 			})

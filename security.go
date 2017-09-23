@@ -83,6 +83,7 @@ func authcAndAuthzMiddleware(ctx *Context, m *Middleware) {
 		if AppSecurityManager().IsAuthSchemesConfigured() {
 			ctx.Log().Warnf("Auth schemes are configured in security.conf, however attribute 'auth' or 'default_auth' is not defined in routes.conf, so treat it as 403 forbidden: %v", ctx.Req.Path)
 			ctx.Reply().Error(&Error{
+				Reason:  ErrAccessDenied,
 				Code:    http.StatusForbidden,
 				Message: http.StatusText(http.StatusForbidden),
 			})
@@ -198,6 +199,7 @@ func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 		}
 
 		ctx.Reply().Error(&Error{
+			Reason:  ErrAuthenticationFailed,
 			Code:    http.StatusUnauthorized,
 			Message: http.StatusText(http.StatusUnauthorized),
 		})
