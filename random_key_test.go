@@ -15,7 +15,7 @@ func TestEssRandomKey(t *testing.T) {
 	assert.NotNil(t, key1)
 	assert.True(t, len(key1) == 32)
 
-	key2 := GenerateMathRandomKey(64)
+	key2 := GenerateRandomKey(64)
 	assert.NotNil(t, key2)
 	assert.True(t, len(key2) == 64)
 }
@@ -25,7 +25,7 @@ func TestEssRandomString(t *testing.T) {
 	assert.True(t, len(str1) == 32)
 	assert.NotNil(t, str1)
 
-	str2 := MathRandomString(32)
+	str2 := RandomString(32)
 	assert.True(t, len(str2) == 32)
 	assert.NotNil(t, str2)
 }
@@ -38,6 +38,6 @@ func BenchmarkGenerateRandomKey(b *testing.B) {
 
 func BenchmarkGenerateMathRandomKey(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		GenerateMathRandomKey(32)
+		GenerateRandomKey(32)
 	}
 }

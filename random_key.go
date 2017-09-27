@@ -35,10 +35,10 @@ func SecureRandomString(length int) string {
 	return hex.EncodeToString(GenerateSecureRandomKey(length / 2))
 }
 
-// MathRandomString method generates the random string for given length using
+// RandomString method generates the random string for given length using
 // `math/rand.Source` and byte mask.
-func MathRandomString(length int) string {
-	return string(GenerateMathRandomKey(length))
+func RandomString(length int) string {
+	return string(GenerateRandomKey(length))
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -51,15 +51,15 @@ func GenerateSecureRandomKey(length int) []byte {
 	k := make([]byte, length)
 	if _, err := io.ReadFull(rand.Reader, k); err != nil {
 		// fallback to math based random key generater
-		return GenerateMathRandomKey(length)
+		return GenerateRandomKey(length)
 	}
 	return k
 }
 
-// GenerateMathRandomKey method generates the random bytes for given length using
+// GenerateRandomKey method generates the random bytes for given length using
 // `math/rand.Source` and byte mask.
 // StackOverflow Ref - http://stackoverflow.com/a/31832326
-func GenerateMathRandomKey(length int) []byte {
+func GenerateRandomKey(length int) []byte {
 	b := make([]byte, length)
 	// A randSrc() generates 63 random bits, enough for letterIdxMax characters!
 	for i, cache, remain := length-1, randSrc(), letterIdxMax; i >= 0; {
