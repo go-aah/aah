@@ -108,3 +108,14 @@ func InitPasswordEncoders(cfg *config.Config) error {
 
 	return nil
 }
+
+// CreatePasswordEncoder method creates the instance of password encoder password,
+// based on given type. Currently `bcrypt` is supported.
+//
+// DEPRECATED: Use method `PasswordAlgorithm` instead.
+func CreatePasswordEncoder(etype string) (PasswordEncoder, error) {
+	if pass := PasswordAlgorithm(etype); pass != nil {
+		return pass, nil
+	}
+	return nil, errors.New("security/acrypto: password encoder not found")
+}
