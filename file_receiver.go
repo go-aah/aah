@@ -17,6 +17,8 @@ import (
 	"aahframework.org/essentials.v0"
 )
 
+const defaultRotatePolicy = "daily"
+
 var (
 	// backupTimeFormat is used for timestamp with filename on rotation
 	backupTimeFormat = "2006-01-02-15-04-05.000"
@@ -58,9 +60,20 @@ func (f *FileReceiver) Init(cfg *config.Config) error {
 		return fmt.Errorf("log: unsupported format '%s'", f.formatter)
 	}
 
-	f.rotatePolicy = cfg.StringDefault("log.rotate.policy", "daily")
+	if policy, found := cfg.String("log.rotate.mode"); found {
+		f.rotatePolicy = policy
+		if ess.IsStrEmpty(f.rotatePolicy) {
+			f.rotatePolicy = defaultRotatePolicy
+		}
+
+		// DEPRECATED, to be removed in v1.0
+		Warnf("DEPRECATED: Config 'log.rotate.mode' is deprecated in v0.7, use 'log.rotate.policy = \"%s\"' instead. Deprecated config will not break your functionality, its good to update to latest config.", f.rotatePolicy)
+	} else {
+		f.rotatePolicy = cfg.StringDefault("log.rotate.policy", defaultRotatePolicy)
+	}
+
 	switch f.rotatePolicy {
-	case "daily":
+	case defaultRotatePolicy:
 		f.openDay = f.getDay()
 	case "lines":
 		f.maxLines = int64(cfg.IntDefault("log.rotate.lines", 0))

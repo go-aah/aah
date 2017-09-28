@@ -59,6 +59,20 @@ func TestFileLoggerRotation(t *testing.T) {
 	testFileLogger(t, fileConfigStr3, 5000)
 	cleaupFiles("*.log")
 
+	fileConfigStr4 := `
+  log {
+    receiver = "file"
+    level = "debug"
+    file = "daily-aah-filename.log"
+    rotate {
+      mode = ""
+    }
+  }
+  `
+
+	testFileLogger(t, fileConfigStr4, 50)
+	cleaupFiles("*.log")
+
 	// JSON
 	fileConfigStrJSON := `
   log {
