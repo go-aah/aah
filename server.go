@@ -35,11 +35,18 @@ var (
 //___________________________________
 
 // AddServerTLSConfig method can be used for custom TLS config for aah server.
+//
+// DEPRECATED: Use method `aah.SetTLSConfig` instead. Planned to be removed in `v1.0` release.
+func AddServerTLSConfig(tlsCfg *tls.Config) {
+	SetTLSConfig(tlsCfg)
+}
+
+// SetTLSConfig method is used to set custom TLS config for aah server.
 // Note: if `server.ssl.lets_encrypt.enable=true` then framework sets the
 // `GetCertificate` from autocert manager.
 //
-// Use `aah.OnInit` or `func init() {...}` to assign your custom TLSConfig.
-func AddServerTLSConfig(tlsCfg *tls.Config) {
+// Use `aah.OnInit` or `func init() {...}` to assign your custom TLS Config.
+func SetTLSConfig(tlsCfg *tls.Config) {
 	appTLSCfg = tlsCfg
 }
 
