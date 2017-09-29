@@ -16,7 +16,7 @@ import (
 	"hash"
 	"strings"
 
-	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/essentials.v0"
 )
 
 var (

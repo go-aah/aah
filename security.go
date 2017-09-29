@@ -17,12 +17,12 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/security.v0-unstable/acrypto"
-	"aahframework.org/security.v0-unstable/anticsrf"
-	"aahframework.org/security.v0-unstable/authc"
-	"aahframework.org/security.v0-unstable/authz"
-	"aahframework.org/security.v0-unstable/scheme"
-	"aahframework.org/security.v0-unstable/session"
+	"aahframework.org/security.v0/acrypto"
+	"aahframework.org/security.v0/anticsrf"
+	"aahframework.org/security.v0/authc"
+	"aahframework.org/security.v0/authz"
+	"aahframework.org/security.v0/scheme"
+	"aahframework.org/security.v0/session"
 )
 
 var (
@@ -101,8 +101,7 @@ func (m *Manager) Init(appCfg *config.Config) error {
 	Pbkdf2 = acrypto.PasswordAlgorithm("pbkdf2")
 
 	// Initialize Anti-CSRF
-	m.AntiCSRF, err = anticsrf.New(m.appCfg)
-	if err != nil {
+	if m.AntiCSRF, err = anticsrf.New(m.appCfg); err != nil {
 		return err
 	}
 

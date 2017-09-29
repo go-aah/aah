@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0-unstable"
-	"aahframework.org/security.v0-unstable/cookie"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/security.v0/cookie"
 	"aahframework.org/test.v0/assert"
 )
 

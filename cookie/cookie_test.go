@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/test.v0/assert"
 )
 

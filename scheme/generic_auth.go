@@ -9,7 +9,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
-	"aahframework.org/security.v0-unstable/authc"
+	"aahframework.org/security.v0/authc"
 )
 
 var _ Schemer = (*GenericAuth)(nil)

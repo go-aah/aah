@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/essentials.v0-unstable"
+	"aahframework.org/essentials.v0"
 )
 
 var (

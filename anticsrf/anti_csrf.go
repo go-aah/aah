@@ -11,9 +11,8 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0-unstable"
-	"aahframework.org/log.v0"
-	"aahframework.org/security.v0-unstable/cookie"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/security.v0/cookie"
 )
 
 // Anti-CSRF errors
@@ -45,8 +44,6 @@ func New(cfg *config.Config) (*AntiCSRF, error) {
 	keyPrefix := "security.anti_csrf"
 
 	c.Enabled = c.cfg.BoolDefault(keyPrefix+".enable", true)
-	log.Debugf("Anti-CSRF protection enabled: %v", c.Enabled)
-
 	c.secretLength = c.cfg.IntDefault(keyPrefix+".secret_length", 32)
 	c.headerName = c.cfg.StringDefault(keyPrefix+".header_name", "X-Anti-CSRF-Token")
 	c.formFieldName = c.cfg.StringDefault(keyPrefix+".form_field_name", "anti_csrf_token")
@@ -69,10 +66,9 @@ func New(cfg *config.Config) (*AntiCSRF, error) {
 		return nil, err
 	}
 
-	c.cookieMgr, err = cookie.NewManager(opts,
+	if c.cookieMgr, err = cookie.NewManager(opts,
 		c.cfg.StringDefault(keyPrefix+".sign_key", ""),
-		c.cfg.StringDefault(keyPrefix+".enc_key", ""))
-	if err != nil {
+		c.cfg.StringDefault(keyPrefix+".enc_key", "")); err != nil {
 		return nil, err
 	}
 
