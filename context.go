@@ -12,10 +12,10 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
-	"aahframework.org/security.v0-unstable"
-	"aahframework.org/security.v0-unstable/session"
+	"aahframework.org/security.v0"
+	"aahframework.org/security.v0/session"
 )
 
 var (
