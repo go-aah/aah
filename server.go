@@ -12,16 +12,14 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"golang.org/x/crypto/acme/autocert"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/log.v0"
 )
 
 var (
@@ -69,6 +67,7 @@ func Start() {
 	log.Infof("App Profile: %v", AppProfile())
 	log.Infof("App TLS/SSL Enabled: %v", AppIsSSLEnabled())
 	log.Infof("App Session Mode: %v", sessionMode)
+	log.Infof("App Anti-CSRF Protection Enabled: %v", AppSecurityManager().AntiCSRF.Enabled)
 
 	if log.IsLevelDebug() {
 		log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
@@ -97,7 +96,6 @@ func Start() {
 	aahServer.SetKeepAlivesEnabled(AppConfig().BoolDefault("server.keep_alive", true))
 
 	go writePID(AppConfig(), getBinaryFileName(), AppBaseDir())
-	go listenSignals()
 
 	// Unix Socket
 	if strings.HasPrefix(AppHTTPAddress(), "unix") {
@@ -142,10 +140,6 @@ func Shutdown() {
 
 	// Publish `OnShutdown` event
 	AppEventStore().sortAndPublishSync(&Event{Name: EventOnShutdown})
-
-	log.Infof("'%v' application stopped", AppName())
-
-	// bye bye
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -238,21 +232,6 @@ func startHTTPRedirect(cfg *config.Config) {
 		})); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
-}
-
-// listenSignals method listens to OS signals for aah server Shutdown.
-func listenSignals() {
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
-
-	sig := <-sc
-	switch sig {
-	case os.Interrupt:
-		log.Warn("Interrupt signal received")
-	case syscall.SIGTERM:
-		log.Warn("Termination signal received")
-	}
-	Shutdown()
 }
 
 func initAutoCertManager(cfg *config.Config) error {

@@ -16,7 +16,7 @@ import (
 
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/log.v0"
 )
 
 // aah application variables
@@ -191,8 +191,8 @@ func Init(importPath string) {
 		logAsFatal(initLogs(appLogsDir(), AppConfig()))
 		logAsFatal(initI18n(appI18nDir()))
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
-		logAsFatal(initSecurity(AppConfig()))
 		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
+		logAsFatal(initSecurity(AppConfig()))
 		if AppConfig().BoolDefault("server.access_log.enable", false) {
 			logAsFatal(initAccessLog(appLogsDir(), AppConfig()))
 		}

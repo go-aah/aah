@@ -11,14 +11,14 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
-	"aahframework.org/security.v0-unstable"
-	"aahframework.org/security.v0-unstable/anticsrf"
-	"aahframework.org/security.v0-unstable/authc"
-	"aahframework.org/security.v0-unstable/authz"
-	"aahframework.org/security.v0-unstable/scheme"
-	"aahframework.org/security.v0-unstable/session"
+	"aahframework.org/security.v0"
+	"aahframework.org/security.v0/anticsrf"
+	"aahframework.org/security.v0/authc"
+	"aahframework.org/security.v0/authz"
+	"aahframework.org/security.v0/scheme"
+	"aahframework.org/security.v0/session"
 	"aahframework.org/test.v0/assert"
 )
 
