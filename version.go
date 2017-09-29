@@ -7,4 +7,4 @@
 package ess
 
 // Version no. of essentials library
-var Version = "0.7-dev"
+var Version = "0.7"
