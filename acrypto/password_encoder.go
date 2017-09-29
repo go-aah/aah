@@ -65,10 +65,8 @@ func InitPasswordEncoders(cfg *config.Config) error {
 
 	// bcrypt algorithm
 	if cfg.BoolDefault(keyPrefix+".bcrypt.enable", true) {
-		bcryptCost := cfg.IntDefault("key", 12)
-		if err := AddPasswordAlgorithm("bcrypt", &BcryptEncoder{cost: bcryptCost}); err != nil {
-			return err
-		}
+		bcryptCost := cfg.IntDefault(keyPrefix+".bcrypt.cost", 12)
+		_ = AddPasswordAlgorithm("bcrypt", &BcryptEncoder{cost: bcryptCost})
 	}
 
 	// scrypt algorithm
