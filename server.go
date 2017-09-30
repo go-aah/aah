@@ -36,6 +36,9 @@ var (
 //
 // DEPRECATED: Use method `aah.SetTLSConfig` instead. Planned to be removed in `v1.0` release.
 func AddServerTLSConfig(tlsCfg *tls.Config) {
+	// DEPRECATED, planned to be removed in v1.0
+	log.Warn("DEPRECATED: Method 'AddServerTLSConfig' deprecated in v0.9, use method 'SetTLSConfig' instead. Deprecated method will not break your functionality, its good to update to new method.")
+
 	SetTLSConfig(tlsCfg)
 }
 
