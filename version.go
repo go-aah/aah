@@ -5,4 +5,4 @@
 package log
 
 // Version no. of aahframework.org/log library
-const Version = "0.6-dev"
+const Version = "0.6"
