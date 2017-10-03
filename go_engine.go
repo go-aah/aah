@@ -39,6 +39,12 @@ func (ge *GoViewEngine) Init(appCfg *config.Config, baseDir string) error {
 		return fmt.Errorf("goviewengine: views base dir is not exists: %s", baseDir)
 	}
 
+	// Add template func
+	AddTemplateFunc(template.FuncMap{
+		"safeHTML": tmplSafeHTML,
+		"import":   tmplImport,
+	})
+
 	// initialize common templates
 	if err := commonTemplate.Init(appCfg, baseDir); err != nil {
 		return err
