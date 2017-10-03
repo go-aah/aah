@@ -150,6 +150,22 @@ func TestViewErrors(t *testing.T) {
 	err = ge.Init(cfg, viewsDir)
 	assert.NotNil(t, err)
 	assert.NotNil(t, ge)
+
+	// Scenario 3 - layout dir not exists
+	viewsDir = filepath.Join(getTestdataPath(), "views-error3")
+	ge = &GoViewEngine{}
+
+	err = ge.Init(cfg, viewsDir)
+	assert.NotNil(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "goviewengine: layouts base dir is not exists:"))
+
+	// Scenario 4 - pages dir not exists
+	viewsDir = filepath.Join(getTestdataPath(), "views-error4")
+	ge = &GoViewEngine{}
+
+	err = ge.Init(cfg, viewsDir)
+	assert.NotNil(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "goviewengine: pages base dir is not exists:"))
 }
 
 func loadGoViewEngine(t *testing.T, cfg *config.Config, dir string) *GoViewEngine {
