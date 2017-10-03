@@ -70,14 +70,15 @@ type (
 
 	// Route holds the single route details.
 	Route struct {
-		Name        string
-		Path        string
-		Method      string
-		Controller  string
-		Action      string
-		ParentName  string
-		Auth        string
-		MaxBodySize int64
+		Name            string
+		Path            string
+		Method          string
+		Controller      string
+		Action          string
+		ParentName      string
+		Auth            string
+		MaxBodySize     int64
+		IsAntiCSRFCheck bool
 
 		// static route fields in-addition to above
 		IsStatic bool
@@ -670,17 +671,21 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 			log.Warnf("'%v.max_body_size' value is not a valid size unit, fallback to global limit", routeName)
 		}
 
+		// getting Anti-CSRF check value, GitHub go-aah/aah#115
+		routeAntiCSRFCheck := cfg.BoolDefault(routeName+".anti_csrf_check", true)
+
 		if notToSkip {
 			for _, m := range strings.Split(routeMethod, ",") {
 				routes = append(routes, &Route{
-					Name:        routeName,
-					Path:        routePath,
-					Method:      strings.TrimSpace(m),
-					Controller:  routeController,
-					Action:      routeAction,
-					ParentName:  routeInfo.ParentName,
-					Auth:        routeAuth,
-					MaxBodySize: routeMaxBodySize,
+					Name:            routeName,
+					Path:            routePath,
+					Method:          strings.TrimSpace(m),
+					Controller:      routeController,
+					Action:          routeAction,
+					ParentName:      routeInfo.ParentName,
+					Auth:            routeAuth,
+					MaxBodySize:     routeMaxBodySize,
+					IsAntiCSRFCheck: routeAntiCSRFCheck,
 				})
 			}
 		}
