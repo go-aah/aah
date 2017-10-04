@@ -11,8 +11,10 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
+	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
 	"aahframework.org/security.v0"
+	"aahframework.org/security.v0/anticsrf"
 	"aahframework.org/security.v0/authc"
 	"aahframework.org/security.v0/authz"
 	"aahframework.org/security.v0/scheme"
@@ -106,16 +108,15 @@ func testGetAuthenticationInfo() *authc.AuthenticationInfo {
 }
 
 func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
-	e := engine{}
-
 	// anonymous
 	r1 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
 	ctx1 := &Context{
-		Req:   ahttp.ParseRequest(r1, &ahttp.Request{}),
-		route: &router.Route{Auth: "anonymous"},
+		Req:      ahttp.ParseRequest(r1, &ahttp.Request{}),
+		route:    &router.Route{Auth: "anonymous"},
+		subject:  security.AcquireSubject(),
+		viewArgs: make(map[string]interface{}),
 	}
-	result1 := e.handleAuthcAndAuthz(ctx1)
-	assert.True(t, result1 == flowCont)
+	authcAndAuthzMiddleware(ctx1, &Middleware{})
 
 	// form auth scheme
 	cfg, _ := config.ParseString(`
@@ -140,19 +141,18 @@ func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 	r2 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
 	w2 := httptest.NewRecorder()
 	ctx2 := &Context{
-		Req:     ahttp.ParseRequest(r2, &ahttp.Request{}),
-		Res:     ahttp.GetResponseWriter(w2),
-		route:   &router.Route{Auth: "form_auth"},
-		subject: &security.Subject{},
-		reply:   NewReply(),
+		Req:      ahttp.ParseRequest(r2, &ahttp.Request{}),
+		Res:      ahttp.GetResponseWriter(w2),
+		route:    &router.Route{Auth: "form_auth"},
+		subject:  security.AcquireSubject(),
+		viewArgs: make(map[string]interface{}),
+		reply:    NewReply(),
 	}
-	result2 := e.handleAuthcAndAuthz(ctx2)
-	assert.True(t, result2 == flowStop)
+	authcAndAuthzMiddleware(ctx2, &Middleware{})
 
 	// session is authenticated
 	ctx2.Session().IsAuthenticated = true
-	result3 := e.handleAuthcAndAuthz(ctx2)
-	assert.True(t, result3 == flowCont)
+	authcAndAuthzMiddleware(ctx2, &Middleware{})
 
 	// form auth
 	testFormAuth := &testFormAuthentication{}
@@ -164,21 +164,18 @@ func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 	r3 := httptest.NewRequest("POST", "http://localhost:8080/login", nil)
 	ctx2.Req = ahttp.ParseRequest(r3, &ahttp.Request{})
 	ctx2.Session().Set(KeyViewArgAuthcInfo, testGetAuthenticationInfo())
-	result4 := e.handleAuthcAndAuthz(ctx2)
-	assert.True(t, result4 == flowCont)
+	authcAndAuthzMiddleware(ctx2, &Middleware{})
 
 	// form auth not authenticated and no credentials
 	ctx2.Session().IsAuthenticated = false
 	delete(ctx2.Session().Values, KeyViewArgAuthcInfo)
-	result5 := e.handleAuthcAndAuthz(ctx2)
-	assert.True(t, result5 == flowStop)
+	authcAndAuthzMiddleware(ctx2, &Middleware{})
 
 	// form auth not authenticated and with credentials
 	r4 := httptest.NewRequest("POST", "http://localhost:8080/login", strings.NewReader("username=jeeva&password=welcome123"))
 	r4.Header.Set(ahttp.HeaderContentType, "application/x-www-form-urlencoded")
 	ctx2.Req = ahttp.ParseRequest(r4, &ahttp.Request{})
-	result6 := e.handleAuthcAndAuthz(ctx2)
-	assert.True(t, result6 == flowStop)
+	authcAndAuthzMiddleware(ctx2, &Middleware{})
 }
 
 type testBasicAuthentication struct {
@@ -202,8 +199,6 @@ func (tba *testBasicAuthentication) GetAuthorizationInfo(authcInfo *authc.Authen
 }
 
 func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
-	e := engine{}
-
 	// basic auth scheme
 	cfg, _ := config.ParseString(`
 		security {
@@ -222,14 +217,14 @@ func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
 	r1 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
 	w1 := httptest.NewRecorder()
 	ctx1 := &Context{
-		Req:     ahttp.ParseRequest(r1, &ahttp.Request{}),
-		Res:     ahttp.GetResponseWriter(w1),
-		route:   &router.Route{Auth: "basic_auth"},
-		subject: &security.Subject{},
-		reply:   NewReply(),
+		Req:      ahttp.ParseRequest(r1, &ahttp.Request{}),
+		Res:      ahttp.GetResponseWriter(w1),
+		route:    &router.Route{Auth: "basic_auth"},
+		viewArgs: make(map[string]interface{}),
+		subject:  security.AcquireSubject(),
+		reply:    NewReply(),
 	}
-	result1 := e.handleAuthcAndAuthz(ctx1)
-	assert.True(t, result1 == flowStop)
+	authcAndAuthzMiddleware(ctx1, &Middleware{})
 
 	testBasicAuth := &testBasicAuthentication{}
 	basicAuth := AppSecurityManager().GetAuthScheme("basic_auth").(*scheme.BasicAuth)
@@ -239,12 +234,63 @@ func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
 	assert.Nil(t, err)
 	r2 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
 	ctx1.Req = ahttp.ParseRequest(r2, &ahttp.Request{})
-	result2 := e.handleAuthcAndAuthz(ctx1)
-	assert.True(t, result2 == flowStop)
+	authcAndAuthzMiddleware(ctx1, &Middleware{})
 
 	r3 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
 	r3.SetBasicAuth("jeeva", "welcome123")
 	ctx1.Req = ahttp.ParseRequest(r3, &ahttp.Request{})
-	result3 := e.handleAuthcAndAuthz(ctx1)
-	assert.True(t, result3 == flowCont)
+	authcAndAuthzMiddleware(ctx1, &Middleware{})
+}
+
+func TestSecurityAntiCSRF(t *testing.T) {
+	cfg, _ := config.ParseString("")
+	err := initSecurity(cfg)
+	assert.Nil(t, err)
+	appLogger, _ = log.New(cfg)
+
+	r1 := httptest.NewRequest("POST", "https://localhost:8080/login", strings.NewReader("username=jeeva&password=welcome123"))
+	r1.Header.Set(ahttp.HeaderContentType, "application/x-www-form-urlencoded")
+	w1 := httptest.NewRecorder()
+	ctx1 := &Context{
+		Req:      ahttp.AcquireRequest(r1),
+		Res:      ahttp.GetResponseWriter(w1),
+		viewArgs: make(map[string]interface{}),
+		reply:    NewReply(),
+		subject:  security.AcquireSubject(),
+		route:    &router.Route{IsAntiCSRFCheck: true},
+	}
+
+	ctx1.viewArgs[keyAntiCSRFSecret] = AppSecurityManager().AntiCSRF.GenerateSecret()
+
+	// Anti-CSRF request
+	ctx1.Req.Scheme = "http"
+	antiCSRFMiddleware(ctx1, &Middleware{})
+	assert.Equal(t, anticsrf.ErrNoCookieFound, ctx1.reply.err.Reason)
+	ctx1.Req.Scheme = "https"
+
+	// No referer
+	antiCSRFMiddleware(ctx1, &Middleware{})
+	assert.Equal(t, anticsrf.ErrNoReferer, ctx1.reply.err.Reason)
+
+	// https: malformed URL
+	ctx1.Req.Referer = ":host:8080"
+	antiCSRFMiddleware(ctx1, &Middleware{})
+	assert.Equal(t, anticsrf.ErrMalformedReferer, ctx1.reply.err.Reason)
+
+	// Bad referer
+	ctx1.Req.Referer = "https:::"
+	antiCSRFMiddleware(ctx1, &Middleware{})
+	assert.Equal(t, anticsrf.ErrBadReferer, ctx1.reply.err.Reason)
+
+	// Template funcs
+	result := tmplAntiCSRFToken(ctx1.viewArgs)
+	assert.NotNil(t, result)
+	AppSecurityManager().AntiCSRF.Enabled = false
+	assert.Equal(t, "", tmplAntiCSRFToken(ctx1.viewArgs))
+	antiCSRFMiddleware(ctx1, &Middleware{})
+	AppSecurityManager().AntiCSRF.Enabled = true
+
+	// Password Encoder
+	err = AddPasswordAlgorithm("mypass", nil)
+	assert.NotNil(t, err)
 }

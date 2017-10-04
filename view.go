@@ -176,7 +176,7 @@ func findViewTemplate(ctx *Context) {
 
 	tmplPath = filepath.Join("pages", tmplPath)
 
-	log.Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
+	ctx.Log().Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
 	var err error
 	if htmlRdr.Template, err = appViewEngine.Get(htmlRdr.Layout, tmplPath, tmplName); err != nil {
 		if err == view.ErrTemplateNotFound {
@@ -185,7 +185,7 @@ func findViewTemplate(ctx *Context) {
 				tmplFile = strings.ToLower(tmplFile)
 			}
 
-			log.Errorf("template not found: %s", tmplFile)
+			ctx.Log().Errorf("template not found: %s", tmplFile)
 			if appIsProfileProd {
 				htmlRdr.ViewArgs["ViewNotFound"] = "View Not Found"
 			} else {
@@ -194,7 +194,7 @@ func findViewTemplate(ctx *Context) {
 			htmlRdr.Layout = ""
 			htmlRdr.Template = viewNotFoundTemplate
 		} else {
-			log.Error(err)
+			ctx.Log().Error(err)
 		}
 	}
 }
@@ -253,5 +253,6 @@ func init() {
 		"hasanyrole":      tmplHasAnyRole,
 		"ispermitted":     tmplIsPermitted,
 		"ispermittedall":  tmplIsPermittedAll,
+		"anitcsrftoken":   tmplAntiCSRFToken,
 	})
 }

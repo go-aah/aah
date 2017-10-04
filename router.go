@@ -73,27 +73,29 @@ func composeRouteURL(domain *router.Domain, routePath, anchorLink string) string
 }
 
 func findReverseURLDomain(host, routeName string) (*router.Domain, int) {
-	log.Tracef("ReverseURL routeName: %s", routeName)
 	idx := strings.IndexByte(routeName, '.')
 	if idx > 0 {
 		subDomain := routeName[:idx]
 
 		// Returning current subdomain
 		if strings.HasPrefix(host, subDomain) {
+			log.Tracef("ReverseURL: routeName: %s, host: %s", routeName, host)
 			return AppRouter().Domains[host], idx
 		}
 
 		// Returning requested subdomain
 		for k, v := range AppRouter().Domains {
 			if strings.HasPrefix(k, subDomain) && v.IsSubDomain {
+				log.Tracef("ReverseURL: routeName: %s, host: %s", routeName, v.Host)
 				return v, idx
 			}
 		}
 	}
 
 	// return root domain
-	log.Trace("Returning root domain")
-	return AppRouter().RootDomain(), idx
+	root := AppRouter().RootDomain()
+	log.Tracef("ReverseURL: routeName: %s, host: %s", routeName, root.Host)
+	return root, idx
 }
 
 func createReverseURL(host, routeName string, margs map[string]interface{}, args ...interface{}) string {
@@ -158,6 +160,7 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 	if domain.MethodNotAllowed {
 		if processAllowedMethods(reply, domain.Allowed(reqMethod, reqPath), "405 response, ") {
 			ctx.Reply().Error(&Error{
+				Reason:  ErrHTTPMethodNotAllowed,
 				Code:    http.StatusMethodNotAllowed,
 				Message: http.StatusText(http.StatusMethodNotAllowed),
 			})

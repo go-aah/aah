@@ -50,7 +50,7 @@ func (e *engine) serveStatic(ctx *Context) error {
 	//   httpDir -> value is from routes config
 	//   filePath -> value is from request
 	httpDir, filePath := getHTTPDirAndFilePath(ctx)
-	log.Tracef("Dir: %s, Filepath: %s", httpDir, filePath)
+	ctx.Log().Tracef("Dir: %s, Filepath: %s", httpDir, filePath)
 
 	f, err := httpDir.Open(filePath)
 	if err != nil {
@@ -109,7 +109,7 @@ func (e *engine) serveStatic(ctx *Context) error {
 	if fi.Mode().IsDir() && ctx.route.ListDir {
 		// redirect if the directory name doesn't end in a slash
 		if ctx.Req.Path[len(ctx.Req.Path)-1] != '/' {
-			log.Debugf("redirecting to dir: %s", ctx.Req.Path+"/")
+			ctx.Log().Debugf("redirecting to dir: %s", ctx.Req.Path+"/")
 			http.Redirect(ctx.Res, ctx.Req.Unwrap(), path.Base(ctx.Req.Path)+"/", http.StatusMovedPermanently)
 			return nil
 		}
@@ -130,7 +130,7 @@ func (e *engine) serveStatic(ctx *Context) error {
 	}
 
 	// Flow reached here it means directory listing is not allowed
-	log.Warnf("Directory listing not allowed: %s", ctx.Req.Path)
+	ctx.Log().Warnf("Directory listing not allowed: %s", ctx.Req.Path)
 	ctx.Res.WriteHeader(http.StatusForbidden)
 	fmt.Fprintf(ctx.Res, "403 Directory listing not allowed")
 

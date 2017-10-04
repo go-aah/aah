@@ -18,6 +18,7 @@ import (
 	"aahframework.org/essentials.v0"
 	"aahframework.org/i18n.v0"
 	"aahframework.org/router.v0"
+	"aahframework.org/security.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -59,15 +60,16 @@ func TestParamParse(t *testing.T) {
 	ctx1 := &Context{
 		Req:      ahttp.AcquireRequest(r1),
 		Res:      ahttp.AcquireResponseWriter(httptest.NewRecorder()),
+		subject:  security.AcquireSubject(),
 		route:    &router.Route{MaxBodySize: 5 << 20},
+		values:   make(map[string]interface{}),
 		viewArgs: make(map[string]interface{}),
 	}
 
-	e := &engine{}
 	appI18n = i18n.New()
 
 	assert.Nil(t, ctx1.Req.Locale)
-	e.parseRequestParams(ctx1)
+	requestParamsMiddleware(ctx1, &Middleware{})
 	assert.NotNil(t, ctx1.Req.Locale)
 	assert.Equal(t, "en", ctx1.Req.Locale.Language)
 	assert.Equal(t, "CA", ctx1.Req.Locale.Region)
@@ -84,11 +86,13 @@ func TestParamParse(t *testing.T) {
 	ctx2 := &Context{
 		Req:      ahttp.AcquireRequest(r2),
 		Res:      ahttp.AcquireResponseWriter(httptest.NewRecorder()),
+		subject:  security.AcquireSubject(),
 		route:    &router.Route{MaxBodySize: 5 << 20},
+		values:   make(map[string]interface{}),
 		viewArgs: make(map[string]interface{}),
 	}
 
-	e.parseRequestParams(ctx2)
+	requestParamsMiddleware(ctx2, &Middleware{})
 	assert.NotNil(t, ctx2.Req.Params.Form)
 	assert.True(t, len(ctx2.Req.Params.Form) == 3)
 }
@@ -112,12 +116,11 @@ func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
 	ctx1 := &Context{
 		Req:      ahttp.AcquireRequest(r),
 		viewArgs: make(map[string]interface{}),
+		values:   make(map[string]interface{}),
 	}
 
-	e := &engine{}
-
 	assert.Nil(t, ctx1.Req.Locale)
-	e.parseRequestParams(ctx1)
+	requestParamsMiddleware(ctx1, &Middleware{})
 	assert.NotNil(t, ctx1.Req.Locale)
 	assert.Equal(t, "en", ctx1.Req.Locale.Language)
 	assert.Equal(t, "CA", ctx1.Req.Locale.Region)
@@ -128,8 +131,6 @@ func TestParamContentNegotiation(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
 
 	errorHandler = defaultErrorHandler
-	e := engine{}
-
 	isContentNegotiationEnabled = true
 
 	// Accepted
@@ -137,12 +138,12 @@ func TestParamContentNegotiation(t *testing.T) {
 	r1 := httptest.NewRequest("POST", "http://localhost:8080/v1/userinfo", nil)
 	r1.Header.Set(ahttp.HeaderContentType, "application/xml")
 	ctx1 := &Context{
-		Req:   ahttp.AcquireRequest(r1),
-		reply: acquireReply(),
+		Req:     ahttp.AcquireRequest(r1),
+		reply:   acquireReply(),
+		subject: security.AcquireSubject(),
 	}
-	result1 := e.parseRequestParams(ctx1)
+	requestParamsMiddleware(ctx1, &Middleware{})
 	assert.Equal(t, http.StatusUnsupportedMediaType, ctx1.Reply().err.Code)
-	assert.True(t, result1 == 1)
 
 	// Offered
 	offeredContentTypes = []string{"application/json"}
@@ -150,12 +151,12 @@ func TestParamContentNegotiation(t *testing.T) {
 	r2.Header.Set(ahttp.HeaderContentType, "application/json")
 	r2.Header.Set(ahttp.HeaderAccept, "application/xml")
 	ctx2 := &Context{
-		Req:   ahttp.AcquireRequest(r2),
-		reply: acquireReply(),
+		Req:     ahttp.AcquireRequest(r2),
+		reply:   acquireReply(),
+		subject: security.AcquireSubject(),
 	}
-	result2 := e.parseRequestParams(ctx2)
+	requestParamsMiddleware(ctx2, &Middleware{})
 	assert.Equal(t, http.StatusNotAcceptable, ctx2.Reply().err.Code)
-	assert.True(t, result2 == 1)
 
 	isContentNegotiationEnabled = false
 

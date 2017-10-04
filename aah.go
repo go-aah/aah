@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"aahframework.org/aruntime.v0"
-	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
@@ -23,6 +22,7 @@ import (
 // aah application variables
 var (
 	appName               string
+	appInstanceName       string
 	appDesc               string
 	appImportPath         string
 	appProfile            string
@@ -63,10 +63,16 @@ type BuildInfo struct {
 // Package methods
 //___________________________________
 
-// AppName method returns aah application name from app config otherwise app name
+// AppName method returns aah application name from app config `name` otherwise app name
 // of the base directory.
 func AppName() string {
 	return appName
+}
+
+// AppInstanceName method returns aah application instane name from app config `instance_name`
+// otherwise empty string.
+func AppInstanceName() string {
+	return appInstanceName
 }
 
 // AppDesc method returns aah application friendly description from app config
@@ -156,6 +162,11 @@ func SetAppPackaged(pack bool) {
 	appIsPackaged = pack
 }
 
+// NewChildLogger method create a child logger from aah application default logger.
+func NewChildLogger(ctx log.Fields) *log.Logger {
+	return appLogger.New(ctx)
+}
+
 // Init method initializes `aah` application, if anything goes wrong during
 // initialize process, it will log it as fatal msg and exit.
 func Init(importPath string) {
@@ -180,10 +191,13 @@ func Init(importPath string) {
 		logAsFatal(initLogs(appLogsDir(), AppConfig()))
 		logAsFatal(initI18n(appI18nDir()))
 		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
-		logAsFatal(initSecurity(AppConfig()))
 		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
+		logAsFatal(initSecurity(AppConfig()))
 		if AppConfig().BoolDefault("server.access_log.enable", false) {
 			logAsFatal(initAccessLog(appLogsDir(), AppConfig()))
+		}
+		if AppConfig().BoolDefault("server.dump_log.enable", false) {
+			logAsFatal(initDumpLog(appLogsDir(), AppConfig()))
 		}
 	}
 
@@ -239,6 +253,7 @@ func initAppVariables() error {
 	cfg := AppConfig()
 
 	appName = cfg.StringDefault("name", filepath.Base(AppBaseDir()))
+	appInstanceName = cfg.StringDefault("instance_name", "")
 	appDesc = cfg.StringDefault("desc", "")
 
 	appProfile = cfg.StringDefault("env.active", appDefaultProfile)
@@ -289,29 +304,5 @@ func initAppVariables() error {
 		return errors.New("'request.multipart_size' value is not a valid size unit")
 	}
 
-	return nil
-}
-
-func initLogs(logsDir string, appCfg *config.Config) error {
-	if !appCfg.IsExists("log") {
-		log.Debug("Section 'log {...}' configuration not exists, move on.")
-		return nil
-	}
-
-	if appCfg.StringDefault("log.receiver", "") == "file" {
-		file := appCfg.StringDefault("log.file", "")
-		if ess.IsStrEmpty(file) {
-			appCfg.SetString("log.file", filepath.Join(logsDir, getBinaryFileName()+".log"))
-		} else if !filepath.IsAbs(file) {
-			appCfg.SetString("log.file", filepath.Join(logsDir, file))
-		}
-	}
-
-	logger, err := log.New(appCfg)
-	if err != nil {
-		return err
-	}
-
-	log.SetDefaultLogger(logger)
 	return nil
 }

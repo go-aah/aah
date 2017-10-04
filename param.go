@@ -13,7 +13,6 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 	"aahframework.org/valpar.v0"
 )
 
@@ -50,13 +49,13 @@ func AddValueParser(typ reflect.Type, parser valpar.Parser) error {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Params Unexported method
+// Params Middleware
 //___________________________________
 
-// parseRequestParams method parses the incoming HTTP request to collects request
+// requestParamsMiddleware method parses the incoming HTTP request to collects request
 // parameters (Path, Form, Query, Multipart) stores into context. Request
 // params are made available in View via template functions.
-func (e *engine) parseRequestParams(ctx *Context) flowResult {
+func requestParamsMiddleware(ctx *Context, m *Middleware) {
 	if AppI18n() != nil {
 		// i18n locale HTTP header `Accept-Language` value override via
 		// Path Variable and URL Query Param (config i18n { param_name { ... } }).
@@ -69,31 +68,33 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 	}
 
 	if ctx.Req.Method == ahttp.MethodGet {
-		return flowCont
+		goto PCont
 	}
 
-	log.Debugf("Request Content-Type mime: %s", ctx.Req.ContentType.Mime)
+	ctx.Log().Debugf("Request Content-Type mime: %s", ctx.Req.ContentType.Mime)
 
 	// Content Negotitaion - Accepted & Offered, refer to GitHub #75
 	if isContentNegotiationEnabled {
 		if len(acceptedContentTypes) > 0 &&
 			!ess.IsSliceContainsString(acceptedContentTypes, ctx.Req.ContentType.Mime) {
-			log.Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType.Mime)
+			ctx.Log().Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType.Mime)
 			ctx.Reply().Error(&Error{
+				Reason:  ErrContentTypeNotAccepted,
 				Code:    http.StatusUnsupportedMediaType,
 				Message: http.StatusText(http.StatusUnsupportedMediaType),
 			})
-			return flowStop
+			return
 		}
 
 		if len(offeredContentTypes) > 0 &&
 			!ess.IsSliceContainsString(offeredContentTypes, ctx.Req.AcceptContentType.Mime) {
 			ctx.Reply().Error(&Error{
+				Reason:  ErrContentTypeNotOffered,
 				Code:    http.StatusNotAcceptable,
 				Message: http.StatusText(http.StatusNotAcceptable),
 			})
-			log.Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType.Mime)
-			return flowStop
+			ctx.Log().Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType.Mime)
+			return
 		}
 	}
 
@@ -107,11 +108,17 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 	// Parse request content by Content-Type
 	if parser, found := requestParsers[ctx.Req.ContentType.Mime]; found {
 		if res := parser(ctx); res == flowStop {
-			return flowStop
+			return
 		}
 	}
 
-	return flowCont
+PCont:
+	// Compose request details, we can log at the end of the request.
+	if isDumpLogEnabled {
+		ctx.Set(keyAahRequestDump, composeRequestDump(ctx))
+	}
+
+	m.Next(ctx)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -120,7 +127,7 @@ func (e *engine) parseRequestParams(ctx *Context) flowResult {
 
 func multipartFormParser(ctx *Context) flowResult {
 	if err := ctx.Req.Unwrap().ParseMultipartForm(appMultipartMaxMemory); err != nil {
-		log.Errorf("Unable to parse multipart form: %s", err)
+		ctx.Log().Errorf("Unable to parse multipart form: %s", err)
 	} else {
 		ctx.Req.Params.Form = ctx.Req.Unwrap().MultipartForm.Value
 		ctx.Req.Params.File = ctx.Req.Unwrap().MultipartForm.File
@@ -130,7 +137,7 @@ func multipartFormParser(ctx *Context) flowResult {
 
 func formParser(ctx *Context) flowResult {
 	if err := ctx.Req.Unwrap().ParseForm(); err != nil {
-		log.Errorf("Unable to parse form: %s", err)
+		ctx.Log().Errorf("Unable to parse form: %s", err)
 	} else {
 		ctx.Req.Params.Form = ctx.Req.Unwrap().Form
 	}
@@ -161,8 +168,10 @@ func parseParameters(ctx *Context) ([]reflect.Value, error) {
 			ct := ctx.Req.ContentType.Mime
 			if ct == ahttp.ContentTypeJSON.Mime || ct == ahttp.ContentTypeJSONText.Mime ||
 				ct == ahttp.ContentTypeXML.Mime || ct == ahttp.ContentTypeXMLText.Mime {
-				// TODO replace body with `ctx.Req.Body()` after ahttp lib release
-				result, err = valpar.Body(ct, ctx.Req.Unwrap().Body, val.Type)
+				result, err = valpar.Body(ct, ctx.Req.Body(), val.Type)
+				if isDumpLogEnabled && dumpRequestBody {
+					addReqBodyIntoCtx(ctx, result)
+				}
 			} else {
 				result, err = valpar.Struct("", val.Type, params)
 			}
@@ -172,7 +181,7 @@ func parseParameters(ctx *Context) ([]reflect.Value, error) {
 		if err != nil {
 			return actionArgs, err
 		} else if !result.IsValid() {
-			log.Errorf("Parsed result value is invalid or value parser not found [param: %s, type: %s]",
+			ctx.Log().Errorf("Parsed result value is invalid or value parser not found [param: %s, type: %s]",
 				val.Name, val.Type)
 			return actionArgs, errInvalidParsedValue
 		}

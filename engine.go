@@ -16,7 +16,6 @@ import (
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 	"aahframework.org/security.v0"
 )
 
@@ -90,16 +89,6 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Load session
 	e.loadSession(ctx)
 
-	// Authentication and Authorization
-	if e.handleAuthcAndAuthz(ctx) == flowStop {
-		goto wReply
-	}
-
-	// Parsing request params
-	if e.parseRequestParams(ctx) == flowStop {
-		goto wReply
-	}
-
 	// Middlewares, interceptors, targeted controller
 	e.executeMiddlewares(ctx)
 
@@ -112,16 +101,17 @@ wReply:
 // Panic gets translated into HTTP Internal Server Error (Status 500).
 func (e *engine) handleRecovery(ctx *Context) {
 	if r := recover(); r != nil {
-		log.Errorf("Internal Server Error on %s", ctx.Req.Path)
+		ctx.Log().Errorf("Internal Server Error on %s", ctx.Req.Path)
 
 		st := aruntime.NewStacktrace(r, AppConfig())
 		buf := acquireBuffer()
 		defer releaseBuffer(buf)
 
 		st.Print(buf)
-		log.Error(buf.String())
+		ctx.Log().Error(buf.String())
 
 		ctx.Reply().Error(&Error{
+			Reason:  ErrPanicRecovery,
 			Code:    http.StatusInternalServerError,
 			Message: http.StatusText(http.StatusInternalServerError),
 			Data:    r,
@@ -137,7 +127,7 @@ func (e *engine) setRequestID(ctx *Context) {
 	if ess.IsStrEmpty(ctx.Req.Header.Get(e.requestIDHeader)) {
 		ctx.Req.Header.Set(e.requestIDHeader, ess.NewGUID())
 	} else {
-		log.Debugf("Request already has ID: %v", ctx.Req.Header.Get(e.requestIDHeader))
+		ctx.Log().Debugf("Request already has ID: %v", ctx.Req.Header.Get(e.requestIDHeader))
 	}
 	ctx.Reply().Header(e.requestIDHeader, ctx.Req.Header.Get(e.requestIDHeader))
 }
@@ -170,8 +160,9 @@ func (e *engine) prepareContext(w http.ResponseWriter, r *http.Request) *Context
 func (e *engine) handleRoute(ctx *Context) flowResult {
 	domain := AppRouter().FindDomain(ctx.Req)
 	if domain == nil {
-		log.Warnf("Domain not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
+		ctx.Log().Warnf("Domain not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 		ctx.Reply().Error(&Error{
+			Reason:  ErrDomainNotFound,
 			Code:    http.StatusNotFound,
 			Message: http.StatusText(http.StatusNotFound),
 		})
@@ -184,8 +175,9 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 			return flowStop
 		}
 
-		log.Warnf("Route not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
+		ctx.Log().Warnf("Route not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 		ctx.Reply().Error(&Error{
+			Reason:  ErrRouteNotFound,
 			Code:    http.StatusNotFound,
 			Message: http.StatusText(http.StatusNotFound),
 		})
@@ -211,17 +203,22 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 	// Serving static file
 	if route.IsStatic {
 		if err := e.serveStatic(ctx); err == errFileNotFound {
-			log.Warnf("Static file not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
+			ctx.Log().Warnf("Static file not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 			ctx.Reply().done = false
-			ctx.Reply().NotFound().body = acquireBuffer()
+			ctx.Reply().Error(&Error{
+				Reason:  ErrStaticFileNotFound,
+				Code:    http.StatusNotFound,
+				Message: http.StatusText(http.StatusNotFound),
+			})
 		}
 		return flowStop
 	}
 
 	// No controller or action found for the route
 	if err := ctx.setTarget(route); err == errTargetNotFound {
-		log.Warnf("Target not found, Controller: %s, Action: %s", route.Controller, route.Action)
+		ctx.Log().Warnf("Target not found, Controller: %s, Action: %s", route.Controller, route.Action)
 		ctx.Reply().Error(&Error{
+			Reason:  ErrControllerOrActionNotFound,
 			Code:    http.StatusNotFound,
 			Message: http.StatusText(http.StatusNotFound),
 		})
@@ -266,7 +263,7 @@ func (e *engine) writeReply(ctx *Context) {
 
 	// reply := ctx.Reply()
 	if ctx.Reply().redirect { // handle redirects
-		log.Debugf("Redirecting to '%s' with status '%d'", ctx.Reply().path, ctx.Reply().Code)
+		ctx.Log().Debugf("Redirecting to '%s' with status '%d'", ctx.Reply().path, ctx.Reply().Code)
 		http.Redirect(ctx.Res, ctx.Req.Unwrap(), ctx.Reply().path, ctx.Reply().Code)
 		return
 	}
@@ -310,6 +307,11 @@ func (e *engine) writeReply(ctx *Context) {
 	// Send data to access log channel
 	if e.isAccessLogEnabled {
 		sendToAccessLog(ctx)
+	}
+
+	// Dump request and response
+	if isDumpLogEnabled {
+		dump(ctx)
 	}
 }
 
@@ -385,18 +387,22 @@ func (e *engine) setCookies(ctx *Context) {
 
 	if AppSessionManager().IsStateful() && ctx.subject.Session != nil {
 		if err := AppSessionManager().SaveSession(ctx.Res, ctx.subject.Session); err != nil {
-			log.Error(err)
+			ctx.Log().Error(err)
 		}
 	}
 }
 
 func (e *engine) writeBody(ctx *Context) {
+	if isDumpLogEnabled && dumpResponseBody {
+		addResBodyIntoCtx(ctx)
+	}
+
 	if minifier == nil || !appIsProfileProd || !ctHTML.IsEqual(ctx.Reply().ContType) {
 		if _, err := ctx.Reply().body.WriteTo(ctx.Res); err != nil {
-			log.Error(err)
+			ctx.Log().Error(err)
 		}
 	} else if err := minifier(ctx.Reply().ContType, ctx.Res, ctx.Reply().body); err != nil {
-		log.Errorf("Minifier error: %s", err.Error())
+		ctx.Log().Errorf("Minifier error: %s", err.Error())
 	}
 }
 
@@ -411,10 +417,11 @@ func newEngine(cfg *config.Config) *engine {
 	}
 
 	serverHeader := cfg.StringDefault("server.header", "")
+	appReqIDHdrKey = cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID)
 
 	return &engine{
 		isRequestIDEnabled:       cfg.BoolDefault("request.id.enable", true),
-		requestIDHeader:          cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID),
+		requestIDHeader:          appReqIDHdrKey,
 		isGzipEnabled:            cfg.BoolDefault("render.gzip.enable", true),
 		isAccessLogEnabled:       cfg.BoolDefault("server.access_log.enable", false),
 		isStaticAccessLogEnabled: cfg.BoolDefault("server.access_log.static_file", true),
@@ -440,9 +447,9 @@ func releaseContext(ctx *Context) {
 
 func cleanup(ctx *Context) {
 	if ctx.Req.Unwrap().MultipartForm != nil {
-		log.Debug("MultipartForm file(s) clean up")
+		ctx.Log().Debug("MultipartForm file(s) clean up")
 		if err := ctx.Req.Unwrap().MultipartForm.RemoveAll(); err != nil {
-			log.Error(err)
+			ctx.Log().Error(err)
 		}
 	}
 }

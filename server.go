@@ -12,9 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"golang.org/x/crypto/acme/autocert"
@@ -35,11 +33,21 @@ var (
 //___________________________________
 
 // AddServerTLSConfig method can be used for custom TLS config for aah server.
+//
+// DEPRECATED: Use method `aah.SetTLSConfig` instead. Planned to be removed in `v1.0` release.
+func AddServerTLSConfig(tlsCfg *tls.Config) {
+	// DEPRECATED, planned to be removed in v1.0
+	log.Warn("DEPRECATED: Method 'AddServerTLSConfig' deprecated in v0.9, use method 'SetTLSConfig' instead. Deprecated method will not break your functionality, its good to update to new method.")
+
+	SetTLSConfig(tlsCfg)
+}
+
+// SetTLSConfig method is used to set custom TLS config for aah server.
 // Note: if `server.ssl.lets_encrypt.enable=true` then framework sets the
 // `GetCertificate` from autocert manager.
 //
-// Use `aah.OnInit` or `func init() {...}` to assign your custom TLSConfig.
-func AddServerTLSConfig(tlsCfg *tls.Config) {
+// Use `aah.OnInit` or `func init() {...}` to assign your custom TLS Config.
+func SetTLSConfig(tlsCfg *tls.Config) {
 	appTLSCfg = tlsCfg
 }
 
@@ -62,6 +70,7 @@ func Start() {
 	log.Infof("App Profile: %v", AppProfile())
 	log.Infof("App TLS/SSL Enabled: %v", AppIsSSLEnabled())
 	log.Infof("App Session Mode: %v", sessionMode)
+	log.Infof("App Anti-CSRF Protection Enabled: %v", AppSecurityManager().AntiCSRF.Enabled)
 
 	if log.IsLevelDebug() {
 		log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
@@ -90,7 +99,6 @@ func Start() {
 	aahServer.SetKeepAlivesEnabled(AppConfig().BoolDefault("server.keep_alive", true))
 
 	go writePID(AppConfig(), getBinaryFileName(), AppBaseDir())
-	go listenSignals()
 
 	// Unix Socket
 	if strings.HasPrefix(AppHTTPAddress(), "unix") {
@@ -135,10 +143,6 @@ func Shutdown() {
 
 	// Publish `OnShutdown` event
 	AppEventStore().sortAndPublishSync(&Event{Name: EventOnShutdown})
-
-	log.Infof("'%v' application stopped", AppName())
-
-	// bye bye
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -189,6 +193,9 @@ func startHTTPS() {
 		aahServer.TLSConfig.NextProtos = append(aahServer.TLSConfig.NextProtos, "h2")
 	}
 
+	// start HTTP redirect server if enabled
+	go startHTTPRedirect(AppConfig())
+
 	printStartupNote()
 	if err := aahServer.ListenAndServeTLS(appSSLCert, appSSLKey); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
@@ -202,19 +209,32 @@ func startHTTP() {
 	}
 }
 
-// listenSignals method listens to OS signals for aah server Shutdown.
-func listenSignals() {
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
-
-	sig := <-sc
-	switch sig {
-	case os.Interrupt:
-		log.Warn("Interrupt signal received")
-	case syscall.SIGTERM:
-		log.Warn("Termination signal received")
+func startHTTPRedirect(cfg *config.Config) {
+	keyPrefix := "server.ssl.redirect_http"
+	if !cfg.BoolDefault(keyPrefix+".enable", false) {
+		return
 	}
-	Shutdown()
+
+	address := cfg.StringDefault("server.address", "")
+	toPort := parsePort(cfg.StringDefault("server.port", appDefaultHTTPPort))
+	fromPort, found := cfg.String(keyPrefix + ".port")
+	if !found {
+		log.Errorf("'%s.port' is required value, unable to start redirect server", keyPrefix)
+		return
+	}
+	redirectCode := cfg.IntDefault(keyPrefix+".code", http.StatusTemporaryRedirect)
+
+	log.Infof("aah go redirect server running on %s:%s", address, fromPort)
+	if err := http.ListenAndServe(address+":"+fromPort, http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			target := "https://" + parseHost(r.Host, toPort) + r.URL.Path
+			if len(r.URL.RawQuery) > 0 {
+				target += "?" + r.URL.RawQuery
+			}
+			http.Redirect(w, r, target, redirectCode)
+		})); err != nil && err != http.ErrServerClosed {
+		log.Error(err)
+	}
 }
 
 func initAutoCertManager(cfg *config.Config) error {
