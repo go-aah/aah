@@ -227,8 +227,8 @@ func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 func antiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// If Anti-CSRF is not enabled, move on.
 	// It is highly recommended to enable for web application.
-	if !AppSecurityManager().AntiCSRF.Enabled || AppViewEngine() == nil {
-		ctx.Log().Trace("Anti CSRF protection is not enabled, clear the cookie if present.")
+	if !AppSecurityManager().AntiCSRF.Enabled || !ctx.route.IsAntiCSRFCheck || AppViewEngine() == nil {
+		ctx.Log().Tracef("Anti CSRF protection is not enabled [%s: %s], clear the cookie if present.", ctx.Req.Method, ctx.Req.Path)
 		AppSecurityManager().AntiCSRF.ClearCookie(ctx.Res, ctx.Req)
 		m.Next(ctx)
 		return
