@@ -16,7 +16,7 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
-func TestSessionGetCookie(t *testing.T) {
+func TestSessionCookieGet(t *testing.T) {
 	cookieValue := `aah_session=MTQ5MTI4ODQ3NHxHSThCS19qQ2FsbWJ2ZFc3aUNPSUM4RllPRVhTd1had19jS2w0MjE5WU1qLXRLempVeWNhLUFaejhvMEVyY1JmenBLSjRMYXNvd291elN5T2wtMy12dkhRWFlFRThDQmN2VTBnUWZ6UExLaW9zUFFZbnB1YV9VOXJORXNnLWtCT0pOQk5HYzhmVndpR3ZVNUZyRnh4Qy05cHdJOHRNYVJ4YXRGNEtObU94WG1iVnVZM1pJSkdERHpMbzN1VUpxVzgycnZUWWtlbnZUTWdxRDRCTEJEaEhsNHNnZmR3RFJrV1AyUkdfckNFa1lKb2d3VWR3Y0FzS1JtUllPTi0ydHQ3T2JDaUcxQ1JEQUVLbzNUNlRzM1VlUHVTYmtwWUItbFp5czRtd3FGb1VmcHFETkthR2dMWkpHRmM1a1NfZWxXLUljZUdMblJCYTZuTE12NkRvV0ZrQnVYMFFsdUM3clpFdzdUYUFIcFhSaUQ0bHZRS19ZRzExbzlLUTdCVTZnT2xNTmZIal9Oc2VOdWJtd3M3bnlibmlpLTJDRnRkQ1hyU2hYV0pienlTREl1QnRoZHNaQ3lvaGYzbWFCajA0Zi1XcFBwOXF3PT181BI_L4loH_Kcug8MEVnsFj4Ha25umy-8fI0atPVo04k=`
 
 	m := createTestManager(t, `
@@ -97,20 +97,4 @@ func testSessionStoreSave(t *testing.T, cfgStr string) {
 	assert.Equal(t, int64(65454523452), resultSession.GetInt64("my-key-7"))
 	assert.Equal(t, true, resultSession.GetBool("my-key-5"))
 	t.Log(resultSession.String())
-}
-
-func TestSessionNewCookie(t *testing.T) {
-	m := createTestManager(t, `
-	security {
-	  session {
-	    sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
-	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
-	  }
-	}
-  `)
-
-	opts := *m.Options
-	opts.MaxAge = 3600
-	cookie := newCookie("This is my cookie for maxage", &opts)
-	assert.Equal(t, 3600, cookie.MaxAge)
 }

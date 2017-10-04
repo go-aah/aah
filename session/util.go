@@ -10,11 +10,6 @@ import (
 	"time"
 )
 
-// currentTimestamp method return current UTC time in unix format.
-func currentTimestamp() int64 {
-	return time.Now().UTC().Unix()
-}
-
 // toBytes method encodes into byte slice.
 func toBytes(v interface{}) ([]byte, error) {
 	switch v.(type) {

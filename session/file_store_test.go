@@ -43,7 +43,7 @@ func TestSessionFileStoreGet(t *testing.T) {
 	gob.Register(map[interface{}]interface{}{})
 
 	// write session file
-	sessionFile := filepath.Join(getTestdataPath(), "session", m.Options.Name+"_SWkGHtLck_sv7kWKDvvN8mwSq3CPfmkoRkz1POMtnx8")
+	sessionFile := filepath.Join(getTestdataPath(), "session", m.cookieMgr.Options.Name+"_SWkGHtLck_sv7kWKDvvN8mwSq3CPfmkoRkz1POMtnx8")
 	_ = ioutil.WriteFile(sessionFile, []byte(sessionData), 0600)
 
 	header := http.Header{}

@@ -102,6 +102,9 @@ func TestSecurityInitError(t *testing.T) {
 	err = sec2.Init(cfg)
 	assert.NotNil(t, err)
 	assert.Equal(t, "security: auth scheme 'unknown' not available", err.Error())
+
+	result := parseToSecondsString("2", 60)
+	assert.Equal(t, "60", result)
 }
 
 func getTestdataPath() string {

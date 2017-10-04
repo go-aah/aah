@@ -14,6 +14,7 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
+	"aahframework.org/security.v0/cookie"
 )
 
 // Storer interface comply
@@ -108,7 +109,7 @@ func (f *FileStore) Cleanup(m *Manager) {
 	cnt := 0
 	for _, sfile := range files {
 		if sdata, err := ioutil.ReadFile(sfile); err == nil {
-			if _, err := m.DecodeToSession(string(sdata)); err == ErrCookieTimestampIsExpired {
+			if _, err := m.DecodeToSession(string(sdata)); err == cookie.ErrCookieTimestampIsExpired {
 				f.m.Lock()
 				if err := os.Remove(sfile); !os.IsNotExist(err) {
 					log.Error(err)

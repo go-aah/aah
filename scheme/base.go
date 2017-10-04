@@ -64,8 +64,6 @@ func (b *BaseAuth) SetAuthorizer(authorizer authz.Authorizer) error {
 
 // DoAuthenticate method calls the registered `Authenticator` with authentication token.
 func (b *BaseAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
-	log.Info(authcToken)
-
 	if b.authenticator == nil {
 		log.Warnf("%v: authenticator is not properly configured in security.conf", b.scheme)
 		return nil, authc.ErrAuthenticatorIsNil
@@ -79,8 +77,6 @@ func (b *BaseAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 		return nil, authc.ErrAuthenticationFailed
 	}
 
-	log.Info(authcInfo)
-
 	return authcInfo, nil
 }
 
@@ -90,7 +86,6 @@ func (b *BaseAuth) DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *aut
 	if authzInfo == nil {
 		authzInfo = authz.NewAuthorizationInfo()
 	}
-	log.Info(authzInfo)
 	return authzInfo
 }
 
