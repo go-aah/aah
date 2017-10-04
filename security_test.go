@@ -257,6 +257,7 @@ func TestSecurityAntiCSRF(t *testing.T) {
 		viewArgs: make(map[string]interface{}),
 		reply:    NewReply(),
 		subject:  security.AcquireSubject(),
+		route:    &router.Route{IsAntiCSRFCheck: true},
 	}
 
 	ctx1.viewArgs[keyAntiCSRFSecret] = AppSecurityManager().AntiCSRF.GenerateSecret()
