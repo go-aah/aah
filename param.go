@@ -68,8 +68,7 @@ func requestParamsMiddleware(ctx *Context, m *Middleware) {
 	}
 
 	if ctx.Req.Method == ahttp.MethodGet {
-		m.Next(ctx)
-		return
+		goto PCont
 	}
 
 	ctx.Log().Debugf("Request Content-Type mime: %s", ctx.Req.ContentType.Mime)
@@ -111,6 +110,12 @@ func requestParamsMiddleware(ctx *Context, m *Middleware) {
 		if res := parser(ctx); res == flowStop {
 			return
 		}
+	}
+
+PCont:
+	// Compose request details, we can log at the end of the request.
+	if isDumpLogEnabled {
+		ctx.Set(keyAahRequestDump, composeRequestDump(ctx))
 	}
 
 	m.Next(ctx)
@@ -163,8 +168,10 @@ func parseParameters(ctx *Context) ([]reflect.Value, error) {
 			ct := ctx.Req.ContentType.Mime
 			if ct == ahttp.ContentTypeJSON.Mime || ct == ahttp.ContentTypeJSONText.Mime ||
 				ct == ahttp.ContentTypeXML.Mime || ct == ahttp.ContentTypeXMLText.Mime {
-				// TODO replace body with `ctx.Req.Body()` after ahttp lib release
-				result, err = valpar.Body(ct, ctx.Req.Unwrap().Body, val.Type)
+				result, err = valpar.Body(ct, ctx.Req.Body(), val.Type)
+				if isDumpLogEnabled && dumpRequestBody {
+					addReqBodyIntoCtx(ctx, result)
+				}
 			} else {
 				result, err = valpar.Struct("", val.Type, params)
 			}

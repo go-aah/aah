@@ -196,6 +196,9 @@ func Init(importPath string) {
 		if AppConfig().BoolDefault("server.access_log.enable", false) {
 			logAsFatal(initAccessLog(appLogsDir(), AppConfig()))
 		}
+		if AppConfig().BoolDefault("server.dump_log.enable", false) {
+			logAsFatal(initDumpLog(appLogsDir(), AppConfig()))
+		}
 	}
 
 	appInitialized = true

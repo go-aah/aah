@@ -160,6 +160,10 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Nil(t, err)
 	appAccessLog.SetWriter(os.Stdout)
 
+	err = initDumpLog(getTestdataPath(), AppConfig())
+	assert.Nil(t, err)
+	appDumpLog.SetWriter(os.Stdout)
+
 	// Controllers
 	cRegistry = controllerRegistry{}
 

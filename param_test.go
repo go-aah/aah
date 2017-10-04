@@ -62,6 +62,7 @@ func TestParamParse(t *testing.T) {
 		Res:      ahttp.AcquireResponseWriter(httptest.NewRecorder()),
 		subject:  security.AcquireSubject(),
 		route:    &router.Route{MaxBodySize: 5 << 20},
+		values:   make(map[string]interface{}),
 		viewArgs: make(map[string]interface{}),
 	}
 
@@ -87,6 +88,7 @@ func TestParamParse(t *testing.T) {
 		Res:      ahttp.AcquireResponseWriter(httptest.NewRecorder()),
 		subject:  security.AcquireSubject(),
 		route:    &router.Route{MaxBodySize: 5 << 20},
+		values:   make(map[string]interface{}),
 		viewArgs: make(map[string]interface{}),
 	}
 
@@ -114,6 +116,7 @@ func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
 	ctx1 := &Context{
 		Req:      ahttp.AcquireRequest(r),
 		viewArgs: make(map[string]interface{}),
+		values:   make(map[string]interface{}),
 	}
 
 	assert.Nil(t, ctx1.Req.Locale)
