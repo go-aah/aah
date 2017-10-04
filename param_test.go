@@ -18,7 +18,7 @@ import (
 	"aahframework.org/essentials.v0"
 	"aahframework.org/i18n.v0"
 	"aahframework.org/router.v0"
-	"aahframework.org/security.v0-unstable"
+	"aahframework.org/security.v0"
 	"aahframework.org/test.v0/assert"
 )
 

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"reflect"
 
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/log.v0"
 )
 
 var (
@@ -182,6 +182,7 @@ func actionMiddleware(ctx *Context, m *Middleware) {
 	if !action.IsValid() {
 		ctx.Log().Errorf("Action '%s' doesn't exists on controller '%s'", ctx.action.Name, controllerName)
 		ctx.Reply().Error(&Error{
+			Reason:  ErrControllerOrActionNotFound,
 			Code:    http.StatusNotFound,
 			Message: http.StatusText(http.StatusNotFound),
 		})
@@ -195,6 +196,7 @@ func actionMiddleware(ctx *Context, m *Middleware) {
 	if err != nil {
 		// Any error of parameter parsing result in 400 Bad Request
 		ctx.Reply().Error(&Error{
+			Reason:  ErrInvalidRequestParameter,
 			Code:    http.StatusBadRequest,
 			Message: http.StatusText(http.StatusBadRequest),
 		})

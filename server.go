@@ -12,16 +12,14 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"golang.org/x/crypto/acme/autocert"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/log.v0"
 )
 
 var (
@@ -35,11 +33,21 @@ var (
 //___________________________________
 
 // AddServerTLSConfig method can be used for custom TLS config for aah server.
+//
+// DEPRECATED: Use method `aah.SetTLSConfig` instead. Planned to be removed in `v1.0` release.
+func AddServerTLSConfig(tlsCfg *tls.Config) {
+	// DEPRECATED, planned to be removed in v1.0
+	log.Warn("DEPRECATED: Method 'AddServerTLSConfig' deprecated in v0.9, use method 'SetTLSConfig' instead. Deprecated method will not break your functionality, its good to update to new method.")
+
+	SetTLSConfig(tlsCfg)
+}
+
+// SetTLSConfig method is used to set custom TLS config for aah server.
 // Note: if `server.ssl.lets_encrypt.enable=true` then framework sets the
 // `GetCertificate` from autocert manager.
 //
-// Use `aah.OnInit` or `func init() {...}` to assign your custom TLSConfig.
-func AddServerTLSConfig(tlsCfg *tls.Config) {
+// Use `aah.OnInit` or `func init() {...}` to assign your custom TLS Config.
+func SetTLSConfig(tlsCfg *tls.Config) {
 	appTLSCfg = tlsCfg
 }
 
@@ -62,6 +70,7 @@ func Start() {
 	log.Infof("App Profile: %v", AppProfile())
 	log.Infof("App TLS/SSL Enabled: %v", AppIsSSLEnabled())
 	log.Infof("App Session Mode: %v", sessionMode)
+	log.Infof("App Anti-CSRF Protection Enabled: %v", AppSecurityManager().AntiCSRF.Enabled)
 
 	if log.IsLevelDebug() {
 		log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
@@ -90,7 +99,6 @@ func Start() {
 	aahServer.SetKeepAlivesEnabled(AppConfig().BoolDefault("server.keep_alive", true))
 
 	go writePID(AppConfig(), getBinaryFileName(), AppBaseDir())
-	go listenSignals()
 
 	// Unix Socket
 	if strings.HasPrefix(AppHTTPAddress(), "unix") {
@@ -135,10 +143,6 @@ func Shutdown() {
 
 	// Publish `OnShutdown` event
 	AppEventStore().sortAndPublishSync(&Event{Name: EventOnShutdown})
-
-	log.Infof("'%v' application stopped", AppName())
-
-	// bye bye
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -231,21 +235,6 @@ func startHTTPRedirect(cfg *config.Config) {
 		})); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
-}
-
-// listenSignals method listens to OS signals for aah server Shutdown.
-func listenSignals() {
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, os.Interrupt, syscall.SIGTERM)
-
-	sig := <-sc
-	switch sig {
-	case os.Interrupt:
-		log.Warn("Interrupt signal received")
-	case syscall.SIGTERM:
-		log.Warn("Termination signal received")
-	}
-	Shutdown()
 }
 
 func initAutoCertManager(cfg *config.Config) error {

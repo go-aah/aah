@@ -5,13 +5,29 @@
 package aah
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0-unstable"
+	"aahframework.org/log.v0"
+)
+
+// aah errors
+var (
+	ErrPanicRecovery              = errors.New("aah: panic recovery")
+	ErrDomainNotFound             = errors.New("aah: domain not found")
+	ErrRouteNotFound              = errors.New("aah: route not found")
+	ErrStaticFileNotFound         = errors.New("aah: static file not found")
+	ErrControllerOrActionNotFound = errors.New("aah: controller or action not found")
+	ErrInvalidRequestParameter    = errors.New("aah: invalid request parameter")
+	ErrContentTypeNotAccepted     = errors.New("aah: content type not accepted")
+	ErrContentTypeNotOffered      = errors.New("aah: content type not offered")
+	ErrHTTPMethodNotAllowed       = errors.New("aah: http method not allowed")
+	ErrAccessDenied               = errors.New("aah: access denied")
+	ErrAuthenticationFailed       = errors.New("aah: authentication failed")
 )
 
 var errorHandler ErrorHandler

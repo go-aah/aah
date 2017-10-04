@@ -16,7 +16,7 @@ import (
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/security.v0-unstable"
+	"aahframework.org/security.v0"
 )
 
 const (
@@ -111,6 +111,7 @@ func (e *engine) handleRecovery(ctx *Context) {
 		ctx.Log().Error(buf.String())
 
 		ctx.Reply().Error(&Error{
+			Reason:  ErrPanicRecovery,
 			Code:    http.StatusInternalServerError,
 			Message: http.StatusText(http.StatusInternalServerError),
 			Data:    r,
@@ -161,6 +162,7 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 	if domain == nil {
 		ctx.Log().Warnf("Domain not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 		ctx.Reply().Error(&Error{
+			Reason:  ErrDomainNotFound,
 			Code:    http.StatusNotFound,
 			Message: http.StatusText(http.StatusNotFound),
 		})
@@ -175,6 +177,7 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 
 		ctx.Log().Warnf("Route not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 		ctx.Reply().Error(&Error{
+			Reason:  ErrRouteNotFound,
 			Code:    http.StatusNotFound,
 			Message: http.StatusText(http.StatusNotFound),
 		})
@@ -202,7 +205,11 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 		if err := e.serveStatic(ctx); err == errFileNotFound {
 			ctx.Log().Warnf("Static file not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 			ctx.Reply().done = false
-			ctx.Reply().NotFound().body = acquireBuffer()
+			ctx.Reply().Error(&Error{
+				Reason:  ErrStaticFileNotFound,
+				Code:    http.StatusNotFound,
+				Message: http.StatusText(http.StatusNotFound),
+			})
 		}
 		return flowStop
 	}
@@ -211,6 +218,7 @@ func (e *engine) handleRoute(ctx *Context) flowResult {
 	if err := ctx.setTarget(route); err == errTargetNotFound {
 		ctx.Log().Warnf("Target not found, Controller: %s, Action: %s", route.Controller, route.Action)
 		ctx.Reply().Error(&Error{
+			Reason:  ErrControllerOrActionNotFound,
 			Code:    http.StatusNotFound,
 			Message: http.StatusText(http.StatusNotFound),
 		})

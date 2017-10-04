@@ -79,6 +79,7 @@ func requestParamsMiddleware(ctx *Context, m *Middleware) {
 			!ess.IsSliceContainsString(acceptedContentTypes, ctx.Req.ContentType.Mime) {
 			ctx.Log().Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType.Mime)
 			ctx.Reply().Error(&Error{
+				Reason:  ErrContentTypeNotAccepted,
 				Code:    http.StatusUnsupportedMediaType,
 				Message: http.StatusText(http.StatusUnsupportedMediaType),
 			})
@@ -88,6 +89,7 @@ func requestParamsMiddleware(ctx *Context, m *Middleware) {
 		if len(offeredContentTypes) > 0 &&
 			!ess.IsSliceContainsString(offeredContentTypes, ctx.Req.AcceptContentType.Mime) {
 			ctx.Reply().Error(&Error{
+				Reason:  ErrContentTypeNotOffered,
 				Code:    http.StatusNotAcceptable,
 				Message: http.StatusText(http.StatusNotAcceptable),
 			})

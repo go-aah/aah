@@ -11,13 +11,13 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0-unstable"
-	"aahframework.org/security.v0-unstable"
-	"aahframework.org/security.v0-unstable/acrypto"
-	"aahframework.org/security.v0-unstable/anticsrf"
-	"aahframework.org/security.v0-unstable/authc"
-	"aahframework.org/security.v0-unstable/scheme"
-	"aahframework.org/security.v0-unstable/session"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/security.v0"
+	"aahframework.org/security.v0/acrypto"
+	"aahframework.org/security.v0/anticsrf"
+	"aahframework.org/security.v0/authc"
+	"aahframework.org/security.v0/scheme"
+	"aahframework.org/security.v0/session"
 )
 
 const (
@@ -83,6 +83,7 @@ func authcAndAuthzMiddleware(ctx *Context, m *Middleware) {
 		if AppSecurityManager().IsAuthSchemesConfigured() {
 			ctx.Log().Warnf("Auth schemes are configured in security.conf, however attribute 'auth' or 'default_auth' is not defined in routes.conf, so treat it as 403 forbidden: %v", ctx.Req.Path)
 			ctx.Reply().Error(&Error{
+				Reason:  ErrAccessDenied,
 				Code:    http.StatusForbidden,
 				Message: http.StatusText(http.StatusForbidden),
 			})
@@ -197,6 +198,7 @@ func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 		}
 
 		ctx.Reply().Error(&Error{
+			Reason:  ErrAuthenticationFailed,
 			Code:    http.StatusUnauthorized,
 			Message: http.StatusText(http.StatusUnauthorized),
 		})
@@ -325,7 +327,13 @@ func writeAntiCSRFCookie(ctx *Context, secret []byte) {
 
 func initSecurity(appCfg *config.Config) error {
 	appSecurityManager.IsSSLEnabled = AppIsSSLEnabled()
-	return appSecurityManager.Init(appCfg)
+
+	if err := appSecurityManager.Init(appCfg); err != nil {
+		return err
+	}
+	appSecurityManager.AntiCSRF.Enabled = (AppViewEngine() != nil)
+
+	return nil
 }
 
 func isFormAuthLoginRoute(ctx *Context) bool {
