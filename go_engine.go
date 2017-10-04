@@ -27,6 +27,9 @@ type GoViewEngine struct {
 	viewFileExt            string
 	caseSensitive          bool
 	isDefaultLayoutEnabled bool
+	delimiters             []string
+	antiCSRFField          string
+	antiCSRFInserter       *strings.Replacer
 }
 
 // Init method initialize a template engine with given aah application config
@@ -35,6 +38,12 @@ func (ge *GoViewEngine) Init(appCfg *config.Config, baseDir string) error {
 	if !ess.IsFileExists(baseDir) {
 		return fmt.Errorf("goviewengine: views base dir is not exists: %s", baseDir)
 	}
+
+	// Add template func
+	AddTemplateFunc(template.FuncMap{
+		"safeHTML": tmplSafeHTML,
+		"import":   tmplImport,
+	})
 
 	// initialize common templates
 	if err := commonTemplate.Init(appCfg, baseDir); err != nil {
@@ -47,6 +56,18 @@ func (ge *GoViewEngine) Init(appCfg *config.Config, baseDir string) error {
 	ge.viewFileExt = ge.cfg.StringDefault("view.ext", ".html")
 	ge.caseSensitive = ge.cfg.BoolDefault("view.case_sensitive", false)
 	ge.isDefaultLayoutEnabled = ge.cfg.BoolDefault("view.default_layout", true)
+
+	ge.delimiters = strings.Split(ge.cfg.StringDefault("view.delimiters", "{{.}}"), ".")
+	if len(ge.delimiters) != 2 || ess.IsStrEmpty(ge.delimiters[0]) || ess.IsStrEmpty(ge.delimiters[1]) {
+		return fmt.Errorf("goviewengine: config 'view.delimiters' value is invalid")
+	}
+
+	// anti CSRF
+	ge.antiCSRFField = `	<input type="hidden" name="anti_csrf_token" value="{{ anitcsrftoken . }}">
+	</form>`
+	ge.antiCSRFField = strings.Replace(ge.antiCSRFField, "{{", ge.delimiters[0], -1)
+	ge.antiCSRFField = strings.Replace(ge.antiCSRFField, "}}", ge.delimiters[1], -1)
+	ge.antiCSRFInserter = strings.NewReplacer("</form>", ge.antiCSRFField)
 
 	layoutsBaseDir := filepath.Join(ge.baseDir, "layouts")
 	if !ess.IsFileExists(layoutsBaseDir) {
@@ -135,10 +156,12 @@ func (ge *GoViewEngine) processLayoutTemplates(layouts, dirs []string) error {
 			for _, file := range files {
 				tfiles := []string{file, layout}
 				tmplKey := parseKey(ge.baseDir, file)
-				tmpl := ge.createTemplate(tmplKey)
+				tmpl := template.New(tmplKey).Funcs(TemplateFuncMap)
+				tmpl.Delims(ge.delimiters[0], ge.delimiters[1])
+				tmplfiles := ge.processAntiCSRFField(tfiles...)
 
 				log.Tracef("Parsing files [%s]: %s", tmplKey, ge.trimAppBaseDir(tfiles...))
-				if tmpl, err = tmpl.ParseFiles(tfiles...); err != nil {
+				if tmpl, err = tmpl.ParseFiles(tmplfiles...); err != nil {
 					errs = append(errs, err)
 					continue
 				}
@@ -173,11 +196,13 @@ func (ge *GoViewEngine) processNolayoutTemplates(dirs []string) error {
 
 		for _, file := range files {
 			tmplKey := parseKey(ge.baseDir, file)
-			tmpl := ge.createTemplate(tmplKey)
+			tmpl := template.New(tmplKey).Funcs(TemplateFuncMap)
+			tmpl.Delims(ge.delimiters[0], ge.delimiters[1])
 			fileBytes, _ := ioutil.ReadFile(file)
+			fileContent := ge.antiCSRFInserter.Replace(string(fileBytes))
 
 			log.Tracef("Parsing file [%s]: %s", tmplKey, trimPathPrefix(file, prefix))
-			if tmpl, err = tmpl.Parse(string(fileBytes)); err != nil {
+			if tmpl, err = tmpl.Parse(fileContent); err != nil {
 				errs = append(errs, err)
 				continue
 			}
@@ -190,21 +215,6 @@ func (ge *GoViewEngine) processNolayoutTemplates(dirs []string) error {
 	return handleParseError(errs)
 }
 
-func (ge *GoViewEngine) createTemplate(key string) *template.Template {
-	tmpl := template.New(key).Funcs(TemplateFuncMap)
-
-	// Set custom delimiters from aah.conf
-	if ge.cfg.IsExists("view.delimiters") {
-		delimiters := strings.Split(ge.cfg.StringDefault("view.delimiters", "{{.}}"), ".")
-		if len(delimiters) == 2 {
-			tmpl.Delims(delimiters[0], delimiters[1])
-		} else {
-			log.Error("goviewengine: config 'view.delimiters' value is not valid")
-		}
-	}
-	return tmpl
-}
-
 func (ge *GoViewEngine) trimAppBaseDir(files ...string) string {
 	var fs []string
 	prefix := strings.TrimSuffix(ge.baseDir, "views")
@@ -212,6 +222,34 @@ func (ge *GoViewEngine) trimAppBaseDir(files ...string) string {
 		fs = append(fs, trimPathPrefix(f, prefix))
 	}
 	return strings.Join(fs, ", ")
+}
+
+func (ge *GoViewEngine) processAntiCSRFField(filenames ...string) []string {
+	var files []string
+	tmpDir, _ := ioutil.TempDir("", "anti_csrf")
+
+	for _, f := range filenames {
+		fileBytes, err := ioutil.ReadFile(f)
+		if err != nil {
+			files = append(files, f)
+			continue
+		}
+
+		file := string(fileBytes)
+		rfile := ge.trimAppBaseDir(f)
+		if strings.Contains(file, "</form>") {
+			log.Tracef("Adding Anti-CSRF field into %s", rfile)
+			file = ge.antiCSRFInserter.Replace(file)
+			fpath := filepath.Join(tmpDir, rfile)
+			_ = ess.MkDirAll(filepath.Dir(fpath), 0755)
+			_ = ioutil.WriteFile(fpath, []byte(file), 0755)
+			files = append(files, fpath)
+			continue
+		}
+
+		files = append(files, f)
+	}
+	return files
 }
 
 func handleParseError(errs []error) error {

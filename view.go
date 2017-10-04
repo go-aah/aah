@@ -157,10 +157,3 @@ func (c *CommonTemplate) releaseBuffer(buf *bytes.Buffer) {
 	buf.Reset()
 	c.bufPool.Put(buf)
 }
-
-func init() {
-	AddTemplateFunc(template.FuncMap{
-		"safeHTML": tmplSafeHTML,
-		"import":   tmplImport,
-	})
-}
