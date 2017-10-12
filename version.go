@@ -5,4 +5,4 @@
 package view
 
 // Version no. of aah framework view library
-const Version = "0.7"
+const Version = "0.8-edge"

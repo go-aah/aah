@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"html/template"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -86,6 +87,10 @@ func AddEngine(name string, engine Enginer) error {
 // GetEngine method returns the view engine from store by name otherwise nil.
 func GetEngine(name string) (Enginer, bool) {
 	if engine, found := viewEngines[name]; found {
+		if found {
+			ty := reflect.TypeOf(engine)
+			return reflect.New(ty.Elem()).Interface().(Enginer), found
+		}
 		return engine, found
 	}
 	return nil, false
