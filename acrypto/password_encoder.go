@@ -48,13 +48,7 @@ func AddPasswordAlgorithm(name string, pe PasswordEncoder) error {
 		return ErrPasswordEncoderIsNil
 	}
 
-	if _, found := passEncoders[name]; found {
-		log.Warnf("acrypto: password encoder '%v' is already added", name)
-		return nil
-	}
-
 	passEncoders[name] = pe
-
 	return nil
 }
 
