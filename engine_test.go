@@ -75,12 +75,20 @@ func (s *Site) After() {
 	log.Info("After interceptor")
 }
 
+func (s *Site) Finally() {
+	log.Info("Finally interceptor")
+}
+
 func (s *Site) BeforeGetInvolved() {
 	log.Info("Before GetInvolved interceptor")
 }
 
 func (s *Site) AfterGetInvolved() {
 	log.Info("After GetInvolved interceptor")
+}
+
+func (s *Site) FinallyGetInvolved() {
+	log.Info("Finally GetInvolved interceptor")
 }
 
 func (s *Site) AutoBind(id int, info *sample) {
