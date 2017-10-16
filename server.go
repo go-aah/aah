@@ -99,6 +99,7 @@ func Start() {
 	aahServer.SetKeepAlivesEnabled(AppConfig().BoolDefault("server.keep_alive", true))
 
 	go writePID(AppConfig(), getBinaryFileName(), AppBaseDir())
+	go listenForHotConfigReload()
 
 	// Unix Socket
 	if strings.HasPrefix(AppHTTPAddress(), "unix") {

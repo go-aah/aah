@@ -36,12 +36,12 @@ func AppRouter() *router.Router {
 
 func initRoutes(cfgDir string, appCfg *config.Config) error {
 	routesPath := filepath.Join(cfgDir, "routes.conf")
-	appRouter = router.New(routesPath, appCfg)
-
-	if err := appRouter.Load(); err != nil {
+	arouter := router.New(routesPath, appCfg)
+	if err := arouter.Load(); err != nil {
 		return fmt.Errorf("routes.conf: %s", err)
 	}
 
+	appRouter = arouter
 	return nil
 }
 

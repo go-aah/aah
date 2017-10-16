@@ -17,6 +17,8 @@ import (
 	"aahframework.org/view.v0"
 )
 
+const appDefaultViewEngine = "go"
+
 var (
 	appViewEngine             view.Enginer
 	appViewExt                string
@@ -78,20 +80,20 @@ func initViewEngine(viewDir string, appCfg *config.Config) error {
 	appViewFileCaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
 	appIsDefaultLayoutEnabled = appCfg.BoolDefault("view.default_layout", true)
 
-	// initialize if external View Engine is not registered.
-	if appViewEngine == nil {
-		appIsExternalTmplEngine = false
-		viewEngineName := appCfg.StringDefault("view.engine", "go")
-		viewEngine, found := view.GetEngine(viewEngineName)
-		if !found {
-			return fmt.Errorf("view: named engine not found: %s", viewEngineName)
-		}
-
-		appViewEngine = viewEngine
-		return appViewEngine.Init(appCfg, viewDir)
+	// initialize view engine
+	viewEngineName := appCfg.StringDefault("view.engine", appDefaultViewEngine)
+	viewEngine, found := view.GetEngine(viewEngineName)
+	if !found {
+		return fmt.Errorf("view: named engine not found: %s", viewEngineName)
 	}
 
-	appIsExternalTmplEngine = true
+	if err := viewEngine.Init(appCfg, viewDir); err != nil {
+		return err
+	}
+
+	appIsExternalTmplEngine = viewEngineName != appDefaultViewEngine
+	appViewEngine = viewEngine
+
 	return nil
 }
 
