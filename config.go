@@ -12,7 +12,7 @@ import (
 	"syscall"
 
 	"aahframework.org/config.v0"
-	ess "aahframework.org/essentials.v0"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 )
 
@@ -125,7 +125,7 @@ func listenForHotConfigReload() {
 		<-sc
 		log.Warn("Hangup signal (SIGHUP) received")
 		if appProfile == appDefaultProfile {
-			log.Info("Currently active environment profile is 'dev', config hot reload is not applicable")
+			log.Info("Currently active environment profile is 'dev', config hot-reload is not applicable")
 			continue
 		}
 		hotReloadConfig()
