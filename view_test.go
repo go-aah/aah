@@ -53,23 +53,6 @@ func TestViewInitEngineNotFound(t *testing.T) {
 	assert.Nil(t, AppViewEngine())
 }
 
-func TestViewInitExternalEngine(t *testing.T) {
-	appCfg, _ := config.ParseString("")
-	viewDir := filepath.Join(getTestdataPath(), appViewsDir())
-
-	assert.False(t, appIsExternalTmplEngine)
-
-	appViewEngine = &view.GoViewEngine{}
-	err := initViewEngine(viewDir, appCfg)
-	assert.Nil(t, err)
-
-	assert.True(t, appIsExternalTmplEngine)
-
-	// cleanup
-	appViewEngine = nil
-	appIsExternalTmplEngine = false
-}
-
 func TestViewAddTemplateFunc(t *testing.T) {
 	AddTemplateFunc(template.FuncMap{
 		"join":     strings.Join,

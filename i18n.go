@@ -50,9 +50,13 @@ func appI18nDir() string {
 
 func initI18n(cfgDir string) error {
 	if ess.IsFileExists(cfgDir) {
-		appI18n = i18n.New()
-		appI18n.DefaultLocale = AppDefaultI18nLang()
-		return appI18n.Load(cfgDir)
+		ai18n := i18n.New()
+		ai18n.DefaultLocale = AppDefaultI18nLang()
+		if err := ai18n.Load(cfgDir); err != nil {
+			return err
+		}
+
+		appI18n = ai18n
 	}
 	return nil
 }

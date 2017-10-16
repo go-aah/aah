@@ -46,12 +46,12 @@ func initLogs(logsDir string, appCfg *config.Config) error {
 		appCfg.SetString("log.pattern", "%time:2006-01-02 15:04:05.000 %level:-5 %appname %insname %reqid %principal %message %fields")
 	}
 
-	var err error
-	appLogger, err = log.New(appCfg)
+	al, err := log.New(appCfg)
 	if err != nil {
 		return err
 	}
 
+	appLogger = al
 	appLogger.AddContext(log.Fields{
 		"appname": AppName(),
 		"insname": AppInstanceName(),
