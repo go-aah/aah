@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"crypto/tls"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -30,6 +31,10 @@ func TestServerStart1(t *testing.T) {
 	assert.Nil(t, err)
 	appInitialized = true
 	Start()
+
+	if aahServer != nil {
+		Shutdown()
+	}
 }
 
 func TestServerStart2(t *testing.T) {
@@ -70,6 +75,10 @@ func TestServerStart2(t *testing.T) {
 	})
 	AppConfig().SetString("server.port", "80")
 	Start()
+
+	if aahServer != nil {
+		Shutdown()
+	}
 }
 
 func TestServerHTTPRedirect(t *testing.T) {
@@ -91,4 +100,17 @@ func TestServerHTTPRedirect(t *testing.T) {
 	resp, err := http.Get("http://localhost:8080/contact-us.html?utm_source=footer")
 	assert.Nil(t, resp)
 	assert.True(t, strings.Contains(err.Error(), "localhost:8443"))
+}
+
+func TestServerTLSSettings(t *testing.T) {
+	tlsCfg := &tls.Config{}
+	AddServerTLSConfig(tlsCfg)
+	SetTLSConfig(tlsCfg)
+}
+
+func TestServerStartUnix(t *testing.T) {
+	server := &http.Server{}
+	go startUnix(server, "unix:/tmp/testserver")
+	time.Sleep(5 * time.Millisecond)
+	_ = server.Close()
 }
