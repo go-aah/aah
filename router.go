@@ -99,6 +99,7 @@ type (
 	parentRouteInfo struct {
 		ParentName string
 		PrefixPath string
+		Controller string
 		Auth       string
 	}
 )
@@ -622,13 +623,13 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 	for _, routeName := range cfg.Keys() {
 		// getting 'path'
 		routePath, found := cfg.String(routeName + ".path")
-		if !found {
+		if !found && ess.IsStrEmpty(routeInfo.PrefixPath) {
 			err = fmt.Errorf("'%v.path' key is missing", routeName)
 			return
 		}
 
 		// path must begin with '/'
-		if routePath[0] != slashByte {
+		if !ess.IsStrEmpty(routePath) && routePath[0] != slashByte {
 			err = fmt.Errorf("'%v.path' [%v], path must begin with '/'", routeName, routePath)
 			return
 		}
@@ -638,7 +639,7 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		// check child routes exists
 		notToSkip := true
 		if cfg.IsExists(routeName + ".routes") {
-			if !cfg.IsExists(routeName + ".controller") {
+			if !cfg.IsExists(routeName+".action") || !cfg.IsExists(routeName+".controller") {
 				notToSkip = false
 			}
 		}
@@ -647,8 +648,8 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		routeMethod := strings.ToUpper(cfg.StringDefault(routeName+".method", ahttp.MethodGet))
 
 		// getting 'controller'
-		routeController, found := cfg.String(routeName + ".controller")
-		if !found && notToSkip {
+		routeController := cfg.StringDefault(routeName+".controller", routeInfo.Controller)
+		if ess.IsStrEmpty(routeController) && notToSkip {
 			err = fmt.Errorf("'%v.controller' key is missing", routeName)
 			return
 		}
@@ -695,6 +696,7 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 			croutes, er := parseRoutesSection(childRoutes, &parentRouteInfo{
 				ParentName: routeName,
 				PrefixPath: routePath,
+				Controller: routeController,
 				Auth:       routeAuth,
 			})
 			if er != nil {

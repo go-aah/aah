@@ -425,6 +425,31 @@ func TestRouterNamespaceConfig(t *testing.T) {
 	assert.Equal(t, "'list_users.action' key is missing, it seems to be multiple HTTP methods", err.Error())
 }
 
+func TestRouterNamespaceSimplifiedConfig(t *testing.T) {
+	_ = log.SetLevel("TRACE")
+	wd, _ := os.Getwd()
+	appCfg, _ := config.ParseString("")
+	router := New(filepath.Join(wd, "testdata", "routes-simplified.conf"), appCfg)
+	err := router.Load()
+	assert.FailNowOnError(t, err, "")
+
+	routes := router.Domains["localhost:8080"].routes
+	assert.NotNil(t, routes)
+	assert.Equal(t, 2, len(routes))
+
+	// show_basket
+	assert.Equal(t, "/baskets", routes["show_basket"].Path)
+	assert.Equal(t, "GET", routes["show_basket"].Method)
+	assert.Equal(t, "anonymous", routes["show_basket"].Auth)
+	assert.Equal(t, "BasketController", routes["show_basket"].Controller)
+
+	// create_basket
+	assert.Equal(t, "/baskets", routes["create_basket"].Path)
+	assert.Equal(t, "POST", routes["create_basket"].Method)
+	assert.Equal(t, "form_auth", routes["create_basket"].Auth)
+	assert.Equal(t, "BasketController", routes["create_basket"].Controller)
+}
+
 func createRouter(filename string) (*Router, error) {
 	_ = log.SetLevel("TRACE")
 	wd, _ := os.Getwd()
