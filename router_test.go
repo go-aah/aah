@@ -450,6 +450,25 @@ func TestRouterNamespaceSimplifiedConfig(t *testing.T) {
 	assert.Equal(t, "BasketController", routes["create_basket"].Controller)
 }
 
+func TestRouterNamespaceSimplified2Config(t *testing.T) {
+	_ = log.SetLevel("TRACE")
+	wd, _ := os.Getwd()
+	appCfg, _ := config.ParseString("")
+	router := New(filepath.Join(wd, "testdata", "routes-simplified-2.conf"), appCfg)
+	err := router.Load()
+	assert.FailNowOnError(t, err, "")
+
+	routes := router.Domains["localhost:8080"].routes
+	assert.NotNil(t, routes)
+	assert.Equal(t, 7, len(routes))
+
+	for _, v := range strings.Fields("list_users delete_user get_user get_user_settings update_user update_user_settings create_user") {
+		if _, found := routes[v]; !found {
+			assert.True(t, found)
+		}
+	}
+}
+
 func createRouter(filename string) (*Router, error) {
 	_ = log.SetLevel("TRACE")
 	wd, _ := os.Getwd()
