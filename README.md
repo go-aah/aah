@@ -3,7 +3,7 @@
 
 ***v0.8 [released](https://github.com/go-aah/security/releases/latest) and tagged on Oct 04, 2017***
 
-Security library houses all the application security implementation (Authentication, Authorization, Session Management, CORS, CSRF, Security Headers, etc.) by aah framework.
+Security library houses all the application security implementation (Authentication, Authorization, Session Management, CSRF, Security Headers, etc.) by aah framework.
 
 *`security` developed for aah framework. However, it's an independent library, can be used separately with any `Go` language project. Feel free to use it.*
 
