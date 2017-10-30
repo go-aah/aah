@@ -64,6 +64,8 @@ type (
 		RedirectTrailingSlash bool
 		AutoOptions           bool
 		DefaultAuth           string
+		CORS                  *CORS
+		CORSEnabled           bool
 		trees                 map[string]*node
 		routes                map[string]*Route
 	}
@@ -79,6 +81,7 @@ type (
 		Auth            string
 		MaxBodySize     int64
 		IsAntiCSRFCheck bool
+		CORS            *CORS
 
 		// static route fields in-addition to above
 		IsStatic bool
@@ -97,10 +100,12 @@ type (
 	PathParams []PathParam
 
 	parentRouteInfo struct {
-		ParentName string
-		PrefixPath string
-		Controller string
-		Auth       string
+		ParentName  string
+		PrefixPath  string
+		Controller  string
+		Auth        string
+		CORS        *CORS
+		CORSEnabled bool
 	}
 )
 
@@ -261,8 +266,15 @@ func (r *Router) processRoutesConfig() (err error) {
 			RedirectTrailingSlash: domainCfg.BoolDefault("redirect_trailing_slash", true),
 			AutoOptions:           domainCfg.BoolDefault("auto_options", true),
 			DefaultAuth:           domainCfg.StringDefault("default_auth", ""),
+			CORSEnabled:           domainCfg.BoolDefault("cors.enable", false),
 			trees:                 make(map[string]*node),
 			routes:                make(map[string]*Route),
+		}
+
+		// Domain Level CORS configuration
+		if domain.CORSEnabled {
+			baseCORSCfg, _ := domainCfg.GetSubConfig("cors")
+			domain.CORS = processBaseCORSSection(baseCORSCfg)
 		}
 
 		// Not Found route support is removed in aah v0.8 release,
@@ -289,8 +301,9 @@ func (r *Router) processRoutesConfig() (err error) {
 				if !ess.IsStrEmpty(dr.ParentName) {
 					parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
 				}
-				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v, Auth: %v, MaxBodySize: %v",
-					dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action, dr.Auth, dr.MaxBodySize)
+				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v, Auth: %v, MaxBodySize: %v\nCORS: [%v]\n",
+					dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action, dr.Auth, dr.MaxBodySize,
+					dr.CORS)
 			}
 		}
 
@@ -332,7 +345,11 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 		return nil
 	}
 
-	routes, err := parseRoutesSection(routesCfg, &parentRouteInfo{Auth: domain.DefaultAuth})
+	routes, err := parseRoutesSection(routesCfg, &parentRouteInfo{
+		Auth:        domain.DefaultAuth,
+		CORS:        domain.CORS,
+		CORSEnabled: domainCfg.BoolDefault("cors.enable", false),
+	})
 	if err != nil {
 		return err
 	}
@@ -675,6 +692,18 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		// getting Anti-CSRF check value, GitHub go-aah/aah#115
 		routeAntiCSRFCheck := cfg.BoolDefault(routeName+".anti_csrf_check", true)
 
+		// CORS
+		var cors *CORS
+		if routeInfo.CORSEnabled {
+			if corsCfg, found := cfg.GetSubConfig(routeName + ".cors"); found {
+				if corsCfg.BoolDefault("enable", true) {
+					cors = processCORSSection(corsCfg, routeInfo.CORS)
+				}
+			} else {
+				cors = routeInfo.CORS
+			}
+		}
+
 		if notToSkip {
 			for _, m := range strings.Split(routeMethod, ",") {
 				routes = append(routes, &Route{
@@ -687,6 +716,7 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 					Auth:            routeAuth,
 					MaxBodySize:     routeMaxBodySize,
 					IsAntiCSRFCheck: routeAntiCSRFCheck,
+					CORS:            cors,
 				})
 			}
 		}
@@ -694,10 +724,12 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		// loading child routes
 		if childRoutes, found := cfg.GetSubConfig(routeName + ".routes"); found {
 			croutes, er := parseRoutesSection(childRoutes, &parentRouteInfo{
-				ParentName: routeName,
-				PrefixPath: routePath,
-				Controller: routeController,
-				Auth:       routeAuth,
+				ParentName:  routeName,
+				PrefixPath:  routePath,
+				Controller:  routeController,
+				Auth:        routeAuth,
+				CORS:        cors,
+				CORSEnabled: routeInfo.CORSEnabled,
 			})
 			if er != nil {
 				err = er

@@ -5,7 +5,11 @@
 package router
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,25 +21,51 @@ import (
 
 const allowAll = "*"
 
+// CORS errors
+var (
+	ErrCORSOriginIsInvalid       = errors.New("cors: invalid origin")
+	ErrCORSMethodNotAllowed      = errors.New("cors: method not allowed")
+	ErrCORSHeaderNotAllowed      = errors.New("cors: header not allowed")
+	ErrCORSContentTypeNotAllowed = errors.New("cors: content-type not allowed")
+
+	// Excluded simple allowed headers and adding sensiable allowed headers.
+	// Refer to: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers
+	defaultAllowHeaders = []string{ahttp.HeaderOrigin, ahttp.HeaderAccept,
+		ahttp.HeaderAcceptLanguage, ahttp.HeaderAuthorization}
+
+	// Sensiable default allowed methods
+	defaultAllowMethods = []string{ahttp.MethodGet, ahttp.MethodHead, ahttp.MethodPost}
+)
+
 // CORS struct is to hold Cross-Origin Resource Sharing (CORS) configuration
-// values or the route.
+// values and verification for the route.
+//
+// Specification: https://www.w3.org/TR/cors/
+// Friendly Read: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 type CORS struct {
 	AllowOrigins     []string
 	AllowMethods     []string
 	AllowHeaders     []string
 	ExposeHeaders    []string
 	AllowCredentials bool
-	MaxAge           int
+	MaxAge           string
+
+	maxAgeStr       string
+	allowAllOrigins bool
+	allowAllMethods bool
+	allowAllHeaders bool
 }
 
 // AddOrigins method adds the given origin into allow origin list.
 func (c *CORS) AddOrigins(origins []string) *CORS {
 	for _, o := range origins {
 		if o == allowAll {
+			c.allowAllOrigins = true
 			c.AllowOrigins = []string{allowAll}
 			break
 		}
-		if !c.isExists(o, c.AllowOrigins) {
+		o = strings.ToLower(o)
+		if !ess.IsSliceContainsString(c.AllowOrigins, o) {
 			c.AllowOrigins = append(c.AllowOrigins, o)
 		}
 	}
@@ -45,6 +75,10 @@ func (c *CORS) AddOrigins(origins []string) *CORS {
 // AddAllowHeaders method adds the given HTTP header into allow headers list.
 func (c *CORS) AddAllowHeaders(hdrs []string) *CORS {
 	c.AllowHeaders = c.addHeaders(c.AllowHeaders, hdrs)
+	if ess.IsSliceContainsString(c.AllowHeaders, allowAll) {
+		c.allowAllHeaders = true
+		c.AllowHeaders = []string{allowAll}
+	}
 	return c
 }
 
@@ -52,12 +86,13 @@ func (c *CORS) AddAllowHeaders(hdrs []string) *CORS {
 func (c *CORS) AddAllowMethods(methods []string) *CORS {
 	for _, m := range methods {
 		if m == allowAll {
+			c.allowAllMethods = true
 			c.AllowMethods = []string{allowAll}
 			break
 		}
-
-		if !ess.IsStrEmpty(m) && !c.isExists(m, c.AllowMethods) {
-			c.AllowMethods = append(c.AllowMethods, strings.ToUpper(strings.TrimSpace(m)))
+		m = strings.ToUpper(strings.TrimSpace(m))
+		if !ess.IsStrEmpty(m) && !ess.IsSliceContainsString(c.AllowMethods, m) {
+			c.AllowMethods = append(c.AllowMethods, m)
 		}
 	}
 	return c
@@ -73,7 +108,7 @@ func (c *CORS) AddExposeHeaders(hdrs []string) *CORS {
 // `time.ParseDuration` method time units are supported.
 func (c *CORS) SetMaxAge(age string) *CORS {
 	if dur, err := time.ParseDuration(age); err == nil {
-		c.MaxAge = int(dur.Seconds())
+		c.MaxAge = strconv.Itoa(int(dur.Seconds()))
 	} else {
 		log.Errorf("Unable to parse CORS 'max_age' value '%v'", age)
 	}
@@ -86,10 +121,59 @@ func (c *CORS) SetAllowCredentials(b bool) *CORS {
 	return c
 }
 
-// Clone method creates copy of the current CORS config values.
-func (c *CORS) Clone() *CORS {
-	a := *c
-	return &a
+// IsOriginAllowed method check given origin is allowed or not.
+func (c *CORS) IsOriginAllowed(origin string) bool {
+	if ess.IsStrEmpty(origin) {
+		return false
+	}
+
+	if c.allowAllOrigins {
+		return true
+	}
+
+	return ess.IsSliceContainsString(c.AllowOrigins, strings.ToLower(origin))
+}
+
+// IsMethodAllowed method returns true if preflight method is allowed otherwise
+// false.
+func (c *CORS) IsMethodAllowed(method string) bool {
+	if c.allowAllMethods {
+		return true
+	}
+	return ess.IsSliceContainsString(c.AllowMethods, method)
+}
+
+// IsHeadersAllowed method returns true if preflight headers are allowed otherwise
+// false.
+func (c *CORS) IsHeadersAllowed(hdrs string) bool {
+	if c.allowAllHeaders {
+		return true
+	}
+
+	for _, h := range strings.Split(hdrs, ",") {
+		h = http.CanonicalHeaderKey(strings.TrimSpace(h))
+		if ess.IsSliceContainsString(c.AllowHeaders, h) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// String method returns string representation of CORS configuration values.
+func (c *CORS) String() string {
+	var buf bytes.Buffer
+	buf.WriteString("Allow Origins: ")
+	buf.WriteString(strings.Join(c.AllowOrigins, ", "))
+	buf.WriteString("\nAllow Headers: ")
+	buf.WriteString(strings.Join(c.AllowHeaders, ", "))
+	buf.WriteString("\nAllow Methods: ")
+	buf.WriteString(strings.Join(c.AllowMethods, ", "))
+	buf.WriteString("\nExpose Headers: ")
+	buf.WriteString(strings.Join(c.ExposeHeaders, ", "))
+	buf.WriteString(fmt.Sprintf("\nAllow Credentials: %v", c.AllowCredentials))
+	buf.WriteString(fmt.Sprintf("\nMax Age: %v", c.maxAgeStr))
+	return buf.String()
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -101,49 +185,36 @@ func (c *CORS) addHeaders(dst []string, src []string) []string {
 		if h == allowAll {
 			return []string{allowAll}
 		}
-		t := http.CanonicalHeaderKey(strings.TrimSpace(h))
-		if !ess.IsStrEmpty(t) && !c.isExists(t, dst) {
-			dst = append(dst, t)
+		h = http.CanonicalHeaderKey(strings.TrimSpace(h))
+		if !ess.IsStrEmpty(h) && !ess.IsSliceContainsString(dst, h) {
+			dst = append(dst, h)
 		}
 	}
 	return dst
 }
 
-func (c *CORS) isExists(v string, list []string) bool {
-	for _, s := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
-func processCORSSection(cfg *config.Config, c *CORS) *CORS {
-	var cors CORS
-	if c != nil {
-		cors = *c
-	}
+func processBaseCORSSection(cfg *config.Config) *CORS {
+	cors := &CORS{}
 
 	// Access-Control-Allow-Origin
 	if origins, found := cfg.StringList("allow_origins"); found {
 		cors.AddOrigins(origins)
 	} else {
-		cors.AddOrigins([]string{"*"})
+		cors.AddOrigins([]string{allowAll})
 	}
 
 	// Access-Control-Allow-Headers
 	if hdrs, found := cfg.StringList("allow_headers"); found {
 		cors.AddAllowHeaders(hdrs)
-		cors.AddAllowHeaders([]string{ahttp.HeaderOrigin})
 	} else {
-		cors.AddAllowHeaders([]string{"*"})
+		cors.AddAllowHeaders(defaultAllowHeaders)
 	}
 
 	// Access-Control-Allow-Methods
 	if methods, found := cfg.StringList("allow_methods"); found {
 		cors.AddAllowMethods(methods)
 	} else {
-		cors.AddAllowMethods([]string{"GET", "HEAD", "POST"})
+		cors.AddAllowMethods(defaultAllowMethods)
 	}
 
 	// Access-Control-Allow-Credentials
@@ -155,7 +226,49 @@ func processCORSSection(cfg *config.Config, c *CORS) *CORS {
 	}
 
 	// Access-Control-Max-Age
-	cors.SetMaxAge(cfg.StringDefault("max_age", "10m"))
+	cors.maxAgeStr = cfg.StringDefault("max_age", "24h")
+	cors.SetMaxAge(cors.maxAgeStr)
 
-	return &cors
+	return cors
+}
+
+func processCORSSection(cfg *config.Config, parent *CORS) *CORS {
+	cors := &CORS{}
+
+	// Access-Control-Allow-Origin
+	if origins, found := cfg.StringList("allow_origins"); found {
+		cors.AddOrigins(origins)
+	} else {
+		cors.AddOrigins(parent.AllowOrigins)
+	}
+
+	// Access-Control-Allow-Headers
+	if hdrs, found := cfg.StringList("allow_headers"); found {
+		cors.AddAllowHeaders(hdrs)
+	} else {
+		cors.AddAllowHeaders(parent.AllowHeaders)
+	}
+
+	// Access-Control-Allow-Methods
+	if methods, found := cfg.StringList("allow_methods"); found {
+		cors.AddAllowMethods(methods)
+	} else {
+		cors.AddAllowMethods(parent.AllowMethods)
+	}
+
+	// Access-Control-Allow-Credentials
+	cors.SetAllowCredentials(cfg.BoolDefault("allow_credentials", parent.AllowCredentials))
+
+	// Access-Control-Expose-Headers
+	if hdrs, found := cfg.StringList("expose_headers"); found {
+		cors.AddExposeHeaders(hdrs)
+	} else {
+		cors.AddExposeHeaders(parent.ExposeHeaders)
+	}
+
+	// Access-Control-Max-Age
+	cors.maxAgeStr = cfg.StringDefault("max_age", parent.maxAgeStr)
+	cors.SetMaxAge(cors.maxAgeStr)
+
+	return cors
 }
