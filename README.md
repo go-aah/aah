@@ -11,3 +11,7 @@ aah framework - A scalable, performant, rapid development Web framework for Go.
 Requires `go1.8` and above.
 
 Visit official website https://aahframework.org to learn more.
+
+## Stargazers over time
+
+[![Stargazers over time](https://starcharts.herokuapp.com/go-aah/aah.svg)](https://starcharts.herokuapp.com/go-aah/aah)
