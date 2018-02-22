@@ -87,14 +87,23 @@ func TestBindParse(t *testing.T) {
 		Req:      ahttp.AcquireRequest(r2),
 		Res:      ahttp.AcquireResponseWriter(httptest.NewRecorder()),
 		subject:  security.AcquireSubject(),
-		route:    &router.Route{MaxBodySize: 5 << 20},
 		values:   make(map[string]interface{}),
 		viewArgs: make(map[string]interface{}),
+		route:    &router.Route{MaxBodySize: 5 << 20},
 	}
 
 	BindMiddleware(ctx2, &Middleware{})
 	assert.NotNil(t, ctx2.Req.Params.Form)
 	assert.True(t, len(ctx2.Req.Params.Form) == 3)
+
+	// Request Form Multipart
+	r3, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", strings.NewReader(form.Encode()))
+	r3.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeMultipartForm.String())
+	ctx3 := &Context{Req: ahttp.AcquireRequest(r3),
+		subject: security.AcquireSubject(), values: make(map[string]interface{}), viewArgs: make(map[string]interface{}), route: &router.Route{MaxBodySize: 5 << 20}}
+	requestParamsMiddleware(ctx3, &Middleware{})
+	assert.Nil(t, ctx3.Req.Params.Form)
+	assert.False(t, len(ctx3.Req.Params.Form) == 3)
 }
 
 func TestBindParamParseLocaleFromAppConfiguration(t *testing.T) {

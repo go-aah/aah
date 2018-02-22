@@ -30,7 +30,7 @@ const (
 	keyAntiCSRFSecret = "_AntiCSRFSecret"
 )
 
-var appSecurityManager = security.New()
+var appSecurityManager *security.Manager
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
@@ -332,12 +332,13 @@ func writeAntiCSRFCookie(ctx *Context, secret []byte) {
 //___________________________________
 
 func initSecurity(appCfg *config.Config) error {
-	appSecurityManager.IsSSLEnabled = AppIsSSLEnabled()
-
-	if err := appSecurityManager.Init(appCfg); err != nil {
+	asecmgr := security.New()
+	asecmgr.IsSSLEnabled = AppIsSSLEnabled()
+	if err := asecmgr.Init(appCfg); err != nil {
 		return err
 	}
-	appSecurityManager.AntiCSRF.Enabled = (AppViewEngine() != nil)
+	asecmgr.AntiCSRF.Enabled = (AppViewEngine() != nil)
+	appSecurityManager = asecmgr
 
 	return nil
 }

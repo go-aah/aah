@@ -101,10 +101,11 @@ func Start() {
 	aahServer.SetKeepAlivesEnabled(AppConfig().BoolDefault("server.keep_alive", true))
 
 	go writePID(AppConfig(), getBinaryFileName(), AppBaseDir())
+	go listenForHotConfigReload()
 
 	// Unix Socket
 	if strings.HasPrefix(AppHTTPAddress(), "unix") {
-		startUnix(AppHTTPAddress())
+		startUnix(aahServer, AppHTTPAddress())
 		return
 	}
 
@@ -112,12 +113,12 @@ func Start() {
 
 	// HTTPS
 	if AppIsSSLEnabled() {
-		startHTTPS()
+		startHTTPS(aahServer)
 		return
 	}
 
 	// HTTP
-	startHTTP()
+	startHTTP(aahServer)
 }
 
 // Shutdown method allows aah server to shutdown gracefully with given timeoout
@@ -151,7 +152,7 @@ func Shutdown() {
 // Unexported methods
 //___________________________________
 
-func startUnix(address string) {
+func startUnix(server *http.Server, address string) {
 	sockFile := address[5:]
 	if err := os.Remove(sockFile); !os.IsNotExist(err) {
 		logAsFatal(err)
@@ -160,26 +161,26 @@ func startUnix(address string) {
 	listener, err := net.Listen("unix", sockFile)
 	logAsFatal(err)
 
-	aahServer.Addr = address
-	log.Infof("aah go server running on %v", aahServer.Addr)
-	if err := aahServer.Serve(listener); err != nil && err != http.ErrServerClosed {
+	server.Addr = address
+	log.Infof("aah go server running on %v", server.Addr)
+	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
 }
 
-func startHTTPS() {
+func startHTTPS(server *http.Server) {
 	// Assign user-defined TLS config if provided
 	if appTLSCfg == nil {
-		aahServer.TLSConfig = new(tls.Config)
+		server.TLSConfig = new(tls.Config)
 	} else {
 		log.Info("Adding user provided TLS Config")
-		aahServer.TLSConfig = appTLSCfg
+		server.TLSConfig = appTLSCfg
 	}
 
 	// Add cert, if let's encrypt enabled
 	if appIsLetsEncrypt {
 		log.Infof("Let's Encypyt CA Cert enabled")
-		aahServer.TLSConfig.GetCertificate = appAutocertManager.GetCertificate
+		server.TLSConfig.GetCertificate = appAutocertManager.GetCertificate
 	} else {
 		log.Infof("SSLCert: %v, SSLKey: %v", appSSLCert, appSSLKey)
 	}
@@ -190,23 +191,23 @@ func startHTTPS() {
 		//  - Don't add "h2" to TLSConfig.NextProtos
 		//  - Initialize TLSNextProto with empty map
 		// Otherwise Go will enable HTTP/2 by default. It's not gonna listen to you :)
-		aahServer.TLSNextProto = map[string]func(*http.Server, *tls.Conn, http.Handler){}
+		server.TLSNextProto = map[string]func(*http.Server, *tls.Conn, http.Handler){}
 	} else {
-		aahServer.TLSConfig.NextProtos = append(aahServer.TLSConfig.NextProtos, "h2")
+		server.TLSConfig.NextProtos = append(server.TLSConfig.NextProtos, "h2")
 	}
 
 	// start HTTP redirect server if enabled
 	go startHTTPRedirect(AppConfig())
 
 	printStartupNote()
-	if err := aahServer.ListenAndServeTLS(appSSLCert, appSSLKey); err != nil && err != http.ErrServerClosed {
+	if err := server.ListenAndServeTLS(appSSLCert, appSSLKey); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
 }
 
-func startHTTP() {
+func startHTTP(server *http.Server) {
 	printStartupNote()
-	if err := aahServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Error(err)
 	}
 }

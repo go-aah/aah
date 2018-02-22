@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aahframework.org/test.v0/assert"
 )
@@ -42,4 +43,17 @@ func TestConfigTemplateFuncs(t *testing.T) {
 
 	v3 := tmplConfig("key.not.exists")
 	assert.Equal(t, "", v3.(string))
+}
+
+func TestConfigHotReload(t *testing.T) {
+	SetAppBuildInfo(&BuildInfo{
+		BinaryName: "testapp",
+		Date:       time.Now().Format(time.RFC3339),
+		Version:    "1.0.0",
+	})
+
+	assert.False(t, isHotReload)
+	appBaseDir = getTestdataPath()
+	hotReloadConfig()
+	appBaseDir = ""
 }
