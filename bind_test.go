@@ -101,7 +101,7 @@ func TestBindParse(t *testing.T) {
 	r3.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeMultipartForm.String())
 	ctx3 := &Context{Req: ahttp.AcquireRequest(r3),
 		subject: security.AcquireSubject(), values: make(map[string]interface{}), viewArgs: make(map[string]interface{}), route: &router.Route{MaxBodySize: 5 << 20}}
-	requestParamsMiddleware(ctx3, &Middleware{})
+	BindMiddleware(ctx3, &Middleware{})
 	assert.Nil(t, ctx3.Req.Params.Form)
 	assert.False(t, len(ctx3.Req.Params.Form) == 3)
 }

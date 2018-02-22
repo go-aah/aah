@@ -28,7 +28,7 @@ var (
 	ErrHTTPMethodNotAllowed       = errors.New("aah: http method not allowed")
 	ErrAccessDenied               = errors.New("aah: access denied")
 	ErrAuthenticationFailed       = errors.New("aah: authentication failed")
-	ErrGeneric                    = errors.New("aah: framework internal")
+	ErrGeneric                    = errors.New("aah: generic")
 )
 
 var errorHandler ErrorHandler

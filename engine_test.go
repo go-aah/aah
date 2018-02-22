@@ -290,7 +290,6 @@ func TestEngineServeHTTP(t *testing.T) {
 
 	resp6 := w6.Result()
 	body6 := getResponseBody(resp6)
-	// TEST: need to look afterwards about nil
 	assert.True(t, strings.Contains(body6, "Listing of /testdata/"))
 	assert.True(t, strings.Contains(body6, "config/"))
 	AppSecurityManager().SecureHeaders.CSP = ""
