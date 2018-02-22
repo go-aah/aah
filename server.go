@@ -24,6 +24,7 @@ import (
 
 var (
 	aahServer          *http.Server
+	appEngine          *engine
 	appTLSCfg          *tls.Config
 	appAutocertManager *autocert.Manager
 )
@@ -88,8 +89,9 @@ func Start() {
 	// Publish `OnStart` event
 	AppEventStore().sortAndPublishSync(&Event{Name: EventOnStart})
 
+	appEngine = newEngine(AppConfig())
 	aahServer = &http.Server{
-		Handler:        newEngine(AppConfig()),
+		Handler:        appEngine,
 		ReadTimeout:    appHTTPReadTimeout,
 		WriteTimeout:   appHTTPWriteTimeout,
 		MaxHeaderBytes: appHTTPMaxHdrBytes,

@@ -81,16 +81,18 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 'OnRequest' server extension point
 	publishOnRequestEvent(ctx)
 
-	// Handling route
-	if e.handleRoute(ctx) == flowStop {
+	// Middlewares, interceptors, targeted controller
+	if len(mwChain) == 0 {
+		ctx.Log().Error("Since v0.10 'init.go' file introduced for the aah application, " +
+			"please check your 'app' directory and add it to the version control")
+		ctx.Reply().Error(&Error{
+			Reason:  ErrGeneric,
+			Code:    http.StatusInternalServerError,
+			Message: http.StatusText(http.StatusInternalServerError),
+		})
 		goto wReply
 	}
-
-	// Load session
-	e.loadSession(ctx)
-
-	// Middlewares, interceptors, targeted controller
-	e.executeMiddlewares(ctx)
+	mwChain[0].Next(ctx)
 
 wReply:
 	// Write Reply on the wire
@@ -141,103 +143,6 @@ func (e *engine) prepareContext(w http.ResponseWriter, r *http.Request) *Context
 	ctx.reply = acquireReply()
 	ctx.subject = security.AcquireSubject()
 	return ctx
-}
-
-// handleRoute method handle route processing for the incoming request.
-// It does-
-//  - finding domain
-//  - finding route
-//  - handling static route
-//  - handling redirect trailing slash
-//  - auto options
-//  - route not found
-//  - if route found then it sets targeted controller into context
-//  - adds the pathParams into context if present
-//
-// Returns status as-
-//  - flowCont
-//  - flowStop
-func (e *engine) handleRoute(ctx *Context) flowResult {
-	domain := AppRouter().FindDomain(ctx.Req)
-	if domain == nil {
-		ctx.Log().Warnf("Domain not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
-		ctx.Reply().Error(&Error{
-			Reason:  ErrDomainNotFound,
-			Code:    http.StatusNotFound,
-			Message: http.StatusText(http.StatusNotFound),
-		})
-		return flowStop
-	}
-
-	route, pathParams, rts := domain.Lookup(ctx.Req)
-	if route == nil { // route not found
-		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
-			return flowStop
-		}
-
-		ctx.Log().Warnf("Route not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
-		ctx.Reply().Error(&Error{
-			Reason:  ErrRouteNotFound,
-			Code:    http.StatusNotFound,
-			Message: http.StatusText(http.StatusNotFound),
-		})
-		return flowStop
-	}
-
-	ctx.route = route
-	ctx.domain = domain
-
-	// security form auth case
-	if isFormAuthLoginRoute(ctx) {
-		return flowCont
-	}
-
-	// Path parameters
-	if pathParams.Len() > 0 {
-		ctx.Req.Params.Path = make(map[string]string, pathParams.Len())
-		for _, v := range *pathParams {
-			ctx.Req.Params.Path[v.Key] = v.Value
-		}
-	}
-
-	// Serving static file
-	if route.IsStatic {
-		if err := e.serveStatic(ctx); err == errFileNotFound {
-			ctx.Log().Warnf("Static file not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
-			ctx.Reply().done = false
-			ctx.Reply().Error(&Error{
-				Reason:  ErrStaticFileNotFound,
-				Code:    http.StatusNotFound,
-				Message: http.StatusText(http.StatusNotFound),
-			})
-		}
-		return flowStop
-	}
-
-	// No controller or action found for the route
-	if err := ctx.setTarget(route); err == errTargetNotFound {
-		ctx.Log().Warnf("Target not found, Controller: %s, Action: %s", route.Controller, route.Action)
-		ctx.Reply().Error(&Error{
-			Reason:  ErrControllerOrActionNotFound,
-			Code:    http.StatusNotFound,
-			Message: http.StatusText(http.StatusNotFound),
-		})
-		return flowStop
-	}
-
-	return flowCont
-}
-
-// loadSession method loads session from request for `stateful` session.
-func (e *engine) loadSession(ctx *Context) {
-	if AppSessionManager().IsStateful() {
-		ctx.subject.Session = AppSessionManager().GetSession(ctx.Req.Unwrap())
-	}
-}
-
-// executeMiddlewares method executes the configured middlewares.
-func (e *engine) executeMiddlewares(ctx *Context) {
-	mwChain[0].Next(ctx)
 }
 
 // writeReply method writes the response on the wire based on `Reply` instance.
