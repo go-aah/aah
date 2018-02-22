@@ -49,13 +49,13 @@ func AddValueParser(typ reflect.Type, parser valpar.Parser) error {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Params Middleware
+// Bind Middleware
 //___________________________________
 
-// requestParamsMiddleware method parses the incoming HTTP request to collects request
+// BindMiddleware method parses the incoming HTTP request to collects request
 // parameters (Path, Form, Query, Multipart) stores into context. Request
 // params are made available in View via template functions.
-func requestParamsMiddleware(ctx *Context, m *Middleware) {
+func BindMiddleware(ctx *Context, m *Middleware) {
 	if AppI18n() != nil {
 		// i18n locale HTTP header `Accept-Language` value override via
 		// Path Variable and URL Query Param (config i18n { param_name { ... } }).
@@ -237,7 +237,7 @@ func tmplQueryParam(viewArgs map[string]interface{}, key string) interface{} {
 	return sanatizeValue(params.QueryValue(key))
 }
 
-func paramInitialize(e *Event) {
+func bindInitialize(e *Event) {
 	cfg := AppConfig()
 	keyPathParamName = cfg.StringDefault("i18n.param_name.path", keyOverrideI18nName)
 	keyQueryParamName = cfg.StringDefault("i18n.param_name.query", keyOverrideI18nName)
@@ -284,5 +284,5 @@ func paramInitialize(e *Event) {
 }
 
 func init() {
-	OnStart(paramInitialize)
+	OnStart(bindInitialize)
 }

@@ -116,7 +116,7 @@ func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 		subject:  security.AcquireSubject(),
 		viewArgs: make(map[string]interface{}),
 	}
-	authcAndAuthzMiddleware(ctx1, &Middleware{})
+	AuthcAuthzMiddleware(ctx1, &Middleware{})
 
 	// form auth scheme
 	cfg, _ := config.ParseString(`
@@ -148,11 +148,11 @@ func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 		viewArgs: make(map[string]interface{}),
 		reply:    NewReply(),
 	}
-	authcAndAuthzMiddleware(ctx2, &Middleware{})
+	AuthcAuthzMiddleware(ctx2, &Middleware{})
 
 	// session is authenticated
 	ctx2.Session().IsAuthenticated = true
-	authcAndAuthzMiddleware(ctx2, &Middleware{})
+	AuthcAuthzMiddleware(ctx2, &Middleware{})
 
 	// form auth
 	testFormAuth := &testFormAuthentication{}
@@ -164,18 +164,18 @@ func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 	r3 := httptest.NewRequest("POST", "http://localhost:8080/login", nil)
 	ctx2.Req = ahttp.ParseRequest(r3, &ahttp.Request{})
 	ctx2.Session().Set(KeyViewArgAuthcInfo, testGetAuthenticationInfo())
-	authcAndAuthzMiddleware(ctx2, &Middleware{})
+	AuthcAuthzMiddleware(ctx2, &Middleware{})
 
 	// form auth not authenticated and no credentials
 	ctx2.Session().IsAuthenticated = false
 	delete(ctx2.Session().Values, KeyViewArgAuthcInfo)
-	authcAndAuthzMiddleware(ctx2, &Middleware{})
+	AuthcAuthzMiddleware(ctx2, &Middleware{})
 
 	// form auth not authenticated and with credentials
 	r4 := httptest.NewRequest("POST", "http://localhost:8080/login", strings.NewReader("username=jeeva&password=welcome123"))
 	r4.Header.Set(ahttp.HeaderContentType, "application/x-www-form-urlencoded")
 	ctx2.Req = ahttp.ParseRequest(r4, &ahttp.Request{})
-	authcAndAuthzMiddleware(ctx2, &Middleware{})
+	AuthcAuthzMiddleware(ctx2, &Middleware{})
 }
 
 type testBasicAuthentication struct {
@@ -224,7 +224,7 @@ func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
 		subject:  security.AcquireSubject(),
 		reply:    NewReply(),
 	}
-	authcAndAuthzMiddleware(ctx1, &Middleware{})
+	AuthcAuthzMiddleware(ctx1, &Middleware{})
 
 	testBasicAuth := &testBasicAuthentication{}
 	basicAuth := AppSecurityManager().GetAuthScheme("basic_auth").(*scheme.BasicAuth)
@@ -234,12 +234,12 @@ func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
 	assert.Nil(t, err)
 	r2 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
 	ctx1.Req = ahttp.ParseRequest(r2, &ahttp.Request{})
-	authcAndAuthzMiddleware(ctx1, &Middleware{})
+	AuthcAuthzMiddleware(ctx1, &Middleware{})
 
 	r3 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
 	r3.SetBasicAuth("jeeva", "welcome123")
 	ctx1.Req = ahttp.ParseRequest(r3, &ahttp.Request{})
-	authcAndAuthzMiddleware(ctx1, &Middleware{})
+	AuthcAuthzMiddleware(ctx1, &Middleware{})
 }
 
 func TestSecurityAntiCSRF(t *testing.T) {
@@ -264,22 +264,22 @@ func TestSecurityAntiCSRF(t *testing.T) {
 
 	// Anti-CSRF request
 	ctx1.Req.Scheme = "http"
-	antiCSRFMiddleware(ctx1, &Middleware{})
+	AntiCSRFMiddleware(ctx1, &Middleware{})
 	assert.Equal(t, anticsrf.ErrNoCookieFound, ctx1.reply.err.Reason)
 	ctx1.Req.Scheme = "https"
 
 	// No referer
-	antiCSRFMiddleware(ctx1, &Middleware{})
+	AntiCSRFMiddleware(ctx1, &Middleware{})
 	assert.Equal(t, anticsrf.ErrNoReferer, ctx1.reply.err.Reason)
 
 	// https: malformed URL
 	ctx1.Req.Referer = ":host:8080"
-	antiCSRFMiddleware(ctx1, &Middleware{})
+	AntiCSRFMiddleware(ctx1, &Middleware{})
 	assert.Equal(t, anticsrf.ErrMalformedReferer, ctx1.reply.err.Reason)
 
 	// Bad referer
 	ctx1.Req.Referer = "https:::"
-	antiCSRFMiddleware(ctx1, &Middleware{})
+	AntiCSRFMiddleware(ctx1, &Middleware{})
 	assert.Equal(t, anticsrf.ErrBadReferer, ctx1.reply.err.Reason)
 
 	// Template funcs
@@ -287,7 +287,7 @@ func TestSecurityAntiCSRF(t *testing.T) {
 	assert.NotNil(t, result)
 	AppSecurityManager().AntiCSRF.Enabled = false
 	assert.Equal(t, "", tmplAntiCSRFToken(ctx1.viewArgs))
-	antiCSRFMiddleware(ctx1, &Middleware{})
+	AntiCSRFMiddleware(ctx1, &Middleware{})
 	AppSecurityManager().AntiCSRF.Enabled = true
 
 	// Password Encoder

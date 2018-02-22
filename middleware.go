@@ -33,19 +33,7 @@ type (
 
 // Middlewares method adds given middleware into middleware stack
 func Middlewares(middlewares ...MiddlewareFunc) {
-	mwStack = mwStack[:len(mwStack)-2]
-
-	for _, m := range middlewares {
-		if m != nil {
-			mwStack = append(mwStack, m)
-		}
-	}
-
-	mwStack = append(
-		mwStack,
-		interceptorMiddleware,
-		actionMiddleware,
-	)
+	mwStack = append(mwStack, middlewares...)
 
 	invalidateMwChain()
 }
@@ -92,13 +80,14 @@ func (mw *Middleware) Next(ctx *Context) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Interceptor middleware
+// Action middleware
 //___________________________________
 
-// interceptorMiddleware calls pre-defined actions (Before, Before<ActionName>,
-// After, After<ActionName>, Panic, Panic<ActionName>, Finally,
-// Finally<ActionName>) from controller.
-func interceptorMiddleware(ctx *Context, m *Middleware) {
+// ActionMiddleware performs
+//	- Executes Interceptors (Before, Before<ActionName>, After, After<ActionName>,
+//				Panic, Panic<ActionName>, Finally, Finally<ActionName>)
+// 	- Invokes Controller Action
+func ActionMiddleware(ctx *Context, m *Middleware) {
 	target := reflect.ValueOf(ctx.target)
 	controller := resolveControllerName(ctx)
 
@@ -150,7 +139,8 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 		}
 	}
 
-	m.Next(ctx)
+	// Invokes Controller action
+	invokeAction(ctx)
 
 	// After action method
 	if !ctx.abort {
@@ -169,12 +159,8 @@ func interceptorMiddleware(ctx *Context, m *Middleware) {
 	}
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Action middleware
-//___________________________________
-
-// ActionMiddleware calls the requested action on controller
-func actionMiddleware(ctx *Context, m *Middleware) {
+// invokeAction calls the requested action on controller
+func invokeAction(ctx *Context) {
 	target := reflect.ValueOf(ctx.target)
 	controllerName := resolveControllerName(ctx)
 	action := target.MethodByName(ctx.action.Name)
@@ -228,16 +214,4 @@ func invalidateMwChain() {
 	}
 
 	mwChain[cnt-1].further = &Middleware{}
-}
-
-func init() {
-	mwStack = append(mwStack,
-		requestParamsMiddleware,
-		antiCSRFMiddleware,
-		authcAndAuthzMiddleware,
-		interceptorMiddleware,
-		actionMiddleware,
-	)
-
-	invalidateMwChain()
 }

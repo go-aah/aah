@@ -22,7 +22,7 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
-func TestParamTemplateFuncs(t *testing.T) {
+func TestBindParamTemplateFuncs(t *testing.T) {
 	form := url.Values{}
 	form.Add("names", "Test1")
 	form.Add("names", "Test 2 value")
@@ -50,7 +50,7 @@ func TestParamTemplateFuncs(t *testing.T) {
 	assert.Equal(t, "100001", v3)
 }
 
-func TestParamParse(t *testing.T) {
+func TestBindParse(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
 	requestParsers[ahttp.ContentTypeMultipartForm.Mime] = multipartFormParser
 	requestParsers[ahttp.ContentTypeForm.Mime] = formParser
@@ -69,7 +69,7 @@ func TestParamParse(t *testing.T) {
 	appI18n = i18n.New()
 
 	assert.Nil(t, ctx1.Req.Locale)
-	requestParamsMiddleware(ctx1, &Middleware{})
+	BindMiddleware(ctx1, &Middleware{})
 	assert.NotNil(t, ctx1.Req.Locale)
 	assert.Equal(t, "en", ctx1.Req.Locale.Language)
 	assert.Equal(t, "CA", ctx1.Req.Locale.Region)
@@ -92,12 +92,12 @@ func TestParamParse(t *testing.T) {
 		viewArgs: make(map[string]interface{}),
 	}
 
-	requestParamsMiddleware(ctx2, &Middleware{})
+	BindMiddleware(ctx2, &Middleware{})
 	assert.NotNil(t, ctx2.Req.Params.Form)
 	assert.True(t, len(ctx2.Req.Params.Form) == 3)
 }
 
-func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
+func TestBindParamParseLocaleFromAppConfiguration(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
 
 	cfg, err := config.ParseString(`
@@ -108,7 +108,7 @@ func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
 		}
 	`)
 	appConfig = cfg
-	paramInitialize(&Event{})
+	bindInitialize(&Event{})
 
 	assert.Nil(t, err)
 
@@ -120,14 +120,14 @@ func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
 	}
 
 	assert.Nil(t, ctx1.Req.Locale)
-	requestParamsMiddleware(ctx1, &Middleware{})
+	BindMiddleware(ctx1, &Middleware{})
 	assert.NotNil(t, ctx1.Req.Locale)
 	assert.Equal(t, "en", ctx1.Req.Locale.Language)
 	assert.Equal(t, "CA", ctx1.Req.Locale.Region)
 	assert.Equal(t, "en-CA", ctx1.Req.Locale.String())
 }
 
-func TestParamContentNegotiation(t *testing.T) {
+func TestBindParamContentNegotiation(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
 
 	errorHandler = defaultErrorHandler
@@ -142,7 +142,7 @@ func TestParamContentNegotiation(t *testing.T) {
 		reply:   acquireReply(),
 		subject: security.AcquireSubject(),
 	}
-	requestParamsMiddleware(ctx1, &Middleware{})
+	BindMiddleware(ctx1, &Middleware{})
 	assert.Equal(t, http.StatusUnsupportedMediaType, ctx1.Reply().err.Code)
 
 	// Offered
@@ -155,7 +155,7 @@ func TestParamContentNegotiation(t *testing.T) {
 		reply:   acquireReply(),
 		subject: security.AcquireSubject(),
 	}
-	requestParamsMiddleware(ctx2, &Middleware{})
+	BindMiddleware(ctx2, &Middleware{})
 	assert.Equal(t, http.StatusNotAcceptable, ctx2.Reply().err.Code)
 
 	isContentNegotiationEnabled = false
@@ -167,11 +167,11 @@ func TestParamContentNegotiation(t *testing.T) {
 				offered = ["*/*"]
 			}
 		}`)
-	paramInitialize(&Event{})
+	bindInitialize(&Event{})
 	appConfig = nil
 }
 
-func TestParamAddValueParser(t *testing.T) {
+func TestBindAddValueParser(t *testing.T) {
 	err := AddValueParser(reflect.TypeOf(time.Time{}), func(key string, typ reflect.Type, params url.Values) (reflect.Value, error) {
 		return reflect.Value{}, nil
 	})

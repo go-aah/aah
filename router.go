@@ -30,6 +30,15 @@ func AppRouter() *router.Router {
 	return appRouter
 }
 
+// RouteMiddleware method performs the routing logic.
+func RouteMiddleware(ctx *Context, m *Middleware) {
+	if handleRoute(ctx) == flowStop {
+		return
+	}
+
+	m.Next(ctx)
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
@@ -43,6 +52,91 @@ func initRoutes(cfgDir string, appCfg *config.Config) error {
 	}
 
 	return nil
+}
+
+// handleRoute method handle route processing for the incoming request.
+// It does-
+//  - finding domain
+//  - finding route
+//  - handling static route
+//  - handling redirect trailing slash
+//  - auto options
+//  - route not found
+//  - if route found then it sets targeted controller into context
+//  - adds the pathParams into context if present
+//
+// Returns status as-
+//  - flowCont
+//  - flowStop
+func handleRoute(ctx *Context) flowResult {
+	domain := AppRouter().FindDomain(ctx.Req)
+	if domain == nil {
+		ctx.Log().Warnf("Domain not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
+		ctx.Reply().Error(&Error{
+			Reason:  ErrDomainNotFound,
+			Code:    http.StatusNotFound,
+			Message: http.StatusText(http.StatusNotFound),
+		})
+		return flowStop
+	}
+
+	route, pathParams, rts := domain.Lookup(ctx.Req)
+	if route == nil { // route not found
+		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
+			return flowStop
+		}
+
+		ctx.Log().Warnf("Route not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
+		ctx.Reply().Error(&Error{
+			Reason:  ErrRouteNotFound,
+			Code:    http.StatusNotFound,
+			Message: http.StatusText(http.StatusNotFound),
+		})
+		return flowStop
+	}
+
+	ctx.route = route
+	ctx.domain = domain
+
+	// security form auth case
+	if isFormAuthLoginRoute(ctx) {
+		return flowCont
+	}
+
+	// Path parameters
+	if pathParams.Len() > 0 {
+		ctx.Req.Params.Path = make(map[string]string, pathParams.Len())
+		for _, v := range *pathParams {
+			ctx.Req.Params.Path[v.Key] = v.Value
+		}
+	}
+
+	// Serving static file
+	if route.IsStatic {
+		if err := appEngine.serveStatic(ctx); err == errFileNotFound {
+			ctx.Log().Warnf("Static file not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
+			ctx.Reply().done = false
+			ctx.Reply().Error(&Error{
+				Reason:  ErrStaticFileNotFound,
+				Code:    http.StatusNotFound,
+				Message: http.StatusText(http.StatusNotFound),
+			})
+		}
+		return flowStop
+	}
+
+	// No controller or action found for the route
+	if err := ctx.setTarget(route); err == errTargetNotFound {
+		ctx.Log().Warnf("Target not found, Controller: %s, Action: %s", route.Controller, route.Action)
+		ctx.Reply().Error(&Error{
+			Reason:  ErrControllerOrActionNotFound,
+			Code:    http.StatusNotFound,
+			Message: http.StatusText(http.StatusNotFound),
+		})
+		return flowStop
+	}
+
+	return flowCont
 }
 
 func appendAnchorLink(routePath, anchorLink string) string {
