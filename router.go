@@ -377,7 +377,7 @@ func (d *Domain) Lookup(req *ahttp.Request) (*Route, *PathParams, bool) {
 	}
 
 	// get route tree for request method
-	tree, found := d.trees[req.Method]
+	tree, found := d.lookupRouteTree(req)
 	if !found {
 		return nil, nil, false
 	}
@@ -579,6 +579,26 @@ func (d *Domain) key() string {
 		return strings.ToLower(d.Host)
 	}
 	return strings.ToLower(d.Host + ":" + d.Port)
+}
+
+func (d *Domain) lookupRouteTree(req *ahttp.Request) (*node, bool) {
+	// get route tree for request method
+	tree, found := d.trees[req.Method]
+	if found {
+		return tree, true
+	}
+
+	// get route tree for CORS access control method
+	if req.Method == ahttp.MethodOptions && d.CORSEnabled {
+		reqMethod := strings.TrimSpace(req.Header.Get(ahttp.HeaderAccessControlRequestMethod))
+		if len(reqMethod) > 0 {
+			if tree, found := d.trees[reqMethod]; found {
+				return tree, true
+			}
+		}
+	}
+
+	return nil, false
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
