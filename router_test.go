@@ -8,8 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/router.v0"
+	"aahframework.org/security.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -49,4 +51,57 @@ func TestRouterMisc(t *testing.T) {
 	domain := &router.Domain{Host: "localhost"}
 	result := composeRouteURL(domain, "/path", "my-head")
 	assert.Equal(t, "//localhost/path#my-head", result)
+}
+
+func TestRouterCORS(t *testing.T) {
+	// CORS NOT enabled
+	ctx1 := &Context{
+		domain: &router.Domain{},
+	}
+	CORSMiddleware(ctx1, &Middleware{})
+
+	ctx2 := &Context{
+		domain: &router.Domain{CORSEnabled: true},
+		route:  &router.Route{},
+	}
+	CORSMiddleware(ctx2, &Middleware{})
+
+	// CORS preflight request
+	req3 := getAahRequest(ahttp.MethodOptions, "http://localhost:8080/users/edit", "")
+	req3.Header.Set(ahttp.HeaderAccessControlRequestMethod, ahttp.MethodPost)
+	req3.Header.Set(ahttp.HeaderOrigin, "http://sample.com")
+	ctx3 := &Context{
+		Req:     req3,
+		subject: security.AcquireSubject(),
+		reply:   acquireReply(),
+		domain:  &router.Domain{CORSEnabled: true},
+		route: &router.Route{
+			CORS: &router.CORS{
+				AllowOrigins:     []string{"http://sample.com"},
+				AllowMethods:     []string{ahttp.MethodGet, ahttp.MethodPost, ahttp.MethodOptions},
+				AllowCredentials: true,
+				MaxAge:           "806400",
+			},
+		},
+	}
+	CORSMiddleware(ctx3, &Middleware{})
+
+	// CORS regular request
+	req4 := getAahRequest(ahttp.MethodPost, "http://localhost:8080/users/edit", "")
+	req4.Header.Set(ahttp.HeaderOrigin, "http://sample.com")
+	ctx4 := &Context{
+		Req:     req4,
+		subject: security.AcquireSubject(),
+		reply:   acquireReply(),
+		domain:  &router.Domain{CORSEnabled: true},
+		route: &router.Route{
+			CORS: &router.CORS{
+				AllowOrigins:     []string{"http://sample.com"},
+				AllowMethods:     []string{ahttp.MethodGet, ahttp.MethodPost, ahttp.MethodOptions},
+				ExposeHeaders:    []string{ahttp.HeaderXRequestedWith},
+				AllowCredentials: true,
+			},
+		},
+	}
+	CORSMiddleware(ctx4, &Middleware{})
 }

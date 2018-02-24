@@ -354,7 +354,9 @@ func handleCORSPreflight(ctx *Context) {
 	// Check Headers
 	hdrs := ctx.Req.Header.Get(ahttp.HeaderAccessControlRequestHeaders)
 	if cors.IsHeadersAllowed(hdrs) {
-		ctx.Reply().Header(ahttp.HeaderAccessControlAllowHeaders, strings.Join(cors.AllowHeaders, ", "))
+		if len(cors.AllowHeaders) > 0 {
+			ctx.Reply().Header(ahttp.HeaderAccessControlAllowHeaders, strings.Join(cors.AllowHeaders, ", "))
+		}
 	} else {
 		ctx.Log().Warnf("CORS: preflight request - headers not allowed '%s' for path %s",
 			hdrs, ctx.Req.Path)
