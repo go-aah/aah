@@ -79,6 +79,7 @@ func handleRoute(ctx *Context) flowResult {
 		})
 		return flowStop
 	}
+	ctx.domain = domain
 
 	route, pathParams, rts := domain.Lookup(ctx.Req)
 	if route == nil { // route not found
@@ -94,9 +95,7 @@ func handleRoute(ctx *Context) flowResult {
 		})
 		return flowStop
 	}
-
 	ctx.route = route
-	ctx.domain = domain
 
 	// security form auth case
 	if isFormAuthLoginRoute(ctx) {
@@ -273,6 +272,109 @@ func processAllowedMethods(reply *Reply, allowed, prefix string) bool {
 		return true
 	}
 	return false
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// CORS Implementation
+//___________________________________
+
+func CORSMiddleware(ctx *Context, m *Middleware) {
+	// If CORS not enabled move on
+	if !ctx.domain.CORSEnabled || ctx.route.CORS == nil {
+		m.Next(ctx)
+		return
+	}
+
+	// Always add Vary for header Origin
+	ctx.Reply().HeaderAppend(ahttp.HeaderVary, ahttp.HeaderOrigin)
+
+	// CORS OPTIONS request
+	if ctx.Req.Method == ahttp.MethodOptions &&
+		!ess.IsStrEmpty(ctx.Req.Header.Get(ahttp.HeaderAccessControlRequestMethod)) {
+		handleCORSPreflight(ctx)
+		return
+	}
+
+	// CORS headers
+	cors := ctx.route.CORS
+	origin := ctx.Req.Header.Get(ahttp.HeaderOrigin)
+	if cors.IsOriginAllowed(origin) {
+		ctx.Reply().Header(ahttp.HeaderAccessControlAllowOrigin, origin)
+	}
+
+	if len(cors.ExposeHeaders) > 0 {
+		ctx.Reply().Header(ahttp.HeaderAccessControlExposeHeaders, strings.Join(cors.ExposeHeaders, ", "))
+	}
+
+	if cors.AllowCredentials {
+		ctx.Reply().Header(ahttp.HeaderAccessControlAllowCredentials, "true")
+	}
+
+	m.Next(ctx)
+}
+
+func handleCORSPreflight(ctx *Context) {
+	ctx.Log().Infof("CORS: preflight request - Path[%v]", ctx.Req.Path)
+	ctx.Reply().
+		HeaderAppend(ahttp.HeaderVary, ahttp.HeaderAccessControlRequestMethod).
+		HeaderAppend(ahttp.HeaderVary, ahttp.HeaderAccessControlRequestHeaders)
+
+	cors := ctx.route.CORS
+
+	// Check Origin
+	origin := ctx.Req.Header.Get(ahttp.HeaderOrigin)
+	if cors.IsOriginAllowed(origin) {
+		ctx.Reply().Header(ahttp.HeaderAccessControlAllowOrigin, origin)
+	} else {
+		ctx.Log().Warnf("CORS: preflight request - invalid origin '%s' for %s %s",
+			origin, ctx.Req.Method, ctx.Req.Path)
+		ctx.Reply().Error(&Error{
+			Reason:  router.ErrCORSOriginIsInvalid,
+			Code:    http.StatusBadRequest,
+			Message: http.StatusText(http.StatusBadRequest),
+		})
+		return
+	}
+
+	// Check Method
+	method := ctx.Req.Header.Get(ahttp.HeaderAccessControlRequestMethod)
+	if cors.IsMethodAllowed(method) {
+		ctx.Reply().Header(ahttp.HeaderAccessControlAllowMethods, strings.Join(cors.AllowMethods, ", "))
+	} else {
+		ctx.Log().Warnf("CORS: preflight request - method not allowed '%s' for path %s",
+			method, ctx.Req.Path)
+		ctx.Reply().Error(&Error{
+			Reason:  router.ErrCORSMethodNotAllowed,
+			Code:    http.StatusMethodNotAllowed,
+			Message: http.StatusText(http.StatusMethodNotAllowed),
+		})
+		return
+	}
+
+	// Check Headers
+	hdrs := ctx.Req.Header.Get(ahttp.HeaderAccessControlRequestHeaders)
+	if cors.IsHeadersAllowed(hdrs) {
+		ctx.Reply().Header(ahttp.HeaderAccessControlAllowHeaders, strings.Join(cors.AllowHeaders, ", "))
+	} else {
+		ctx.Log().Warnf("CORS: preflight request - headers not allowed '%s' for path %s",
+			hdrs, ctx.Req.Path)
+		ctx.Reply().Error(&Error{
+			Reason:  router.ErrCORSHeaderNotAllowed,
+			Code:    http.StatusForbidden,
+			Message: http.StatusText(http.StatusForbidden),
+		})
+		return
+	}
+
+	if cors.AllowCredentials {
+		ctx.Reply().Header(ahttp.HeaderAccessControlAllowCredentials, "true")
+	}
+
+	if !ess.IsStrEmpty(cors.MaxAge) {
+		ctx.Reply().Header(ahttp.HeaderAccessControlMaxAge, cors.MaxAge)
+	}
+
+	ctx.Reply().Ok().Text("")
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
