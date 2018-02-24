@@ -12,9 +12,13 @@ branches:
 go:
   - 1.8
   - 1.9
+  - "1.10"
   - tip
 
 go_import_path: aahframework.org/aah.v0
+
+before_install:
+  - bash <(curl -s https://aahframework.org/base-before-install)
 
 install:
   - go get -t -v ./...
