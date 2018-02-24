@@ -146,18 +146,23 @@ func (c *CORS) IsMethodAllowed(method string) bool {
 // IsHeadersAllowed method returns true if preflight headers are allowed otherwise
 // false.
 func (c *CORS) IsHeadersAllowed(hdrs string) bool {
-	if c.allowAllHeaders {
+	if c.allowAllHeaders || len(hdrs) == 0 {
 		return true
 	}
 
 	for _, h := range strings.Split(hdrs, ",") {
 		h = http.CanonicalHeaderKey(strings.TrimSpace(h))
+		allowed := false
 		if ess.IsSliceContainsString(c.AllowHeaders, h) {
-			return true
+			allowed = true
+		}
+
+		if !allowed {
+			return false
 		}
 	}
 
-	return false
+	return true
 }
 
 // String method returns string representation of CORS configuration values.
