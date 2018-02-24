@@ -216,6 +216,7 @@ func processBaseCORSSection(cfg *config.Config) *CORS {
 	} else {
 		cors.AddAllowMethods(defaultAllowMethods)
 	}
+	cors.AddAllowMethods([]string{ahttp.MethodOptions})
 
 	// Access-Control-Allow-Credentials
 	cors.SetAllowCredentials(cfg.BoolDefault("allow_credentials", false))
