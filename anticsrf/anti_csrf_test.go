@@ -18,10 +18,26 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
+func TestAntiCSRFNotEnabled(t *testing.T) {
+	cfgStr := `
+	security {
+	}
+	`
+
+	cfg, err := config.ParseString(cfgStr)
+	assert.Nil(t, err)
+
+	antiCSRF, err := New(cfg)
+	assert.Nil(t, err)
+
+	assert.False(t, antiCSRF.Enabled)
+}
+
 func TestAntiCSRFSecret(t *testing.T) {
 	cfgStr := `
 	security {
 		anti_csrf {
+			enable = true
 			sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
 	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
 		}
@@ -81,6 +97,7 @@ func TestAntiCSRFCipherSecret(t *testing.T) {
 	cfgStr := `
 	security {
 		anti_csrf {
+			enable = true
 			sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
 	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
 		}

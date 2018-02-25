@@ -40,9 +40,12 @@ type AntiCSRF struct {
 
 // New method initializes the Anti-CSRF based on security configuration.
 func New(cfg *config.Config) (*AntiCSRF, error) {
-	c := &AntiCSRF{cfg: cfg}
 	keyPrefix := "security.anti_csrf"
+	if !cfg.IsExists(keyPrefix + ".enable") {
+		return &AntiCSRF{Enabled: false}, nil
+	}
 
+	c := &AntiCSRF{cfg: cfg}
 	c.Enabled = c.cfg.BoolDefault(keyPrefix+".enable", true)
 	c.secretLength = c.cfg.IntDefault(keyPrefix+".secret_length", 32)
 	c.headerName = c.cfg.StringDefault(keyPrefix+".header_name", "X-Anti-CSRF-Token")
