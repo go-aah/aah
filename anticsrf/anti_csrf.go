@@ -41,7 +41,7 @@ type AntiCSRF struct {
 // New method initializes the Anti-CSRF based on security configuration.
 func New(cfg *config.Config) (*AntiCSRF, error) {
 	keyPrefix := "security.anti_csrf"
-	if !cfg.IsExists(keyPrefix + ".enable") {
+	if !cfg.IsExists(keyPrefix) {
 		return &AntiCSRF{Enabled: false}, nil
 	}
 

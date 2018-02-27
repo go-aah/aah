@@ -37,7 +37,6 @@ func TestAntiCSRFSecret(t *testing.T) {
 	cfgStr := `
 	security {
 		anti_csrf {
-			enable = true
 			sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
 	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
 		}
@@ -97,7 +96,6 @@ func TestAntiCSRFCipherSecret(t *testing.T) {
 	cfgStr := `
 	security {
 		anti_csrf {
-			enable = true
 			sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
 	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
 		}
