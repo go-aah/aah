@@ -31,6 +31,11 @@ func TestAntiCSRFNotEnabled(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.False(t, antiCSRF.Enabled)
+
+	antiCSRF.SetCookie(nil, []byte{})
+	antiCSRF.ClearCookie(nil, nil)
+	antiCSRF.CipherSecret(nil)
+
 }
 
 func TestAntiCSRFSecret(t *testing.T) {

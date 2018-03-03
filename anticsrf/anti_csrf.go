@@ -90,6 +90,10 @@ func (ac *AntiCSRF) GenerateSecret() []byte {
 // CipherSecret method returns the Anti-CSRF secert from the cookie if not available
 // generates new secret.
 func (ac *AntiCSRF) CipherSecret(r *ahttp.Request) []byte {
+	if ac.cookieMgr == nil {
+		return ac.GenerateSecret()
+	}
+
 	cookie, err := r.Cookie(ac.cookieMgr.Options.Name)
 	if err != nil {
 		return ac.GenerateSecret()
@@ -133,6 +137,10 @@ func (ac *AntiCSRF) SaltCipherSecret(secret []byte) string {
 
 // SetCookie method write/refresh the Anti-CSRF cookie value and expriy.
 func (ac *AntiCSRF) SetCookie(w http.ResponseWriter, secret []byte) error {
+	if len(secret) == 0 || ac.cookieMgr == nil {
+		return nil
+	}
+
 	s := make([]byte, len(secret))
 	copy(s, secret)
 	value, err := ac.cookieMgr.Encode(s)
@@ -146,6 +154,10 @@ func (ac *AntiCSRF) SetCookie(w http.ResponseWriter, secret []byte) error {
 
 // ClearCookie method is to clear Anti-CSRF cookie when disabled.
 func (ac *AntiCSRF) ClearCookie(w http.ResponseWriter, r *ahttp.Request) {
+	if !ac.Enabled || ac.cookieMgr == nil {
+		return
+	}
+
 	if _, err := r.Cookie(ac.cookieMgr.Options.Name); err == nil {
 		opts := *ac.cookieMgr.Options
 		opts.MaxAge = -1
