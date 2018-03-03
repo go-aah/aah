@@ -1,0 +1,20 @@
+FROM golang:1.10
+LABEL maintainer="Jeevanandam M. <jeeva@myjeeva.com>"
+
+RUN go version
+
+RUN apt-get update
+
+RUN rm -rf $GOPATH/src
+
+RUN go get -u aahframework.org/tools.v0/aah
+
+RUN go get -u github.com/aah-cb/minify
+
+RUN aah switch
+
+RUN aah switch --refresh
+
+RUN aah --version
+
+WORKDIR $GOPATH/src
