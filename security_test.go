@@ -243,7 +243,13 @@ func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
 }
 
 func TestSecurityAntiCSRF(t *testing.T) {
-	cfg, _ := config.ParseString("")
+	cfg, _ := config.ParseString(`
+	security {
+		anti_csrf {
+			enable = true
+		}
+	}
+	`)
 	err := initSecurity(cfg)
 	assert.Nil(t, err)
 	appLogger, _ = log.New(cfg)
