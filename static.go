@@ -24,7 +24,6 @@ import (
 )
 
 const (
-	dirStatic             = "static"
 	sniffLen              = 512
 	noCacheHdrValue       = "no-cache, no-store, must-revalidate"
 	dirListDateTimeFormat = "2006-01-02 15:04:05"
@@ -189,7 +188,7 @@ func checkGzipRequired(file string) bool {
 // Note: `ctx.route.*` values come from application routes configuration.
 func getHTTPDirAndFilePath(ctx *Context) (http.Dir, string) {
 	if ctx.route.IsFile() { // this is configured value from routes.conf
-		return http.Dir(filepath.Join(AppBaseDir(), dirStatic)),
+		return http.Dir(filepath.Join(AppBaseDir(), ctx.route.Dir)),
 			parseCacheBustPart(ctx.route.File, AppBuildInfo().Version)
 	}
 	return http.Dir(filepath.Join(AppBaseDir(), ctx.route.Dir)),
