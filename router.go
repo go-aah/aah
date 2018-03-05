@@ -296,7 +296,21 @@ func (r *Router) processRoutesConfig() (err error) {
 		log.Debugf("Domain: %s, routes found: %d", key, len(domain.routes))
 		if log.IsLevelTrace() {
 			// don't spend time here, process only if log level is trace
+			// Static Files routes
+			log.Trace("Static Files Routes")
 			for _, dr := range domain.routes {
+				if dr.IsStatic {
+					log.Tracef("Route Name: %v, Path: %v, IsDir: %v, Dir: %v, ListDir: %v, IsFile: %v, File: %v",
+						dr.Name, dr.Path, dr.IsDir(), dr.Dir, dr.ListDir, dr.IsFile(), dr.File)
+				}
+			}
+
+			// Application routes
+			log.Trace("Application Routes")
+			for _, dr := range domain.routes {
+				if dr.IsStatic {
+					continue
+				}
 				parentInfo := ""
 				if !ess.IsStrEmpty(dr.ParentName) {
 					parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
@@ -603,7 +617,7 @@ func (d *Domain) lookupRouteTree(req *ahttp.Request) (*node, bool) {
 
 // IsDir method returns true if serving directory otherwise false.
 func (r *Route) IsDir() bool {
-	return !ess.IsStrEmpty(r.Dir)
+	return !ess.IsStrEmpty(r.Dir) && ess.IsStrEmpty(r.File)
 }
 
 // IsFile method returns true if serving single file otherwise false.
@@ -797,6 +811,23 @@ func parseStaticSection(cfg *config.Config) (routes []*Route, err error) {
 
 		if dirFound {
 			route.Path = path.Join(route.Path, "*filepath")
+		}
+
+		if fileFound {
+			// GitHub #141 - for a file mapping
+			//  - 'base_dir' attribute value is not provided and
+			//  - file 'path' value relative path
+			// then use 'public_assets.dir' as a default value.
+			if dir, found := cfg.String(routeName + ".base_dir"); found {
+				routeDir = dir
+			} else if routeFile[0] != slashByte { // relative file path mapping
+				if dir, found := cfg.String("public_assets.dir"); found {
+					routeDir = dir
+				} else {
+					err = fmt.Errorf("'static.%v.base_dir' value is missing", routeName)
+					return
+				}
+			}
 		}
 
 		route.Dir = routeDir

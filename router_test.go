@@ -469,6 +469,38 @@ func TestRouterNamespaceSimplified2Config(t *testing.T) {
 	}
 }
 
+func TestRouterStaticSectionBaseDirForFilePaths(t *testing.T) {
+	_ = log.SetLevel("TRACE")
+	wd, _ := os.Getwd()
+	appCfg, _ := config.ParseString("")
+	router := New(filepath.Join(wd, "testdata", "routes-static.conf"), appCfg)
+	err := router.Load()
+	assert.FailNowOnError(t, err, "")
+
+	// Assertion
+	routes := router.Domains["localhost:8080"].routes
+	assert.NotNil(t, routes)
+	assert.Equal(t, 4, len(routes))
+
+	faviconRoute := routes["favicon"]
+	assert.False(t, faviconRoute.IsDir())
+	assert.True(t, faviconRoute.IsFile())
+	assert.Equal(t, "assets", faviconRoute.Dir)
+	assert.Equal(t, "img/favicon.png", faviconRoute.File)
+
+	robotTxtRoute := routes["robots_txt"]
+	assert.False(t, robotTxtRoute.IsDir())
+	assert.True(t, robotTxtRoute.IsFile())
+	assert.Equal(t, "static", robotTxtRoute.Dir)
+	assert.Equal(t, "robots.txt", robotTxtRoute.File)
+
+	// ERROR missing values
+	router = New(filepath.Join(wd, "testdata", "routes-static-base-dir-missing.conf"), appCfg)
+	err = router.Load()
+	assert.NotNil(t, err)
+	assert.Equal(t, "'static.favicon.base_dir' value is missing", err.Error())
+}
+
 func createRouter(filename string) (*Router, error) {
 	_ = log.SetLevel("TRACE")
 	wd, _ := os.Getwd()
