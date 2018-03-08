@@ -1,0 +1,80 @@
+package ahttp
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"sync"
+)
+
+var maxBytesReaderPool = &sync.Pool{New: func() interface{} { return &maxBytesReader{} }}
+
+// maxBytesReader is a minimal version of net/http package maxBytesReader for aah.
+// so that we do memory pool, much more.
+//
+// MaxBytesReader's result is a ReadCloser, returns a
+// non-EOF error for a Read beyond the limit, and closes the
+// underlying reader when its Close method is called.
+//
+// MaxBytesReader prevents clients from accidentally or maliciously
+// sending a large request and wasting server resources.
+type maxBytesReader struct {
+	w   ResponseWriter
+	r   io.ReadCloser // underlying reader
+	n   int64         // max bytes remaining
+	err error         // sticky error
+}
+
+func (mr *maxBytesReader) Read(p []byte) (n int, err error) {
+	if mr.err != nil {
+		return 0, mr.err
+	}
+
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	// If they asked for a 32KB byte read but only 5 bytes are
+	// remaining, no need to read 32KB. 6 bytes will answer the
+	// question of the whether we hit the limit or go past it.
+	if int64(len(p)) > mr.n+1 {
+		p = p[:mr.n+1]
+	}
+
+	n, err = mr.r.Read(p)
+	if int64(n) <= mr.n {
+		mr.n -= int64(n)
+		mr.err = err
+		return n, err
+	}
+
+	n = int(mr.n)
+	mr.n = 0
+
+	// Set the header to close the connection
+	mr.w.Header().Set(HeaderConnection, "close")
+	mr.err = errors.New("ahttp: request body too large")
+	_ = mr.Close()
+	return n, mr.err
+}
+
+func (mr *maxBytesReader) Close() error {
+	fmt.Println("maxBytesReader close called")
+	return mr.r.Close()
+}
+
+func (mr *maxBytesReader) Reset() {
+	mr.w = nil
+	mr.r = nil
+	mr.n = 0
+	mr.err = nil
+}
+
+func releaseMaxBytesReader(r *Request) {
+	if r.Raw.Body != nil {
+		if mr, ok := r.Raw.Body.(*maxBytesReader); ok {
+			mr.Reset()
+			maxBytesReaderPool.Put(mr)
+		}
+	}
+}
