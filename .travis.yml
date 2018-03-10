@@ -11,7 +11,8 @@ branches:
 
 go:
   - 1.8
-  - 1.8.x
+  - 1.9
+  - "1.10"
   - tip
 
 go_import_path: aahframework.org/aruntime.v0
