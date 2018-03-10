@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strconv"
@@ -21,32 +20,32 @@ import (
 )
 
 const (
-	goroutinePrefix = "goroutine"
-	createdByPrefix = "created by"
+	createdByPrefix = "created by "
+	panicPrefix     = "panic("
+	basePathPrefix  = "#base-path#"
 )
-
-var goroutineRegEx = regexp.MustCompile(`goroutine\s?\d+\s\[.*\]\:`)
 
 type (
 	// Stacktrace holds the parse information of `debug.Stack()`. It's easier to
 	// debug and understand.
 	Stacktrace struct {
-		Raw        string
-		Recover    interface{}
-		RoutineCnt int
-		IsParsed   bool
-		GoRoutines []*GoRoutine
-
-		maxFileLen int
-		gopathSrc  string
-		gorootSrc  string
+		Raw          string
+		Recover      interface{}
+		IsParsed     bool
+		StripSrcBase bool
+		GoRoutines   []*GoRoutine
 	}
 
 	// GoRoutine holds information of single Go routine stack trace.
 	GoRoutine struct {
-		Header    string
-		Packages  []string
-		Functions []string
+		Header     string
+		MaxFuncLen int
+		MaxPkgLen  int
+		HasPanic   bool
+		PanicIndex int
+		Packages   []string
+		Functions  []string
+		LineNo     []string
 	}
 )
 
@@ -78,8 +77,6 @@ func NewStacktrace(r interface{}, appCfg *config.Config) *Stacktrace {
 		strace.Raw = string(debug.Stack())
 	}
 
-	strace.initPath()
-
 	return strace
 }
 
@@ -89,69 +86,92 @@ func NewStacktrace(r interface{}, appCfg *config.Config) *Stacktrace {
 
 // Parse method parses the go debug stacktrace into easy to understand.
 func (st *Stacktrace) Parse() {
-	routines := goroutineRegEx.FindAllString(st.Raw, -1)
-	st.RoutineCnt = len(routines)
-	st.GoRoutines = make([]*GoRoutine, st.RoutineCnt)
+	var sections [][]string
+	var section []string
 
-	ri := -1
-	gopathSrcLen := len(st.gopathSrc) + 1
-	gorootSrcLen := len(st.gorootSrc) + 1
-
-	var lines []string
 	scanner := bufio.NewScanner(strings.NewReader(st.Raw))
 	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
+		line := scanner.Text()
+		if len(strings.TrimSpace(line)) == 0 {
+			sections = append(sections, section)
+			section = make([]string, 0)
+			continue
+		}
+		section = append(section, line)
 	}
 
-	for linePos := 0; linePos < len(lines); linePos++ {
-		sline := strings.TrimSpace(lines[linePos])
-		if len(sline) == 0 {
-			continue
-		}
+	// Only one go routine section found
+	if len(sections) == 0 && len(section) > 0 {
+		sections = append(sections, section)
+	}
 
-		if strings.HasPrefix(sline, goroutinePrefix) {
-			ri++
-			st.GoRoutines[ri] = &GoRoutine{
-				Header:    sline,
-				Packages:  []string{},
-				Functions: []string{},
-			}
+	for _, s := range sections {
+		gr := &GoRoutine{Header: s[0]}
+		lnCnt := 1
 
-			continue
-		}
+		for _, ln := range s[1:] {
+			ln = strings.Replace(strings.TrimSpace(ln), "%2e", ".", -1)
+			if lnCnt%2 == 0 { // File Path
+				// Strip hexa chars (+0x15c, etc)
+				if idx := strings.IndexByte(ln, ' '); idx > 0 {
+					ln = ln[:idx]
+				}
 
-		if strings.HasPrefix(sline, "/") || strings.HasPrefix(sline[2:], "/") {
-			if strings.HasPrefix(sline, st.gopathSrc) {
-				sline = sline[gopathSrcLen:]
-			} else if strings.HasPrefix(sline, st.gorootSrc) {
-				sline = sline[gorootSrcLen:]
-			}
+				// Separate the path and line no
+				if idx := strings.LastIndexByte(ln, ':'); idx > 0 {
+					gr.LineNo = append(gr.LineNo, ln[idx+1:])
+					ln = ln[:idx]
+				}
 
-			sline = sline[:strings.LastIndex(sline, " ")]
-			if len(sline) > st.maxFileLen {
-				st.maxFileLen = len(sline)
-			}
-
-			st.GoRoutines[ri].Packages = append(st.GoRoutines[ri].Packages, sline)
-		} else {
-			isCreatedBy := strings.HasPrefix(sline, createdByPrefix)
-			sline = filepath.Base(sline)
-
-			if !isCreatedBy {
-				rparen := strings.LastIndex(sline, "(")
-				if rparen != -1 {
-					comma := strings.IndexByte(sline[rparen:], ',')
-					if comma == -1 {
-						sline = sline[:rparen+1] + ")"
-					} else {
-						sline = sline[:rparen+1] + " ... )"
+				// Strip base path i.e. before `.../src/`
+				if st.StripSrcBase {
+					if idx := strings.Index(ln, "src"); idx > 0 {
+						ln = basePathPrefix + ln[idx+4:]
 					}
 				}
+
+				// Find max len
+				if l := len(ln); l > gr.MaxPkgLen {
+					gr.MaxPkgLen = l
+				}
+
+				gr.Packages = append(gr.Packages, ln)
+			} else { // Function Info
+				// Strip parameters hexa values
+				if !strings.HasPrefix(ln, createdByPrefix) {
+					if rparen := strings.LastIndex(ln, "("); rparen != -1 {
+						if comma := strings.IndexByte(ln[rparen:], ','); comma == -1 {
+							ln = ln[:rparen+1] + ")"
+						} else {
+							ln = ln[:rparen+1] + "...)"
+						}
+					}
+				}
+
+				ln = filepath.Base(ln)
+
+				// Find func max len
+				if l := len(ln); l > gr.MaxFuncLen {
+					gr.MaxFuncLen = l
+				}
+
+				// Check this goroutine has `panic(...)`
+				if yes := strings.HasPrefix(ln, panicPrefix); yes || !gr.HasPanic {
+					gr.HasPanic = yes
+
+					// Capture panic index
+					if gr.HasPanic {
+						gr.PanicIndex = len(gr.Functions)
+					}
+				}
+
+				gr.Functions = append(gr.Functions, ln)
 			}
 
-			st.GoRoutines[ri].Functions = append(st.GoRoutines[ri].Functions, strings.Replace(sline, "%2e", ".", -1))
+			lnCnt++
 		}
 
+		st.GoRoutines = append(st.GoRoutines, gr)
 	}
 
 	st.IsParsed = true
@@ -167,25 +187,22 @@ func (st *Stacktrace) Print(w io.Writer) {
 		st.Parse()
 	}
 
-	printFmt := "\t%-" + strconv.Itoa(st.maxFileLen+1) + "s-> %v\n"
-	_, _ = w.Write([]byte(fmt.Sprintf("STACKTRACE:\n%v\n", st.Recover)))
+	fmt.Fprintf(w, "STACKTRACE:\n%v\n", st.Recover)
+	for _, gr := range st.GoRoutines {
+		fmt.Fprint(w, "\n"+gr.Header+"\n")
+		hdrStr := fmt.Sprintf("    %-"+strconv.Itoa(gr.MaxPkgLen+1)+"s   %-"+strconv.Itoa(gr.MaxFuncLen)+"s   %s\n",
+			"PACKAGE", "FUNCTION", "LINE NO")
+		fmt.Fprint(w, hdrStr)
+		fmt.Fprint(w, "    ")
+		for idx := 1; idx < len(hdrStr)-4; idx++ {
+			fmt.Fprint(w, "-")
+		}
+		fmt.Fprint(w, "\n")
 
-	for _, rv := range st.GoRoutines {
-		_, _ = w.Write([]byte("\n" + rv.Header + "\n"))
-		for idx, f := range rv.Packages {
-			_, _ = w.Write([]byte(fmt.Sprintf(printFmt, f, rv.Functions[idx])))
+		printFmt := "    %-" + strconv.Itoa(gr.MaxPkgLen+1) + "s   %-" + strconv.Itoa(gr.MaxFuncLen) + "s   #%s\n"
+		for idx, f := range gr.Packages[gr.PanicIndex:] {
+			idx += gr.PanicIndex
+			fmt.Fprintf(w, printFmt, f, gr.Functions[idx], gr.LineNo[idx])
 		}
 	}
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
-
-func (st *Stacktrace) initPath() {
-	gopath, _ := ess.GoPath()
-	goroot := runtime.GOROOT()
-
-	st.gopathSrc = filepath.Join(gopath, "src")
-	st.gorootSrc = filepath.Join(goroot, "src")
 }
