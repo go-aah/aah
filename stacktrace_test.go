@@ -198,6 +198,5 @@ aahframework.org/aruntime%2ev0.TestMeStacktrace(0xc0420ea0f0)
 testing.tRunner(0xc0420ea0f0, 0x63aa40)
         c:/Go/src/testing/testing.go:777 +0xd7
 created by testing.(*T).Run
-        c:/Go/src/testing/testing.go:824 +0x2e7
-	`
+        c:/Go/src/testing/testing.go:824 +0x2e7`
 }

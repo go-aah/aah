@@ -77,6 +77,8 @@ func NewStacktrace(r interface{}, appCfg *config.Config) *Stacktrace {
 		strace.Raw = string(debug.Stack())
 	}
 
+	strace.StripSrcBase = appCfg.BoolDefault("runtime.debug.strip_src_base", false)
+
 	return strace
 }
 
@@ -126,7 +128,7 @@ func (st *Stacktrace) Parse() {
 				// Strip base path i.e. before `.../src/`
 				if st.StripSrcBase {
 					if idx := strings.Index(ln, "src"); idx > 0 {
-						ln = basePathPrefix + ln[idx+4:]
+						ln = basePathPrefix + ln[idx+3:]
 					}
 				}
 
@@ -191,7 +193,7 @@ func (st *Stacktrace) Print(w io.Writer) {
 	for _, gr := range st.GoRoutines {
 		fmt.Fprint(w, "\n"+gr.Header+"\n")
 		hdrStr := fmt.Sprintf("    %-"+strconv.Itoa(gr.MaxPkgLen+1)+"s   %-"+strconv.Itoa(gr.MaxFuncLen)+"s   %s\n",
-			"PACKAGE", "FUNCTION", "LINE NO")
+			"FILE", "FUNCTION", "LINE NO")
 		fmt.Fprint(w, hdrStr)
 		fmt.Fprint(w, "    ")
 		for idx := 1; idx < len(hdrStr)-4; idx++ {
