@@ -3,8 +3,11 @@
 // license that can be found in the LICENSE file.
 
 // Package valpar implements methods to parse string value into Go typed reflect value.
-// It is typically used to do parse value of Controller action parameters for auto binding.
+//
+// Validations for `struct` and individual value using `https://github.com/go-playground/validator`.
+//
+// It is typically used to do parse value of Controller action parameters for auto binding and validation.
 package valpar
 
 // Version bind library version no.
-var Version = "0.2"
+var Version = "0.3"
