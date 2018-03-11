@@ -88,6 +88,8 @@ type (
 		Dir      string
 		File     string
 		ListDir  bool
+
+		validationRules map[string]string
 	}
 
 	// PathParam is single URL path parameter (not a query string values)
@@ -315,9 +317,9 @@ func (r *Router) processRoutesConfig() (err error) {
 				if !ess.IsStrEmpty(dr.ParentName) {
 					parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
 				}
-				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v, Auth: %v, MaxBodySize: %v\nCORS: [%v]\n",
+				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v, Auth: %v, MaxBodySize: %v\nCORS: [%v]\nValidation Rules:%v\n",
 					dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action, dr.Auth, dr.MaxBodySize,
-					dr.CORS)
+					dr.CORS, dr.validationRules)
 			}
 		}
 
@@ -625,6 +627,13 @@ func (r *Route) IsFile() bool {
 	return !ess.IsStrEmpty(r.File)
 }
 
+// ValidationRule methdo returns `validation rule, true` if exists for path param
+// otherwise `"", false`
+func (r *Route) ValidationRule(name string) (string, bool) {
+	rules, found := r.validationRules[name]
+	return rules, found
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Path Param methods
 //___________________________________
@@ -648,15 +657,6 @@ func (pp PathParams) Len() int {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
-
-func suffixCommaValue(s, v string) string {
-	if ess.IsStrEmpty(s) {
-		s = v
-	} else {
-		s += ", " + v
-	}
-	return s
-}
 
 func addRegisteredAction(methods map[string]map[string]uint8, route *Route) {
 	if controller, found := methods[route.Controller]; found {
@@ -682,6 +682,31 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		}
 
 		routePath = path.Join(routeInfo.PrefixPath, routePath)
+
+		// Split validation rules from path params
+		pathParamRules := make(map[string]string)
+		actualRoutePath := "/"
+		for _, seg := range strings.Split(routePath, "/")[1:] {
+			if len(seg) == 0 {
+				continue
+			}
+
+			if seg[0] == paramByte || seg[0] == wildByte {
+				param, rules, exists, valid := checkValidationRule(seg)
+				if exists {
+					if valid {
+						pathParamRules[param[1:]] = rules
+					} else {
+						err = fmt.Errorf("'%v.path' has invalid validation rule '%v'", routeName, routePath)
+						return
+					}
+				}
+
+				actualRoutePath = path.Join(actualRoutePath, param)
+			} else {
+				actualRoutePath = path.Join(actualRoutePath, seg)
+			}
+		}
 
 		// check child routes exists
 		notToSkip := true
@@ -738,7 +763,7 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 			for _, m := range strings.Split(routeMethod, ",") {
 				routes = append(routes, &Route{
 					Name:            routeName,
-					Path:            routePath,
+					Path:            actualRoutePath,
 					Method:          strings.TrimSpace(m),
 					Controller:      routeController,
 					Action:          routeAction,
@@ -747,6 +772,7 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 					MaxBodySize:     routeMaxBodySize,
 					IsAntiCSRFCheck: routeAntiCSRFCheck,
 					CORS:            cors,
+					validationRules: pathParamRules,
 				})
 			}
 		}
@@ -838,11 +864,4 @@ func parseStaticSection(cfg *config.Config) (routes []*Route, err error) {
 	}
 
 	return
-}
-
-func findActionByHTTPMethod(method string) string {
-	if action, found := HTTPMethodActionMap[method]; found {
-		return action
-	}
-	return ""
 }

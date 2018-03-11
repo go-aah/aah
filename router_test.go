@@ -467,6 +467,18 @@ func TestRouterNamespaceSimplified2Config(t *testing.T) {
 			assert.True(t, found)
 		}
 	}
+
+	userSettingsRoute := routes["get_user_settings"]
+	assert.Equal(t, 1, len(userSettingsRoute.validationRules))
+	rule, found := userSettingsRoute.ValidationRule("id")
+	assert.True(t, found)
+	assert.Equal(t, "gt=1,lt=10", rule)
+
+	// Error
+	router = New(filepath.Join(wd, "testdata", "routes-simplified-2-error.conf"), appCfg)
+	err = router.Load()
+	assert.NotNil(t, err)
+	assert.Equal(t, "'routes.path' has invalid validation rule '/v1/users/:id  gt=1,lt=10]'", err.Error())
 }
 
 func TestRouterStaticSectionBaseDirForFilePaths(t *testing.T) {
