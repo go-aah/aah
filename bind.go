@@ -6,6 +6,7 @@ package aah
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -148,7 +149,7 @@ func formParser(ctx *Context) flowResult {
 // Action Parameters Auto Parse
 //___________________________________
 
-func parseParameters(ctx *Context) ([]reflect.Value, error) {
+func parseParameters(ctx *Context) ([]reflect.Value, *Error) {
 	paramCnt := len(ctx.action.Parameters)
 
 	// If parameters not exists, return here
@@ -164,7 +165,22 @@ func parseParameters(ctx *Context) ([]reflect.Value, error) {
 		var result reflect.Value
 		if vpFn, found := valpar.ValueParser(val.Type); found {
 			result, err = vpFn(val.Name, val.Type, params)
-		} else if kind(val.Type) == reflect.Struct {
+
+			// GitHub #132 Validation implementation
+			if rule, found := ctx.route.ValidationRule(val.Name); found {
+				if !valpar.ValidateValue(result.Interface(), rule) {
+					errMsg := fmt.Sprintf("Path param validation failed [name: %s, rule: %s, value: %v]",
+						val.Name, rule, result.Interface())
+					ctx.Log().Error(errMsg)
+					return nil, &Error{
+						Reason:  ErrValidation,
+						Code:    http.StatusBadRequest,
+						Message: http.StatusText(http.StatusBadRequest),
+						Data:    errMsg,
+					}
+				}
+			}
+		} else if val.kind == reflect.Struct {
 			ct := ctx.Req.ContentType.Mime
 			if ct == ahttp.ContentTypeJSON.Mime || ct == ahttp.ContentTypeJSONText.Mime ||
 				ct == ahttp.ContentTypeXML.Mime || ct == ahttp.ContentTypeXMLText.Mime {
@@ -179,11 +195,32 @@ func parseParameters(ctx *Context) ([]reflect.Value, error) {
 
 		// check error
 		if err != nil {
-			return actionArgs, err
-		} else if !result.IsValid() {
-			ctx.Log().Errorf("Parsed result value is invalid or value parser not found [param: %s, type: %s]",
-				val.Name, val.Type)
-			return actionArgs, errInvalidParsedValue
+			if !result.IsValid() {
+				ctx.Log().Errorf("Parsed result value is invalid or value parser not found [param: %s, type: %s]",
+					val.Name, val.Type)
+			}
+
+			return nil, &Error{
+				Reason:  ErrInvalidRequestParameter,
+				Code:    http.StatusBadRequest,
+				Message: http.StatusText(http.StatusBadRequest),
+				Data:    err,
+			}
+		}
+
+		// Apply Validation for type `struct`
+		if val.kind == reflect.Struct {
+			if errs, _ := valpar.Validate(result.Interface()); errs != nil {
+				ctx.Log().Errorf("Param validation failed [name: %s, type: %s], Validation Errors:\n%v",
+					val.Name, val.Type, errs.Error())
+
+				return nil, &Error{
+					Reason:  ErrValidation,
+					Code:    http.StatusBadRequest,
+					Message: http.StatusText(http.StatusBadRequest),
+					Data:    errs,
+				}
+			}
 		}
 
 		// set action parameter value

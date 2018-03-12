@@ -83,8 +83,8 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Middlewares, interceptors, targeted controller
 	if len(mwChain) == 0 {
-		ctx.Log().Error("Since v0.10 'init.go' file introduced for the aah application, " +
-			"please check your 'app' directory and add it to the version control")
+		ctx.Log().Error("'init.go' file introduced in release v0.10; please check your 'app-base-dir/app' " +
+			"and then add to your version control")
 		ctx.Reply().Error(&Error{
 			Reason:  ErrGeneric,
 			Code:    http.StatusInternalServerError,

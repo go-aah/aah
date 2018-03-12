@@ -179,13 +179,8 @@ func invokeAction(ctx *Context) {
 
 	// Parse Action Parameters
 	actionArgs, err := parseParameters(ctx)
-	if err != nil {
-		// Any error of parameter parsing result in 400 Bad Request
-		ctx.Reply().Error(&Error{
-			Reason:  ErrInvalidRequestParameter,
-			Code:    http.StatusBadRequest,
-			Message: http.StatusText(http.StatusBadRequest),
-		})
+	if err != nil { // Any error of parameter parsing result in 400 Bad Request
+		ctx.Reply().Error(err)
 		return
 	}
 
