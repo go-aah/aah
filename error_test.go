@@ -27,6 +27,7 @@ func TestErrorHandler(t *testing.T) {
 	}
 	ctx1.Reply().ContentType("application/json")
 	handleError(ctx1, &Error{
+		Reason:  ErrInvalidRequestParameter,
 		Code:    http.StatusBadRequest,
 		Message: http.StatusText(http.StatusBadRequest),
 	})
@@ -34,8 +35,11 @@ func TestErrorHandler(t *testing.T) {
 	jsonr := ctx1.Reply().Rdr.(*JSON)
 	assert.NotNil(t, jsonr)
 	assert.NotNil(t, jsonr.Data)
-	assert.Equal(t, 400, jsonr.Data.(*Error).Code)
-	assert.Equal(t, "Bad Request", jsonr.Data.(*Error).Message)
+
+	err := jsonr.Data.(*Error)
+	assert.Equal(t, 400, err.Code)
+	assert.Equal(t, "Bad Request", err.Message)
+	assert.Equal(t, "aah: invalid request parameter, code '400', message 'Bad Request'", err.Error())
 
 	// 500
 	ctx2 := &Context{

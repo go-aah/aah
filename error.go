@@ -30,7 +30,7 @@ var (
 	ErrAccessDenied               = errors.New("aah: access denied")
 	ErrAuthenticationFailed       = errors.New("aah: authentication failed")
 	ErrGeneric                    = errors.New("aah: generic error")
-	ErrValidation                 = errors.New("aah: vaidation error")
+	ErrValidation                 = errors.New("aah: validation error")
 )
 
 var errorHandlerFunc ErrorHandlerFunc
@@ -91,18 +91,23 @@ type (
 		Data    interface{} `json:"data,omitempty" xml:"data,omitempty"`
 	}
 
-	// ErrorHandlerFunc is function type used to register centralized error handling
-	// in aah framework.
+	// ErrorHandlerFunc is function type, it used to define centralized error handler
+	// for your application.
+	//
+	//  - Return `true`, if you have handled your errors, aah just writes the reply on the wire.
+	//
+	//  - Return `false`, you may or may not handled the error, aah would propagate the error further to default
+	// error handler.
 	ErrorHandlerFunc func(ctx *Context, err *Error) bool
 
 	// ErrorHandler is interface for implement controller level error handling
 	ErrorHandler interface {
 		// HandleError method is to handle error on your controller
 		//
-		//  - Return `ture`, if you have handled your errors nicely.
+		//  - Return `true`, if you have handled your errors, aah just writes the reply on the wire.
 		//
-		//  - Return false, aah will propagate the error further to centeralized
-		// error handler, if not handled and then finally default error handler.
+		//  - Return `false`, aah would propagate the error further to centralized
+		// error handler, if not handled and then finally default error handler would take place.
 		HandleError(err *Error) bool
 	}
 )
@@ -114,6 +119,11 @@ func SetErrorHandler(handlerFunc ErrorHandlerFunc) {
 		log.Infof("Custom centralized application error handler registered: %v", funcName(handlerFunc))
 		errorHandlerFunc = handlerFunc
 	}
+}
+
+// Error method is to comply error interface.
+func (e *Error) Error() string {
+	return fmt.Sprintf("%v, code '%v', message '%s'", e.Reason, e.Code, e.Message)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
