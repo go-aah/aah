@@ -153,17 +153,10 @@ func TestViewErrors(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.True(t, strings.HasPrefix(err.Error(), "goviewengine: pages base dir is not exists:"))
 
-	// No Errors directory
-	viewsDir = filepath.Join(getTestdataPath(), "views-no-errors-dir")
-	ge = &GoViewEngine{}
-	err = ge.Init(cfg, viewsDir)
-	assert.NotNil(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "goviewengine: views base dir is not exists:"))
-
 	// handle errors methods
 	err = handleParseError([]error{errors.New("error 1"), errors.New("error 2")})
 	assert.NotNil(t, err)
-	assert.Equal(t, "goviewengine: error processing templates, check the log", err.Error())
+	assert.Equal(t, "goviewengine: error processing templates, please check the log", err.Error())
 }
 
 func loadGoViewEngine(t *testing.T, cfg *config.Config, dir string) *GoViewEngine {

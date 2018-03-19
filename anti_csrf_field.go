@@ -69,9 +69,10 @@ func (ft *AntiCSRFField) InsertOnFile(file string) (string, error) {
 	}
 
 	fileStr := string(fileBytes)
-	fpath := filepath.Join(tmpDir, StripPathPrefixAt(file, "views"))
+	f := StripPathPrefixAt(file, "views")
+	fpath := filepath.Join(tmpDir, f)
 	if strings.Contains(fileStr, "</form>") {
-		log.Tracef("Inserting Anti-CSRF field for file: %s", file)
+		log.Tracef("Inserting Anti-CSRF field for file: %s", filepath.Join("views", f))
 		fileStr = ft.InsertOnString(fileStr)
 		if err = ess.MkDirAll(filepath.Dir(fpath), 0755); err != nil {
 			return "", err

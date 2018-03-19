@@ -283,8 +283,8 @@ func handleParseError(errs []error) error {
 		for _, e := range errs {
 			msg = append(msg, e.Error())
 		}
-		log.Errorf("View templates parsing error(s):\n%s", strings.Join(msg, "\n"))
-		return errors.New("goviewengine: error processing templates, check the log")
+		log.Errorf("View templates parsing error(s):\n    %s", strings.Join(msg, "\n    "))
+		return errors.New("goviewengine: error processing templates, please check the log")
 	}
 	return nil
 }
