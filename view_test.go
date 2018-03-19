@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/config.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -43,25 +42,23 @@ func TestViewStore(t *testing.T) {
 	assert.False(t, found)
 }
 
-func TestViewCommonTemplateInit(t *testing.T) {
-	c := &CommonTemplate{}
-	cfg, _ := config.ParseString(`view { }`)
+func TestViewTemplates(t *testing.T) {
+	tmpls := &Templates{}
 
-	err := c.Init(cfg, filepath.Join(getTestdataPath(), "common-not-exists"))
+	err := tmpls.Add("views/layouts/master.html", &template.Template{})
 	assert.Nil(t, err)
-}
 
-func TestViewTemplateKey(t *testing.T) {
-	key1 := TemplateKey(getTestdataPath() + "/views/pages/app/index.html")
-	assert.Equal(t, "pages_app_index.html", key1)
+	err = tmpls.Add("views/pages/app/index.html", &template.Template{})
+	assert.Nil(t, err)
 
-	fSeparator = '\\'
-	key2 := TemplateKey(strings.Replace(getTestdataPath()+"/views/pages/app/index.html", "/", "\\", -1))
-	assert.Equal(t, "pages_app_index.html", key2)
+	keys := tmpls.Keys()
+	assert.True(t, len(keys) == 2)
 
-	key3 := parseKey(strings.Replace(getTestdataPath(), "/", "\\", -1),
-		strings.Replace(getTestdataPath()+"/views/pages/app/index.html", "/", "\\", -1))
-	assert.Equal(t, "views_pages_app_index.html", key3)
+	err = tmpls.Add("views/pages/app/index.html", &template.Template{})
+	assert.NotNil(t, err)
+	assert.Equal(t, "view: template key exists", err.Error())
+
+	assert.False(t, tmpls.IsExists("not-exixts"))
 }
 
 func getTestdataPath() string {

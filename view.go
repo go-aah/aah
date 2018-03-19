@@ -8,54 +8,36 @@
 package view
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"html/template"
-	"path/filepath"
 	"reflect"
-	"strings"
-	"sync"
 
 	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
 )
 
 var (
 	// TemplateFuncMap aah framework Go template function map.
 	TemplateFuncMap = make(template.FuncMap)
 
-	viewEngines    = make(map[string]Enginer)
-	commonTemplate = &CommonTemplate{}
+	// DefaultDelimiter template default delimiter
+	DefaultDelimiter = "{{.}}"
+
+	viewEngines = make(map[string]Enginer)
 )
 
 // view error messages
 var (
 	ErrTemplateEngineIsNil = errors.New("view: engine value is nil")
 	ErrTemplateNotFound    = errors.New("view: template not found")
+	ErrTemplateKeyExists   = errors.New("view: template key exists")
 )
 
-type (
-	// Enginer interface defines a methods for pluggable view engine.
-	Enginer interface {
-		Init(appCfg *config.Config, baseDir string) error
-		Get(layout, path, tmplName string) (*template.Template, error)
-	}
-
-	// CommonTemplate holds the implementation of common templates which can
-	// be imported via template function `import "name.ext" .`.
-	CommonTemplate struct {
-		templates *template.Template
-		bufPool   *sync.Pool
-	}
-
-	// Templates hold template reference of lowercase key and case sensitive key
-	// with reference to compliled template.
-	Templates struct {
-		TemplateLower map[string]*template.Template
-		Template      map[string]*template.Template
-	}
-)
+// Enginer interface defines a methods for pluggable view engine.
+type Enginer interface {
+	Init(appCfg *config.Config, baseDir string) error
+	Get(layout, path, tmplName string) (*template.Template, error)
+}
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
@@ -93,69 +75,48 @@ func GetEngine(name string) (Enginer, bool) {
 	return nil, false
 }
 
-// TemplateKey returns the unique key for given path.
-func TemplateKey(path string) string {
-	path = path[strings.Index(path, "pages"):]
-	if fSeparator == '/' {
-		path = strings.Replace(path, "/", "_", -1)
-	} else {
-		path = strings.Replace(path, "\\", "_", -1)
-	}
-
-	return path
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// CommonTemplate methods
+// type Templates, methods
 //___________________________________
 
-// Init method initializes the common templates which can be imported via
-// template function `import "name.ext" .`.
-func (c *CommonTemplate) Init(cfg *config.Config, baseDir string) error {
-	commonBaseDir := filepath.Join(baseDir, "common")
-	if !ess.IsFileExists(commonBaseDir) {
-		return nil
-	}
-
-	c.bufPool = &sync.Pool{New: func() interface{} { return &bytes.Buffer{} }}
-
-	viewFileExt := cfg.StringDefault("view.ext", ".html")
-	commons, err := filepath.Glob(filepath.Join(commonBaseDir, "*"+viewFileExt))
-	if err != nil {
-		return err
-	}
-
-	c.templates, err = template.New("common").Funcs(TemplateFuncMap).ParseFiles(commons...)
-	return err
+// Templates hold template reference of lowercase key and case sensitive key
+// with reference to compliled template.
+type Templates struct {
+	set map[string]*template.Template
 }
 
-// Execute method does lookup of common template and renders it. It returns
-// template output otherwise empty string with error.
-func (c *CommonTemplate) Execute(name string, viewArgs map[string]interface{}) (string, error) {
-	tmpl := c.templates.Lookup(name)
-	if tmpl == nil {
-		return "", fmt.Errorf("commontemplate: template not found: %s", name)
-	}
-
-	buf := c.acquireBuffer()
-	defer c.releaseBuffer(buf)
-
-	if err := tmpl.Execute(buf, viewArgs); err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
+// Get method return the template for given key.
+func (t *Templates) Lookup(key string) *template.Template {
+	return t.set[key]
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// CommonTemplate unexported methods
-//___________________________________
+// Add method adds the given template for the key.
+func (t *Templates) Add(key string, tmpl *template.Template) error {
+	if t.IsExists(key) {
+		return ErrTemplateKeyExists
+	}
 
-func (c *CommonTemplate) acquireBuffer() *bytes.Buffer {
-	return c.bufPool.Get().(*bytes.Buffer)
+	if t.set == nil {
+		t.set = make(map[string]*template.Template)
+	}
+
+	t.set[key] = tmpl
+	return nil
 }
 
-func (c *CommonTemplate) releaseBuffer(buf *bytes.Buffer) {
-	buf.Reset()
-	c.bufPool.Put(buf)
+// IsExists method returns true if template key exists otherwise false.
+func (t *Templates) IsExists(key string) bool {
+	if _, found := t.set[key]; found {
+		return found
+	}
+	return false
+}
+
+// Keys method returns all the template keys.
+func (t *Templates) Keys() []string {
+	var keys []string
+	for k := range t.set {
+		keys = append(keys, k)
+	}
+	return keys
 }

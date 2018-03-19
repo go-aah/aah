@@ -6,6 +6,7 @@ package view
 
 import (
 	"bytes"
+	"errors"
 	"html/template"
 	"path/filepath"
 	"strings"
@@ -18,12 +19,6 @@ import (
 
 func TestViewAppPages(t *testing.T) {
 	_ = log.SetLevel("trace")
-	AddTemplateFunc(template.FuncMap{
-		"anitcsrftoken": func(arg interface{}) string {
-			return ""
-		},
-	})
-
 	cfg, _ := config.ParseString(`view { }`)
 	ge := loadGoViewEngine(t, cfg, "views")
 
@@ -32,7 +27,7 @@ func TestViewAppPages(t *testing.T) {
 		"PageName":  "home page",
 	}
 
-	tmpl, err := ge.Get("master.html", "pages_app", "index.html")
+	tmpl, err := ge.Get("master.html", "pages/app", "index.html")
 	assert.Nil(t, err)
 	assert.NotNil(t, tmpl)
 
@@ -45,12 +40,13 @@ func TestViewAppPages(t *testing.T) {
 	assert.True(t, strings.Contains(htmlStr, "<title>aah framework - Home</title>"))
 	assert.True(t, strings.Contains(htmlStr, "aah framework home page"))
 
-	tmpl, err = ge.Get("no_master", "pages_app", "index.html")
+	tmpl, err = ge.Get("no_master", "pages/app", "index.html")
 	assert.NotNil(t, err)
 	assert.Nil(t, tmpl)
 }
 
 func TestViewUserPages(t *testing.T) {
+	_ = log.SetLevel("trace")
 	cfg, _ := config.ParseString(`view {
 		delimiters = "{{.}}"
 	}`)
@@ -63,7 +59,7 @@ func TestViewUserPages(t *testing.T) {
 
 	ge.caseSensitive = true
 
-	tmpl, err := ge.Get("master.html", "pages_user", "index.html")
+	tmpl, err := ge.Get("master.html", "pages/user", "index.html")
 	assert.Nil(t, err)
 	assert.NotNil(t, tmpl)
 
@@ -77,12 +73,13 @@ func TestViewUserPages(t *testing.T) {
 	assert.True(t, strings.Contains(htmlStr, "aah framework user home page"))
 	assert.True(t, strings.Contains(htmlStr, `cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js`))
 
-	tmpl, err = ge.Get("master.html", "pages_user", "not_exists.html")
+	tmpl, err = ge.Get("master.html", "pages/user", "not_exists.html")
 	assert.NotNil(t, err)
 	assert.Nil(t, tmpl)
 }
 
 func TestViewUserPagesNoLayout(t *testing.T) {
+	_ = log.SetLevel("trace")
 	cfg, _ := config.ParseString(`view {
 		delimiters = "{{.}}"
 		default_layout = false
@@ -94,7 +91,7 @@ func TestViewUserPagesNoLayout(t *testing.T) {
 		"PageName":  "user home page",
 	}
 
-	tmpl, err := ge.Get("", "pages_user", "index-nolayout.html")
+	tmpl, err := ge.Get("", "pages/user", "index-nolayout.html")
 	assert.Nil(t, err)
 	assert.NotNil(t, tmpl)
 
@@ -135,40 +132,48 @@ func TestViewErrors(t *testing.T) {
 		default_layout = false
 	}`)
 
-	// Scenario 1
-	viewsDir := filepath.Join(getTestdataPath(), "views-error1")
+	// No layout directiry
+	viewsDir := filepath.Join(getTestdataPath(), "views-no-layouts-dir")
 	ge := &GoViewEngine{}
-
 	err := ge.Init(cfg, viewsDir)
-	assert.NotNil(t, err)
-	assert.NotNil(t, ge)
-
-	// Scenario 2
-	viewsDir = filepath.Join(getTestdataPath(), "views-error2")
-	ge = &GoViewEngine{}
-
-	err = ge.Init(cfg, viewsDir)
-	assert.NotNil(t, err)
-	assert.NotNil(t, ge)
-
-	// Scenario 3 - layout dir not exists
-	viewsDir = filepath.Join(getTestdataPath(), "views-error3")
-	ge = &GoViewEngine{}
-
-	err = ge.Init(cfg, viewsDir)
 	assert.NotNil(t, err)
 	assert.True(t, strings.HasPrefix(err.Error(), "goviewengine: layouts base dir is not exists:"))
 
-	// Scenario 4 - pages dir not exists
-	viewsDir = filepath.Join(getTestdataPath(), "views-error4")
+	// No Common directory
+	viewsDir = filepath.Join(getTestdataPath(), "views-no-common-dir")
 	ge = &GoViewEngine{}
+	err = ge.Init(cfg, viewsDir)
+	assert.NotNil(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "goviewengine: common base dir is not exists:"))
 
+	// No Pages directory
+	viewsDir = filepath.Join(getTestdataPath(), "views-no-pages-dir")
+	ge = &GoViewEngine{}
 	err = ge.Init(cfg, viewsDir)
 	assert.NotNil(t, err)
 	assert.True(t, strings.HasPrefix(err.Error(), "goviewengine: pages base dir is not exists:"))
+
+	// No Errors directory
+	viewsDir = filepath.Join(getTestdataPath(), "views-no-errors-dir")
+	ge = &GoViewEngine{}
+	err = ge.Init(cfg, viewsDir)
+	assert.NotNil(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "goviewengine: views base dir is not exists:"))
+
+	// handle errors methods
+	err = handleParseError([]error{errors.New("error 1"), errors.New("error 2")})
+	assert.NotNil(t, err)
+	assert.Equal(t, "goviewengine: error processing templates, check the log", err.Error())
 }
 
 func loadGoViewEngine(t *testing.T, cfg *config.Config, dir string) *GoViewEngine {
+	// dummy func for test
+	AddTemplateFunc(template.FuncMap{
+		"anitcsrftoken": func(arg interface{}) string {
+			return ""
+		},
+	})
+
 	viewsDir := filepath.Join(getTestdataPath(), dir)
 	ge := &GoViewEngine{}
 

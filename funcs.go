@@ -6,6 +6,8 @@ package view
 
 import (
 	"html/template"
+	"path/filepath"
+	"strings"
 
 	"aahframework.org/log.v0"
 )
@@ -18,11 +20,23 @@ func tmplSafeHTML(str string) template.HTML {
 // tmplImport method renders given template with View Args and imports into
 // current template.
 func tmplImport(name string, viewArgs map[string]interface{}) template.HTML {
-	tmplStr, err := commonTemplate.Execute(name, viewArgs)
-	if err != nil {
+	if !strings.HasPrefix(name, "common") {
+		name = "common/" + name
+	}
+	name = filepath.ToSlash(name)
+
+	tmpl := commonTemplates.Lookup(name)
+	if tmpl == nil {
+		log.Warnf("goviewengine: common template not found: %s", name)
+		return tmplSafeHTML("")
+	}
+
+	buf := acquireBuffer()
+	defer releaseBuffer(buf)
+	if err := tmpl.Execute(buf, viewArgs); err != nil {
 		log.Error(err)
 		return template.HTML("")
 	}
 
-	return tmplSafeHTML(tmplStr)
+	return tmplSafeHTML(buf.String())
 }
