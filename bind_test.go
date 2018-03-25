@@ -200,3 +200,33 @@ func TestBindFormBodyNil(t *testing.T) {
 	result := formParser(ctx1)
 	assert.Equal(t, flowCont, result)
 }
+
+func TestBindValidatorWithValue(t *testing.T) {
+	assert.NotNil(t, Validator())
+
+	// Validation failed
+	i := 15
+	result := ValidateValue(i, "gt=1,lt=10")
+	assert.False(t, result)
+
+	emailAddress := "sample@sample"
+	result = ValidateValue(emailAddress, "required,email")
+	assert.False(t, result)
+
+	numbers := []int{23, 67, 87, 23, 90}
+	result = ValidateValue(numbers, "unique")
+	assert.False(t, result)
+
+	// validation pass
+	i = 9
+	result = ValidateValue(i, "gt=1,lt=10")
+	assert.True(t, result)
+
+	emailAddress = "sample@sample.com"
+	result = ValidateValue(emailAddress, "required,email")
+	assert.True(t, result)
+
+	numbers = []int{23, 67, 87, 56, 90}
+	result = ValidateValue(numbers, "unique")
+	assert.True(t, result)
+}

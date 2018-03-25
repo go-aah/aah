@@ -15,6 +15,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/valpar.v0"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 const (
@@ -47,6 +48,49 @@ type requestParser func(ctx *Context) flowResult
 // AddValueParser method adds given custom value parser for the `reflect.Type`
 func AddValueParser(typ reflect.Type, parser valpar.Parser) error {
 	return valpar.AddValueParser(typ, parser)
+}
+
+// Validator method return the default validator of aah framework.
+//
+// Refer to https://godoc.org/gopkg.in/go-playground/validator.v9 for detailed
+// documentation.
+func Validator() *validator.Validate {
+	return valpar.Validator()
+}
+
+// Validate method is to validate struct via underneath validator.
+//
+// Returns:
+//
+//  - For validation errors: returns `validator.ValidationErrors` and nil
+//
+//  - For invalid input: returns nil, error (invalid input such as nil, non-struct, etc.)
+//
+//  - For no validation errors: nil, nil
+func Validate(s interface{}) (validator.ValidationErrors, error) {
+	return valpar.Validate(s)
+}
+
+// ValidateValue method is to validate individual value on demand.
+//
+// Returns -
+//
+//  - true: validation passed
+//
+//  - false: validation failed
+//
+// For example:
+//
+// 	i := 15
+// 	result := valpar.ValidateValue(i, "gt=1,lt=10")
+//
+// 	emailAddress := "sample@sample"
+// 	result := valpar.ValidateValue(emailAddress, "email")
+//
+// 	numbers := []int{23, 67, 87, 23, 90}
+// 	result := valpar.ValidateValue(numbers, "unique")
+func ValidateValue(v interface{}, rules string) bool {
+	return valpar.ValidateValue(v, rules)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -168,7 +212,7 @@ func parseParameters(ctx *Context) ([]reflect.Value, *Error) {
 
 			// GitHub #132 Validation implementation
 			if rule, found := ctx.route.ValidationRule(val.Name); found {
-				if !valpar.ValidateValue(result.Interface(), rule) {
+				if !ValidateValue(result.Interface(), rule) {
 					errMsg := fmt.Sprintf("Path param validation failed [name: %s, rule: %s, value: %v]",
 						val.Name, rule, result.Interface())
 					ctx.Log().Error(errMsg)
@@ -210,7 +254,7 @@ func parseParameters(ctx *Context) ([]reflect.Value, *Error) {
 
 		// Apply Validation for type `struct`
 		if val.kind == reflect.Struct {
-			if errs, _ := valpar.Validate(result.Interface()); errs != nil {
+			if errs, _ := Validate(result.Interface()); errs != nil {
 				ctx.Log().Errorf("Param validation failed [name: %s, type: %s], Validation Errors:\n%v",
 					val.Name, val.Type, errs.Error())
 
