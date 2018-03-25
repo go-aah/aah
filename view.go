@@ -11,9 +11,13 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"path/filepath"
 	"reflect"
+	"strings"
 
 	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 )
 
 var (
@@ -119,4 +123,132 @@ func (t *Templates) Keys() []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// type EngineBase, methods
+//___________________________________
+
+// EngineBase struct is to create common and repurpose the implementation.
+// Could used for custom view implementation.
+type EngineBase struct {
+	Name            string
+	AppConfig       *config.Config
+	BaseDir         string
+	Templates       map[string]*Templates
+	FileExt         string
+	CaseSensitive   bool
+	IsLayoutEnabled bool
+	LeftDelim       string
+	RightDelim      string
+	AntiCSRFField   *AntiCSRFField
+}
+
+// Init method is to initialize the base fields values.
+func (eb *EngineBase) Init(appCfg *config.Config, baseDir, defaultEngineName, defaultFileExt string) error {
+	if appCfg == nil {
+		return fmt.Errorf("view: app config is nil")
+	}
+
+	eb.AppConfig = appCfg
+	eb.BaseDir = baseDir
+	eb.Templates = make(map[string]*Templates)
+	eb.Name = appCfg.StringDefault("view.engine", defaultEngineName)
+	eb.FileExt = appCfg.StringDefault("view.ext", defaultFileExt)
+	eb.CaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
+	eb.IsLayoutEnabled = appCfg.BoolDefault("view.default_layout", true)
+
+	delimiter := strings.Split(appCfg.StringDefault("view.delimiters", DefaultDelimiter), ".")
+	if len(delimiter) != 2 || ess.IsStrEmpty(delimiter[0]) || ess.IsStrEmpty(delimiter[1]) {
+		return fmt.Errorf("goviewengine: config 'view.delimiters' value is invalid")
+	}
+	eb.LeftDelim, eb.RightDelim = delimiter[0], delimiter[1]
+
+	// Anti CSRF
+	eb.AntiCSRFField = NewAntiCSRFField("go", eb.LeftDelim, eb.RightDelim)
+	return nil
+}
+
+// Get method returns the template based given name if found, otherwise nil.
+func (eb *EngineBase) Get(layout, path, tmplName string) (*template.Template, error) {
+	if ess.IsStrEmpty(layout) {
+		layout = noLayout
+	}
+
+	if tmpls, found := eb.Templates[layout]; found {
+		key := filepath.Join(path, tmplName)
+		if layout == noLayout {
+			key = noLayout + "-" + key
+		}
+
+		if !eb.CaseSensitive {
+			key = strings.ToLower(key)
+		}
+
+		if t := tmpls.Lookup(key); t != nil {
+			return t, nil
+		}
+	}
+
+	return nil, ErrTemplateNotFound
+}
+
+// AddTemplate method adds the given template for layout and key.
+func (eb *EngineBase) AddTemplate(layout, key string, tmpl *template.Template) error {
+	if eb.Templates[layout] == nil {
+		eb.Templates[layout] = &Templates{}
+	}
+	return eb.Templates[layout].Add(key, tmpl)
+}
+
+// ParseErrors method to parse and log the template error messages.
+func (eb *EngineBase) ParseErrors(errs []error) error {
+	if len(errs) > 0 {
+		var msg []string
+		for _, e := range errs {
+			msg = append(msg, e.Error())
+		}
+		log.Errorf("View templates parsing error(s):\n    %s", strings.Join(msg, "\n    "))
+		return errors.New(eb.Name + "viewengine: error processing templates, please check the log")
+	}
+	return nil
+}
+
+// LayoutFiles method returns the all layout files from `<view-base-dir>/layouts`.
+// If layout directory doesn't exists it returns error.
+func (eb *EngineBase) LayoutFiles() ([]string, error) {
+	baseDir := filepath.Join(eb.BaseDir, "layouts")
+	if !ess.IsFileExists(baseDir) {
+		return nil, fmt.Errorf("%sviewengine: layouts base dir is not exists: %s", eb.Name, baseDir)
+	}
+
+	return filepath.Glob(filepath.Join(baseDir, "*"+eb.FileExt))
+}
+
+// DirsPath method returns all sub directories from `<view-base-dir>/<sub-dir-name>`.
+// if it not exists returns error.
+func (eb *EngineBase) DirsPath(subDir string) ([]string, error) {
+	baseDir := filepath.Join(eb.BaseDir, subDir)
+	if !ess.IsFileExists(baseDir) {
+		return nil, fmt.Errorf("%sviewengine: %s base dir is not exists: %s", eb.Name, subDir, baseDir)
+	}
+
+	return ess.DirsPath(baseDir, true)
+}
+
+// FilesPath method returns all file path from `<view-base-dir>/<sub-dir-name>`.
+// if it not exists returns error.
+func (eb *EngineBase) FilesPath(subDir string) ([]string, error) {
+	baseDir := filepath.Join(eb.BaseDir, subDir)
+	if !ess.IsFileExists(baseDir) {
+		return nil, fmt.Errorf("%sviewengine: %s base dir is not exists: %s", eb.Name, subDir, baseDir)
+	}
+
+	return ess.FilesPath(baseDir, true)
+}
+
+// NewTemplate method return new instance on `template.Template` initialized with
+// key, template funcs and delimiters.
+func (eb *EngineBase) NewTemplate(key string) *template.Template {
+	return template.New(key).Funcs(TemplateFuncMap).Delims(eb.LeftDelim, eb.RightDelim)
 }

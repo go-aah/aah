@@ -57,7 +57,7 @@ func TestViewUserPages(t *testing.T) {
 		"PageName":  "user home page",
 	}
 
-	ge.caseSensitive = true
+	ge.CaseSensitive = true
 
 	tmpl, err := ge.Get("master.html", "pages/user", "index.html")
 	assert.Nil(t, err)
@@ -154,7 +154,7 @@ func TestViewErrors(t *testing.T) {
 	assert.True(t, strings.HasPrefix(err.Error(), "goviewengine: pages base dir is not exists:"))
 
 	// handle errors methods
-	err = handleParseError([]error{errors.New("error 1"), errors.New("error 2")})
+	err = ge.ParseErrors([]error{errors.New("error 1"), errors.New("error 2")})
 	assert.NotNil(t, err)
 	assert.Equal(t, "goviewengine: error processing templates, please check the log", err.Error())
 }
@@ -173,9 +173,11 @@ func loadGoViewEngine(t *testing.T, cfg *config.Config, dir string) *GoViewEngin
 	err := ge.Init(cfg, viewsDir)
 	assert.FailNowOnError(t, err, "")
 
-	assert.Equal(t, viewsDir, ge.baseDir)
-	assert.NotNil(t, ge.cfg)
-	assert.NotNil(t, ge.layouts)
+	assert.Equal(t, viewsDir, ge.BaseDir)
+	assert.NotNil(t, ge.AppConfig)
+	assert.NotNil(t, ge.Templates)
+
+	assert.NotNil(t, (&EngineBase{}).Init(nil, "", "", ""))
 
 	return ge
 }

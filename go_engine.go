@@ -6,7 +6,6 @@ package view
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -32,15 +31,7 @@ var (
 
 // GoViewEngine implements the partial inheritance support with Go templates.
 type GoViewEngine struct {
-	cfg             *config.Config
-	baseDir         string
-	layouts         map[string]*Templates
-	viewFileExt     string
-	caseSensitive   bool
-	isLayoutEnabled bool
-	leftDelim       string
-	rightDelim      string
-	antiCSRFField   *AntiCSRFField
+	*EngineBase
 }
 
 // Init method initialize a template engine with given aah application config
@@ -50,23 +41,13 @@ func (e *GoViewEngine) Init(appCfg *config.Config, baseDir string) error {
 		return fmt.Errorf("goviewengine: views base dir is not exists: %s", baseDir)
 	}
 
-	e.cfg = appCfg
-	e.baseDir = baseDir
-	e.layouts = make(map[string]*Templates)
-	e.viewFileExt = e.cfg.StringDefault("view.ext", ".html")
-	e.caseSensitive = e.cfg.BoolDefault("view.case_sensitive", false)
-	e.isLayoutEnabled = e.cfg.BoolDefault("view.default_layout", true)
-
-	delimiter := strings.Split(e.cfg.StringDefault("view.delimiters", DefaultDelimiter), ".")
-	if len(delimiter) != 2 || ess.IsStrEmpty(delimiter[0]) || ess.IsStrEmpty(delimiter[1]) {
-		return fmt.Errorf("goviewengine: config 'view.delimiters' value is invalid")
+	if e.EngineBase == nil {
+		e.EngineBase = &EngineBase{}
 	}
-	e.leftDelim, e.rightDelim = delimiter[0], delimiter[1]
 
-	e.layouts = make(map[string]*Templates)
-
-	// Anti CSRF
-	e.antiCSRFField = NewAntiCSRFField("go", e.leftDelim, e.rightDelim)
+	if err := e.EngineBase.Init(appCfg, baseDir, "go", ".html"); err != nil {
+		return err
+	}
 
 	// Add template func
 	AddTemplateFunc(template.FuncMap{
@@ -80,7 +61,7 @@ func (e *GoViewEngine) Init(appCfg *config.Config, baseDir string) error {
 	}
 
 	// collect all layouts
-	layouts, err := e.findLayouts()
+	layouts, err := e.LayoutFiles()
 	if err != nil {
 		return err
 	}
@@ -90,12 +71,12 @@ func (e *GoViewEngine) Init(appCfg *config.Config, baseDir string) error {
 		return err
 	}
 
-	if !e.isLayoutEnabled {
+	if !e.IsLayoutEnabled {
 		// since pages directory processed above, no error expected here
 		_ = e.loadNonLayoutTemplates("pages")
 	}
 
-	if ess.IsFileExists(filepath.Join(e.baseDir, "errors")) {
+	if ess.IsFileExists(filepath.Join(e.BaseDir, "errors")) {
 		if err = e.loadNonLayoutTemplates("errors"); err != nil {
 			return err
 		}
@@ -104,63 +85,34 @@ func (e *GoViewEngine) Init(appCfg *config.Config, baseDir string) error {
 	return nil
 }
 
-// Get method returns the template based given name if found, otherwise nil.
-func (e *GoViewEngine) Get(layout, path, tmplName string) (*template.Template, error) {
-	if ess.IsStrEmpty(layout) {
-		layout = noLayout
-	}
-
-	if l, found := e.layouts[layout]; found {
-		key := filepath.Join(path, tmplName)
-		if layout == noLayout {
-			key = noLayout + "-" + key
-		}
-
-		if !e.caseSensitive {
-			key = strings.ToLower(key)
-		}
-
-		if t := l.Lookup(key); t != nil {
-			return t, nil
-		}
-	}
-
-	return nil, ErrTemplateNotFound
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // GoViewEngine unexported methods
 //___________________________________
 
 func (e *GoViewEngine) loadCommonTemplates() error {
-	baseDir := filepath.Join(e.baseDir, "common")
-	if !ess.IsFileExists(baseDir) {
-		return fmt.Errorf("goviewengine: common base dir is not exists: %s", baseDir)
-	}
-
-	commons, err := ess.FilesPath(baseDir, true)
+	commons, err := e.FilesPath("common")
 	if err != nil {
 		return err
 	}
 
 	commonTemplates = &Templates{}
 	bufPool = &sync.Pool{New: func() interface{} { return &bytes.Buffer{} }}
-	prefix := filepath.Dir(e.baseDir)
+	prefix := filepath.Dir(e.BaseDir)
 	for _, file := range commons {
-		if !strings.HasSuffix(file, e.viewFileExt) {
-			log.Warnf("goviewengine: not a valid template extension[%s]: %s", e.viewFileExt, TrimPathPrefix(prefix, file))
+		if !strings.HasSuffix(file, e.FileExt) {
+			log.Warnf("goviewengine: not a valid template extension[%s]: %s", e.FileExt, TrimPathPrefix(prefix, file))
 			continue
 		}
 
 		tmplKey := StripPathPrefixAt(filepath.ToSlash(file), "views/")
-		tmpl := template.New(tmplKey).Funcs(TemplateFuncMap).Delims(e.leftDelim, e.rightDelim)
+		tmpl := e.NewTemplate(tmplKey)
 
 		tbytes, err := ioutil.ReadFile(file)
 		if err != nil {
 			return err
 		}
 
-		tstr := e.antiCSRFField.InsertOnString(string(tbytes))
+		tstr := e.AntiCSRFField.InsertOnString(string(tbytes))
 		if tmpl, err = tmpl.Parse(tstr); err != nil {
 			return err
 		}
@@ -173,36 +125,19 @@ func (e *GoViewEngine) loadCommonTemplates() error {
 	return nil
 }
 
-func (e *GoViewEngine) findLayouts() ([]string, error) {
-	baseDir := filepath.Join(e.baseDir, "layouts")
-	if !ess.IsFileExists(baseDir) {
-		return nil, fmt.Errorf("goviewengine: layouts base dir is not exists: %s", baseDir)
-	}
-
-	return filepath.Glob(filepath.Join(baseDir, "*"+e.viewFileExt))
-}
-
 func (e *GoViewEngine) loadLayoutTemplates(layouts []string) error {
-	baseDir := filepath.Join(e.baseDir, "pages")
-	if !ess.IsFileExists(baseDir) {
-		return fmt.Errorf("goviewengine: pages base dir is not exists: %s", baseDir)
-	}
-
-	dirs, err := ess.DirsPath(baseDir, true)
+	dirs, err := e.DirsPath("pages")
 	if err != nil {
 		return err
 	}
 
-	prefix := filepath.Dir(e.baseDir)
+	prefix := filepath.Dir(e.BaseDir)
 	var errs []error
 	for _, layout := range layouts {
 		layoutKey := strings.ToLower(filepath.Base(layout))
-		if e.layouts[layoutKey] == nil {
-			e.layouts[layoutKey] = &Templates{}
-		}
 
 		for _, dir := range dirs {
-			files, err := filepath.Glob(filepath.Join(dir, "*"+e.viewFileExt))
+			files, err := filepath.Glob(filepath.Join(dir, "*"+e.FileExt))
 			if err != nil {
 				errs = append(errs, err)
 				continue
@@ -211,8 +146,8 @@ func (e *GoViewEngine) loadLayoutTemplates(layouts []string) error {
 			for _, file := range files {
 				tfiles := []string{file, layout}
 				tmplKey := StripPathPrefixAt(filepath.ToSlash(file), "views/")
-				tmpl := template.New(tmplKey).Funcs(TemplateFuncMap).Delims(e.leftDelim, e.rightDelim)
-				tmplfiles := e.antiCSRFField.InsertOnFiles(tfiles...)
+				tmpl := e.NewTemplate(tmplKey)
+				tmplfiles := e.AntiCSRFField.InsertOnFiles(tfiles...)
 
 				log.Tracef("Parsing files: %s", TrimPathPrefix(prefix, tfiles...))
 				if tmpl, err = tmpl.ParseFiles(tmplfiles...); err != nil {
@@ -220,7 +155,7 @@ func (e *GoViewEngine) loadLayoutTemplates(layouts []string) error {
 					continue
 				}
 
-				if err = e.layouts[layoutKey].Add(tmplKey, tmpl); err != nil {
+				if err = e.AddTemplate(layoutKey, tmplKey, tmpl); err != nil {
 					errs = append(errs, err)
 					continue
 				}
@@ -228,28 +163,19 @@ func (e *GoViewEngine) loadLayoutTemplates(layouts []string) error {
 		}
 	}
 
-	return handleParseError(errs)
+	return e.ParseErrors(errs)
 }
 
 func (e *GoViewEngine) loadNonLayoutTemplates(scope string) error {
-	baseDir := filepath.Join(e.baseDir, scope)
-	if !ess.IsFileExists(baseDir) {
-		return fmt.Errorf("goviewengine: %s base dir is not exists: %s", scope, baseDir)
-	}
-
-	dirs, err := ess.DirsPath(baseDir, true)
+	dirs, err := e.DirsPath(scope)
 	if err != nil {
 		return err
 	}
 
-	if e.layouts[noLayout] == nil {
-		e.layouts[noLayout] = &Templates{}
-	}
-
-	prefix := filepath.Dir(e.baseDir)
+	prefix := filepath.Dir(e.BaseDir)
 	var errs []error
 	for _, dir := range dirs {
-		files, err := filepath.Glob(filepath.Join(dir, "*"+e.viewFileExt))
+		files, err := filepath.Glob(filepath.Join(dir, "*"+e.FileExt))
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -257,9 +183,9 @@ func (e *GoViewEngine) loadNonLayoutTemplates(scope string) error {
 
 		for _, file := range files {
 			tmplKey := noLayout + "-" + StripPathPrefixAt(filepath.ToSlash(file), "views/")
-			tmpl := template.New(tmplKey).Funcs(TemplateFuncMap).Delims(e.leftDelim, e.rightDelim)
+			tmpl := e.NewTemplate(tmplKey)
 			fileBytes, _ := ioutil.ReadFile(file)
-			fileStr := e.antiCSRFField.InsertOnString(string(fileBytes))
+			fileStr := e.AntiCSRFField.InsertOnString(string(fileBytes))
 
 			log.Tracef("Parsing file: %s", TrimPathPrefix(prefix, file))
 			if tmpl, err = tmpl.Parse(fileStr); err != nil {
@@ -267,26 +193,14 @@ func (e *GoViewEngine) loadNonLayoutTemplates(scope string) error {
 				continue
 			}
 
-			if err = e.layouts[noLayout].Add(tmplKey, tmpl); err != nil {
+			if err = e.AddTemplate(noLayout, tmplKey, tmpl); err != nil {
 				errs = append(errs, err)
 				continue
 			}
 		}
 	}
 
-	return handleParseError(errs)
-}
-
-func handleParseError(errs []error) error {
-	if len(errs) > 0 {
-		var msg []string
-		for _, e := range errs {
-			msg = append(msg, e.Error())
-		}
-		log.Errorf("View templates parsing error(s):\n    %s", strings.Join(msg, "\n    "))
-		return errors.New("goviewengine: error processing templates, please check the log")
-	}
-	return nil
+	return e.ParseErrors(errs)
 }
 
 func init() {
