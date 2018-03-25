@@ -33,7 +33,7 @@ func TestStaticFileAndDirectoryListing(t *testing.T) {
 	testStaticServe(t, e, "http://localhost:8080/static/test.txt", "static", "test.txt", "", "This is file content of test.txt", false)
 
 	appIsProfileProd = true
-	testStaticServe(t, e, "http://localhost:8080/robots.txt", "", "", "test.txt", "This is file content of test.txt", false)
+	testStaticServe(t, e, "http://localhost:8080/robots.txt", "static", "", "test.txt", "This is file content of test.txt", false)
 	appIsProfileProd = false
 }
 

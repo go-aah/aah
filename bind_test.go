@@ -99,8 +99,13 @@ func TestBindParse(t *testing.T) {
 	// Request Form Multipart
 	r3, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", strings.NewReader(form.Encode()))
 	r3.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeMultipartForm.String())
-	ctx3 := &Context{Req: ahttp.AcquireRequest(r3),
-		subject: security.AcquireSubject(), values: make(map[string]interface{}), viewArgs: make(map[string]interface{}), route: &router.Route{MaxBodySize: 5 << 20}}
+	ctx3 := &Context{
+		Req:      ahttp.AcquireRequest(r3),
+		subject:  security.AcquireSubject(),
+		values:   make(map[string]interface{}),
+		viewArgs: make(map[string]interface{}),
+		route:    &router.Route{MaxBodySize: 5 << 20},
+	}
 	BindMiddleware(ctx3, &Middleware{})
 	assert.Nil(t, ctx3.Req.Params.Form)
 	assert.False(t, len(ctx3.Req.Params.Form) == 3)
@@ -139,7 +144,7 @@ func TestBindParamParseLocaleFromAppConfiguration(t *testing.T) {
 func TestBindParamContentNegotiation(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
 
-	errorHandler = defaultErrorHandler
+	errorHandlerFunc = defaultErrorHandlerFunc
 	isContentNegotiationEnabled = true
 
 	// Accepted
@@ -186,4 +191,12 @@ func TestBindAddValueParser(t *testing.T) {
 	})
 	assert.NotNil(t, err)
 	assert.Equal(t, "valpar: value parser is already exists", err.Error())
+}
+
+func TestBindFormBodyNil(t *testing.T) {
+	// Request Body is nil
+	r1, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", nil)
+	ctx1 := &Context{Req: ahttp.AcquireRequest(r1), subject: security.AcquireSubject()}
+	result := formParser(ctx1)
+	assert.Equal(t, flowCont, result)
 }
