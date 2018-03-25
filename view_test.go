@@ -109,7 +109,7 @@ func TestViewResolveView(t *testing.T) {
 	htmlRdr := ctx.Reply().Rdr.(*HTML)
 
 	assert.Equal(t, "master.html", htmlRdr.Layout)
-	assert.Equal(t, "pages_app_index.html", htmlRdr.Template.Name())
+	assert.Equal(t, "pages/app/index.html", htmlRdr.Template.Name())
 	assert.Equal(t, "http", htmlRdr.ViewArgs["Scheme"])
 	assert.Equal(t, "localhost:8080", htmlRdr.ViewArgs["Host"])
 	assert.Equal(t, "/index.html", htmlRdr.ViewArgs["RequestPath"])
