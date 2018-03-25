@@ -70,6 +70,7 @@ func Start() {
 	log.Infof("App Build Date: %v", AppBuildInfo().Date)
 	log.Infof("App Profile: %v", AppProfile())
 	log.Infof("App TLS/SSL Enabled: %v", AppIsSSLEnabled())
+	log.Infof("App View Engine: %v", AppConfig().StringDefault("view.engine", "go"))
 	log.Infof("App Session Mode: %v", sessionMode)
 	log.Infof("App Anti-CSRF Protection Enabled: %v", AppSecurityManager().AntiCSRF.Enabled)
 
