@@ -53,7 +53,6 @@ type (
 // easy understanding and returns the instance.
 func NewStacktrace(r interface{}, appCfg *config.Config) *Stacktrace {
 	strace := &Stacktrace{
-		Raw:     string(debug.Stack()),
 		Recover: r,
 	}
 
