@@ -304,6 +304,8 @@ func CORSMiddleware(ctx *Context, m *Middleware) {
 
 	if len(cors.ExposeHeaders) > 0 {
 		ctx.Reply().Header(ahttp.HeaderAccessControlExposeHeaders, strings.Join(cors.ExposeHeaders, ", "))
+	} else if len(cors.AllowHeaders) > 0 {
+		ctx.Reply().Header(ahttp.HeaderAccessControlExposeHeaders, strings.Join(cors.AllowHeaders, ", "))
 	}
 
 	if cors.AllowCredentials {
