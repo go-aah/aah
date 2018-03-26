@@ -91,7 +91,7 @@ type Templates struct {
 
 // Get method return the template for given key.
 func (t *Templates) Lookup(key string) *template.Template {
-	return t.set[key]
+	return t.set[filepath.ToSlash(key)]
 }
 
 // Add method adds the given template for the key.
