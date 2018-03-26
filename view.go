@@ -150,17 +150,23 @@ func (eb *EngineBase) Init(appCfg *config.Config, baseDir, defaultEngineName, de
 		return fmt.Errorf("view: app config is nil")
 	}
 
+	eb.Name = appCfg.StringDefault("view.engine", defaultEngineName)
+
+	// check base directory
+	if !ess.IsFileExists(baseDir) {
+		return fmt.Errorf("%sviewengine: views base dir is not exists: %s", eb.Name, baseDir)
+	}
+
+	eb.Templates = make(map[string]*Templates)
 	eb.AppConfig = appCfg
 	eb.BaseDir = baseDir
-	eb.Templates = make(map[string]*Templates)
-	eb.Name = appCfg.StringDefault("view.engine", defaultEngineName)
 	eb.FileExt = appCfg.StringDefault("view.ext", defaultFileExt)
 	eb.CaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
 	eb.IsLayoutEnabled = appCfg.BoolDefault("view.default_layout", true)
 
 	delimiter := strings.Split(appCfg.StringDefault("view.delimiters", DefaultDelimiter), ".")
 	if len(delimiter) != 2 || ess.IsStrEmpty(delimiter[0]) || ess.IsStrEmpty(delimiter[1]) {
-		return fmt.Errorf("goviewengine: config 'view.delimiters' value is invalid")
+		return fmt.Errorf("%sviewengine: config 'view.delimiters' value is invalid", eb.Name)
 	}
 	eb.LeftDelim, eb.RightDelim = delimiter[0], delimiter[1]
 

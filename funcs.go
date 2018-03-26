@@ -17,9 +17,9 @@ func tmplSafeHTML(str string) template.HTML {
 	return template.HTML(str)
 }
 
-// tmplImport method renders given template with View Args and imports into
+// tmplInclude method renders given template with View Args and imports into
 // current template.
-func tmplImport(name string, viewArgs map[string]interface{}) template.HTML {
+func tmplInclude(name string, viewArgs map[string]interface{}) template.HTML {
 	if !strings.HasPrefix(name, "common") {
 		name = "common/" + name
 	}

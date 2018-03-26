@@ -6,7 +6,6 @@ package view
 
 import (
 	"bytes"
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"path/filepath"
@@ -37,10 +36,6 @@ type GoViewEngine struct {
 // Init method initialize a template engine with given aah application config
 // and application views base path.
 func (e *GoViewEngine) Init(appCfg *config.Config, baseDir string) error {
-	if !ess.IsFileExists(baseDir) {
-		return fmt.Errorf("goviewengine: views base dir is not exists: %s", baseDir)
-	}
-
 	if e.EngineBase == nil {
 		e.EngineBase = &EngineBase{}
 	}
@@ -51,8 +46,8 @@ func (e *GoViewEngine) Init(appCfg *config.Config, baseDir string) error {
 
 	// Add template func
 	AddTemplateFunc(template.FuncMap{
-		"import":  tmplImport,
-		"include": tmplImport, // alias for import
+		"import":  tmplInclude,
+		"include": tmplInclude, // alias for import
 	})
 
 	// load common templates
