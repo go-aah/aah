@@ -1,9 +1,9 @@
 # Value Parser - aah framework
-[![Build Status](https://travis-ci.org/go-aah/valpar.svg?branch=master)](https://travis-ci.org/go-aah/valpar) [![codecov](https://codecov.io/gh/go-aah/valpar/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/valpar/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/valpar.v0)](https://goreportcard.com/report/aahframework.org/valpar.v0) [![Version](https://img.shields.io/badge/version-0.2-blue.svg)](https://github.com/go-aah/valpar/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/valpar.v0?status.svg)](https://godoc.org/aahframework.org/valpar.v0)  [![License](https://img.shields.io/github/license/go-aah/valpar.svg)](LICENSE) [![Twitter](https://img.shields.io/badge/twitter-@aahframework-55acee.svg)](https://twitter.com/aahframework)
+[![Build Status](https://travis-ci.org/go-aah/valpar.svg?branch=master)](https://travis-ci.org/go-aah/valpar) [![codecov](https://codecov.io/gh/go-aah/valpar/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/valpar/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/valpar.v0)](https://goreportcard.com/report/aahframework.org/valpar.v0) [![Version](https://img.shields.io/badge/version-0.3-blue.svg)](https://github.com/go-aah/valpar/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/valpar.v0?status.svg)](https://godoc.org/aahframework.org/valpar.v0)  [![License](https://img.shields.io/github/license/go-aah/valpar.svg)](LICENSE) [![Twitter](https://img.shields.io/badge/twitter-@aahframework-55acee.svg)](https://twitter.com/aahframework)
 
-***v0.2 [released](https://github.com/go-aah/valpar/releases/latest) and tagged on Aug 28, 2017***
+***v0.3 [released](https://github.com/go-aah/valpar/releases/latest) and tagged on Mar 27, 2018***
 
-Value Parser is used to parse and bind Controller Action parameters in the aah framework. It sanitizes the `string` values to prevent XSS attacks.
+Value Parser is used to parse and bind Controller Action parameters and Validator for the aah framework. It sanitizes the `string` values to prevent XSS attacks.
 
 *`valpar` developed for aah framework. However, it's an independent library, can be used separately with any `Go` language project. Feel free to use it.*
 
