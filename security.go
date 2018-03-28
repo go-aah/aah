@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package security houses all the application security implementation Authentication,
-// Authorization, Session Management, CORS, CSRF, Security Headers, etc.) by aah framework.
+// Authorization, Session Management, CSRF, Security Headers, etc.) by aah framework.
 package security
 
 import (
@@ -84,7 +84,7 @@ func New() *Manager {
 //___________________________________
 
 // Init method initialize the application security configuration `security { ... }`.
-// Which is mainly Session, CORS, CSRF, Security Headers, etc.
+// Which is mainly Session, CSRF, Security Headers, etc.
 func (m *Manager) Init(appCfg *config.Config) error {
 	var err error
 	m.appCfg = appCfg

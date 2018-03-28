@@ -5,4 +5,4 @@
 package security
 
 // Version is security library version no. of aah framework
-const Version = "0.8"
+const Version = "0.9"
