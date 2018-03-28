@@ -49,7 +49,7 @@ func (e *engine) serveStatic(ctx *Context) error {
 	//   httpDir -> value is from routes config
 	//   filePath -> value is from request
 	httpDir, filePath := getHTTPDirAndFilePath(ctx)
-	ctx.Log().Tracef("Dir: %s, Filepath: %s", httpDir, filePath)
+	ctx.Log().Tracef("Path: %s, Dir: %s", filePath, httpDir)
 
 	f, err := httpDir.Open(filePath)
 	if err != nil {

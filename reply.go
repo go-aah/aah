@@ -146,15 +146,7 @@ func (r *Reply) ServiceUnavailable() *Reply {
 // By default aah framework try to determine response 'Content-Type' from
 // 'ahttp.Request.AcceptContentType'.
 func (r *Reply) ContentType(contentType string) *Reply {
-	contentType = strings.ToLower(contentType)
-
-	if !isCharsetExists(contentType) {
-		if charset, found := charsetMap[contentType]; found {
-			contentType = contentType + "; " + charset
-		}
-	}
-
-	r.ContType = contentType
+	r.ContType = strings.ToLower(contentType)
 	return r
 }
 

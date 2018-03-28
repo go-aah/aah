@@ -247,7 +247,7 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// HTTP Method is safe per defined in
 	// https://tools.ietf.org/html/rfc7231#section-4.2.1
 	if anticsrf.IsSafeHTTPMethod(ctx.Req.Method) {
-		ctx.Log().Tracef("HTTP method[%s] safe method per RFC7231", ctx.Req.Method)
+		ctx.Log().Tracef("HTTP %s is safe method per RFC7231", ctx.Req.Method)
 		m.Next(ctx)
 		writeAntiCSRFCookie(ctx, secret)
 		return

@@ -23,17 +23,6 @@ import (
 	"aahframework.org/log.v0"
 )
 
-var (
-	charsetMap = map[string]string{
-		"text/html":        "charset=utf-8",
-		"application/json": "charset=utf-8",
-		"application/xml":  "charset=utf-8",
-		"text/json":        "charset=utf-8",
-		"text/xml":         "charset=utf-8",
-		"text/plain":       "charset=utf-8",
-	}
-)
-
 func getWorkingDir() string {
 	wd, _ := os.Getwd()
 	return wd

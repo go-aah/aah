@@ -151,7 +151,10 @@ func TestViewResolveView(t *testing.T) {
 
 func TestViewResolveViewNotFound(t *testing.T) {
 	e := &engine{}
+	appConfig, _ = config.ParseString("")
+	viewDir := filepath.Join(getTestdataPath(), "idontknow")
 	appViewEngine = &view.GoViewEngine{}
+	appViewEngine.Init(appConfig, viewDir)
 
 	req := httptest.NewRequest("GET", "http://localhost:8080/index.html", nil)
 	type AppController struct{}
