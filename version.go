@@ -5,4 +5,4 @@
 package router
 
 // Version no. of aah framework router library
-const Version = "0.11-edge"
+const Version = "0.11"
