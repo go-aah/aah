@@ -22,7 +22,7 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
-func TestParamTemplateFuncs(t *testing.T) {
+func TestBindParamTemplateFuncs(t *testing.T) {
 	form := url.Values{}
 	form.Add("names", "Test1")
 	form.Add("names", "Test 2 value")
@@ -50,7 +50,7 @@ func TestParamTemplateFuncs(t *testing.T) {
 	assert.Equal(t, "100001", v3)
 }
 
-func TestParamParse(t *testing.T) {
+func TestBindParse(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
 	requestParsers[ahttp.ContentTypeMultipartForm.Mime] = multipartFormParser
 	requestParsers[ahttp.ContentTypeForm.Mime] = formParser
@@ -69,7 +69,7 @@ func TestParamParse(t *testing.T) {
 	appI18n = i18n.New()
 
 	assert.Nil(t, ctx1.Req.Locale)
-	requestParamsMiddleware(ctx1, &Middleware{})
+	BindMiddleware(ctx1, &Middleware{})
 	assert.NotNil(t, ctx1.Req.Locale)
 	assert.Equal(t, "en", ctx1.Req.Locale.Language)
 	assert.Equal(t, "CA", ctx1.Req.Locale.Region)
@@ -87,17 +87,31 @@ func TestParamParse(t *testing.T) {
 		Req:      ahttp.AcquireRequest(r2),
 		Res:      ahttp.AcquireResponseWriter(httptest.NewRecorder()),
 		subject:  security.AcquireSubject(),
-		route:    &router.Route{MaxBodySize: 5 << 20},
 		values:   make(map[string]interface{}),
 		viewArgs: make(map[string]interface{}),
+		route:    &router.Route{MaxBodySize: 5 << 20},
 	}
 
-	requestParamsMiddleware(ctx2, &Middleware{})
+	BindMiddleware(ctx2, &Middleware{})
 	assert.NotNil(t, ctx2.Req.Params.Form)
 	assert.True(t, len(ctx2.Req.Params.Form) == 3)
+
+	// Request Form Multipart
+	r3, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", strings.NewReader(form.Encode()))
+	r3.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeMultipartForm.String())
+	ctx3 := &Context{
+		Req:      ahttp.AcquireRequest(r3),
+		subject:  security.AcquireSubject(),
+		values:   make(map[string]interface{}),
+		viewArgs: make(map[string]interface{}),
+		route:    &router.Route{MaxBodySize: 5 << 20},
+	}
+	BindMiddleware(ctx3, &Middleware{})
+	assert.Nil(t, ctx3.Req.Params.Form)
+	assert.False(t, len(ctx3.Req.Params.Form) == 3)
 }
 
-func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
+func TestBindParamParseLocaleFromAppConfiguration(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
 
 	cfg, err := config.ParseString(`
@@ -108,7 +122,7 @@ func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
 		}
 	`)
 	appConfig = cfg
-	paramInitialize(&Event{})
+	bindInitialize(&Event{})
 
 	assert.Nil(t, err)
 
@@ -120,17 +134,17 @@ func TestParamParseLocaleFromAppConfiguration(t *testing.T) {
 	}
 
 	assert.Nil(t, ctx1.Req.Locale)
-	requestParamsMiddleware(ctx1, &Middleware{})
+	BindMiddleware(ctx1, &Middleware{})
 	assert.NotNil(t, ctx1.Req.Locale)
 	assert.Equal(t, "en", ctx1.Req.Locale.Language)
 	assert.Equal(t, "CA", ctx1.Req.Locale.Region)
 	assert.Equal(t, "en-CA", ctx1.Req.Locale.String())
 }
 
-func TestParamContentNegotiation(t *testing.T) {
+func TestBindParamContentNegotiation(t *testing.T) {
 	defer ess.DeleteFiles("testapp.pid")
 
-	errorHandler = defaultErrorHandler
+	errorHandlerFunc = defaultErrorHandlerFunc
 	isContentNegotiationEnabled = true
 
 	// Accepted
@@ -142,7 +156,7 @@ func TestParamContentNegotiation(t *testing.T) {
 		reply:   acquireReply(),
 		subject: security.AcquireSubject(),
 	}
-	requestParamsMiddleware(ctx1, &Middleware{})
+	BindMiddleware(ctx1, &Middleware{})
 	assert.Equal(t, http.StatusUnsupportedMediaType, ctx1.Reply().err.Code)
 
 	// Offered
@@ -155,7 +169,7 @@ func TestParamContentNegotiation(t *testing.T) {
 		reply:   acquireReply(),
 		subject: security.AcquireSubject(),
 	}
-	requestParamsMiddleware(ctx2, &Middleware{})
+	BindMiddleware(ctx2, &Middleware{})
 	assert.Equal(t, http.StatusNotAcceptable, ctx2.Reply().err.Code)
 
 	isContentNegotiationEnabled = false
@@ -167,14 +181,52 @@ func TestParamContentNegotiation(t *testing.T) {
 				offered = ["*/*"]
 			}
 		}`)
-	paramInitialize(&Event{})
+	bindInitialize(&Event{})
 	appConfig = nil
 }
 
-func TestParamAddValueParser(t *testing.T) {
+func TestBindAddValueParser(t *testing.T) {
 	err := AddValueParser(reflect.TypeOf(time.Time{}), func(key string, typ reflect.Type, params url.Values) (reflect.Value, error) {
 		return reflect.Value{}, nil
 	})
 	assert.NotNil(t, err)
 	assert.Equal(t, "valpar: value parser is already exists", err.Error())
+}
+
+func TestBindFormBodyNil(t *testing.T) {
+	// Request Body is nil
+	r1, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", nil)
+	ctx1 := &Context{Req: ahttp.AcquireRequest(r1), subject: security.AcquireSubject()}
+	result := formParser(ctx1)
+	assert.Equal(t, flowCont, result)
+}
+
+func TestBindValidatorWithValue(t *testing.T) {
+	assert.NotNil(t, Validator())
+
+	// Validation failed
+	i := 15
+	result := ValidateValue(i, "gt=1,lt=10")
+	assert.False(t, result)
+
+	emailAddress := "sample@sample"
+	result = ValidateValue(emailAddress, "required,email")
+	assert.False(t, result)
+
+	numbers := []int{23, 67, 87, 23, 90}
+	result = ValidateValue(numbers, "unique")
+	assert.False(t, result)
+
+	// validation pass
+	i = 9
+	result = ValidateValue(i, "gt=1,lt=10")
+	assert.True(t, result)
+
+	emailAddress = "sample@sample.com"
+	result = ValidateValue(emailAddress, "required,email")
+	assert.True(t, result)
+
+	numbers = []int{23, 67, 87, 56, 90}
+	result = ValidateValue(numbers, "unique")
+	assert.True(t, result)
 }

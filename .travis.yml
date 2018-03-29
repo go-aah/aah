@@ -7,14 +7,17 @@ branches:
     # skip tags build, we are building branch and master that is enough for
     # consistenty check and release. Let's use Travis CI resources optimally
     # for aah framework.
-    - /^v[0-9]\.[0-9]/
+    - /^v[0-9.]+$/
 
 go:
-  - 1.8
   - 1.9
+  - "1.10"
   - tip
 
 go_import_path: aahframework.org/aah.v0
+
+before_install:
+  - bash <(curl -s https://aahframework.org/base-before-install)
 
 install:
   - go get -t -v ./...

@@ -141,20 +141,20 @@ func initAccessLog(logsDir string, appCfg *config.Config) error {
 
 	cfg.SetString("log.pattern", "%message")
 
-	var err error
-
 	// initialize request access log file
-	appAccessLog, err = log.New(cfg)
+	aaLog, err := log.New(cfg)
 	if err != nil {
 		return err
 	}
+	appAccessLog = aaLog
 
 	// parse request access log pattern
 	pattern := appCfg.StringDefault("server.access_log.pattern", appDefaultAccessLogPattern)
-	appAccessLogFmtFlags, err = ess.ParseFmtFlag(pattern, accessLogFmtFlags)
+	aaLogFmtFlags, err := ess.ParseFmtFlag(pattern, accessLogFmtFlags)
 	if err != nil {
 		return err
 	}
+	appAccessLogFmtFlags = aaLogFmtFlags
 
 	// initialize request access log channel
 	if appAccessLogChan == nil {

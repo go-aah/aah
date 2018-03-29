@@ -6,6 +6,7 @@ package aah
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -14,6 +15,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/valpar.v0"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 const (
@@ -48,14 +50,57 @@ func AddValueParser(typ reflect.Type, parser valpar.Parser) error {
 	return valpar.AddValueParser(typ, parser)
 }
 
+// Validator method return the default validator of aah framework.
+//
+// Refer to https://godoc.org/gopkg.in/go-playground/validator.v9 for detailed
+// documentation.
+func Validator() *validator.Validate {
+	return valpar.Validator()
+}
+
+// Validate method is to validate struct via underneath validator.
+//
+// Returns:
+//
+//  - For validation errors: returns `validator.ValidationErrors` and nil
+//
+//  - For invalid input: returns nil, error (invalid input such as nil, non-struct, etc.)
+//
+//  - For no validation errors: nil, nil
+func Validate(s interface{}) (validator.ValidationErrors, error) {
+	return valpar.Validate(s)
+}
+
+// ValidateValue method is to validate individual value on demand.
+//
+// Returns -
+//
+//  - true: validation passed
+//
+//  - false: validation failed
+//
+// For example:
+//
+// 	i := 15
+// 	result := valpar.ValidateValue(i, "gt=1,lt=10")
+//
+// 	emailAddress := "sample@sample"
+// 	result := valpar.ValidateValue(emailAddress, "email")
+//
+// 	numbers := []int{23, 67, 87, 23, 90}
+// 	result := valpar.ValidateValue(numbers, "unique")
+func ValidateValue(v interface{}, rules string) bool {
+	return valpar.ValidateValue(v, rules)
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Params Middleware
+// Bind Middleware
 //___________________________________
 
-// requestParamsMiddleware method parses the incoming HTTP request to collects request
+// BindMiddleware method parses the incoming HTTP request to collects request
 // parameters (Path, Form, Query, Multipart) stores into context. Request
 // params are made available in View via template functions.
-func requestParamsMiddleware(ctx *Context, m *Middleware) {
+func BindMiddleware(ctx *Context, m *Middleware) {
 	if AppI18n() != nil {
 		// i18n locale HTTP header `Accept-Language` value override via
 		// Path Variable and URL Query Param (config i18n { param_name { ... } }).
@@ -148,7 +193,7 @@ func formParser(ctx *Context) flowResult {
 // Action Parameters Auto Parse
 //___________________________________
 
-func parseParameters(ctx *Context) ([]reflect.Value, error) {
+func parseParameters(ctx *Context) ([]reflect.Value, *Error) {
 	paramCnt := len(ctx.action.Parameters)
 
 	// If parameters not exists, return here
@@ -164,7 +209,22 @@ func parseParameters(ctx *Context) ([]reflect.Value, error) {
 		var result reflect.Value
 		if vpFn, found := valpar.ValueParser(val.Type); found {
 			result, err = vpFn(val.Name, val.Type, params)
-		} else if kind(val.Type) == reflect.Struct {
+
+			// GitHub #132 Validation implementation
+			if rule, found := ctx.route.ValidationRule(val.Name); found {
+				if !ValidateValue(result.Interface(), rule) {
+					errMsg := fmt.Sprintf("Path param validation failed [name: %s, rule: %s, value: %v]",
+						val.Name, rule, result.Interface())
+					ctx.Log().Error(errMsg)
+					return nil, &Error{
+						Reason:  ErrValidation,
+						Code:    http.StatusBadRequest,
+						Message: http.StatusText(http.StatusBadRequest),
+						Data:    errMsg,
+					}
+				}
+			}
+		} else if val.kind == reflect.Struct {
 			ct := ctx.Req.ContentType.Mime
 			if ct == ahttp.ContentTypeJSON.Mime || ct == ahttp.ContentTypeJSONText.Mime ||
 				ct == ahttp.ContentTypeXML.Mime || ct == ahttp.ContentTypeXMLText.Mime {
@@ -179,11 +239,32 @@ func parseParameters(ctx *Context) ([]reflect.Value, error) {
 
 		// check error
 		if err != nil {
-			return actionArgs, err
-		} else if !result.IsValid() {
-			ctx.Log().Errorf("Parsed result value is invalid or value parser not found [param: %s, type: %s]",
-				val.Name, val.Type)
-			return actionArgs, errInvalidParsedValue
+			if !result.IsValid() {
+				ctx.Log().Errorf("Parsed result value is invalid or value parser not found [param: %s, type: %s]",
+					val.Name, val.Type)
+			}
+
+			return nil, &Error{
+				Reason:  ErrInvalidRequestParameter,
+				Code:    http.StatusBadRequest,
+				Message: http.StatusText(http.StatusBadRequest),
+				Data:    err,
+			}
+		}
+
+		// Apply Validation for type `struct`
+		if val.kind == reflect.Struct {
+			if errs, _ := Validate(result.Interface()); errs != nil {
+				ctx.Log().Errorf("Param validation failed [name: %s, type: %s], Validation Errors:\n%v",
+					val.Name, val.Type, errs.Error())
+
+				return nil, &Error{
+					Reason:  ErrValidation,
+					Code:    http.StatusBadRequest,
+					Message: http.StatusText(http.StatusBadRequest),
+					Data:    errs,
+				}
+			}
 		}
 
 		// set action parameter value
@@ -237,7 +318,7 @@ func tmplQueryParam(viewArgs map[string]interface{}, key string) interface{} {
 	return sanatizeValue(params.QueryValue(key))
 }
 
-func paramInitialize(e *Event) {
+func bindInitialize(e *Event) {
 	cfg := AppConfig()
 	keyPathParamName = cfg.StringDefault("i18n.param_name.path", keyOverrideI18nName)
 	keyQueryParamName = cfg.StringDefault("i18n.param_name.query", keyOverrideI18nName)
@@ -284,5 +365,5 @@ func paramInitialize(e *Event) {
 }
 
 func init() {
-	OnStart(paramInitialize)
+	OnStart(bindInitialize)
 }

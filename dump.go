@@ -65,9 +65,13 @@ func initDumpLog(logsDir string, appCfg *config.Config) error {
 	dumpRequestBody = appCfg.BoolDefault("server.dump_log.request_body", false)
 	dumpResponseBody = appCfg.BoolDefault("server.dump_log.response_body", false)
 
-	var err error
-	appDumpLog, err = log.New(cfg)
-	return err
+	adLog, err := log.New(cfg)
+	if err != nil {
+		return err
+	}
+
+	appDumpLog = adLog
+	return nil
 }
 
 func composeRequestDump(ctx *Context) string {

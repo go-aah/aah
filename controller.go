@@ -51,6 +51,7 @@ type (
 	ParameterInfo struct {
 		Name string
 		Type reflect.Type
+		kind reflect.Kind
 	}
 )
 
@@ -67,6 +68,7 @@ func AddController(c interface{}, methods []*MethodInfo) {
 	for _, method := range methods {
 		for _, param := range method.Parameters {
 			param.Type = param.Type.Elem()
+			param.kind = kind(param.Type)
 		}
 		methodMapping[strings.ToLower(method.Name)] = method
 	}

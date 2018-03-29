@@ -191,6 +191,12 @@ func TestAahAppInit(t *testing.T) {
 	assert.NotNil(t, appRouter)
 	assert.NotNil(t, appSecurityManager)
 
+	oldAppBuildInfo := appBuildInfo
+	appBuildInfo = nil
+
+	Init("aahframework.org/aah.v0/testdata")
+	appBuildInfo = oldAppBuildInfo
+
 	// reset it
 	appConfig = nil
 	appBaseDir = ""

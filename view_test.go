@@ -53,23 +53,6 @@ func TestViewInitEngineNotFound(t *testing.T) {
 	assert.Nil(t, AppViewEngine())
 }
 
-func TestViewInitExternalEngine(t *testing.T) {
-	appCfg, _ := config.ParseString("")
-	viewDir := filepath.Join(getTestdataPath(), appViewsDir())
-
-	assert.False(t, appIsExternalTmplEngine)
-
-	appViewEngine = &view.GoViewEngine{}
-	err := initViewEngine(viewDir, appCfg)
-	assert.Nil(t, err)
-
-	assert.True(t, appIsExternalTmplEngine)
-
-	// cleanup
-	appViewEngine = nil
-	appIsExternalTmplEngine = false
-}
-
 func TestViewAddTemplateFunc(t *testing.T) {
 	AddTemplateFunc(template.FuncMap{
 		"join":     strings.Join,
@@ -126,7 +109,7 @@ func TestViewResolveView(t *testing.T) {
 	htmlRdr := ctx.Reply().Rdr.(*HTML)
 
 	assert.Equal(t, "master.html", htmlRdr.Layout)
-	assert.Equal(t, "pages_app_index.html", htmlRdr.Template.Name())
+	assert.Equal(t, "pages/app/index.html", htmlRdr.Template.Name())
 	assert.Equal(t, "http", htmlRdr.ViewArgs["Scheme"])
 	assert.Equal(t, "localhost:8080", htmlRdr.ViewArgs["Host"])
 	assert.Equal(t, "/index.html", htmlRdr.ViewArgs["RequestPath"])
@@ -168,7 +151,10 @@ func TestViewResolveView(t *testing.T) {
 
 func TestViewResolveViewNotFound(t *testing.T) {
 	e := &engine{}
+	appConfig, _ = config.ParseString("")
+	viewDir := filepath.Join(getTestdataPath(), "idontknow")
 	appViewEngine = &view.GoViewEngine{}
+	appViewEngine.Init(appConfig, viewDir)
 
 	req := httptest.NewRequest("GET", "http://localhost:8080/index.html", nil)
 	type AppController struct{}

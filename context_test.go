@@ -307,7 +307,7 @@ func testSubdomainValue(t *testing.T, host, subdomain string, isSubdomain bool) 
 func getAahRequest(method, target, al string) *ahttp.Request {
 	rawReq := httptest.NewRequest(method, target, nil)
 	rawReq.Header.Add(ahttp.HeaderAcceptLanguage, al)
-	return ahttp.ParseRequest(rawReq, &ahttp.Request{})
+	return ahttp.AcquireRequest(rawReq)
 }
 
 func getTestdataPath() string {

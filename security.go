@@ -30,7 +30,7 @@ const (
 	keyAntiCSRFSecret = "_AntiCSRFSecret"
 )
 
-var appSecurityManager = security.New()
+var appSecurityManager *security.Manager
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
@@ -67,7 +67,8 @@ func AddPasswordAlgorithm(name string, encoder acrypto.PasswordEncoder) error {
 // Authentication and Authorization Middleware
 //_____________________________________________
 
-func authcAndAuthzMiddleware(ctx *Context, m *Middleware) {
+// AuthcAuthzMiddleware is aah Authentication and Authorization Middleware.
+func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 	// If route auth is `anonymous` then continue the request flow
 	// No authentication or authorization is required for that route.
 	if ctx.route.Auth == "anonymous" {
@@ -94,6 +95,11 @@ func authcAndAuthzMiddleware(ctx *Context, m *Middleware) {
 		ctx.Log().Tracef("Route auth scheme is not configured, so treat it as anonymous: %v", ctx.Req.Path)
 		m.Next(ctx)
 		return
+	}
+
+	// loadSession method loads session from request for `stateful` session.
+	if AppSessionManager().IsStateful() {
+		ctx.subject.Session = AppSessionManager().GetSession(ctx.Req.Unwrap())
 	}
 
 	ctx.Log().Debugf("Route auth scheme: %s", authScheme.Scheme())
@@ -224,7 +230,7 @@ func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 // Anti-CSRF Middleware
 //___________________________________
 
-func antiCSRFMiddleware(ctx *Context, m *Middleware) {
+func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// If Anti-CSRF is not enabled, move on.
 	// It is highly recommended to enable for web application.
 	if !AppSecurityManager().AntiCSRF.Enabled || !ctx.route.IsAntiCSRFCheck || AppViewEngine() == nil {
@@ -241,7 +247,7 @@ func antiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// HTTP Method is safe per defined in
 	// https://tools.ietf.org/html/rfc7231#section-4.2.1
 	if anticsrf.IsSafeHTTPMethod(ctx.Req.Method) {
-		ctx.Log().Tracef("HTTP method[%s] safe method per RFC7231", ctx.Req.Method)
+		ctx.Log().Tracef("HTTP %s is safe method per RFC7231", ctx.Req.Method)
 		m.Next(ctx)
 		writeAntiCSRFCookie(ctx, secret)
 		return
@@ -326,12 +332,13 @@ func writeAntiCSRFCookie(ctx *Context, secret []byte) {
 //___________________________________
 
 func initSecurity(appCfg *config.Config) error {
-	appSecurityManager.IsSSLEnabled = AppIsSSLEnabled()
-
-	if err := appSecurityManager.Init(appCfg); err != nil {
+	asecmgr := security.New()
+	asecmgr.IsSSLEnabled = AppIsSSLEnabled()
+	if err := asecmgr.Init(appCfg); err != nil {
 		return err
 	}
-	appSecurityManager.AntiCSRF.Enabled = (AppViewEngine() != nil)
+	asecmgr.AntiCSRF.Enabled = (AppViewEngine() != nil)
+	appSecurityManager = asecmgr
 
 	return nil
 }

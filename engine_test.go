@@ -75,12 +75,20 @@ func (s *Site) After() {
 	log.Info("After interceptor")
 }
 
+func (s *Site) Finally() {
+	log.Info("Finally interceptor")
+}
+
 func (s *Site) BeforeGetInvolved() {
 	log.Info("Before GetInvolved interceptor")
 }
 
 func (s *Site) AfterGetInvolved() {
 	log.Info("After GetInvolved interceptor")
+}
+
+func (s *Site) FinallyGetInvolved() {
+	log.Info("Finally GetInvolved interceptor")
 }
 
 func (s *Site) AutoBind(id int, info *sample) {
@@ -196,12 +204,25 @@ func TestEngineServeHTTP(t *testing.T) {
 	})
 
 	// Middlewares
-	Middlewares(ToMiddleware(testEngineMiddleware))
+	Middlewares(
+		RouteMiddleware,
+		BindMiddleware,
+		AntiCSRFMiddleware,
+		AuthcAuthzMiddleware,
+
+		//
+		// NOTE: Register your Custom middleware's right here
+		//
+		ToMiddleware(testEngineMiddleware),
+
+		ActionMiddleware,
+	)
 
 	AppConfig().SetBool("server.access_log.enable", true)
 
 	// Engine
-	e := newEngine(AppConfig())
+	appEngine = newEngine(AppConfig())
+	e := appEngine
 
 	// Request 1
 	r1 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
@@ -387,6 +408,7 @@ func TestEngineServeHTTP(t *testing.T) {
 	assert.Equal(t, 404, resp13.StatusCode)
 	assert.True(t, strings.Contains(resp13.Status, "Not Found"))
 
+	appEngine = nil
 	appBaseDir = ""
 }
 
