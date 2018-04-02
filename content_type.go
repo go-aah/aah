@@ -36,26 +36,29 @@ var (
 
 	// ContentTypeOctetStream content type for bytes.
 	ContentTypeOctetStream = parseMediaType("application/octet-stream")
-)
 
-type (
-	// ContentType is represents request and response content type values
-	ContentType struct {
-		Mime   string
-		Exts   []string
-		Params map[string]string
-	}
+	// ContentTypeJavascript content type.
+	ContentTypeJavascript = parseMediaType("application/javascript; charset=utf-8")
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Content-Type methods
+// Content-Type
 //___________________________________
 
-// IsEqual method compares give Content-Type string with current instance.
+// ContentType is represents request and response content type values
+type ContentType struct {
+	Mime   string
+	Exts   []string
+	Params map[string]string
+}
+
+// IsEqual method returns true if its equals to current content-type instance
+// otherwise false.
 //    E.g.:
 //      contentType.IsEqual("application/json")
+//      contentType.IsEqual("application/json; charset=utf-8")
 func (c *ContentType) IsEqual(contentType string) bool {
-	return strings.HasPrefix(c.String(), strings.ToLower(contentType))
+	return strings.HasPrefix(contentType, c.Mime)
 }
 
 // Charset method returns charset of content-type
@@ -65,7 +68,7 @@ func (c *ContentType) IsEqual(contentType string) bool {
 //
 // 		Method returns `utf-8`
 func (c *ContentType) Charset(defaultCharset string) string {
-	if v, ok := c.Params["charset"]; ok {
+	if v, found := c.Params["charset"]; found {
 		return v
 	}
 	return defaultCharset
@@ -117,6 +120,6 @@ func (c *ContentType) Raw() string {
 }
 
 // String is stringer interface
-func (c *ContentType) String() string {
+func (c ContentType) String() string {
 	return c.Raw()
 }

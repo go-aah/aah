@@ -24,6 +24,13 @@ const (
 	MethodTrace   = http.MethodTrace
 )
 
+// URI Protocol scheme names
+const (
+	SchemeHTTP  = "http"
+	SchemeHTTPS = "https"
+	SchemeFTP   = "ftp"
+)
+
 // TimeFormat is the time format to use when generating times in HTTP
 // headers. It is like time.RFC1123 but hard-codes GMT as the time
 // zone. The time being formatted must be in UTC for Format to
@@ -53,6 +60,7 @@ func AcquireRequest(r *http.Request) *Request {
 // ReleaseRequest method resets the instance value and puts back to pool.
 func ReleaseRequest(r *Request) {
 	if r != nil {
+		r.cleanupMutlipart()
 		r.Reset()
 		requestPool.Put(r)
 	}

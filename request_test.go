@@ -62,13 +62,14 @@ func TestHTTPParseRequest(t *testing.T) {
 	req.URL, _ = url.Parse("/welcome1.html?_ref=true")
 
 	aahReq := AcquireRequest(req)
+	assert.True(t, req.URL == aahReq.URL())
 
 	assert.Equal(t, req, aahReq.Unwrap())
 	assert.Equal(t, "127.0.0.1:8080", aahReq.Host)
 	assert.Equal(t, MethodGet, aahReq.Method)
 	assert.Equal(t, "/welcome1.html", aahReq.Path)
 	assert.Equal(t, "en-gb;leve=1;q=0.8, da, en;level=2;q=0.7, en-us;q=gg", aahReq.Header.Get(HeaderAcceptLanguage))
-	assert.Equal(t, "application/json; charset=utf-8", aahReq.ContentType.String())
+	assert.Equal(t, "application/json; charset=utf-8", aahReq.ContentType().String())
 	assert.Equal(t, "192.168.0.1", aahReq.ClientIP)
 	assert.Equal(t, "http://localhost:8080/home.html", aahReq.Referer)
 
@@ -92,17 +93,22 @@ func TestHTTPParseRequest(t *testing.T) {
 	assert.False(t, aahReq.IsAJAX())
 	assert.False(t, aahReq.IsWebSocket())
 
-	// Reset it
-	aahReq.Reset()
-	assert.Nil(t, aahReq.Header)
-	assert.Nil(t, aahReq.ContentType)
-	assert.Nil(t, aahReq.AcceptContentType)
-	assert.Nil(t, aahReq.Params)
-	assert.Nil(t, aahReq.Locale)
-	assert.Nil(t, aahReq.Raw)
-	assert.True(t, len(aahReq.UserAgent) == 0)
-	assert.True(t, len(aahReq.ClientIP) == 0)
+	aahReq.SetAcceptContentType(nil)
+	assert.NotNil(t, aahReq.AcceptContentType())
+	aahReq.SetLocale(nil)
+	assert.NotNil(t, aahReq.Locale())
+	aahReq.SetContentType(nil)
+	assert.NotNil(t, aahReq.ContentType())
+	aahReq.SetAcceptEncoding(nil)
+	assert.Nil(t, aahReq.AcceptEncoding())
+
+	// Release it
 	ReleaseRequest(aahReq)
+	assert.Nil(t, aahReq.Header)
+	assert.Nil(t, aahReq.Params)
+	assert.Nil(t, aahReq.Raw)
+	assert.True(t, aahReq.UserAgent == "")
+	assert.True(t, aahReq.ClientIP == "")
 }
 
 func TestHTTPRequestParams(t *testing.T) {

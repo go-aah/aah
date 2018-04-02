@@ -94,26 +94,29 @@ func TestHTTPNegotiateLocale(t *testing.T) {
 
 func TestHTTPNegotiateEncoding(t *testing.T) {
 	req1 := createRawHTTPRequest(HeaderAcceptEncoding, "compress;q=0.5, gzip;q=1.0")
-	encoding := NegotiateEncoding(req1)
+	areq1 := AcquireRequest(req1)
+	encoding := areq1.AcceptEncoding()
+	assert.True(t, areq1.IsGzipAccepted)
 	assert.Equal(t, "gzip", encoding.Value)
 	assert.Equal(t, "gzip;q=1.0", encoding.Raw)
-	assert.True(t, isGzipAccepted(&Request{}, req1))
 
 	req2 := createRawHTTPRequest(HeaderAcceptEncoding, "gzip;q=1.0, identity; q=0.5, *;q=0")
-	encoding = NegotiateEncoding(req2)
+	areq2 := AcquireRequest(req2)
+	encoding = areq2.AcceptEncoding()
+	assert.True(t, areq2.IsGzipAccepted)
 	assert.Equal(t, "gzip", encoding.Value)
 	assert.Equal(t, "gzip;q=1.0", encoding.Raw)
-	assert.True(t, isGzipAccepted(&Request{}, req1))
 
 	req3 := createRawHTTPRequest(HeaderAcceptEncoding, "")
 	encoding = NegotiateEncoding(req3)
 	assert.Equal(t, true, encoding == nil)
 
 	req4 := createRawHTTPRequest(HeaderAcceptEncoding, "compress;q=0.5")
-	encoding = NegotiateEncoding(req4)
+	areq4 := AcquireRequest(req4)
+	encoding = areq4.AcceptEncoding()
+	assert.False(t, areq4.IsGzipAccepted)
 	assert.Equal(t, "compress", encoding.Value)
 	assert.Equal(t, "compress;q=0.5", encoding.Raw)
-	assert.False(t, isGzipAccepted(&Request{}, req4))
 }
 
 func TestHTTPAcceptHeaderVendorType(t *testing.T) {

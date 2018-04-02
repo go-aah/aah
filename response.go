@@ -15,32 +15,6 @@ import (
 	"aahframework.org/essentials.v0"
 )
 
-type (
-	// ResponseWriter extends the `http.ResponseWriter` interface to implements
-	// aah framework response.
-	ResponseWriter interface {
-		http.ResponseWriter
-
-		// Status returns the HTTP status of the request otherwise 0
-		Status() int
-
-		// BytesWritten returns the total number of bytes written
-		BytesWritten() int
-
-		// Unwrap returns the original `ResponseWriter`
-		Unwrap() http.ResponseWriter
-	}
-
-	// Response implements multiple interface (CloseNotifier, Flusher,
-	// Hijacker) and handy methods for aah framework.
-	Response struct {
-		w            http.ResponseWriter
-		status       int
-		wroteStatus  bool
-		bytesWritten int
-	}
-)
-
 var (
 	responsePool = &sync.Pool{New: func() interface{} { return &Response{} }}
 
@@ -52,6 +26,21 @@ var (
 	_ io.Closer          = (*Response)(nil)
 	_ ResponseWriter     = (*Response)(nil)
 )
+
+// ResponseWriter extends the `http.ResponseWriter` interface to implements
+// aah framework response.
+type ResponseWriter interface {
+	http.ResponseWriter
+
+	// Status returns the HTTP status of the request otherwise 0
+	Status() int
+
+	// BytesWritten returns the total number of bytes written
+	BytesWritten() int
+
+	// Unwrap returns the original `ResponseWriter`
+	Unwrap() http.ResponseWriter
+}
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
@@ -74,8 +63,17 @@ func PutResponseWriter(aw ResponseWriter) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Response methods
+// Response
 //___________________________________
+
+// Response implements multiple interface (CloseNotifier, Flusher,
+// Hijacker) and handy methods for aah framework.
+type Response struct {
+	w            http.ResponseWriter
+	status       int
+	wroteStatus  bool
+	bytesWritten int
+}
 
 // Status method returns HTTP response status code. If status is not yet written
 // it reurns 0.
@@ -99,9 +97,7 @@ func (r *Response) Header() http.Header {
 
 // Write method writes bytes into Response.
 func (r *Response) Write(b []byte) (int, error) {
-	r.setContentTypeIfNotSet(b)
 	r.WriteHeader(http.StatusOK)
-
 	size, err := r.w.Write(b)
 	r.bytesWritten += size
 	return size, err
@@ -169,12 +165,6 @@ func (r *Response) Reset() {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Response Unexported methods
 //___________________________________
-
-func (r *Response) setContentTypeIfNotSet(b []byte) {
-	if ct := r.Header().Get(HeaderContentType); ess.IsStrEmpty(ct) {
-		r.Header().Set(HeaderContentType, http.DetectContentType(b))
-	}
-}
 
 // releaseResponse method puts response back to pool.
 func releaseResponse(r *Response) {

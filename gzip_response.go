@@ -15,13 +15,6 @@ import (
 	"aahframework.org/essentials.v0"
 )
 
-// GzipResponse extends `ahttp.Response` and provides gzip for response
-// bytes before writing them to the underlying response.
-type GzipResponse struct {
-	r  *Response
-	gw *gzip.Writer
-}
-
 var (
 	// GzipLevel holds value from app config.
 	GzipLevel int
@@ -61,8 +54,15 @@ func PutGzipResponseWiriter(rw ResponseWriter) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Response methods
+// GzipResponse
 //___________________________________
+
+// GzipResponse extends `ahttp.Response` to provides gzip compression for response
+// bytes to the underlying response.
+type GzipResponse struct {
+	r  *Response
+	gw *gzip.Writer
+}
 
 // Status method returns HTTP response status code. If status is not yet written
 // it reurns 0.
@@ -82,9 +82,7 @@ func (g *GzipResponse) Header() http.Header {
 
 // Write method writes bytes into Response.
 func (g *GzipResponse) Write(b []byte) (int, error) {
-	g.r.setContentTypeIfNotSet(b)
 	g.r.WriteHeader(http.StatusOK)
-
 	size, err := g.gw.Write(b)
 	g.r.bytesWritten += size
 	return size, err
