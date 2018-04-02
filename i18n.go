@@ -41,14 +41,6 @@ import (
 	"aahframework.org/log.v0"
 )
 
-// I18n holds the message store and related information for internationalization
-// and localization.
-type I18n struct {
-	Store         map[string]*config.Config
-	DefaultLocale string
-	fileExtRegex  string
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
 //___________________________________
@@ -64,6 +56,14 @@ func New() *I18n {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // I18n methods
 //___________________________________
+
+// I18n holds the message store and related information for internationalization
+// and localization.
+type I18n struct {
+	Store         map[string]*config.Config
+	DefaultLocale string
+	fileExtRegex  string
+}
 
 // Load processes the given message file or directory and adds to the
 // message store
@@ -108,10 +108,10 @@ func (s *I18n) Lookup(locale *ahttp.Locale, key string, args ...interface{}) str
 	// Lookup by language and region-id. For eg.: en-us
 	store := s.findStoreByLocale(locale.String())
 	if store == nil {
-		log.Tracef("Locale (%v) doesn't exists in message store", locale.String())
+		log.Tracef("Locale (%v) doesn't exists in message store", locale)
 		goto langStore
 	}
-	log.Tracef("Message is retrieved from locale: %v, key: %v", locale.String(), key)
+	log.Tracef("Message is retrieved from locale: %v, key: %v", locale, key)
 	if msg, found := retriveValue(store, key, args...); found {
 		return msg
 	}

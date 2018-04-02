@@ -5,4 +5,4 @@
 package i18n
 
 // Version no. of aah framework i18n library
-const Version = "0.4-edge"
+const Version = "0.4.0-edge"
