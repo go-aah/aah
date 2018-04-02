@@ -52,3 +52,11 @@ func checkValidationRule(pathSeg string) (string, string, bool, bool) {
 	paramRule := strings.TrimSpace(pathSeg[sidx+1 : eidx])
 	return pathParam, paramRule, true, len(paramRule) > 0
 }
+
+func addRegisteredAction(methods map[string]map[string]uint8, route *Route) {
+	if controller, found := methods[route.Controller]; found {
+		controller[route.Action] = 1
+	} else {
+		methods[route.Controller] = map[string]uint8{route.Action: 1}
+	}
+}

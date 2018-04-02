@@ -2,18 +2,17 @@
 // go-aah/router source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-// Package router provides routes implementation for aah framework application.
-// Routes config format is `forge` config syntax (go-aah/config) which
-// is similar to HOCON syntax aka typesafe config.
+// Package router provides routing implementation for aah framework.
+// Routes config file format is similar to HOCON syntax aka typesafe config
+// it gets parsed by `go-aah/config`.
 //
-// aah framework router uses radix tree of
+// aah framework router uses radix tree implementation of
 // https://github.com/julienschmidt/httprouter
 package router
 
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"path"
 	"strings"
 
@@ -44,73 +43,6 @@ var (
 	ErrNoDomainRoutesConfigFound = errors.New("router: no domain routes config found")
 )
 
-type (
-	// Router is used to register all application routes and finds the appropriate
-	// route information for incoming request path.
-	Router struct {
-		Domains    map[string]*Domain
-		configPath string
-		config     *config.Config
-		appCfg     *config.Config
-	}
-
-	// Domain is used to hold domain related routes and it's route configuration
-	Domain struct {
-		Name                  string
-		Host                  string
-		Port                  string
-		IsSubDomain           bool
-		MethodNotAllowed      bool
-		RedirectTrailingSlash bool
-		AutoOptions           bool
-		DefaultAuth           string
-		CORS                  *CORS
-		CORSEnabled           bool
-		trees                 map[string]*node
-		routes                map[string]*Route
-	}
-
-	// Route holds the single route details.
-	Route struct {
-		Name            string
-		Path            string
-		Method          string
-		Controller      string
-		Action          string
-		ParentName      string
-		Auth            string
-		MaxBodySize     int64
-		IsAntiCSRFCheck bool
-		CORS            *CORS
-
-		// static route fields in-addition to above
-		IsStatic bool
-		Dir      string
-		File     string
-		ListDir  bool
-
-		validationRules map[string]string
-	}
-
-	// PathParam is single URL path parameter (not a query string values)
-	PathParam struct {
-		Key   string
-		Value string
-	}
-
-	// PathParams is a PathParam-slice, as returned by the route tree.
-	PathParams []PathParam
-
-	parentRouteInfo struct {
-		ParentName  string
-		PrefixPath  string
-		Controller  string
-		Auth        string
-		CORS        *CORS
-		CORSEnabled bool
-	}
-)
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
 //___________________________________
@@ -135,8 +67,17 @@ func IsDefaultAction(action string) bool {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Router methods
+// Router
 //___________________________________
+
+// Router is used to register all application routes and finds the appropriate
+// route information for incoming request path.
+type Router struct {
+	Domains    map[string]*Domain
+	configPath string
+	config     *config.Config
+	appCfg     *config.Config
+}
 
 // Load method loads a configuration from given file e.g. `routes.conf` and
 // applies env profile override values if available.
@@ -227,6 +168,10 @@ func (r *Router) RegisteredActions() map[string]map[string]uint8 {
 	return methods
 }
 
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Router unexpoted methods
+//___________________________________
+
 func (r *Router) processRoutesConfig() (err error) {
 	domains := r.config.KeysByPath("domains")
 	if len(domains) == 0 {
@@ -253,8 +198,8 @@ func (r *Router) processRoutesConfig() (err error) {
 		//   1) routes.conf `domains.<domain-name>.port`
 		//   2) aah.conf `server.port`
 		//   3) 8080
-		port := domainCfg.StringDefault("port",
-			r.appCfg.StringDefault("server.port", "8080"))
+		port := strings.TrimSpace(domainCfg.StringDefault("port",
+			r.appCfg.StringDefault("server.port", "8080")))
 		if port == "80" || port == "443" {
 			port = ""
 		}
@@ -331,10 +276,6 @@ func (r *Router) processRoutesConfig() (err error) {
 	return
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Router unexpoted methods
-//___________________________________
-
 func (r *Router) processStaticRoutes(domain *Domain, domainCfg *config.Config) error {
 	staticCfg, found := domainCfg.GetSubConfig("static")
 	if !found {
@@ -379,243 +320,39 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Domain methods
+// Route
 //___________________________________
 
-// Lookup finds a route information, path parameters, redirect trailing slash
-// indicator for given `ahttp.Request` by domain and request URI
-// otherwise returns nil and false.
-func (d *Domain) Lookup(req *ahttp.Request) (*Route, *PathParams, bool) {
-	// HTTP method override support
-	overrideMethod := req.Header.Get(ahttp.HeaderXHTTPMethodOverride)
-	if !ess.IsStrEmpty(overrideMethod) && req.Method == ahttp.MethodPost {
-		req.Method = overrideMethod
-	}
+// Route holds the single route details.
+type Route struct {
+	Name            string
+	Path            string
+	Method          string
+	Controller      string
+	Action          string
+	ParentName      string
+	Auth            string
+	MaxBodySize     int64
+	IsAntiCSRFCheck bool
+	CORS            *CORS
 
-	// get route tree for request method
-	tree, found := d.lookupRouteTree(req)
-	if !found {
-		return nil, nil, false
-	}
+	// static route fields in-addition to above
+	IsStatic bool
+	Dir      string
+	File     string
+	ListDir  bool
 
-	routeName, pathParams, rts, err := tree.find(req.Path)
-	if routeName != nil && err == nil {
-		return d.routes[routeName.(string)], &pathParams, rts
-	} else if rts { // possible Redirect Trailing Slash
-		return nil, nil, rts
-	}
-
-	return nil, nil, false
+	validationRules map[string]string
 }
 
-// LookupByName method to find route information by route name.
-func (d *Domain) LookupByName(name string) *Route {
-	if route, found := d.routes[name]; found {
-		return route
-	}
-	return nil
+type parentRouteInfo struct {
+	ParentName  string
+	PrefixPath  string
+	Controller  string
+	Auth        string
+	CORS        *CORS
+	CORSEnabled bool
 }
-
-// AddRoute method to add the given route into domain routing tree.
-func (d *Domain) AddRoute(route *Route) error {
-	if ess.IsStrEmpty(route.Method) {
-		return errors.New("router: method value is empty")
-	}
-
-	tree := d.trees[route.Method]
-	if tree == nil {
-		tree = new(node)
-		d.trees[route.Method] = tree
-	}
-
-	if err := tree.add(route.Path, route.Name); err != nil {
-		return err
-	}
-
-	d.routes[route.Name] = route
-	return nil
-}
-
-// Allowed returns the header value for `Allow` otherwise empty string.
-func (d *Domain) Allowed(requestMethod, path string) (allowed string) {
-	if path == "*" { // server-wide
-		for method := range d.trees {
-			if method == ahttp.MethodOptions {
-				continue
-			}
-
-			// add request method to list of allowed methods
-			allowed = suffixCommaValue(allowed, method)
-		}
-	} else { // specific path
-		for method := range d.trees {
-			// Skip the requested method - we already tried this one
-			if method == requestMethod || method == ahttp.MethodOptions {
-				continue
-			}
-
-			value, _, _, _ := d.trees[method].find(path)
-			if value != nil {
-				// add request method to list of allowed methods
-				allowed = suffixCommaValue(allowed, method)
-			}
-		}
-	}
-
-	return
-}
-
-// ReverseURLm composes reverse URL by route name and key-value pair arguments or
-// zero argument for static URL. Additional key-values composed as URL query
-// string. If error occurs then method logs an error and returns empty string.
-func (d *Domain) ReverseURLm(routeName string, args map[string]interface{}) string {
-	route, found := d.routes[routeName]
-	if !found {
-		log.Errorf("route name '%v' not found", routeName)
-		return ""
-	}
-
-	argsLen := len(args)
-	pathParamCnt := countParams(route.Path)
-	if pathParamCnt == 0 && argsLen == 0 { // static URLs or no path params
-		return route.Path
-	}
-
-	if argsLen < int(pathParamCnt) { // not enough arguments suppiled
-		log.Errorf("not enough arguments, path: '%v' params count: %v, suppiled values count: %v",
-			route.Path, pathParamCnt, argsLen)
-		return ""
-	}
-
-	// compose URL with values
-	reverseURL := "/"
-	for _, segment := range strings.Split(route.Path, "/")[1:] {
-		if ess.IsStrEmpty(segment) {
-			continue
-		}
-
-		if segment[0] == paramByte || segment[0] == wildByte {
-			argName := segment[1:]
-			if arg, found := args[argName]; found {
-				reverseURL = path.Join(reverseURL, fmt.Sprintf("%v", arg))
-				delete(args, argName)
-				continue
-			}
-
-			log.Errorf("'%v' param not found in given map", segment[1:])
-			return ""
-		}
-
-		reverseURL = path.Join(reverseURL, segment)
-	}
-
-	// add remaining params into URL Query parameters, if any
-	if len(args) > 0 {
-		urlValues := url.Values{}
-
-		for k, v := range args {
-			urlValues.Add(k, fmt.Sprintf("%v", v))
-		}
-
-		reverseURL = fmt.Sprintf("%s?%s", reverseURL, urlValues.Encode())
-	}
-
-	rURL, err := url.Parse(reverseURL)
-	if err != nil {
-		log.Error(err)
-		return ""
-	}
-
-	return rURL.String()
-}
-
-// ReverseURL method composes route reverse URL for given route and
-// arguments based on index order. If error occurs then method logs
-// an error and returns empty string.
-func (d *Domain) ReverseURL(routeName string, args ...interface{}) string {
-	route, found := d.routes[routeName]
-	if !found {
-		log.Errorf("route name '%v' not found", routeName)
-		return ""
-	}
-
-	argsLen := len(args)
-	pathParamCnt := countParams(route.Path)
-	if pathParamCnt == 0 && argsLen == 0 { // static URLs or no path params
-		return route.Path
-	}
-
-	// too many arguments
-	if argsLen > int(pathParamCnt) {
-		log.Errorf("too many arguments, path: '%v' params count: %v, suppiled values count: %v",
-			route.Path, pathParamCnt, argsLen)
-		return ""
-	}
-
-	// not enough arguments
-	if argsLen < int(pathParamCnt) {
-		log.Errorf("not enough arguments, path: '%v' params count: %v, suppiled values count: %v",
-			route.Path, pathParamCnt, argsLen)
-		return ""
-	}
-
-	var values []string
-	for _, v := range args {
-		values = append(values, fmt.Sprintf("%v", v))
-	}
-
-	// compose URL with values
-	reverseURL := "/"
-	idx := 0
-	for _, segment := range strings.Split(route.Path, "/") {
-		if ess.IsStrEmpty(segment) {
-			continue
-		}
-
-		if segment[0] == paramByte || segment[0] == wildByte {
-			reverseURL = path.Join(reverseURL, values[idx])
-			idx++
-			continue
-		}
-
-		reverseURL = path.Join(reverseURL, segment)
-	}
-
-	rURL, err := url.Parse(reverseURL)
-	if err != nil {
-		log.Error(err)
-		return ""
-	}
-
-	return rURL.String()
-}
-
-func (d *Domain) key() string {
-	if ess.IsStrEmpty(d.Port) {
-		return strings.ToLower(d.Host)
-	}
-	return strings.ToLower(d.Host + ":" + d.Port)
-}
-
-func (d *Domain) lookupRouteTree(req *ahttp.Request) (*node, bool) {
-	// get route tree for request method
-	if tree, found := d.trees[req.Method]; found {
-		return tree, true
-	}
-
-	// get route tree for CORS access control method
-	if req.Method == ahttp.MethodOptions && d.CORSEnabled {
-		if tree, found := d.trees[req.Header.Get(ahttp.HeaderAccessControlRequestMethod)]; found {
-			return tree, true
-		}
-	}
-
-	return nil, false
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Route methods
-//___________________________________
 
 // IsDir method returns true if serving directory otherwise false.
 func (r *Route) IsDir() bool {
@@ -635,8 +372,17 @@ func (r *Route) ValidationRule(name string) (string, bool) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Path Param methods
+// Path Param
 //___________________________________
+
+// PathParam is single URL path parameter (not a query string values)
+type PathParam struct {
+	Key   string
+	Value string
+}
+
+// PathParams is a PathParam-slice, as returned by the route tree.
+type PathParams []PathParam
 
 // Get method returns the value of the first Path Param which key matches the
 // given name. Otherwise an empty string is returned.
@@ -657,14 +403,6 @@ func (pp PathParams) Len() int {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
-
-func addRegisteredAction(methods map[string]map[string]uint8, route *Route) {
-	if controller, found := methods[route.Controller]; found {
-		controller[route.Action] = 1
-	} else {
-		methods[route.Controller] = map[string]uint8{route.Action: 1}
-	}
-}
 
 func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes []*Route, err error) {
 	for _, routeName := range cfg.Keys() {

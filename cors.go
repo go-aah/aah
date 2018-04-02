@@ -37,10 +37,14 @@ var (
 	defaultAllowMethods = []string{ahttp.MethodGet, ahttp.MethodHead, ahttp.MethodPost}
 )
 
-// CORS struct is to hold Cross-Origin Resource Sharing (CORS) configuration
-// values and verification for the route.
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// CORS
+//___________________________________
+
+// CORS struct holds Cross-Origin Resource Sharing (CORS) configuration
+// values and verification methods for the route.
 //
-// Specification: https://www.w3.org/TR/cors/
+// Spec: https://www.w3.org/TR/cors/
 // Friendly Read: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 type CORS struct {
 	AllowOrigins     []string
@@ -166,7 +170,7 @@ func (c *CORS) IsHeadersAllowed(hdrs string) bool {
 }
 
 // String method returns string representation of CORS configuration values.
-func (c *CORS) String() string {
+func (c CORS) String() string {
 	var buf bytes.Buffer
 	buf.WriteString("Allow Origins: ")
 	buf.WriteString(strings.Join(c.AllowOrigins, ", "))
