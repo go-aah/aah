@@ -16,6 +16,9 @@ go:
 
 go_import_path: aahframework.org/router.v0
 
+before_install:
+  - bash <(curl -s https://aahframework.org/base-before-install) "ahttp config essentials log"
+
 install:
   - go get -t -v ./...
 
