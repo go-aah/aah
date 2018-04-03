@@ -6,6 +6,24 @@ package authz
 
 import "strings"
 
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Package methods
+//___________________________________
+
+// NewAuthorizationInfo method creates an `AuthorizationInfo`
+// instance with zero values. Use the returned instance to add roles and
+// permissions for the Subject (aka User).
+func NewAuthorizationInfo() *AuthorizationInfo {
+	return &AuthorizationInfo{
+		roles:       make(parts, 0),
+		permissions: make([]*Permission, 0),
+	}
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// AuthorizationInfo
+//___________________________________
+
 // AuthorizationInfo struct holds the information of Subject authorization.
 // It performs authorization (access control) operations for any given Subject
 // (aka 'application user').
@@ -20,10 +38,6 @@ type AuthorizationInfo struct {
 	roles       parts
 	permissions []*Permission
 }
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// AuthorizationInfo methods
-//___________________________________
 
 // AddRole method assigns a multiple-role to those associated with the account.
 func (a *AuthorizationInfo) AddRole(roles ...string) *AuthorizationInfo {
@@ -118,14 +132,8 @@ func (a *AuthorizationInfo) IsPermittedAllp(permissions ...*Permission) bool {
 	return true
 }
 
-// Reset method resets the instance values for repurpose.
-func (a *AuthorizationInfo) Reset() {
-	a.roles = make(parts, 0)
-	a.permissions = make([]*Permission, 0)
-}
-
 // String method is stringer interface implementation.
-func (a *AuthorizationInfo) String() string {
+func (a AuthorizationInfo) String() string {
 	var str string
 	if len(a.roles) > 0 {
 		str += "Roles[" + strings.Join(a.roles, "|") + "]"

@@ -28,6 +28,6 @@ type AuthenticationToken struct {
 }
 
 // String method is stringer interface implementation.
-func (a *AuthenticationToken) String() string {
+func (a AuthenticationToken) String() string {
 	return fmt.Sprintf("AuthenticationToken:: Scheme: %v, Identity: %v, Credential: *******", a.Scheme, a.Identity)
 }

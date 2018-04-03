@@ -11,36 +11,34 @@ import (
 
 const flashKeyPrefix = "_flash_"
 
-type (
-	// Session hold the information for particular HTTP request.
-	Session struct {
-		// ID method return session ID. It is dynamically generated while new session
-		// creation. ID length is 32.
-		//
-		//Note: Do not use this value for any/derving user relation, not recommended.
-		ID string
-
-		// Values is values that stored in session object.
-		Values map[string]interface{}
-
-		// IsNew indicates whether sesison is newly created or restore from the
-		// request which was already created.
-		IsNew bool
-
-		// IsAuthenticated is helpful to identify user session already authenicated or
-		// not. Don't forget to set it true after successful authentication.
-		IsAuthenticated bool
-
-		// CreatedTime is when the session was created.
-		CreatedTime *time.Time
-
-		maxAge int
-	}
-)
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Session methods
+// Session
 //___________________________________
+
+// Session hold the information for particular HTTP request.
+type Session struct {
+	// ID method return session ID. It is dynamically generated while new session
+	// creation. ID length is 32.
+	//
+	//Note: Do not use this value for any/derving user relation, not recommended.
+	ID string
+
+	// Values is values that stored in session object.
+	Values map[string]interface{}
+
+	// IsNew indicates whether sesison is newly created or restore from the
+	// request which was already created.
+	IsNew bool
+
+	// IsAuthenticated is helpful to identify user session already authenicated or
+	// not. Don't forget to set it true after successful authentication.
+	IsAuthenticated bool
+
+	// CreatedTime is when the session was created.
+	CreatedTime *time.Time
+
+	maxAge int
+}
 
 // Get method returns the value for given key otherwise nil.
 func (s *Session) Get(key string) interface{} {
@@ -145,7 +143,7 @@ func (s *Session) GetFloat64(key string) float64 {
 }
 
 // String method is stringer interface implementation.
-func (s *Session) String() string {
+func (s Session) String() string {
 	return fmt.Sprintf("Session: ID: %s, CreatedAt: %s, IsNew: %v, IsAuthenticated: %v, Values: %v",
 		s.ID, s.CreatedTime, s.IsNew, s.IsAuthenticated, s.Values)
 }

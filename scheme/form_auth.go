@@ -82,10 +82,11 @@ func (f *FormAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 // ExtractAuthenticationToken method extracts the authentication token information
 // from the HTTP request.
 func (f *FormAuth) ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken {
-	_ = r.Raw.ParseForm()
+	req := r.Unwrap()
+	_ = req.ParseForm()
 	return &authc.AuthenticationToken{
 		Scheme:     f.scheme,
-		Identity:   r.Raw.FormValue(f.FieldIdentity),
-		Credential: r.Raw.FormValue(f.FieldCredential),
+		Identity:   req.FormValue(f.FieldIdentity),
+		Credential: req.FormValue(f.FieldCredential),
 	}
 }

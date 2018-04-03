@@ -45,28 +45,15 @@ var (
 	sessionPool    = sync.Pool{New: func() interface{} { return &Session{Values: make(map[string]interface{})} }}
 )
 
-type (
-	// Storer is interface for implementing pluggable storage implementation.
-	Storer interface {
-		Init(appCfg *config.Config) error
-		Read(id string) string
-		Save(id, value string) error
-		Delete(id string) error
-		IsExists(id string) bool
-		Cleanup(m *Manager)
-	}
-
-	// Manager is a session manager to manage sessions.
-	Manager struct {
-		cfg             *config.Config
-		mode            string
-		store           Storer
-		storeName       string
-		cookieMgr       *cookie.Manager
-		idLength        int
-		cleanupInterval int64
-	}
-)
+// Storer is interface for implementing pluggable storage implementation.
+type Storer interface {
+	Init(appCfg *config.Config) error
+	Read(id string) string
+	Save(id, value string) error
+	Delete(id string) error
+	IsExists(id string) bool
+	Cleanup(m *Manager)
+}
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
@@ -148,6 +135,21 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 	}
 
 	return m, nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Session Manager
+//___________________________________
+
+// Manager is a session manager to manage sessions.
+type Manager struct {
+	cfg             *config.Config
+	mode            string
+	store           Storer
+	storeName       string
+	cookieMgr       *cookie.Manager
+	idLength        int
+	cleanupInterval int64
 }
 
 // NewSession method creates a new session for the request.

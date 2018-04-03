@@ -148,6 +148,7 @@ func (ac *AntiCSRF) SetCookie(w http.ResponseWriter, secret []byte) error {
 		return err
 	}
 
+	w.Header().Add(ahttp.HeaderVary, ahttp.HeaderCookie)
 	ac.cookieMgr.Write(w, value)
 	return nil
 }

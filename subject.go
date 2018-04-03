@@ -12,6 +12,10 @@ import (
 	"aahframework.org/security.v0/session"
 )
 
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Subject and its methods
+//___________________________________
+
 // Subject instance represents state and security operations for a single
 // application user. These operations include authentication info (principal),
 // authorization (access control), and session access. It is aah framework's
@@ -33,10 +37,6 @@ type Subject struct {
 	AuthorizationInfo  *authz.AuthorizationInfo
 	Session            *session.Session
 }
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Subject AuthenticationInfo methods
-//___________________________________
 
 // PrimaryPrincipal method is convenience wrapper. See `AuthenticationInfo.PrimaryPrincipal`.
 func (s *Subject) PrimaryPrincipal() *authc.Principal {
@@ -64,7 +64,7 @@ func (s *Subject) Logout() {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Subject AuthorizationInfo methods
+// Subject's Authorization methods
 //___________________________________
 
 // HasRole method is convenience wrapper. See `AuthorizationInfo.HasRole`.
@@ -100,6 +100,6 @@ func (s *Subject) Reset() {
 }
 
 // String method is stringer interface implementation.
-func (s *Subject) String() string {
+func (s Subject) String() string {
 	return fmt.Sprintf("%s, %s, %s", s.AuthenticationInfo, s.AuthorizationInfo, s.Session)
 }

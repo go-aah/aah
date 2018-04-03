@@ -20,7 +20,6 @@ import (
 	"aahframework.org/security.v0/acrypto"
 	"aahframework.org/security.v0/anticsrf"
 	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/authz"
 	"aahframework.org/security.v0/scheme"
 	"aahframework.org/security.v0/session"
 )
@@ -43,6 +42,37 @@ var (
 
 	subjectPool = &sync.Pool{New: func() interface{} { return &Subject{} }}
 )
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Package methods
+//___________________________________
+
+// New method creates the security manager initial values and returns it.
+func New() *Manager {
+	return &Manager{
+		authSchemes: make(map[string]scheme.Schemer),
+	}
+}
+
+// AcquireSubject method gets the subject from pool.
+func AcquireSubject() *Subject {
+	return subjectPool.Get().(*Subject)
+}
+
+// ReleaseSubject method puts authenticatio info, authorization info and subject
+// back to pool.
+func ReleaseSubject(s *Subject) {
+	if s != nil {
+		session.ReleaseSession(s.Session)
+
+		s.Reset()
+		subjectPool.Put(s)
+	}
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Security methods
+//___________________________________
 
 type (
 	// Manager holds aah security management and its implementation.
@@ -71,17 +101,6 @@ type (
 		CSPReportOnly bool
 	}
 )
-
-// New method creates the security manager initial values and returns it.
-func New() *Manager {
-	return &Manager{
-		authSchemes: make(map[string]scheme.Schemer),
-	}
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Security methods
-//___________________________________
 
 // Init method initialize the application security configuration `security { ... }`.
 // Which is mainly Session, CSRF, Security Headers, etc.
@@ -168,8 +187,11 @@ func (m *Manager) IsAuthSchemesConfigured() bool {
 
 func (m *Manager) initializeSecureHeaders() {
 	keyPrefix := "security.http_header."
-	cfg := m.appCfg
+	if !m.appCfg.BoolDefault(keyPrefix+"enable", true) {
+		return
+	}
 
+	cfg := m.appCfg
 	m.SecureHeaders = new(SecureHeaders)
 
 	// Common
@@ -246,28 +268,6 @@ func (m *Manager) initializeSecureHeaders() {
 
 		m.SecureHeaders.PKP = strings.TrimSpace(strings.Join(pkp, ";"))
 		m.SecureHeaders.PKPReportOnly = cfg.BoolDefault(keyPrefix+"pkp.report_only", false)
-	}
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//___________________________________
-
-// AcquireSubject method gets the subject from pool.
-func AcquireSubject() *Subject {
-	return subjectPool.Get().(*Subject)
-}
-
-// ReleaseSubject method puts authenticatio info, authorization info and subject
-// back to pool.
-func ReleaseSubject(s *Subject) {
-	if s != nil {
-		authc.ReleaseAuthenticationInfo(s.AuthenticationInfo)
-		authz.ReleaseAuthorizationInfo(s.AuthorizationInfo)
-		session.ReleaseSession(s.Session)
-
-		s.Reset()
-		subjectPool.Put(s)
 	}
 }
 

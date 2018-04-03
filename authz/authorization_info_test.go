@@ -20,8 +20,6 @@ func TestAuthAuthorizationRoles(t *testing.T) {
 	assert.False(t, a1.HasAnyRole("one", "two", "three"))
 	assert.False(t, a1.HasAllRoles("one", "two", "three"))
 	assert.Equal(t, "Roles[role1|role2|role3|role4] Permissions[]", a1.String())
-
-	ReleaseAuthorizationInfo(a1)
 }
 
 func TestAuthAuthorizationPermissions(t *testing.T) {

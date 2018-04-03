@@ -151,7 +151,7 @@ func (b *BasicAuth) DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *au
 // ExtractAuthenticationToken method extracts the authentication token information
 // from the HTTP request.
 func (b *BasicAuth) ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken {
-	username, password, _ := r.Raw.BasicAuth()
+	username, password, _ := r.Unwrap().BasicAuth()
 	return &authc.AuthenticationToken{
 		Scheme:     b.scheme,
 		Identity:   username,
