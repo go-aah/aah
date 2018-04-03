@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	ahttp "aahframework.org/ahttp.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -22,7 +23,7 @@ type (
 		path       string
 		nilHandler bool
 		route      string
-		pp         PathParams
+		pp         ahttp.PathParams
 	}
 
 	testRoute struct {
@@ -105,19 +106,19 @@ func TestTreeWildcard(t *testing.T) {
 
 	checkRequests(t, tree, testRequests{
 		{"/", false, "/", nil},
-		{"/cmd/test/", false, "/cmd/:tool/", PathParams{PathParam{"tool", "test"}}},
-		{"/cmd/test", true, "", PathParams{PathParam{"tool", "test"}}},
-		{"/cmd/test/3", false, "/cmd/:tool/:sub", PathParams{PathParam{"tool", "test"}, PathParam{"sub", "3"}}},
-		{"/src/", false, "/src/*filepath", PathParams{PathParam{"filepath", "/"}}},
-		{"/src/some/file.png", false, "/src/*filepath", PathParams{PathParam{"filepath", "/some/file.png"}}},
+		{"/cmd/test/", false, "/cmd/:tool/", ahttp.PathParams{"tool": "test"}},
+		{"/cmd/test", true, "", ahttp.PathParams{"tool": "test"}},
+		{"/cmd/test/3", false, "/cmd/:tool/:sub", ahttp.PathParams{"tool": "test", "sub": "3"}},
+		{"/src/", false, "/src/*filepath", ahttp.PathParams{"filepath": "/"}},
+		{"/src/some/file.png", false, "/src/*filepath", ahttp.PathParams{"filepath": "/some/file.png"}},
 		{"/search/", false, "/search/", nil},
-		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", PathParams{PathParam{"query", "someth!ng+in+ünìcodé"}}},
-		{"/search/someth!ng+in+ünìcodé/", true, "", PathParams{PathParam{"query", "someth!ng+in+ünìcodé"}}},
-		{"/user_gopher", false, "/user_:name", PathParams{PathParam{"name", "gopher"}}},
-		{"/user_gopher/about", false, "/user_:name/about", PathParams{PathParam{"name", "gopher"}}},
-		{"/files/js/inc/framework.js", false, "/files/:dir/*filepath", PathParams{PathParam{"dir", "js"}, PathParam{"filepath", "/inc/framework.js"}}},
-		{"/info/gordon/public", false, "/info/:user/public", PathParams{PathParam{"user", "gordon"}}},
-		{"/info/gordon/project/go", false, "/info/:user/project/:project", PathParams{PathParam{"user", "gordon"}, PathParam{"project", "go"}}},
+		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", ahttp.PathParams{"query": "someth!ng+in+ünìcodé"}},
+		{"/search/someth!ng+in+ünìcodé/", true, "", ahttp.PathParams{"query": "someth!ng+in+ünìcodé"}},
+		{"/user_gopher", false, "/user_:name", ahttp.PathParams{"name": "gopher"}},
+		{"/user_gopher/about", false, "/user_:name/about", ahttp.PathParams{"name": "gopher"}},
+		{"/files/js/inc/framework.js", false, "/files/:dir/*filepath", ahttp.PathParams{"dir": "js", "filepath": "/inc/framework.js"}},
+		{"/info/gordon/public", false, "/info/:user/public", ahttp.PathParams{"user": "gordon"}},
+		{"/info/gordon/project/go", false, "/info/:user/project/:project", ahttp.PathParams{"user": "gordon", "project": "go"}},
 	})
 
 	checkPriorities(t, tree)
@@ -200,9 +201,9 @@ func TestTreeDupliatePath(t *testing.T) {
 	checkRequests(t, tree, testRequests{
 		{"/", false, "/", nil},
 		{"/doc/", false, "/doc/", nil},
-		{"/src/some/file.png", false, "/src/*filepath", PathParams{PathParam{"filepath", "/some/file.png"}}},
-		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", PathParams{PathParam{"query", "someth!ng+in+ünìcodé"}}},
-		{"/user_gopher", false, "/user_:name", PathParams{PathParam{"name", "gopher"}}},
+		{"/src/some/file.png", false, "/src/*filepath", ahttp.PathParams{"filepath": "/some/file.png"}},
+		{"/search/someth!ng+in+ünìcodé", false, "/search/:query", ahttp.PathParams{"query": "someth!ng+in+ünìcodé"}},
+		{"/user_gopher", false, "/user_:name", ahttp.PathParams{"name": "gopher"}},
 	})
 }
 

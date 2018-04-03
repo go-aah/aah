@@ -24,9 +24,9 @@ import (
 //___________________________________
 
 func TestRouterPathParamGet(t *testing.T) {
-	pathParameters := PathParams{
-		PathParam{"dir", "js"},
-		PathParam{"filepath", "/inc/framework.js"},
+	pathParameters := ahttp.PathParams{
+		"dir":      "js",
+		"filepath": "/inc/framework.js",
 	}
 
 	fp := pathParameters.Get("filepath")
@@ -138,7 +138,7 @@ func TestRouterStaticLoadConfiguration(t *testing.T) {
 	req1.Method = ahttp.MethodGet
 	domain := router.FindDomain(req1)
 	route, pathParam, rts := domain.Lookup(req1)
-	assert.NotNil(t, pathParam)
+	assert.Nil(t, pathParam)
 	assert.False(t, rts)
 	assert.True(t, route.IsStatic)
 	assert.Equal(t, "/public/img/favicon.png", route.File)

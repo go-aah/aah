@@ -39,7 +39,7 @@ type Domain struct {
 // Lookup method finds a route, path parameters, redirect trailing slash
 // indicator for given `ahttp.Request` by domain and request URI
 // otherwise returns nil and false.
-func (d *Domain) Lookup(req *ahttp.Request) (*Route, *PathParams, bool) {
+func (d *Domain) Lookup(req *ahttp.Request) (*Route, ahttp.PathParams, bool) {
 	// HTTP method override support
 	overrideMethod := req.Header.Get(ahttp.HeaderXHTTPMethodOverride)
 	if !ess.IsStrEmpty(overrideMethod) && req.Method == ahttp.MethodPost {
@@ -54,7 +54,7 @@ func (d *Domain) Lookup(req *ahttp.Request) (*Route, *PathParams, bool) {
 
 	route, pathParams, rts, err := tree.find(req.Path)
 	if route != nil && err == nil {
-		return route.(*Route), &pathParams, rts
+		return route.(*Route), pathParams, rts
 	} else if rts { // possible Redirect Trailing Slash
 		return nil, nil, rts
 	}

@@ -372,35 +372,6 @@ func (r *Route) ValidationRule(name string) (string, bool) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Path Param
-//___________________________________
-
-// PathParam is single URL path parameter (not a query string values)
-type PathParam struct {
-	Key   string
-	Value string
-}
-
-// PathParams is a PathParam-slice, as returned by the route tree.
-type PathParams []PathParam
-
-// Get method returns the value of the first Path Param which key matches the
-// given name. Otherwise an empty string is returned.
-func (pp PathParams) Get(name string) string {
-	for _, p := range pp {
-		if p.Key == name {
-			return p.Value
-		}
-	}
-	return ""
-}
-
-// Len method returns number key values in the path params
-func (pp PathParams) Len() int {
-	return len(pp)
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
 
