@@ -16,6 +16,9 @@ go:
 
 go_import_path: aahframework.org/security.v0
 
+before_install:
+  - bash <(curl -s https://aahframework.org/base-before-install) "ahttp config essentials"
+
 install:
   - go get -t -v ./...
 
