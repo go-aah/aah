@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	jsonpReqParamKey     = "callback"
-	ajaxHeaderValue      = "XMLHttpRequest"
-	websocketHeaderValue = "websocket"
+	jsonpReqParamKey  = "callback"
+	ajaxHeaderValue   = "XMLHttpRequest"
+	wsHdrVal          = "websocket"
+	connHdrValPartial = "upgrade"
 )
 
 var requestPool = &sync.Pool{New: func() interface{} { return &Request{} }}
@@ -44,7 +45,6 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 	req.Params = &Params{Query: r.URL.Query()}
 	req.Referer = getReferer(r.Header)
 	req.UserAgent = r.Header.Get(HeaderUserAgent)
-	req.ClientIP = clientIP(r)
 	req.IsGzipAccepted = strings.Contains(r.Header.Get(HeaderAcceptEncoding), "gzip")
 	req.Raw = r
 
@@ -87,10 +87,6 @@ type Request struct {
 
 	// UserAgent value of the HTTP 'User-Agent' header.
 	UserAgent string
-
-	// ClientIP remote client IP address aka Remote IP. Parsed in the order of
-	// `X-Forwarded-For`, `X-Real-IP` and finally `http.Request.RemoteAddr`.
-	ClientIP string
 
 	// IsGzipAccepted is true if the HTTP client accepts Gzip response,
 	// otherwise false.
@@ -149,6 +145,36 @@ func (r *Request) SetAcceptEncoding(encoding *AcceptSpec) *Request {
 	return r
 }
 
+// ClientIP method returns remote client IP address aka Remote IP.
+// It parses in the order of `X-Forwarded-For`, `X-Real-IP` and
+// finally `http.Request.RemoteAddr`.
+//
+// Note: Make these header configurable from aah.conf so that aah user
+// could configure headers of their choice. For e.g.
+// X-Appengine-Remote-Addr, etc.
+func (r *Request) ClientIP() string {
+	// Header X-Forwarded-For
+	if fwdFor := r.Header.Get(HeaderXForwardedFor); !ess.IsStrEmpty(fwdFor) {
+		index := strings.Index(fwdFor, ",")
+		if index == -1 {
+			return strings.TrimSpace(fwdFor)
+		}
+		return strings.TrimSpace(fwdFor[:index])
+	}
+
+	// Header X-Real-Ip
+	if realIP := r.Header.Get(HeaderXRealIP); !ess.IsStrEmpty(realIP) {
+		return strings.TrimSpace(realIP)
+	}
+
+	// Remote Address
+	if remoteAddr, _, err := net.SplitHostPort(r.Unwrap().RemoteAddr); err == nil {
+		return strings.TrimSpace(remoteAddr)
+	}
+
+	return ""
+}
+
 // Cookie method returns a named cookie from HTTP request otherwise error.
 func (r *Request) Cookie(name string) (*http.Cookie, error) {
 	return r.Unwrap().Cookie(name)
@@ -202,7 +228,8 @@ func (r *Request) IsAJAX() bool {
 
 // IsWebSocket method returns true if request is WebSocket otherwise false.
 func (r *Request) IsWebSocket() bool {
-	return r.Header.Get(HeaderUpgrade) == websocketHeaderValue
+	return r.Header.Get(HeaderUpgrade) == wsHdrVal &&
+		strings.Contains(strings.ToLower(r.Header.Get(HeaderConnection)), connHdrValPartial)
 }
 
 // URL method return underlying request URL instance.
@@ -318,7 +345,6 @@ func (r *Request) Reset() {
 	r.Params = nil
 	r.Referer = ""
 	r.UserAgent = ""
-	r.ClientIP = ""
 	r.IsGzipAccepted = false
 	r.Raw = nil
 
@@ -335,12 +361,32 @@ func (r *Request) cleanupMutlipart() {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Params methods
+// PathParams
+//___________________________________
+
+// PathParams struct holds the path parameter key and values.
+type PathParams map[string]string
+
+// Get method returns the value for the given key otherwise empty string.
+func (p PathParams) Get(key string) string {
+	if value, found := p[key]; found {
+		return value
+	}
+	return ""
+}
+
+// Len method returns count of total no. of values.
+func (p PathParams) Len() int {
+	return len(p)
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Params
 //___________________________________
 
 // Params structure holds value of Path, Query, Form and File.
 type Params struct {
-	Path  map[string]string
+	Path  PathParams
 	Query url.Values
 	Form  url.Values
 	File  map[string][]*multipart.FileHeader
@@ -350,9 +396,7 @@ type Params struct {
 // For eg.: `/users/:userId` => `PathValue("userId")`.
 func (p *Params) PathValue(key string) string {
 	if p.Path != nil {
-		if value, found := p.Path[key]; found {
-			return value
-		}
+		return p.Path.Get(key)
 	}
 	return ""
 }
@@ -422,32 +466,6 @@ func identifyScheme(r *http.Request) string {
 		return SchemeHTTPS // "https"
 	}
 	return scheme
-}
-
-// clientIP returns IP address from HTTP request, typically known as Client IP or
-// Remote IP. It parses the IP in the order of X-Forwarded-For, X-Real-IP
-// and finally `http.Request.RemoteAddr`.
-func clientIP(req *http.Request) string {
-	// Header X-Forwarded-For
-	if fwdFor := req.Header.Get(HeaderXForwardedFor); !ess.IsStrEmpty(fwdFor) {
-		index := strings.Index(fwdFor, ",")
-		if index == -1 {
-			return strings.TrimSpace(fwdFor)
-		}
-		return strings.TrimSpace(fwdFor[:index])
-	}
-
-	// Header X-Real-Ip
-	if realIP := req.Header.Get(HeaderXRealIP); !ess.IsStrEmpty(realIP) {
-		return strings.TrimSpace(realIP)
-	}
-
-	// Remote Address
-	if remoteAddr, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
-		return strings.TrimSpace(remoteAddr)
-	}
-
-	return ""
 }
 
 func host(r *http.Request) string {

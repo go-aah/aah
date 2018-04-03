@@ -21,23 +21,23 @@ import (
 
 func TestHTTPClientIP(t *testing.T) {
 	req1 := createRawHTTPRequest(HeaderXForwardedFor, "10.0.0.1, 10.0.0.2")
-	ipAddress := clientIP(req1)
+	ipAddress := AcquireRequest(req1).ClientIP()
 	assert.Equal(t, "10.0.0.1", ipAddress)
 
 	req2 := createRawHTTPRequest(HeaderXForwardedFor, "10.0.0.2")
-	ipAddress = clientIP(req2)
+	ipAddress = AcquireRequest(req2).ClientIP()
 	assert.Equal(t, "10.0.0.2", ipAddress)
 
 	req3 := createRawHTTPRequest(HeaderXRealIP, "10.0.0.3")
-	ipAddress = clientIP(req3)
+	ipAddress = AcquireRequest(req3).ClientIP()
 	assert.Equal(t, "10.0.0.3", ipAddress)
 
 	req4 := createRequestWithHost("127.0.0.1:8080", "192.168.0.1:1234")
-	ipAddress = clientIP(req4)
+	ipAddress = AcquireRequest(req4).ClientIP()
 	assert.Equal(t, "192.168.0.1", ipAddress)
 
 	req5 := createRequestWithHost("127.0.0.1:8080", "")
-	ipAddress = clientIP(req5)
+	ipAddress = AcquireRequest(req5).ClientIP()
 	assert.Equal(t, "", ipAddress)
 }
 
@@ -70,7 +70,7 @@ func TestHTTPParseRequest(t *testing.T) {
 	assert.Equal(t, "/welcome1.html", aahReq.Path)
 	assert.Equal(t, "en-gb;leve=1;q=0.8, da, en;level=2;q=0.7, en-us;q=gg", aahReq.Header.Get(HeaderAcceptLanguage))
 	assert.Equal(t, "application/json; charset=utf-8", aahReq.ContentType().String())
-	assert.Equal(t, "192.168.0.1", aahReq.ClientIP)
+	assert.Equal(t, "192.168.0.1", aahReq.ClientIP())
 	assert.Equal(t, "http://localhost:8080/home.html", aahReq.Referer)
 
 	// Query Value
@@ -108,7 +108,6 @@ func TestHTTPParseRequest(t *testing.T) {
 	assert.Nil(t, aahReq.Params)
 	assert.Nil(t, aahReq.Raw)
 	assert.True(t, aahReq.UserAgent == "")
-	assert.True(t, aahReq.ClientIP == "")
 }
 
 func TestHTTPRequestParams(t *testing.T) {
@@ -126,6 +125,7 @@ func TestHTTPRequestParams(t *testing.T) {
 	assert.True(t, len(params1.QueryArrayValue("not-exists")) == 0)
 	assert.Equal(t, "100001", params1.PathValue("userId"))
 	assert.Equal(t, "", params1.PathValue("accountId"))
+	assert.Equal(t, 1, params1.Path.Len())
 
 	// Form value
 	form := url.Values{}
@@ -147,6 +147,7 @@ func TestHTTPRequestParams(t *testing.T) {
 	assert.Equal(t, "Test1", params2.FormArrayValue("names")[0])
 	assert.Equal(t, "Test 2 value", params2.FormArrayValue("names")[1])
 	assert.True(t, len(params2.FormArrayValue("not-exists")) == 0)
+	assert.Equal(t, 0, params2.Path.Len())
 	ReleaseRequest(aahReq2)
 
 	// File value
@@ -307,7 +308,8 @@ func TestRequestSaveFileForExistingFile(t *testing.T) {
 //___________________________________
 
 func createRequestWithHost(host, remote string) *http.Request {
-	return &http.Request{Host: host, RemoteAddr: remote, Header: http.Header{}}
+	url, _ := url.Parse("http://localhost:8080/testpath")
+	return &http.Request{URL: url, Host: host, RemoteAddr: remote, Header: http.Header{}}
 }
 
 func setUpRequestSaveFile(t *testing.T) (*Request, string, func()) {
