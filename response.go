@@ -11,8 +11,6 @@ import (
 	"net"
 	"net/http"
 	"sync"
-
-	"aahframework.org/essentials.v0"
 )
 
 var (
@@ -110,7 +108,9 @@ func (r *Response) BytesWritten() int {
 
 // Close method closes the writer if possible.
 func (r *Response) Close() error {
-	ess.CloseQuietly(r.w)
+	if w, ok := r.w.(io.Closer); ok {
+		return w.Close()
+	}
 	return nil
 }
 
