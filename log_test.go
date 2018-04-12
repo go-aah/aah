@@ -5,10 +5,8 @@
 package aah
 
 import (
-	"errors"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
@@ -16,62 +14,42 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
-func TestAahLogDir(t *testing.T) {
-	logsDir := filepath.Join(getTestdataPath(), appLogsDir())
-	logFile := filepath.Join(logsDir, "test.log")
-	defer ess.DeleteFiles(logsDir)
+func TestLogInitRelativeFilePath(t *testing.T) {
+	logPath := filepath.Join(testdataBaseDir(), "sample-test-app.log")
+	defer ess.DeleteFiles(logPath)
 
-	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
-	err := initConfig(cfgDir)
+	// Relative path file
+	a := newApp()
+	cfg, _ := config.ParseString(`log {
+    receiver = "file"
+    file = "sample-test-app.log"
+  }`)
+	a.cfg = cfg
+
+	err := a.initLog()
 	assert.Nil(t, err)
 
-	err = initLogs(logsDir, AppConfig())
-	assert.Nil(t, err)
-
-	AppConfig().SetString("log.receiver", "file")
-	AppConfig().SetString("log.file", logFile)
-	err = initLogs(logsDir, AppConfig())
-	assert.Nil(t, err)
-	assert.True(t, ess.IsFileExists(logFile))
-
-	cfg, _ := config.ParseString("")
-	logger, _ := log.New(cfg)
-	log.SetDefaultLogger(logger)
-	err = AddLoggerHook("defaulthook", func(e log.Entry) {
-		logger.Info(e)
+	a.AddLoggerHook("myapphook", func(e log.Entry) {
+		t.Logf("%v", e)
 	})
+}
+
+func TestLogInitNoFilePath(t *testing.T) {
+	// No file input - auto location
+	logPath := filepath.Join(testdataBaseDir(), "wepapp1.log")
+	defer ess.DeleteFiles(logPath)
+
+	// Relative path file
+	a := newApp()
+	cfg, _ := config.ParseString(`log {
+    receiver = "file"
+  }`)
+	a.cfg = cfg
+
+	err := a.initLog()
 	assert.Nil(t, err)
 
-	// relative path filename
-	cfgRelativeFile, _ := config.ParseString(`
-		log {
-			receiver = "file"
-			file = "my-test-file.log"
-		}
-		`)
-	err = initLogs(logsDir, cfgRelativeFile)
-	assert.Nil(t, err)
-
-	// no filename mentioned
-	cfgNoFile, _ := config.ParseString(`
-	log {
-		receiver = "file"
-	}
-	`)
-	SetAppBuildInfo(&BuildInfo{
-		BinaryName: "testapp",
-		Date:       time.Now().Format(time.RFC3339),
-		Version:    "1.0.0",
+	a.AddLoggerHook("myapphook", func(e log.Entry) {
+		t.Logf("%v", e)
 	})
-	err = initLogs(logsDir, cfgNoFile)
-	assert.Nil(t, err)
-	appBuildInfo = nil
-
-	appLogFatal = func(v ...interface{}) { t.Log(v) }
-	logAsFatal(errors.New("test msg"))
-
-	logger2 := NewChildLogger(log.Fields{
-		"myname": "I'm child logger",
-	})
-	logger2.Info("Hi child logger")
 }

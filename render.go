@@ -12,9 +12,7 @@ import (
 	"html/template"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 
 	"aahframework.org/essentials.v0"
 )
@@ -27,14 +25,9 @@ var (
 	JSONMarshalIndent func(v interface{}, prefix, indent string) ([]byte, error)
 
 	xmlHeaderBytes = []byte(xml.Header)
-	rdrHTMLPool    = &sync.Pool{New: func() interface{} { return &HTML{} }}
-	rdrJSONPool    = &sync.Pool{New: func() interface{} { return &JSON{} }}
-	rdrXMLPool     = &sync.Pool{New: func() interface{} { return &XML{} }}
 )
 
 type (
-	// Data type used for convenient data type of map[string]interface{}
-	Data map[string]interface{}
 
 	// Render interface to various rendering classifcation for HTTP responses.
 	Render interface {
@@ -44,124 +37,120 @@ type (
 	// RenderFunc type is an adapter to allow the use of regular function as
 	// custom Render.
 	RenderFunc func(w io.Writer) error
-
-	// Text renders the response as plain text
-	Text struct {
-		Format string
-		Values []interface{}
-	}
-
-	// JSON renders the response JSON content.
-	JSON struct {
-		IsJSONP  bool
-		Callback string
-		Data     interface{}
-	}
-
-	// XML renders the response XML content.
-	XML struct {
-		Data interface{}
-	}
-
-	// Binary renders given path or io.Reader into response and closes the file.
-	Binary struct {
-		Path   string
-		Reader io.Reader
-	}
-
-	// HTML renders the given HTML into response with given model data.
-	HTML struct {
-		Template *template.Template
-		Layout   string
-		Filename string
-		ViewArgs Data
-	}
 )
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // RenderFunc methods
-//___________________________________
+//______________________________________________________________________________
 
 // Render method is implementation of Render interface in the adapter type.
 func (rf RenderFunc) Render(w io.Writer) error {
 	return rf(w)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Plain Text Render methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Plain Text Render
+//______________________________________________________________________________
 
-// Render method writes Text into HTTP response.
-func (t *Text) Render(w io.Writer) (err error) {
+// textRender renders the response as plain text
+type textRender struct {
+	Format string
+	Values []interface{}
+}
+
+// textRender method writes given text into HTTP response.
+func (t textRender) Render(w io.Writer) (err error) {
 	if len(t.Values) > 0 {
 		_, err = fmt.Fprintf(w, t.Format, t.Values...)
 	} else {
-		_, err = fmt.Fprint(w, t.Format)
+		_, err = io.WriteString(w, t.Format)
 	}
 	return
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// JSON Render methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// JSON Render
+//______________________________________________________________________________
+
+// jsonRender renders the response JSON content.
+type jsonRender struct {
+	Data interface{}
+	r    *Reply
+}
 
 // Render method writes JSON into HTTP response.
-func (j *JSON) Render(w io.Writer) error {
-	var (
-		bytes []byte
-		err   error
-	)
+func (j jsonRender) Render(w io.Writer) error {
+	var jsonBytes []byte
+	var err error
 
-	if appConfig.BoolDefault("render.pretty", false) {
-		bytes, err = JSONMarshalIndent(j.Data, "", "    ")
+	if j.r.ctx.a.renderPretty {
+		jsonBytes, err = JSONMarshalIndent(j.Data, "", "    ")
 	} else {
-		bytes, err = JSONMarshal(j.Data)
+		jsonBytes, err = JSONMarshal(j.Data)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	if j.IsJSONP {
-		if _, err = w.Write([]byte(j.Callback + "(")); err != nil {
-			return err
-		}
+	_, err = w.Write(jsonBytes)
+	return err
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// JSONP Render
+//______________________________________________________________________________
+
+// jsonpRender renders the JSONP response.
+type jsonpRender struct {
+	Callback string
+	Data     interface{}
+	r        *Reply
+}
+
+// Render method writes JSONP into HTTP response.
+func (j jsonpRender) Render(w io.Writer) error {
+	var jsonBytes []byte
+	var err error
+
+	if j.r.ctx.a.renderPretty {
+		jsonBytes, err = JSONMarshalIndent(j.Data, "", "    ")
+	} else {
+		jsonBytes, err = JSONMarshal(j.Data)
 	}
 
-	if _, err = w.Write(bytes); err != nil {
+	if err != nil {
 		return err
 	}
 
-	if j.IsJSONP {
-		if _, err = w.Write([]byte(");")); err != nil {
-			return err
-		}
+	if ess.IsStrEmpty(j.Callback) {
+		_, err = w.Write(jsonBytes)
+	} else {
+		_, err = fmt.Fprintf(w, "%s(%s);", j.Callback, jsonBytes)
 	}
 
-	return nil
+	return err
 }
 
-func (j *JSON) reset() {
-	j.Callback = ""
-	j.IsJSONP = false
-	j.Data = nil
-}
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// XML Render
+//______________________________________________________________________________
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// XML Render methods
-//___________________________________
+// xmlRender renders the response XML content.
+type xmlRender struct {
+	Data interface{}
+	r    *Reply
+}
 
 // Render method writes XML into HTTP response.
-func (x *XML) Render(w io.Writer) error {
-	var (
-		bytes []byte
-		err   error
-	)
+func (x xmlRender) Render(w io.Writer) error {
+	var xmlBytes []byte
+	var err error
 
-	if appConfig.BoolDefault("render.pretty", false) {
-		bytes, err = xml.MarshalIndent(x.Data, "", "    ")
+	if x.r.ctx.a.renderPretty {
+		xmlBytes, err = xml.MarshalIndent(x.Data, "", "    ")
 	} else {
-		bytes, err = xml.Marshal(x.Data)
+		xmlBytes, err = xml.Marshal(x.Data)
 	}
 
 	if err != nil {
@@ -172,16 +161,19 @@ func (x *XML) Render(w io.Writer) error {
 		return err
 	}
 
-	if _, err = w.Write(bytes); err != nil {
+	if _, err = w.Write(xmlBytes); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (x *XML) reset() {
-	x.Data = nil
-}
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Data
+//______________________________________________________________________________
+
+// Data type used for convenient data type of map[string]interface{}
+type Data map[string]interface{}
 
 // MarshalXML method is to marshal `aah.Data` into XML.
 func (d Data) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
@@ -206,20 +198,22 @@ func (d Data) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	return e.Flush()
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// File and Reader Render methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Reader Render
+//______________________________________________________________________________
+
+// Binary renders given path or io.Reader into response and closes the file.
+type binaryRender struct {
+	Path   string
+	Reader io.Reader
+}
 
 // Render method writes File into HTTP response.
-func (f *Binary) Render(w io.Writer) error {
+func (f binaryRender) Render(w io.Writer) error {
 	if f.Reader != nil {
 		defer ess.CloseQuietly(f.Reader)
 		_, err := io.Copy(w, f.Reader)
 		return err
-	}
-
-	if !filepath.IsAbs(f.Path) {
-		f.Path = filepath.Join(AppBaseDir(), "static", f.Path)
 	}
 
 	file, err := os.Open(f.Path)
@@ -241,76 +235,29 @@ func (f *Binary) Render(w io.Writer) error {
 	return err
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// HTML Render methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// HTML Render
+//______________________________________________________________________________
+
+// htmlRender renders the given HTML template into response with given model data.
+type htmlRender struct {
+	Template *template.Template
+	Layout   string
+	Filename string
+	ViewArgs Data
+}
 
 // Render method renders the HTML template into HTTP response.
-func (h *HTML) Render(w io.Writer) error {
+func (h htmlRender) Render(w io.Writer) error {
 	if h.Template == nil {
 		return errors.New("template is nil")
 	}
 
-	if ess.IsStrEmpty(h.Layout) {
+	if h.Layout == "" {
 		return h.Template.Execute(w, h.ViewArgs)
 	}
 
 	return h.Template.ExecuteTemplate(w, h.Layout, h.ViewArgs)
-}
-
-func (h *HTML) reset() {
-	h.Template = nil
-	h.Filename = ""
-	h.Layout = ""
-	h.ViewArgs = make(Data)
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Render Unexported methods
-//___________________________________
-
-// doRender method renders and detects the errors earlier. Writes the
-// error info if any.
-func (e *engine) doRender(ctx *Context) {
-	if ctx.Reply().Rdr != nil {
-		ctx.Reply().body = acquireBuffer()
-		if err := ctx.Reply().Rdr.Render(ctx.Reply().body); err != nil {
-			ctx.Log().Error("Render response body error: ", err)
-
-			// panic would be appropriate here, since it handle by centralized error
-			// handler. Funny though this is second spot in entire aah framework
-			// the `panic` used other then panic interceptor for propagtion.
-			panic(err)
-		}
-	}
-}
-
-func acquireHTML() *HTML {
-	return rdrHTMLPool.Get().(*HTML)
-}
-
-func acquireJSON() *JSON {
-	return rdrJSONPool.Get().(*JSON)
-}
-
-func acquireXML() *XML {
-	return rdrXMLPool.Get().(*XML)
-}
-
-func releaseRender(r Render) {
-	if r != nil {
-		switch t := r.(type) {
-		case *JSON:
-			t.reset()
-			rdrJSONPool.Put(t)
-		case *HTML:
-			t.reset()
-			rdrHTMLPool.Put(t)
-		case *XML:
-			t.reset()
-			rdrXMLPool.Put(t)
-		}
-	}
 }
 
 func init() {

@@ -10,111 +10,143 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 	"aahframework.org/view.v0"
 )
 
-const appDefaultViewEngine = "go"
-
-var (
-	appViewEngine             view.Enginer
-	appViewExt                string
-	appDefaultTmplLayout      string
-	appIsDefaultLayoutEnabled bool
-	appViewFileCaseSensitive  bool
-	appIsExternalTmplEngine   bool
-	viewNotFoundTemplate      = template.Must(template.New("not_found").Parse(`
-		<strong>{{ .ViewNotFound }}</strong>
-	`))
+const (
+	defaultViewEngineName = "go"
+	defaultViewFileExt    = ".html"
 )
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app methods
+//______________________________________________________________________________
 
-// AppViewEngine method returns aah application view Engine instance.
-func AppViewEngine() view.Enginer {
-	return appViewEngine
+func (a *app) ViewEngine() view.Enginer {
+	if a.viewMgr == nil {
+		return nil
+	}
+	return a.viewMgr.engine
 }
 
-// AddTemplateFunc method adds template func map into view engine.
-func AddTemplateFunc(funcs template.FuncMap) {
+func (a *app) AddTemplateFunc(funcs template.FuncMap) {
 	view.AddTemplateFunc(funcs)
 }
 
-// AddViewEngine method adds the given name and view engine to view store.
-func AddViewEngine(name string, engine view.Enginer) error {
+func (a *app) AddViewEngine(name string, engine view.Enginer) error {
 	return view.AddEngine(name, engine)
 }
 
-// SetMinifier method sets the given minifier func into aah framework.
-// Note: currently minifier is called only for HTML contentType.
-func SetMinifier(fn MinifierFunc) {
-	if minifier == nil {
-		minifier = fn
-	} else {
-		log.Warnf("Minifier is already set: %v", funcName(minifier))
+func (a *app) SetMinifier(fn MinifierFunc) {
+	if a.viewMgr == nil {
+		a.viewMgr = &viewManager{a: a, e: a.engine}
 	}
+
+	if a.viewMgr.minifier != nil {
+		a.Log().Warnf("Changing Minifier from: '%s'  to '%s'", funcName(a.viewMgr.minifier), funcName(fn))
+	}
+	a.viewMgr.minifier = fn
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app Unexported methods
+//______________________________________________________________________________
 
-func appViewsDir() string {
-	return filepath.Join(AppBaseDir(), "views")
-}
-
-func initViewEngine(viewDir string, appCfg *config.Config) error {
-	if !ess.IsFileExists(viewDir) {
-		// view directory not exists
+func (a *app) initView() error {
+	viewsDir := filepath.Join(a.BaseDir(), "views")
+	if !ess.IsFileExists(viewsDir) {
+		// view directory not exists, scenario could be only API application
 		return nil
 	}
 
-	// application config values
-	appViewExt = appCfg.StringDefault("view.ext", ".html")
-	appDefaultTmplLayout = "master" + appViewExt
-	appViewFileCaseSensitive = appCfg.BoolDefault("view.case_sensitive", false)
-	appIsDefaultLayoutEnabled = appCfg.BoolDefault("view.default_layout", true)
-
-	// initialize view engine
-	viewEngineName := appCfg.StringDefault("view.engine", appDefaultViewEngine)
-	viewEngine, found := view.GetEngine(viewEngineName)
+	engineName := a.Config().StringDefault("view.engine", defaultViewEngineName)
+	viewEngine, found := view.GetEngine(engineName)
 	if !found {
-		return fmt.Errorf("view: named engine not found: %s", viewEngineName)
+		return fmt.Errorf("view: named engine not found: %s", engineName)
 	}
 
-	if err := viewEngine.Init(appCfg, viewDir); err != nil {
+	viewMgr := &viewManager{
+		a:                     a,
+		e:                     a.engine,
+		engineName:            engineName,
+		fileExt:               a.Config().StringDefault("view.ext", defaultViewFileExt),
+		defaultTmplLayout:     "master" + a.Config().StringDefault("view.ext", defaultViewFileExt),
+		filenameCaseSensitive: a.Config().BoolDefault("view.case_sensitive", false),
+		defaultLayoutEnabled:  a.Config().BoolDefault("view.default_layout", true),
+		notFoundTmpl: template.Must(template.New("not_found").Parse(`
+		<strong>{{ .ViewNotFound }}</strong>
+	`)),
+	}
+
+	// Add Framework template methods
+	a.AddTemplateFunc(template.FuncMap{
+		"config":          viewMgr.tmplConfig,
+		"i18n":            viewMgr.tmplI18n,
+		"rurl":            viewMgr.tmplURL,
+		"rurlm":           viewMgr.tmplURLm,
+		"pparam":          viewMgr.tmplPathParam,
+		"fparam":          viewMgr.tmplFormParam,
+		"qparam":          viewMgr.tmplQueryParam,
+		"session":         viewMgr.tmplSessionValue,
+		"flash":           viewMgr.tmplFlashValue,
+		"isauthenticated": viewMgr.tmplIsAuthenticated,
+		"hasrole":         viewMgr.tmplHasRole,
+		"hasallroles":     viewMgr.tmplHasAllRoles,
+		"hasanyrole":      viewMgr.tmplHasAnyRole,
+		"ispermitted":     viewMgr.tmplIsPermitted,
+		"ispermittedall":  viewMgr.tmplIsPermittedAll,
+		"anitcsrftoken":   viewMgr.tmplAntiCSRFToken,
+	})
+
+	if err := viewEngine.Init(a.Config(), viewsDir); err != nil {
 		return err
 	}
 
-	appIsExternalTmplEngine = viewEngineName != appDefaultViewEngine
-	appViewEngine = viewEngine
+	viewMgr.engine = viewEngine
+	if a.viewMgr != nil && a.viewMgr.minifier != nil {
+		viewMgr.minifier = a.viewMgr.minifier
+	}
+
+	a.viewMgr = viewMgr
 
 	return nil
 }
 
-// resolveView method does -
-//   1) Prepare ViewArgs
-//   2) If HTML content type find appropriate template
-func (e *engine) resolveView(ctx *Context) {
-	if appViewEngine == nil || ctx.Reply().err != nil || !ctHTML.IsEqual(ctx.Reply().ContType) {
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// View Manager
+//______________________________________________________________________________
+
+type viewManager struct {
+	a                     *app
+	e                     *engine
+	engineName            string
+	engine                view.Enginer
+	fileExt               string
+	defaultTmplLayout     string
+	filenameCaseSensitive bool
+	defaultLayoutEnabled  bool
+	notFoundTmpl          *template.Template
+	minifier              MinifierFunc
+}
+
+// resolve method resolves the view template based available facts, such as
+// controller name, action and user provided inputs.
+func (vm *viewManager) resolve(ctx *Context) {
+	if ctx.Reply().err != nil || !ctx.Reply().isHTML() {
 		return
 	}
 
 	// Resolving view by convention and configuration
 	reply := ctx.Reply()
 	if reply.Rdr == nil {
-		reply.Rdr = &HTML{}
+		reply.Rdr = &htmlRender{}
 	}
 
-	htmlRdr := reply.Rdr.(*HTML)
+	htmlRdr := reply.Rdr.(*htmlRender)
 
-	if ess.IsStrEmpty(htmlRdr.Layout) && appIsDefaultLayoutEnabled {
-		htmlRdr.Layout = appDefaultTmplLayout
+	if ess.IsStrEmpty(htmlRdr.Layout) && vm.defaultLayoutEnabled {
+		htmlRdr.Layout = vm.defaultTmplLayout
 	}
 
 	if htmlRdr.ViewArgs == nil {
@@ -128,38 +160,15 @@ func (e *engine) resolveView(ctx *Context) {
 		htmlRdr.ViewArgs[k] = v
 	}
 
-	// ViewArgs values from framework
-	addFrameworkValuesIntoViewArgs(ctx, htmlRdr)
+	// Add ViewArgs values from framework
+	vm.addFrameworkValuesIntoViewArgs(ctx)
 
-	// find view template by convention if not provided
-	findViewTemplate(ctx)
-}
-
-// defaultContentType method returns the Content-Type based on 'render.default'
-// config from aah.conf
-func defaultContentType() *ahttp.ContentType {
-	switch AppConfig().StringDefault("render.default", "") {
-	case "html":
-		return ahttp.ContentTypeHTML
-	case "json":
-		return ahttp.ContentTypeJSON
-	case "xml":
-		return ahttp.ContentTypeXML
-	case "text":
-		return ahttp.ContentTypePlainText
-	default:
-		return nil
-	}
-}
-
-func findViewTemplate(ctx *Context) {
-	htmlRdr := ctx.Reply().Rdr.(*HTML)
 	var tmplPath, tmplName string
 
 	// If user not provided the template info, auto resolve by convention
 	if ess.IsStrEmpty(htmlRdr.Filename) {
-		tmplName = ctx.action.Name + appViewExt
-		tmplPath = filepath.Join(ctx.controller.Namespace, tmplControllerName(ctx))
+		tmplName = ctx.action.Name + vm.fileExt
+		tmplPath = filepath.Join(ctx.controller.Namespace, ctx.controller.NoSuffixName)
 	} else {
 		// User provided view info like layout, filename.
 		// Taking full-control of view rendering.
@@ -172,7 +181,7 @@ func findViewTemplate(ctx *Context) {
 		if strings.HasPrefix(htmlRdr.Filename, "/") {
 			tmplPath = strings.TrimLeft(tmplPath, "/")
 		} else {
-			tmplPath = filepath.Join(ctx.controller.Namespace, tmplControllerName(ctx), tmplPath)
+			tmplPath = filepath.Join(ctx.controller.Namespace, ctx.controller.NoSuffixName, tmplPath)
 		}
 	}
 
@@ -180,81 +189,44 @@ func findViewTemplate(ctx *Context) {
 
 	ctx.Log().Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
 	var err error
-	if htmlRdr.Template, err = appViewEngine.Get(htmlRdr.Layout, tmplPath, tmplName); err != nil {
+	if htmlRdr.Template, err = vm.engine.Get(htmlRdr.Layout, tmplPath, tmplName); err != nil {
 		if err == view.ErrTemplateNotFound {
 			tmplFile := filepath.Join("views", tmplPath, tmplName)
-			if !appViewFileCaseSensitive {
+			if !vm.filenameCaseSensitive {
 				tmplFile = strings.ToLower(tmplFile)
 			}
 
 			ctx.Log().Errorf("template not found: %s", tmplFile)
-			if appIsProfileProd {
+			if vm.a.IsProfileProd() {
 				htmlRdr.ViewArgs["ViewNotFound"] = "View Not Found"
 			} else {
 				htmlRdr.ViewArgs["ViewNotFound"] = "View Not Found: " + tmplFile
 			}
 			htmlRdr.Layout = ""
-			htmlRdr.Template = viewNotFoundTemplate
+			htmlRdr.Template = vm.notFoundTmpl
 		} else {
 			ctx.Log().Error(err)
 		}
 	}
 }
 
-// sanatizeValue method sanatizes string type value, rest we can't do any.
-// It's a user responbility.
-func sanatizeValue(value interface{}) interface{} {
-	switch v := value.(type) {
-	case string:
-		return template.HTMLEscapeString(v)
-	default:
-		return v
-	}
-}
-
-func tmplControllerName(ctx *Context) string {
-	cName := ctx.controller.Name()
-
-	if strings.HasSuffix(cName, controllerNameSuffix) {
-		cName = cName[:len(cName)-controllerNameSuffixLen]
-	}
-	return cName
-}
-
-func addFrameworkValuesIntoViewArgs(ctx *Context, html *HTML) {
+func (vm *viewManager) addFrameworkValuesIntoViewArgs(ctx *Context) {
+	html := ctx.Reply().Rdr.(*htmlRender)
 	html.ViewArgs["Scheme"] = ctx.Req.Scheme
 	html.ViewArgs["Host"] = ctx.Req.Host
 	html.ViewArgs["HTTPMethod"] = ctx.Req.Method
 	html.ViewArgs["RequestPath"] = ctx.Req.Path
-	html.ViewArgs["Locale"] = ctx.Req.Locale
-	html.ViewArgs["ClientIP"] = ctx.Req.ClientIP
+	html.ViewArgs["Locale"] = ctx.Req.Locale()
+	html.ViewArgs["ClientIP"] = ctx.Req.ClientIP()
 	html.ViewArgs["IsJSONP"] = ctx.Req.IsJSONP()
 	html.ViewArgs["IsAJAX"] = ctx.Req.IsAJAX()
 	html.ViewArgs["HTTPReferer"] = ctx.Req.Referer
 	html.ViewArgs["AahVersion"] = Version
-	html.ViewArgs["EnvProfile"] = AppProfile()
-	html.ViewArgs["AppBuildInfo"] = AppBuildInfo()
-	html.ViewArgs[KeyViewArgSubject] = ctx.Subject()
 	html.ViewArgs[KeyViewArgRequestParams] = ctx.Req.Params
-}
+	if ctx.subject != nil {
+		html.ViewArgs[KeyViewArgSubject] = ctx.Subject()
+	}
 
-func init() {
-	AddTemplateFunc(template.FuncMap{
-		"config":          tmplConfig,
-		"rurl":            tmplURL,
-		"rurlm":           tmplURLm,
-		"i18n":            tmplI18n,
-		"pparam":          tmplPathParam,
-		"fparam":          tmplFormParam,
-		"qparam":          tmplQueryParam,
-		"session":         tmplSessionValue,
-		"flash":           tmplFlashValue,
-		"isauthenticated": tmplIsAuthenticated,
-		"hasrole":         tmplHasRole,
-		"hasallroles":     tmplHasAllRoles,
-		"hasanyrole":      tmplHasAnyRole,
-		"ispermitted":     tmplIsPermitted,
-		"ispermittedall":  tmplIsPermittedAll,
-		"anitcsrftoken":   tmplAntiCSRFToken,
-	})
+	html.ViewArgs["EnvProfile"] = vm.a.Profile()
+	html.ViewArgs["AppBuildInfo"] = vm.a.BuildInfo()
 }

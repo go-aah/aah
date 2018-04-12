@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
@@ -28,30 +27,18 @@ const (
 	keyAahResponseDumpBody = "_aahResponseDumpBody"
 )
 
-var (
-	appDumpLog       *log.Logger
-	dumpRequestBody  bool
-	dumpResponseBody bool
-	isDumpLogEnabled bool
-)
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app Unexported methods
+//______________________________________________________________________________
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
-
-func initDumpLog(logsDir string, appCfg *config.Config) error {
-	isDumpLogEnabled = appCfg.BoolDefault("server.dump_log.enable", false)
-	if !isDumpLogEnabled {
-		return nil
-	}
-
+func (a *app) initDumpLog() error {
 	// log file configuration
 	cfg, _ := config.ParseString("")
-	file := appCfg.StringDefault("server.dump_log.file", "")
+	file := a.Config().StringDefault("server.dump_log.file", "")
 
 	cfg.SetString("log.receiver", "file")
 	if ess.IsStrEmpty(file) {
-		cfg.SetString("log.file", filepath.Join(logsDir, getBinaryFileName()+"-dump.log"))
+		cfg.SetString("log.file", filepath.Join(a.logsDir(), a.binaryFilename()+"-dump.log"))
 	} else {
 		abspath, err := filepath.Abs(file)
 		if err != nil {
@@ -62,19 +49,35 @@ func initDumpLog(logsDir string, appCfg *config.Config) error {
 
 	cfg.SetString("log.pattern", "%message")
 
-	dumpRequestBody = appCfg.BoolDefault("server.dump_log.request_body", false)
-	dumpResponseBody = appCfg.BoolDefault("server.dump_log.response_body", false)
-
 	adLog, err := log.New(cfg)
 	if err != nil {
 		return err
 	}
 
-	appDumpLog = adLog
+	a.dumpLog = &dumpLogger{
+		a:                a,
+		e:                a.engine,
+		logger:           adLog,
+		dumpRequestBody:  a.Config().BoolDefault("server.dump_log.request_body", false),
+		dumpResponseBody: a.Config().BoolDefault("server.dump_log.response_body", false),
+	}
+
 	return nil
 }
 
-func composeRequestDump(ctx *Context) string {
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// dumpLogger
+//______________________________________________________________________________
+
+type dumpLogger struct {
+	a                *app
+	e                *engine
+	logger           *log.Logger
+	dumpRequestBody  bool
+	dumpResponseBody bool
+}
+
+func (d *dumpLogger) composeRequestDump(ctx *Context) string {
 	buf := acquireBuffer()
 	defer releaseBuffer(buf)
 
@@ -88,13 +91,13 @@ func composeRequestDump(ctx *Context) string {
 	buf.WriteString(fmt.Sprintf("METHOD: %s\n", ctx.Req.Method))
 	buf.WriteString(fmt.Sprintf("PROTO: %s\n", ctx.Req.Proto))
 	buf.WriteString("HEADERS:\n")
-	buf.WriteString(composeHeaders(ctx.Req.Header))
+	buf.WriteString(d.composeHeaders(ctx.Req.Header))
 
-	if dumpRequestBody {
+	if ctx.a.dumpLog.dumpRequestBody {
 		if len(ctx.Req.Params.Form) > 0 {
 			ctx.Set(keyAahRequestDumpBody, ctx.Req.Params.Form.Encode())
-		} else if ahttp.ContentTypePlainText.IsEqual(ctx.Req.ContentType.Mime) ||
-			ahttp.ContentTypeHTML.IsEqual(ctx.Req.ContentType.Mime) {
+		} else if ahttp.ContentTypePlainText.IsEqual(ctx.Req.ContentType().Mime) ||
+			ahttp.ContentTypeHTML.IsEqual(ctx.Req.ContentType().Mime) {
 			if b, err := ioutil.ReadAll(ctx.Req.Body()); err == nil {
 				ctx.Set(keyAahRequestDumpBody, string(b))
 				ctx.Req.Unwrap().Body = ioutil.NopCloser(bytes.NewReader(b))
@@ -105,19 +108,19 @@ func composeRequestDump(ctx *Context) string {
 	return buf.String()
 }
 
-func composeResponseDump(ctx *Context) string {
+func (d *dumpLogger) composeResponseDump(ctx *Context) string {
 	buf := acquireBuffer()
 	defer releaseBuffer(buf)
 
 	buf.WriteString(fmt.Sprintf("STATUS: %d %s\n", ctx.Res.Status(), http.StatusText(ctx.Res.Status())))
 	buf.WriteString(fmt.Sprintf("BYTES WRITTEN: %d\n", ctx.Res.BytesWritten()))
 	buf.WriteString("HEADERS:\n")
-	buf.WriteString(composeHeaders(ctx.Res.Header()))
+	buf.WriteString(d.composeHeaders(ctx.Res.Header()))
 
 	return buf.String()
 }
 
-func composeHeaders(hdrs http.Header) string {
+func (d *dumpLogger) composeHeaders(hdrs http.Header) string {
 	var str []string
 	for _, k := range sortHeaderKeys(hdrs) {
 		str = append(str, fmt.Sprintf("    %s: %s", k, strings.Join(hdrs[k], ", ")))
@@ -125,17 +128,8 @@ func composeHeaders(hdrs http.Header) string {
 	return strings.Join(str, "\n")
 }
 
-func sortHeaderKeys(hdrs http.Header) []string {
-	keys := make([]string, 0, len(hdrs))
-	for key := range hdrs {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func addReqBodyIntoCtx(ctx *Context, result reflect.Value) {
-	switch ctx.Req.ContentType.Mime {
+func (d *dumpLogger) addReqBodyIntoCtx(ctx *Context, result reflect.Value) {
+	switch ctx.Req.ContentType().Mime {
 	case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeJSONText.Mime:
 		if b, err := json.MarshalIndent(result.Interface(), "", "    "); err == nil {
 			ctx.Set(keyAahRequestDumpBody, string(b))
@@ -147,27 +141,29 @@ func addReqBodyIntoCtx(ctx *Context, result reflect.Value) {
 	}
 }
 
-func addResBodyIntoCtx(ctx *Context) {
+func (d *dumpLogger) addResBodyIntoCtx(ctx *Context) {
 	ct := ctx.Reply().ContType
-	if ahttp.ContentTypeHTML.IsEqual(ct) || ahttp.ContentTypeJSON.IsEqual(ct) || ahttp.ContentTypeJSONText.IsEqual(ct) || ahttp.ContentTypeXML.IsEqual(ct) ||
-		ahttp.ContentTypeXMLText.IsEqual(ct) || ahttp.ContentTypePlainText.IsEqual(ct) {
+	if ahttp.ContentTypeHTML.IsEqual(ct) ||
+		ahttp.ContentTypeJSON.IsEqual(ct) || ahttp.ContentTypeJSONText.IsEqual(ct) ||
+		ahttp.ContentTypeXML.IsEqual(ct) || ahttp.ContentTypeXMLText.IsEqual(ct) ||
+		ahttp.ContentTypePlainText.IsEqual(ct) {
 		ctx.Set(keyAahResponseDumpBody, ctx.Reply().Body().String())
 	}
 }
 
-func dump(ctx *Context) {
-	appDumpLog.Print(ctx.Get(keyAahRequestDump))
-	if dumpRequestBody && ctx.Get(keyAahRequestDumpBody) != nil {
-		appDumpLog.Printf("BODY:\n%v\n", ctx.Get(keyAahRequestDumpBody))
-	} else {
-		appDumpLog.Println()
+func (e *engine) dump(ctx *Context) {
+	dumpStr := fmt.Sprint(ctx.Get(keyAahRequestDump)) + "\n"
+	if e.a.dumpLog.dumpRequestBody && ctx.Get(keyAahRequestDumpBody) != nil {
+		dumpStr += "BODY:\n" + fmt.Sprint(ctx.Get(keyAahRequestDumpBody)) + "\n"
 	}
-	appDumpLog.Print("-----------------------------------------------------------------------\n")
-	appDumpLog.Print(composeResponseDump(ctx))
-	if dumpResponseBody && ctx.Get(keyAahResponseDumpBody) != nil {
-		appDumpLog.Printf("BODY:\n%v\n", ctx.Get(keyAahResponseDumpBody))
-	} else {
-		appDumpLog.Println()
+
+	dumpStr += "\n-----------------------------------------------------------------------\n\n"
+
+	dumpStr += ctx.a.dumpLog.composeResponseDump(ctx) + "\n"
+	if e.a.dumpLog.dumpResponseBody && ctx.Get(keyAahResponseDumpBody) != nil {
+		dumpStr += "BODY:\n" + fmt.Sprint(ctx.Get(keyAahResponseDumpBody)) + "\n"
 	}
-	appDumpLog.Print("=======================================================================")
+	dumpStr += "\n=======================================================================\n"
+
+	e.a.dumpLog.logger.Print(dumpStr)
 }

@@ -9,26 +9,19 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
 )
 
-var appRouter *router.Router
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
-//___________________________________
-
-// AppRouter method returns aah application router instance.
-func AppRouter() *router.Router {
-	return appRouter
-}
+//______________________________________________________________________________
 
 // RouteMiddleware method performs the routing logic.
 func RouteMiddleware(ctx *Context, m *Middleware) {
@@ -39,20 +32,32 @@ func RouteMiddleware(ctx *Context, m *Middleware) {
 	m.Next(ctx)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app methods
+//______________________________________________________________________________
 
-func initRoutes(cfgDir string, appCfg *config.Config) error {
-	routesPath := filepath.Join(cfgDir, "routes.conf")
-	arouter := router.New(routesPath, appCfg)
-	if err := arouter.Load(); err != nil {
+func (a *app) Router() *router.Router {
+	return a.router
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app Unexported methods
+//______________________________________________________________________________
+
+func (a *app) initRouter() error {
+	routesPath := filepath.Join(a.configDir(), "routes.conf")
+	rtr := router.New(routesPath, a.Config())
+	if err := rtr.Load(); err != nil {
 		return fmt.Errorf("routes.conf: %s", err)
 	}
 
-	appRouter = arouter
+	a.router = rtr
 	return nil
 }
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//______________________________________________________________________________
 
 // handleRoute method handle route processing for the incoming request.
 // It does-
@@ -69,7 +74,7 @@ func initRoutes(cfgDir string, appCfg *config.Config) error {
 //  - flowCont
 //  - flowStop
 func handleRoute(ctx *Context) flowResult {
-	domain := AppRouter().FindDomain(ctx.Req)
+	domain := ctx.a.Router().Lookup(ctx.Req.Host)
 	if domain == nil {
 		ctx.Log().Warnf("Domain not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 		ctx.Reply().Error(&Error{
@@ -96,23 +101,12 @@ func handleRoute(ctx *Context) flowResult {
 		return flowStop
 	}
 	ctx.route = route
-
-	// security form auth case
-	if isFormAuthLoginRoute(ctx) {
-		return flowCont
-	}
-
-	// Path parameters
-	if pathParams.Len() > 0 {
-		ctx.Req.Params.Path = make(map[string]string, pathParams.Len())
-		for _, v := range *pathParams {
-			ctx.Req.Params.Path[v.Key] = v.Value
-		}
-	}
+	ctx.Req.Params.Path = pathParams
 
 	// Serving static file
 	if route.IsStatic {
-		if err := appEngine.serveStatic(ctx); err == errFileNotFound {
+		// TODO fix me use better way to access engine
+		if err := ctx.a.staticMgr.Serve(ctx); err == errFileNotFound {
 			ctx.Log().Warnf("Static file not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 			ctx.Reply().done = false
 			ctx.Reply().Error(&Error{
@@ -124,8 +118,13 @@ func handleRoute(ctx *Context) flowResult {
 		return flowStop
 	}
 
-	// No controller or action found for the route
+	// security form auth case
+	if isFormAuthLoginRoute(ctx) {
+		return flowCont
+	}
+
 	if err := ctx.setTarget(route); err == errTargetNotFound {
+		// No controller or action found for the route
 		ctx.Log().Warnf("Target not found, Controller: %s, Action: %s", route.Controller, route.Action)
 		ctx.Reply().Error(&Error{
 			Reason:  ErrControllerOrActionNotFound,
@@ -165,38 +164,31 @@ func composeRouteURL(domain *router.Domain, routePath, anchorLink string) string
 	return appendAnchorLink(routePath, anchorLink)
 }
 
-func findReverseURLDomain(host, routeName string) (*router.Domain, int) {
+func (a *app) findReverseURLDomain(host, routeName string) (*router.Domain, string) {
 	idx := strings.IndexByte(routeName, '.')
 	if idx > 0 {
 		subDomain := routeName[:idx]
 
 		// Returning current subdomain
 		if strings.HasPrefix(host, subDomain) {
-			log.Tracef("ReverseURL: routeName: %s, host: %s", routeName, host)
-			return AppRouter().Domains[host], idx
+			return a.Router().Lookup(host), routeName[idx+1:]
 		}
 
 		// Returning requested subdomain
-		for k, v := range AppRouter().Domains {
+		for k, v := range a.Router().Domains {
 			if strings.HasPrefix(k, subDomain) && v.IsSubDomain {
-				log.Tracef("ReverseURL: routeName: %s, host: %s", routeName, v.Host)
-				return v, idx
+				return v, routeName[idx+1:]
 			}
 		}
 	}
 
 	// return root domain
-	root := AppRouter().RootDomain()
-	log.Tracef("ReverseURL: routeName: %s, host: %s", routeName, root.Host)
-	return root, idx
+	root := a.Router().RootDomain()
+	a.Log().Tracef("ReverseURL: routeName: %s, host: %s", routeName, root.Host)
+	return root, routeName
 }
 
-func createReverseURL(host, routeName string, margs map[string]interface{}, args ...interface{}) string {
-	domain, idx := findReverseURLDomain(host, routeName)
-	if idx > 0 {
-		routeName = routeName[idx+1:]
-	}
-
+func createReverseURL(l log.Loggerer, domain *router.Domain, routeName string, margs map[string]interface{}, args ...interface{}) string {
 	if routeName == "host" {
 		return composeRouteURL(domain, "", "")
 	}
@@ -209,7 +201,13 @@ func createReverseURL(host, routeName string, margs map[string]interface{}, args
 		routePath = domain.ReverseURLm(routeName, margs)
 	}
 
-	return composeRouteURL(domain, routePath, anchorLink)
+	// URL escapes
+	rURL, err := url.Parse(composeRouteURL(domain, routePath, anchorLink))
+	if err != nil {
+		l.Error(err)
+		return ""
+	}
+	return rURL.String()
 }
 
 // handleRtsOptionsMna method handles 1) Redirect Trailing Slash 2) Options
@@ -234,7 +232,7 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 			}
 
 			reply.Redirect(ctx.Req.Unwrap().URL.String())
-			log.Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.path)
+			ctx.Log().Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.path)
 			return nil
 		}
 	}
@@ -268,18 +266,20 @@ func processAllowedMethods(reply *Reply, allowed, prefix string) bool {
 	if !ess.IsStrEmpty(allowed) {
 		allowed += ", " + ahttp.MethodOptions
 		reply.Header(ahttp.HeaderAllow, allowed)
-		log.Debugf("%sAllowed HTTP Methods: %s", prefix, allowed)
+		reply.ctx.Log().Debugf("%sAllowed HTTP Methods: %s", prefix, allowed)
 		return true
 	}
 	return false
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // CORS Implementation
-//___________________________________
+//______________________________________________________________________________
 
+// CORSMiddleware provides Cross-Origin Resource Sharing (CORS) access
+// control feature.
 func CORSMiddleware(ctx *Context, m *Middleware) {
-	// If CORS not enabled move on
+	// If CORS not enabled or nil move on
 	if !ctx.domain.CORSEnabled || ctx.route.CORS == nil {
 		m.Next(ctx)
 		return
@@ -290,7 +290,7 @@ func CORSMiddleware(ctx *Context, m *Middleware) {
 
 	// CORS OPTIONS request
 	if ctx.Req.Method == ahttp.MethodOptions &&
-		!ess.IsStrEmpty(ctx.Req.Header.Get(ahttp.HeaderAccessControlRequestMethod)) {
+		ctx.Req.Header.Get(ahttp.HeaderAccessControlRequestMethod) != "" {
 		handleCORSPreflight(ctx)
 		return
 	}
@@ -381,22 +381,26 @@ func handleCORSPreflight(ctx *Context) {
 	ctx.Reply().Ok().Text("")
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Template methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// View Template methods
+//______________________________________________________________________________
 
 // tmplURL method returns reverse URL by given route name and args.
 // Mapped to Go template func.
-func tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL {
+func (vm *viewManager) tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL {
 	if len(args) == 0 {
-		log.Errorf("router: template 'rurl' - route name is empty: %v", args)
+		vm.a.Log().Errorf("router: template 'rurl' - route name is empty: %v", args)
 		return template.URL("#")
 	}
-	return template.URL(createReverseURL(viewArgs["Host"].(string), args[0].(string), nil, args[1:]...))
+	domain, routeName := vm.a.findReverseURLDomain(viewArgs["Host"].(string), args[0].(string))
+	/* #nosec */
+	return template.URL(createReverseURL(vm.a.Log(), domain, routeName, nil, args[1:]...))
 }
 
 // tmplURLm method returns reverse URL by given route name and
 // map[string]interface{}. Mapped to Go template func.
-func tmplURLm(viewArgs map[string]interface{}, routeName string, args map[string]interface{}) template.URL {
-	return template.URL(createReverseURL(viewArgs["Host"].(string), routeName, args))
+func (vm *viewManager) tmplURLm(viewArgs map[string]interface{}, routeName string, args map[string]interface{}) template.URL {
+	domain, rn := vm.a.findReverseURLDomain(viewArgs["Host"].(string), routeName)
+	/* #nosec */
+	return template.URL(createReverseURL(vm.a.Log(), domain, rn, args))
 }

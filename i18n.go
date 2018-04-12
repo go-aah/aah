@@ -5,7 +5,6 @@
 package aah
 
 import (
-	"html/template"
 	"path/filepath"
 
 	"aahframework.org/ahttp.v0"
@@ -15,68 +14,58 @@ import (
 
 const keyLocale = "Locale"
 
-var appI18n *i18n.I18n
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app methods
+//______________________________________________________________________________
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//___________________________________
-
-// AppDefaultI18nLang method returns aah application i18n default language if
-// configured other framework defaults to "en".
-func AppDefaultI18nLang() string {
-	return AppConfig().StringDefault("i18n.default", "en")
+func (a *app) I18n() *i18n.I18n {
+	return a.i18n
 }
 
-// AppI18n method returns aah application I18n store instance.
-func AppI18n() *i18n.I18n {
-	return appI18n
+// DefaultI18nLang method returns application i18n default language if
+// configured otherwise framework defaults to "en".
+func (a *app) DefaultI18nLang() string {
+	return a.Config().StringDefault("i18n.default", "en")
 }
 
-// AppI18nLocales returns all the loaded locales from i18n store
-func AppI18nLocales() []string {
-	if AppI18n() != nil {
-		return appI18n.Locales()
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app Unexported methods
+//______________________________________________________________________________
+
+func (a *app) initI18n() error {
+	i18nDir := filepath.Join(a.BaseDir(), "i18n")
+	if !ess.IsFileExists(i18nDir) {
+		// i18n directory not exists, scenario could be only API application
+		return nil
 	}
-	return []string{}
-}
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
-
-func appI18nDir() string {
-	return filepath.Join(AppBaseDir(), "i18n")
-}
-
-func initI18n(cfgDir string) error {
-	if ess.IsFileExists(cfgDir) {
-		ai18n := i18n.New()
-		ai18n.DefaultLocale = AppDefaultI18nLang()
-		if err := ai18n.Load(cfgDir); err != nil {
-			return err
-		}
-
-		appI18n = ai18n
+	ai18n := i18n.New()
+	ai18n.DefaultLocale = a.DefaultI18nLang()
+	if err := ai18n.Load(i18nDir); err != nil {
+		return err
 	}
+
+	a.i18n = ai18n
+
 	return nil
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Template methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// View Template methods
+//______________________________________________________________________________
 
 // tmplI18n method is mapped to Go template func for resolving i18n values.
-func tmplI18n(viewArgs map[string]interface{}, key string, args ...interface{}) template.HTML {
+func (vm *viewManager) tmplI18n(viewArgs map[string]interface{}, key string, args ...interface{}) string {
 	if locale, ok := viewArgs[keyLocale].(*ahttp.Locale); ok {
 		if len(args) == 0 {
-			return template.HTML(AppI18n().Lookup(locale, key, args...))
+			return vm.a.I18n().Lookup(locale, key)
 		}
 
 		sanatizeArgs := make([]interface{}, 0)
 		for _, value := range args {
 			sanatizeArgs = append(sanatizeArgs, sanatizeValue(value))
 		}
-		return template.HTML(AppI18n().Lookup(locale, key, sanatizeArgs...))
+		return vm.a.I18n().Lookup(locale, key, sanatizeArgs...)
 	}
-	return template.HTML("")
+	return ""
 }

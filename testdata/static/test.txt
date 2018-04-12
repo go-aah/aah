@@ -1,1 +1,0 @@
-This is file content of test.txt

@@ -9,14 +9,10 @@ import (
 	"reflect"
 	"strings"
 
-	"aahframework.org/essentials.v0"
 	"aahframework.org/router.v0"
 )
 
 const (
-	controllerNameSuffix    = "Controller"
-	controllerNameSuffixLen = len(controllerNameSuffix)
-
 	// Interceptor Action Name
 	incpBeforeActionName  = "Before"
 	incpAfterActionName   = "After"
@@ -25,45 +21,17 @@ const (
 )
 
 var (
-	cRegistry = make(controllerRegistry)
-	emptyArg  = make([]reflect.Value, 0)
+	emptyArg = make([]reflect.Value, 0)
 )
 
-type (
-	// ControllerInfo holds all application controller
-	controllerRegistry map[string]*controllerInfo
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app methods
+//______________________________________________________________________________
 
-	// ControllerInfo holds information of single controller information.
-	controllerInfo struct {
-		Type            reflect.Type
-		Namespace       string
-		Methods         map[string]*MethodInfo
-		EmbeddedIndexes [][]int
-	}
-
-	// MethodInfo holds information of single method information in the controller.
-	MethodInfo struct {
-		Name       string
-		Parameters []*ParameterInfo
-	}
-
-	// ParameterInfo holds information of single parameter in the method.
-	ParameterInfo struct {
-		Name string
-		Type reflect.Type
-		kind reflect.Kind
-	}
-)
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//___________________________________
-
-// AddController method adds given controller into controller registory.
-// with "dereferenced" a.k.a "indirecting".
-func AddController(c interface{}, methods []*MethodInfo) {
+func (a *app) AddController(c interface{}, methods []*MethodInfo) {
 	cType := actualType(c)
 
+	// Method Info
 	methodMapping := map[string]*MethodInfo{}
 	for _, method := range methods {
 		for _, param := range method.Parameters {
@@ -73,18 +41,41 @@ func AddController(c interface{}, methods []*MethodInfo) {
 		methodMapping[strings.ToLower(method.Name)] = method
 	}
 
+	// Controller Info
 	key, namespace := createRegistryKeyAndNamespace(cType)
-	cRegistry[key] = &controllerInfo{
+	controllerInfo := &controllerInfo{
+		Name:            cType.Name(),
 		Type:            cType,
 		Namespace:       namespace,
 		Methods:         methodMapping,
 		EmbeddedIndexes: findEmbeddedContext(cType),
 	}
+
+	// Fully qualified name
+	controllerInfo.FqName = path.Join(controllerInfo.Namespace, controllerInfo.Name)
+
+	// No suffix name which maps to controller name towards directory
+	// name by convention.
+	// For e.g.: UserController, User ==> User
+	noSuffixName := controllerInfo.Name
+	if strings.HasSuffix(noSuffixName, "Controller") {
+		noSuffixName = noSuffixName[:len(noSuffixName)-len("Controller")]
+	}
+	controllerInfo.NoSuffixName = noSuffixName
+
+	a.engine.cregistry.Add(key, controllerInfo)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// ControllerRegistry methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// ControllerRegistry
+//______________________________________________________________________________
+
+// ControllerRegistry struct holds all application controller and related methods.
+type controllerRegistry map[string]*controllerInfo
+
+func (cr controllerRegistry) Add(key string, ci *controllerInfo) {
+	cr[key] = ci
+}
 
 // Lookup method returns `controllerInfo` if given route controller and
 // action exists in the controller registory.
@@ -95,7 +86,7 @@ func (cr controllerRegistry) Lookup(route *router.Route) *controllerInfo {
 
 	for _, ci := range cr {
 		// match exact character case
-		if strings.HasSuffix(route.Controller, ci.Name()) {
+		if strings.HasSuffix(route.Controller, ci.Name) {
 			return ci
 		}
 	}
@@ -103,48 +94,40 @@ func (cr controllerRegistry) Lookup(route *router.Route) *controllerInfo {
 	return nil
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// ControllerInfo methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// ControllerInfo
+//______________________________________________________________________________
 
-// Name method returns name of the controller.
-func (ci *controllerInfo) Name() string {
-	return ci.Type.Name()
+// ControllerInfo holds information of single controller information.
+type controllerInfo struct {
+	Name            string
+	FqName          string
+	NoSuffixName    string
+	Type            reflect.Type
+	Namespace       string
+	Methods         map[string]*MethodInfo
+	EmbeddedIndexes [][]int
 }
 
-// FindMethod method returns the `aah.MethodInfo` by given name
+// MethodInfo holds information of single method information in the controller.
+type MethodInfo struct {
+	Name       string
+	Parameters []*ParameterInfo
+}
+
+// ParameterInfo holds information of single parameter in the method.
+type ParameterInfo struct {
+	Name string
+	Type reflect.Type
+	kind reflect.Kind
+}
+
+// Lookup method returns the `aah.MethodInfo` by given name
 // (case insensitive) otherwise nil.
-func (ci *controllerInfo) FindMethod(name string) *MethodInfo {
+func (ci *controllerInfo) Lookup(name string) *MethodInfo {
 	if method, found := ci.Methods[strings.ToLower(name)]; found {
 		return method
 	}
 
 	return nil
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
-
-func actualType(v interface{}) reflect.Type {
-	vt := reflect.TypeOf(v)
-	if vt.Kind() == reflect.Ptr {
-		vt = vt.Elem()
-	}
-
-	return vt
-}
-
-// createRegistryKeyAndNamespace method creates the controller registry key.
-func createRegistryKeyAndNamespace(cType reflect.Type) (string, string) {
-	namespace := cType.PkgPath()
-	if idx := strings.Index(namespace, "controllers"); idx > -1 {
-		namespace = namespace[idx+11:]
-	}
-
-	if ess.IsStrEmpty(namespace) {
-		return strings.ToLower(cType.Name()), ""
-	}
-
-	return strings.ToLower(path.Join(namespace[1:], cType.Name())), namespace[1:]
 }

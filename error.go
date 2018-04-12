@@ -8,12 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"reflect"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 )
 
 // aah errors
@@ -31,9 +29,8 @@ var (
 	ErrAuthenticationFailed       = errors.New("aah: authentication failed")
 	ErrGeneric                    = errors.New("aah: generic error")
 	ErrValidation                 = errors.New("aah: validation error")
+	ErrRenderResponse             = errors.New("aah: render response error")
 )
-
-var errorHandlerFunc ErrorHandlerFunc
 
 var defaultErrorHTMLTemplate = template.Must(template.New("error_template").Parse(`<!DOCTYPE html>
 <html>
@@ -82,87 +79,85 @@ var defaultErrorHTMLTemplate = template.Must(template.New("error_template").Pars
 </html>
 `))
 
-type (
-	// Error structure used to represent the error details in the aah framework.
-	Error struct {
-		Reason  error       `json:"-" xml:"-"`
-		Code    int         `json:"code,omitempty" xml:"code,omitempty"`
-		Message string      `json:"message,omitempty" xml:"message,omitempty"`
-		Data    interface{} `json:"data,omitempty" xml:"data,omitempty"`
-	}
+// ErrorHandlerFunc is function type, it used to define centralized error handler
+// for your application.
+//
+//  - Return `true`, if you have handled your errors, aah just writes the reply on the wire.
+//
+//  - Return `false`, you may or may not handled the error, aah would propagate the error further to default
+// error handler.
+type ErrorHandlerFunc func(ctx *Context, err *Error) bool
 
-	// ErrorHandlerFunc is function type, it used to define centralized error handler
-	// for your application.
+// ErrorHandler is interface for implement controller level error handling
+type ErrorHandler interface {
+	// HandleError method is to handle error on your controller
 	//
 	//  - Return `true`, if you have handled your errors, aah just writes the reply on the wire.
 	//
-	//  - Return `false`, you may or may not handled the error, aah would propagate the error further to default
-	// error handler.
-	ErrorHandlerFunc func(ctx *Context, err *Error) bool
+	//  - Return `false`, aah would propagate the error further to centralized
+	// error handler, if not handled and then finally default error handler would take place.
+	HandleError(err *Error) bool
+}
 
-	// ErrorHandler is interface for implement controller level error handling
-	ErrorHandler interface {
-		// HandleError method is to handle error on your controller
-		//
-		//  - Return `true`, if you have handled your errors, aah just writes the reply on the wire.
-		//
-		//  - Return `false`, aah would propagate the error further to centralized
-		// error handler, if not handled and then finally default error handler would take place.
-		HandleError(err *Error) bool
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app Unexported methods
+//______________________________________________________________________________
+
+func (a *app) initError() error {
+	a.errorMgr = &errorManager{
+		a: a,
+		e: a.engine,
 	}
-)
 
-// SetErrorHandler method is used to register centralized application error
-// handling. If custom handler is not then default error handler is used.
-func SetErrorHandler(handlerFunc ErrorHandlerFunc) {
-	if handlerFunc != nil {
-		log.Infof("Custom centralized application error handler registered: %v", funcName(handlerFunc))
-		errorHandlerFunc = handlerFunc
+	return nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Error Manager
+//______________________________________________________________________________
+
+type errorManager struct {
+	a           *app
+	e           *engine
+	handlerFunc ErrorHandlerFunc
+}
+
+func (er *errorManager) SetHandler(handlerFn ErrorHandlerFunc) {
+	if handlerFn != nil {
+		er.handlerFunc = handlerFn
+		er.a.Log().Infof("Custom centralized application error handler is registered with: %v", funcName(handlerFn))
 	}
 }
 
-// Error method is to comply error interface.
-func (e *Error) Error() string {
-	return fmt.Sprintf("%v, code '%v', message '%s'", e.Reason, e.Code, e.Message)
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported package methods
-//___________________________________
-
-// handleError method is aah centralized error handler.
-func handleError(ctx *Context, err *Error) {
+func (er *errorManager) Handle(ctx *Context) {
 	// GitHub #132 Call Controller error handler if exists
-	if target := reflect.ValueOf(ctx.target); target.IsValid() {
-		if eh, ok := target.Interface().(ErrorHandler); ok {
-			ctx.Log().Trace("Calling controller error handler")
-			if eh.HandleError(err) {
-				return
-			}
+	if ceh, ok := ctx.target.(ErrorHandler); ok {
+		ctx.Log().Trace("Calling controller error handler: %s.HandleError", ctx.controller.FqName)
+		if ceh.HandleError(ctx.Reply().err) {
+			return
 		}
 	}
 
 	// Call Centralized error handler if registered
-	if errorHandlerFunc != nil {
+	if er.handlerFunc != nil {
 		ctx.Log().Trace("Calling centralized error handler")
-		if errorHandlerFunc(ctx, err) {
+		if er.handlerFunc(ctx, ctx.Reply().err) {
 			return
 		}
 	}
 
 	// Call Default error handler
 	ctx.Log().Trace("Calling default error handler")
-	defaultErrorHandlerFunc(ctx, err)
+	er.DefaultHandler(ctx, ctx.Reply().err)
 }
 
-// defaultErrorHandlerFunc method is used when custom error handler is not register
+// DefaultHandler method is used when custom error handler is not register
 // in the aah. It writes the response based on HTTP Content-Type.
-func defaultErrorHandlerFunc(ctx *Context, err *Error) bool {
+func (er *errorManager) DefaultHandler(ctx *Context, err *Error) bool {
 	ct := ctx.Reply().ContType
+
 	if ess.IsStrEmpty(ct) {
-		if ict := identifyContentType(ctx); ict != nil {
-			ct = ict.Mime
-		}
+		ct = ctx.detectContentType().Mime
 	} else if idx := strings.IndexByte(ct, ';'); idx > 0 {
 		ct = ct[:idx]
 	}
@@ -170,29 +165,49 @@ func defaultErrorHandlerFunc(ctx *Context, err *Error) bool {
 	// Set HTTP response code
 	ctx.Reply().Status(err.Code)
 
+	// Set it to nil do not expose any app internal info
+	err.Data = nil
+
 	switch ct {
 	case ahttp.ContentTypeJSON.Mime, ahttp.ContentTypeJSONText.Mime:
 		ctx.Reply().JSON(err)
 	case ahttp.ContentTypeXML.Mime, ahttp.ContentTypeXMLText.Mime:
 		ctx.Reply().XML(err)
 	case ahttp.ContentTypeHTML.Mime:
-		html := acquireHTML()
-		html.Filename = fmt.Sprintf("%d%s", err.Code, appViewExt)
-		if AppViewEngine() != nil {
-			tmpl, er := AppViewEngine().Get("", "errors", html.Filename)
-			if tmpl == nil || er != nil {
-				html.Template = defaultErrorHTMLTemplate
-			} else {
+		html := &htmlRender{
+			Template: defaultErrorHTMLTemplate,
+			Filename: fmt.Sprintf("%d%s", err.Code, ctx.a.viewMgr.fileExt),
+			ViewArgs: Data{"Error": err},
+		}
+
+		if ctx.a.viewMgr != nil {
+			tmpl, terr := ctx.a.ViewEngine().Get("", "errors", html.Filename)
+			if tmpl != nil || terr == nil {
 				html.Template = tmpl
 			}
-		} else {
-			html.Template = defaultErrorHTMLTemplate
 		}
-		html.ViewArgs = Data{"Error": err}
-		addFrameworkValuesIntoViewArgs(ctx, html)
+
 		ctx.Reply().Rdr = html
+		ctx.a.viewMgr.addFrameworkValuesIntoViewArgs(ctx)
 	default:
 		ctx.Reply().Text("%d - %s", err.Code, err.Message)
 	}
 	return true
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Error type
+//______________________________________________________________________________
+
+// Error structure used to represent the error details in the aah framework.
+type Error struct {
+	Reason  error       `json:"-" xml:"-"`
+	Code    int         `json:"code,omitempty" xml:"code,omitempty"`
+	Message string      `json:"message,omitempty" xml:"message,omitempty"`
+	Data    interface{} `json:"data,omitempty" xml:"data,omitempty"`
+}
+
+// Error method is to comply error interface.
+func (e *Error) Error() string {
+	return fmt.Sprintf("%v, code '%v', message '%s'", e.Reason, e.Code, e.Message)
 }

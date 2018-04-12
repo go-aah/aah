@@ -2,51 +2,41 @@
 // go-aah/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-// Package aah is A scalable, performant, rapid development Web framework for Go
-// https://aahframework.org
+// Package aah is A secure, flexible, rapid Go web framework.
+//
+// Visit: https://aahframework.org to know more.
 package aah
 
 import (
-	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"net/http"
+	"os"
 	"path"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/aruntime.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/i18n.v0"
 	"aahframework.org/log.v0"
+	"aahframework.org/router.v0"
+	"aahframework.org/security.v0"
+	"golang.org/x/crypto/acme/autocert"
 )
 
-// aah application variables
+const (
+	defaultEnvProfile = "dev"
+	profilePrefix     = "env."
+	defaultHTTPPort   = "8080"
+)
+
 var (
-	appName               string
-	appInstanceName       string
-	appDesc               string
-	appImportPath         string
-	appProfile            string
-	appBaseDir            string
-	appIsPackaged         bool
-	appHTTPReadTimeout    time.Duration
-	appHTTPWriteTimeout   time.Duration
-	appHTTPMaxHdrBytes    int
-	appSSLCert            string
-	appSSLKey             string
-	appIsSSLEnabled       bool
-	appIsLetsEncrypt      bool
-	appIsProfileProd      bool
-	appMultipartMaxMemory int64
-	appMaxBodyBytesSize   int64
-	appPID                int
-	appInitialized        bool
-	appBuildInfo          *BuildInfo
-
-	appDefaultProfile  = "dev"
-	appProfilePrefix   = "env."
-	appDefaultHTTPPort = "8080"
-	appLogFatal        = log.Fatal
-
 	goPath   string
 	goSrcDir string
 )
@@ -59,70 +49,245 @@ type BuildInfo struct {
 	Date       string
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// aah application instance
+//______________________________________________________________________________
 
-// AppName method returns aah application name from app config `name` otherwise app name
-// of the base directory.
-func AppName() string {
-	return appName
+func newApp() *app {
+	aahApp := &app{
+		mu: new(sync.Mutex),
+	}
+
+	aahApp.engine = &engine{
+		a:         aahApp,
+		ctxPool:   new(sync.Pool),
+		cregistry: make(controllerRegistry),
+	}
+	aahApp.engine.ctxPool.New = func() interface{} { return aahApp.engine.newContext() }
+
+	aahApp.eventStore = &EventStore{
+		a:           aahApp,
+		e:           aahApp.engine,
+		subscribers: make(map[string]EventCallbacks),
+		mu:          new(sync.Mutex),
+	}
+
+	return aahApp
 }
 
-// AppInstanceName method returns aah application instane name from app config `instance_name`
-// otherwise empty string.
-func AppInstanceName() string {
-	return appInstanceName
+// app struct represents aah application.
+type app struct {
+	name                   string
+	importPath             string
+	baseDir                string
+	webApp                 bool
+	physicalPathMode       bool
+	isPackaged             bool
+	envProfile             string
+	sslCert                string
+	sslKey                 string
+	httpReadTimeout        time.Duration
+	httpWriteTimeout       time.Duration
+	httpMaxHdrBytes        int
+	multipartMaxMemory     int64
+	maxBodyBytes           int64
+	pid                    int
+	buildInfo              *BuildInfo
+	serverHeaderEnabled    bool
+	serverHeader           string
+	requestIDEnabled       bool
+	requestIDHeaderKey     string
+	gzipEnabled            bool
+	secureHeadersEnabled   bool
+	accessLogEnabled       bool
+	staticAccessLogEnabled bool
+	dumpLogEnabled         bool
+	defaultContentType     *ahttp.ContentType
+	renderPretty           bool
+	shutdownGraceTimeStr   string
+	shutdownGraceTimeout   time.Duration
+	initialized            bool
+	hotReload              bool
+
+	cfg            *config.Config
+	tlsCfg         *tls.Config
+	engine         *engine
+	server         *http.Server
+	redirectServer *http.Server
+	autocertMgr    *autocert.Manager
+	router         *router.Router
+	eventStore     *EventStore
+	bindMgr        *bindManager
+	i18n           *i18n.I18n
+	securityMgr    *security.Manager
+	viewMgr        *viewManager
+	staticMgr      *staticManager
+	errorMgr       *errorManager
+	sc             chan os.Signal
+
+	logger    log.Loggerer
+	accessLog *accessLogger
+	dumpLog   *dumpLogger
+
+	mu *sync.Mutex
 }
 
-// AppDesc method returns aah application friendly description from app config
-// otherwise empty string.
-func AppDesc() string {
-	return appDesc
+func (a *app) Init(importPath string) error {
+	a.importPath = path.Clean(importPath)
+	var err error
+
+	if a.buildInfo == nil {
+		// aah CLI is accessing application for build purpose
+		_ = log.SetLevel("warn")
+		if err = a.initPath(); err != nil {
+			return err
+		}
+		if err = a.initConfig(); err != nil {
+			return err
+		}
+		if err = a.initConfigValues(); err != nil {
+			return err
+		}
+		if err = a.initRouter(); err != nil {
+			return err
+		}
+		_ = log.SetLevel("debug")
+	} else {
+		if err = a.initPath(); err != nil {
+			return err
+		}
+		if err = a.initConfig(); err != nil {
+			return err
+		}
+
+		// publish `OnInit` server event
+		a.EventStore().sortAndPublishSync(&Event{Name: EventOnInit})
+
+		if err = a.initConfigValues(); err != nil {
+			return err
+		}
+		if err = a.initLog(); err != nil {
+			return err
+		}
+		if err = a.initI18n(); err != nil {
+			return err
+		}
+		if err = a.initRouter(); err != nil {
+			return err
+		}
+		if err = a.initBind(); err != nil {
+			return err
+		}
+		if err = a.initView(); err != nil {
+			return err
+		}
+		if err = a.initSecurity(); err != nil {
+			return err
+		}
+		if err = a.initStatic(); err != nil {
+			return err
+		}
+		if err = a.initError(); err != nil {
+			return err
+		}
+		if a.accessLogEnabled {
+			if err = a.initAccessLog(); err != nil {
+				return err
+			}
+		}
+		if a.dumpLogEnabled {
+			if err = a.initDumpLog(); err != nil {
+				return err
+			}
+		}
+	}
+
+	a.initialized = true
+	return nil
 }
 
-// AppProfile returns aah application configuration profile name
-// For e.g.: dev, prod, etc. Default is `dev`
-func AppProfile() string {
-	return appProfile
+func (a *app) Name() string {
+	return a.name
+}
+func (a *app) InstanceName() string {
+	return a.Config().StringDefault("instance_name", "")
 }
 
-// AppBaseDir method returns the application base or binary current directory
-// 	For e.g.:
-// 		$GOPATH/src/github.com/user/myproject
-// 		<app/binary/path/base/directory>
-func AppBaseDir() string {
-	return appBaseDir
+func (a *app) Type() string {
+	return a.Config().StringDefault("type", "")
 }
 
-// AppImportPath method returns the application Go import path.
-func AppImportPath() string {
-	return appImportPath
+func (a *app) Desc() string {
+	return a.Config().StringDefault("desc", "")
 }
 
-// AppHTTPAddress method returns aah application HTTP address otherwise empty string
-func AppHTTPAddress() string {
-	return AppConfig().StringDefault("server.address", "")
+func (a *app) BaseDir() string {
+	return a.baseDir
 }
 
-// AppHTTPPort method returns aah application HTTP port number based on `server.port`
-// value. Possible outcomes are user-defined port, `80`, `443` and `8080`.
-func AppHTTPPort() string {
-	port := firstNonZeroString(AppConfig().StringDefault("server.proxyport", ""),
-		AppConfig().StringDefault("server.port", appDefaultHTTPPort))
-	return parsePort(port)
+func (a *app) ImportPath() string {
+	return a.importPath
 }
 
-// AppBuildInfo method return user application version no.
-func AppBuildInfo() *BuildInfo {
-	return appBuildInfo
+func (a *app) HTTPAddress() string {
+	return a.Config().StringDefault("server.address", "")
 }
 
-// AllAppProfiles method returns all the aah application environment profile names.
-func AllAppProfiles() []string {
+func (a *app) HTTPPort() string {
+	port := firstNonZeroString(
+		a.Config().StringDefault("server.proxyport", ""),
+		a.Config().StringDefault("server.port", defaultHTTPPort),
+	)
+	return a.parsePort(port)
+}
+
+func (a *app) BuildInfo() *BuildInfo {
+	return a.buildInfo
+}
+
+func (a *app) SetBuildInfo(bi *BuildInfo) {
+	a.buildInfo = bi
+}
+
+func (a *app) IsPackaged() bool {
+	return a.isPackaged
+}
+
+func (a *app) SetPackaged(pack bool) {
+	a.isPackaged = pack
+}
+
+func (a *app) Profile() string {
+	return a.envProfile
+}
+
+func (a *app) SetProfile(profile string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if err := a.Config().SetProfile(profilePrefix + profile); err != nil {
+		return err
+	}
+
+	a.envProfile = profile
+	return nil
+}
+
+func (a *app) IsProfile(profile string) bool {
+	return a.Profile() == profile
+}
+
+func (a *app) IsProfileDev() bool {
+	return a.IsProfile("dev")
+}
+
+func (a *app) IsProfileProd() bool {
+	return a.IsProfile("prod")
+}
+
+func (a *app) AllProfiles() []string {
 	var profiles []string
 
-	for _, v := range AppConfig().KeysByPath("env") {
+	for _, v := range a.Config().KeysByPath("env") {
 		if v == "default" {
 			continue
 		}
@@ -132,132 +297,84 @@ func AllAppProfiles() []string {
 	return profiles
 }
 
-// AppIsSSLEnabled method returns true if aah application is enabled with SSL
-// otherwise false.
-func AppIsSSLEnabled() bool {
-	return appIsSSLEnabled
+func (a *app) IsSSLEnabled() bool {
+	return a.cfg.BoolDefault("server.ssl.enable", false)
 }
 
-// SetAppProfile method sets given profile as current aah application profile.
-//		For Example:
-//
-//		aah.SetAppProfile("prod")
-func SetAppProfile(profile string) error {
-	if err := AppConfig().SetProfile(appProfilePrefix + profile); err != nil {
-		return err
+func (a *app) IsLetsEncrypt() bool {
+	return a.cfg.BoolDefault("server.ssl.lets_encrypt.enable", false)
+}
+
+func (a *app) NewChildLogger(fields log.Fields) log.Loggerer {
+	return a.Log().WithFields(fields)
+}
+
+func (a *app) SetTLSConfig(tlsCfg *tls.Config) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.tlsCfg = tlsCfg
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app Unexported methods
+//______________________________________________________________________________
+
+func (a *app) configDir() string {
+	return filepath.Join(a.BaseDir(), "config")
+}
+
+func (a *app) logsDir() string {
+	return filepath.Join(a.BaseDir(), "logs")
+}
+
+func (a *app) showDeprecatedMsg(msg string, v ...interface{}) {
+	a.Log().Warnf("DEPRECATED: "+msg, v...)
+	a.Log().Warn("Deprecated elements are planned to be remove in major release v1.0.0")
+}
+
+func (a *app) initPath() (err error) {
+	if goPath, err = ess.GoPath(); err != nil && !a.IsPackaged() {
+		return
 	}
 
-	appProfile = profile
-	appIsProfileProd = appProfile == "prod"
-	return nil
-}
-
-// SetAppBuildInfo method sets the user application build info into aah instance.
-func SetAppBuildInfo(bi *BuildInfo) {
-	appBuildInfo = bi
-}
-
-// SetAppPackaged method sets the info of binary is packaged or not.
-func SetAppPackaged(pack bool) {
-	appIsPackaged = pack
-}
-
-// NewChildLogger method create a child logger from aah application default logger.
-func NewChildLogger(ctx log.Fields) *log.Logger {
-	return appLogger.New(ctx)
-}
-
-// Init method initializes `aah` application, if anything goes wrong during
-// initialize process, it will log it as fatal msg and exit.
-func Init(importPath string) {
-	defer aahRecover()
-
-	if appBuildInfo == nil {
-		// aah CLI is accessing application for build purpose
-		_ = log.SetLevel("warn")
-		logAsFatal(initPath(importPath))
-		logAsFatal(initConfig(appConfigDir()))
-		logAsFatal(initAppVariables())
-		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
-		_ = log.SetLevel("debug")
-	} else {
-		logAsFatal(initPath(importPath))
-		logAsFatal(initConfig(appConfigDir()))
-
-		// publish `OnInit` server event
-		AppEventStore().sortAndPublishSync(&Event{Name: EventOnInit})
-
-		logAsFatal(initAppVariables())
-		logAsFatal(initLogs(appLogsDir(), AppConfig()))
-		logAsFatal(initI18n(appI18nDir()))
-		logAsFatal(initRoutes(appConfigDir(), AppConfig()))
-		logAsFatal(initViewEngine(appViewsDir(), AppConfig()))
-		logAsFatal(initSecurity(AppConfig()))
-		if AppConfig().BoolDefault("server.access_log.enable", false) {
-			logAsFatal(initAccessLog(appLogsDir(), AppConfig()))
+	// If its a physical location, we got the app base directory
+	if filepath.IsAbs(a.ImportPath()) {
+		if !ess.IsFileExists(a.ImportPath()) {
+			err = fmt.Errorf("path does not exists: %s", a.ImportPath())
+			return
 		}
-		if AppConfig().BoolDefault("server.dump_log.enable", false) {
-			logAsFatal(initDumpLog(appLogsDir(), AppConfig()))
-		}
+
+		a.baseDir = a.ImportPath()
+		a.physicalPathMode = true
+		return
 	}
 
-	appInitialized = true
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
-
-func aahRecover() {
-	if r := recover(); r != nil {
-		strace := aruntime.NewStacktrace(r, AppConfig())
-		buf := &bytes.Buffer{}
-		strace.Print(buf)
-
-		log.Error("Recovered from panic:")
-		log.Error(buf.String())
-	}
-}
-
-func appLogsDir() string {
-	return filepath.Join(AppBaseDir(), "logs")
-}
-
-func logAsFatal(err error) {
-	if err != nil {
-		appLogFatal(err)
-	}
-}
-
-func initPath(importPath string) (err error) {
-	appImportPath = path.Clean(importPath)
-	if goPath, err = ess.GoPath(); err != nil && !appIsPackaged {
-		return err
-	}
-
+	// import path mode
 	goSrcDir = filepath.Join(goPath, "src")
-	appBaseDir = filepath.Join(goSrcDir, filepath.FromSlash(appImportPath))
-	if appIsPackaged {
-		appBaseDir = getWorkingDir()
+	a.baseDir = filepath.Join(goSrcDir, filepath.FromSlash(a.ImportPath()))
+	if a.isPackaged {
+		wd, er := os.Getwd()
+		if err != nil {
+			err = er
+			return
+		}
+		a.baseDir = wd
 	}
 
-	if !ess.IsFileExists(appBaseDir) {
-		return fmt.Errorf("aah application does not exists: %s", appImportPath)
+	if !ess.IsFileExists(a.BaseDir()) {
+		err = fmt.Errorf("import path does not exists: %s", a.ImportPath())
 	}
 
-	return nil
+	return
 }
 
-func initAppVariables() error {
-	var err error
-	cfg := AppConfig()
+func (a *app) initConfigValues() (err error) {
+	cfg := a.Config()
+	a.name = cfg.StringDefault("name", filepath.Base(a.BaseDir()))
+	a.webApp = strings.ToLower(cfg.StringDefault("type", "")) == "web"
 
-	appName = cfg.StringDefault("name", filepath.Base(AppBaseDir()))
-	appInstanceName = cfg.StringDefault("instance_name", "")
-	appDesc = cfg.StringDefault("desc", "")
-
-	appProfile = cfg.StringDefault("env.active", appDefaultProfile)
-	if err = SetAppProfile(AppProfile()); err != nil {
+	a.envProfile = cfg.StringDefault("env.active", defaultEnvProfile)
+	if err = a.SetProfile(a.Profile()); err != nil {
 		return err
 	}
 
@@ -267,42 +384,147 @@ func initAppVariables() error {
 		return errors.New("'server.timeout.{read|write}' value is not a valid time unit")
 	}
 
-	if appHTTPReadTimeout, err = time.ParseDuration(readTimeout); err != nil {
+	if a.httpReadTimeout, err = time.ParseDuration(readTimeout); err != nil {
 		return fmt.Errorf("'server.timeout.read': %s", err)
 	}
 
-	if appHTTPWriteTimeout, err = time.ParseDuration(writeTimeout); err != nil {
+	if a.httpWriteTimeout, err = time.ParseDuration(writeTimeout); err != nil {
 		return fmt.Errorf("'server.timeout.write': %s", err)
 	}
 
 	maxHdrBytesStr := cfg.StringDefault("server.max_header_bytes", "1mb")
 	if maxHdrBytes, er := ess.StrToBytes(maxHdrBytesStr); er == nil {
-		appHTTPMaxHdrBytes = int(maxHdrBytes)
+		a.httpMaxHdrBytes = int(maxHdrBytes)
 	} else {
 		return errors.New("'server.max_header_bytes' value is not a valid size unit")
 	}
 
-	appIsSSLEnabled = cfg.BoolDefault("server.ssl.enable", false)
-	appIsLetsEncrypt = cfg.BoolDefault("server.ssl.lets_encrypt.enable", false)
-	appSSLCert = cfg.StringDefault("server.ssl.cert", "")
-	appSSLKey = cfg.StringDefault("server.ssl.key", "")
-	if err = checkSSLConfigValues(AppIsSSLEnabled(), appIsLetsEncrypt, appSSLCert, appSSLKey); err != nil {
+	a.sslCert = cfg.StringDefault("server.ssl.cert", "")
+	a.sslKey = cfg.StringDefault("server.ssl.key", "")
+	if err = a.checkSSLConfigValues(); err != nil {
 		return err
 	}
 
-	if err = initAutoCertManager(cfg); err != nil {
+	if err = a.initAutoCertManager(); err != nil {
 		return err
 	}
 
 	maxBodySizeStr := cfg.StringDefault("request.max_body_size", "5mb")
-	if appMaxBodyBytesSize, err = ess.StrToBytes(maxBodySizeStr); err != nil {
+	if a.maxBodyBytes, err = ess.StrToBytes(maxBodySizeStr); err != nil {
 		return errors.New("'request.max_body_size' value is not a valid size unit")
 	}
 
 	multipartMemoryStr := cfg.StringDefault("request.multipart_size", "32mb")
-	if appMultipartMaxMemory, err = ess.StrToBytes(multipartMemoryStr); err != nil {
+	if a.multipartMaxMemory, err = ess.StrToBytes(multipartMemoryStr); err != nil {
 		return errors.New("'request.multipart_size' value is not a valid size unit")
 	}
 
+	a.serverHeader = cfg.StringDefault("server.header", "")
+	a.serverHeaderEnabled = !ess.IsStrEmpty(a.serverHeader)
+	a.requestIDEnabled = cfg.BoolDefault("request.id.enable", true)
+	a.requestIDHeaderKey = cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID)
+	a.secureHeadersEnabled = cfg.BoolDefault("security.http_header.enable", true)
+	a.gzipEnabled = cfg.BoolDefault("render.gzip.enable", true)
+	a.accessLogEnabled = cfg.BoolDefault("server.access_log.enable", false)
+	a.staticAccessLogEnabled = cfg.BoolDefault("server.access_log.static_file", true)
+	a.dumpLogEnabled = cfg.BoolDefault("server.dump_log.enable", false)
+	a.renderPretty = cfg.BoolDefault("render.pretty", false)
+	a.defaultContentType = resolveDefaultContentType(a.Config().StringDefault("render.default", ""))
+	if a.defaultContentType == nil {
+		return errors.New("'render.default' config value is not defined")
+	}
+
+	ahttp.GzipLevel = cfg.IntDefault("render.gzip.level", 5)
+	if !(ahttp.GzipLevel >= 1 && ahttp.GzipLevel <= 9) {
+		return fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel)
+	}
+
+	a.shutdownGraceTimeStr = cfg.StringDefault("server.timeout.grace_shutdown", "60s")
+	if !(strings.HasSuffix(a.shutdownGraceTimeStr, "s") || strings.HasSuffix(a.shutdownGraceTimeStr, "m")) {
+		a.Log().Warn("'server.timeout.grace_shutdown' value is not a valid time unit, assigning default value 60s")
+		a.shutdownGraceTimeStr = "60s"
+	}
+	a.shutdownGraceTimeout, _ = time.ParseDuration(a.shutdownGraceTimeStr)
+
 	return nil
+}
+
+func (a *app) checkSSLConfigValues() error {
+	if a.IsSSLEnabled() {
+		if !a.IsLetsEncrypt() && (ess.IsStrEmpty(a.sslCert) || ess.IsStrEmpty(a.sslKey)) {
+			return errors.New("SSL config is incomplete; either enable 'server.ssl.lets_encrypt.enable' or provide 'server.ssl.cert' & 'server.ssl.key' value")
+		} else if !a.IsLetsEncrypt() {
+			if !ess.IsFileExists(a.sslCert) {
+				return fmt.Errorf("SSL cert file not found: %s", a.sslCert)
+			}
+
+			if !ess.IsFileExists(a.sslKey) {
+				return fmt.Errorf("SSL key file not found: %s", a.sslKey)
+			}
+		}
+	}
+
+	if a.IsLetsEncrypt() && !a.IsSSLEnabled() {
+		return errors.New("let's encrypt enabled, however SSL 'server.ssl.enable' is not enabled for application")
+	}
+	return nil
+}
+
+func (a *app) initAutoCertManager() error {
+	if !a.IsSSLEnabled() || !a.IsLetsEncrypt() {
+		return nil
+	}
+
+	cfgKeyPrefix := "server.ssl.lets_encrypt"
+	hostPolicy, found := a.cfg.StringList(cfgKeyPrefix + ".host_policy")
+	if !found || len(hostPolicy) == 0 {
+		return errors.New("'server.ssl.lets_encrypt.host_policy' is empty, provide at least one hostname")
+	}
+
+	renewBefore := time.Duration(a.cfg.IntDefault(cfgKeyPrefix+".renew_before", 10))
+
+	a.autocertMgr = &autocert.Manager{
+		Prompt:      autocert.AcceptTOS,
+		HostPolicy:  autocert.HostWhitelist(hostPolicy...),
+		RenewBefore: 24 * renewBefore * time.Hour,
+		ForceRSA:    a.cfg.BoolDefault(cfgKeyPrefix+".force_rsa", false),
+		Email:       a.cfg.StringDefault(cfgKeyPrefix+".email", ""),
+	}
+
+	if cacheDir := a.cfg.StringDefault(cfgKeyPrefix+".cache_dir", ""); !ess.IsStrEmpty(cacheDir) {
+		a.autocertMgr.Cache = autocert.DirCache(cacheDir)
+	}
+
+	return nil
+}
+
+func (a *app) binaryFilename() string {
+	if a.buildInfo == nil {
+		return ""
+	}
+	return ess.StripExt(a.BuildInfo().BinaryName)
+}
+
+func (a *app) parsePort(port string) string {
+	if !ess.IsStrEmpty(port) {
+		return port
+	}
+
+	if a.IsSSLEnabled() {
+		return "443"
+	}
+
+	return "80"
+}
+
+func (a *app) aahRecover() {
+	if r := recover(); r != nil {
+		strace := aruntime.NewStacktrace(r, a.Config())
+		buf := acquireBuffer()
+		defer releaseBuffer(buf)
+		strace.Print(buf)
+
+		a.Log().Error("Recovered from panic:")
+		a.Log().Error(buf.String())
+	}
 }
