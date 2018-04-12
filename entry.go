@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	slog "log"
 	"strings"
 	"sync"
 	"time"
@@ -192,6 +193,50 @@ func (e *Entry) Panicf(format string, v ...interface{}) {
 func (e *Entry) Panicln(v ...interface{}) {
 	e.output(LevelPanic, fmt.Sprint(v...))
 	panic(e)
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Entry level methods
+//___________________________________
+
+// IsLevelInfo method returns true if log level is INFO otherwise false.
+func (e *Entry) IsLevelInfo() bool {
+	return e.logger.IsLevelInfo()
+}
+
+// IsLevelError method returns true if log level is ERROR otherwise false.
+func (e *Entry) IsLevelError() bool {
+	return e.logger.IsLevelError()
+}
+
+// IsLevelWarn method returns true if log level is WARN otherwise false.
+func (e *Entry) IsLevelWarn() bool {
+	return e.logger.IsLevelWarn()
+}
+
+// IsLevelDebug method returns true if log level is DEBUG otherwise false.
+func (e *Entry) IsLevelDebug() bool {
+	return e.logger.IsLevelDebug()
+}
+
+// IsLevelTrace method returns true if log level is TRACE otherwise false.
+func (e *Entry) IsLevelTrace() bool {
+	return e.logger.IsLevelTrace()
+}
+
+// IsLevelFatal method returns true if log level is FATAL otherwise false.
+func (e *Entry) IsLevelFatal() bool {
+	return e.logger.IsLevelFatal()
+}
+
+// IsLevelPanic method returns true if log level is PANIC otherwise false.
+func (e *Entry) IsLevelPanic() bool {
+	return e.logger.IsLevelPanic()
+}
+
+// ToGoLogger method wraps the current log writer into Go Logger instance.
+func (e *Entry) ToGoLogger() *slog.Logger {
+	return e.logger.ToGoLogger()
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

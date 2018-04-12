@@ -107,7 +107,17 @@ type (
 		WithFields(fields Fields) Loggerer
 		WithField(key string, value interface{}) Loggerer
 
+		// Level Info
+		IsLevelInfo() bool
+		IsLevelError() bool
+		IsLevelWarn() bool
+		IsLevelDebug() bool
+		IsLevelTrace() bool
+		IsLevelFatal() bool
+		IsLevelPanic() bool
+
 		// For standard logger drop-in replacement
+		ToGoLogger() *slog.Logger
 		Print(v ...interface{})
 		Printf(format string, v ...interface{})
 		Println(v ...interface{})

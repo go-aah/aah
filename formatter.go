@@ -5,6 +5,7 @@
 package log
 
 import (
+	"bytes"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -98,8 +99,7 @@ var (
 // 	For e.g.:
 // 		2016-07-02 22:26:01.530 INFO formatter_test.go L29 - Yes, I would love to see
 func textFormatter(flags []ess.FmtFlagPart, entry *Entry) []byte {
-	buf := acquireBuffer()
-	defer releaseBuffer(buf)
+	buf := new(bytes.Buffer)
 
 	for _, part := range flags {
 		switch part.Flag {
