@@ -5,12 +5,10 @@
 package aah
 
 import (
-	"reflect"
 	"sort"
 	"sync"
 
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
+	log "aahframework.org/log.v0"
 )
 
 const (
@@ -47,26 +45,11 @@ const (
 	EventOnPostAuth = "OnPostAuth"
 )
 
-var (
-	appEventStore    = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
-	onRequestFunc    EventCallbackFunc
-	onPreReplyFunc   EventCallbackFunc
-	onAfterReplyFunc EventCallbackFunc
-	onPreAuthFunc    EventCallbackFunc
-	onPostAuthFunc   EventCallbackFunc
-)
-
 type (
 	// Event type holds the details of single event.
 	Event struct {
 		Name string
 		Data interface{}
-	}
-
-	// EventStore type holds all the events belongs to aah application.
-	EventStore struct {
-		subscribers map[string]EventCallbacks
-		mu          *sync.Mutex
 	}
 
 	// EventCallback type is store particular callback in priority for calling sequance.
@@ -84,154 +67,109 @@ type (
 	EventCallbackFunc func(e *Event)
 )
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app event methods
+//______________________________________________________________________________
 
-// AppEventStore method returns aah application event store.
-func AppEventStore() *EventStore {
-	return appEventStore
-}
-
-// PublishEvent method publishes events to subscribed callbacks asynchronously. It
-// means each subscribed callback executed via goroutine.
-func PublishEvent(eventName string, data interface{}) {
-	AppEventStore().Publish(&Event{Name: eventName, Data: data})
-}
-
-// PublishEventSync method publishes events to subscribed callbacks synchronously.
-func PublishEventSync(eventName string, data interface{}) {
-	AppEventStore().PublishSync(&Event{Name: eventName, Data: data})
-}
-
-// SubscribeEvent method is to subscribe to new or existing event.
-func SubscribeEvent(eventName string, ec EventCallback) {
-	AppEventStore().Subscribe(eventName, ec)
-}
-
-// SubscribeEventf method is to subscribe to new or existing event by `EventCallbackFunc`.
-func SubscribeEventf(eventName string, ecf EventCallbackFunc) {
-	AppEventStore().Subscribe(eventName, EventCallback{Callback: ecf})
-}
-
-// UnsubscribeEvent method is to unsubscribe by event name and `EventCallback`
-// from app event store.
-func UnsubscribeEvent(eventName string, ec EventCallback) {
-	UnsubscribeEventf(eventName, ec.Callback)
-}
-
-// UnsubscribeEventf method is to unsubscribe by event name and `EventCallbackFunc`
-// from app event store.
-func UnsubscribeEventf(eventName string, ecf EventCallbackFunc) {
-	AppEventStore().Unsubscribe(eventName, ecf)
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods - Server events
-//___________________________________
-
-// OnInit method is to subscribe to aah application `OnInit` event. `OnInit` event
-// published right after the aah application configuration `aah.conf` initialized.
-func OnInit(ecb EventCallbackFunc, priority ...int) {
-	AppEventStore().Subscribe(EventOnInit, EventCallback{
+func (a *app) OnInit(ecb EventCallbackFunc, priority ...int) {
+	a.eventStore.Subscribe(EventOnInit, EventCallback{
 		Callback: ecb,
 		CallOnce: true,
 		priority: parsePriority(priority...),
 	})
 }
 
-// OnStart method is to subscribe to aah application `OnStart` event. `OnStart`
-// event pubished right before the aah server listen and serving request.
-func OnStart(ecb EventCallbackFunc, priority ...int) {
-	AppEventStore().Subscribe(EventOnStart, EventCallback{
+func (a *app) OnStart(ecb EventCallbackFunc, priority ...int) {
+	a.eventStore.Subscribe(EventOnStart, EventCallback{
 		Callback: ecb,
 		CallOnce: true,
 		priority: parsePriority(priority...),
 	})
 }
 
-// OnShutdown method is to subscribe to aah application `OnShutdown` event.
-// `OnShutdown` event pubished right before the aah server is stopped Listening
-// and serving request.
-func OnShutdown(ecb EventCallbackFunc, priority ...int) {
-	AppEventStore().Subscribe(EventOnShutdown, EventCallback{
+func (a *app) OnShutdown(ecb EventCallbackFunc, priority ...int) {
+	a.eventStore.Subscribe(EventOnShutdown, EventCallback{
 		Callback: ecb,
 		CallOnce: true,
 		priority: parsePriority(priority...),
 	})
 }
 
-// OnRequest method is to subscribe to aah server `OnRequest` extension point.
-// `OnRequest` called for every incoming request.
-//
-// The `aah.Context` object passed to the extension functions is decorated with
-// the `ctx.SetURL()` and `ctx.SetMethod()` methods. Calls to these methods will
-// impact how the request is routed and can be used for rewrite rules.
-//
-// Route is not yet populated/evaluated at this point.
-func OnRequest(sef EventCallbackFunc) {
-	if onRequestFunc == nil {
-		onRequestFunc = sef
-		return
-	}
-	log.Warn("'OnRequest' aah server extension point is already subscribed.")
+func (a *app) OnRequest(sef EventCallbackFunc) {
+	a.engine.OnRequest(sef)
 }
 
-// OnPreReply method is to subscribe to aah server `OnPreReply` extension point.
-// `OnPreReply` called for every reply from aah server.
-//
-// Except when
-//   1) `Reply().Done()`,
-//   2) `Reply().Redirect(...)` is called.
-// Refer `aah.Reply.Done()` godoc for more info.
-func OnPreReply(sef EventCallbackFunc) {
-	if onPreReplyFunc == nil {
-		onPreReplyFunc = sef
-		return
-	}
-	log.Warn("'OnPreReply' aah server extension point is already subscribed.")
+func (a *app) OnPreReply(sef EventCallbackFunc) {
+	a.engine.OnPreReply(sef)
 }
 
-// OnAfterReply method is to subscribe to aah server `OnAfterReply` extension point.
-// `OnAfterReply` called for every reply from aah server.
-//
-// Except when
-//   1) `Reply().Done()`,
-//   2) `Reply().Redirect(...)` is called.
-// Refer `aah.Reply.Done()` godoc for more info.
-func OnAfterReply(sef EventCallbackFunc) {
-	if onAfterReplyFunc == nil {
-		onAfterReplyFunc = sef
-		return
-	}
-	log.Warn("'OnAfterReply' aah server extension point is already subscribed.")
+func (a *app) OnAfterReply(sef EventCallbackFunc) {
+	a.engine.OnAfterReply(sef)
 }
 
-// OnPreAuth method is to subscribe to aah application `OnPreAuth` event.
-// `OnPreAuth` event pubished right before the aah server is authenticates &
-// authorizes an incoming request.
-func OnPreAuth(sef EventCallbackFunc) {
-	if onPreAuthFunc == nil {
-		onPreAuthFunc = sef
-		return
-	}
-	log.Warn("'OnPreAuth' aah server extension point is already subscribed.")
+func (a *app) OnPreAuth(sef EventCallbackFunc) {
+	a.engine.OnPreAuth(sef)
 }
 
-// OnPostAuth method is to subscribe to aah application `OnPreAuth` event.
-// `OnPostAuth` event pubished right after the aah server is authenticates &
-// authorizes an incoming request.
-func OnPostAuth(sef EventCallbackFunc) {
-	if onPostAuthFunc == nil {
-		onPostAuthFunc = sef
-		return
-	}
-	log.Warn("'OnPostAuth' aah server extension point is already subscribed.")
+func (a *app) OnPostAuth(sef EventCallbackFunc) {
+	a.engine.OnPostAuth(sef)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// EventStore methods
-//___________________________________
+func (a *app) PublishEvent(eventName string, data interface{}) {
+	a.eventStore.Publish(&Event{Name: eventName, Data: data})
+}
+
+func (a *app) PublishEventSync(eventName string, data interface{}) {
+	a.eventStore.PublishSync(&Event{Name: eventName, Data: data})
+}
+
+func (a *app) SubscribeEvent(eventName string, ec EventCallback) {
+	a.eventStore.Subscribe(eventName, ec)
+}
+
+func (a *app) SubscribeEventFunc(eventName string, ecf EventCallbackFunc) {
+	a.eventStore.Subscribe(eventName, EventCallback{Callback: ecf})
+}
+
+// DEPRECATED: use SubscribeEventFunc instead.
+func (a *app) SubscribeEventf(eventName string, ecf EventCallbackFunc) {
+	a.showDeprecatedMsg("SubscribeEventf, use 'SubscribeEventFunc' instead")
+	a.SubscribeEventFunc(eventName, ecf)
+}
+
+func (a *app) UnsubscribeEvent(eventName string, ec EventCallback) {
+	a.UnsubscribeEventFunc(eventName, ec.Callback)
+}
+
+func (a *app) UnsubscribeEventFunc(eventName string, ecf EventCallbackFunc) {
+	a.eventStore.Unsubscribe(eventName, ecf)
+}
+
+// DEPRECATED: use UnsubscribeEventFunc instead.
+func (a *app) UnsubscribeEventf(eventName string, ecf EventCallbackFunc) {
+	a.showDeprecatedMsg("UnsubscribeEventf, use 'UnsubscribeEventFunc' instead")
+	a.UnsubscribeEventFunc(eventName, ecf)
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app methods
+//______________________________________________________________________________
+
+func (a *app) EventStore() *EventStore {
+	return a.eventStore
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// EventStore
+//______________________________________________________________________________
+
+// EventStore type holds all the events belongs to aah application.
+type EventStore struct {
+	a           *app
+	e           *engine
+	subscribers map[string]EventCallbacks
+	mu          *sync.Mutex
+}
 
 // IsEventExists method returns true if given event is exists in the event store
 // otherwise false.
@@ -247,7 +185,7 @@ func (es *EventStore) Publish(e *Event) {
 		return
 	}
 
-	log.Debugf("Event [%s] published in asynchronous mode", e.Name)
+	es.a.Log().Debugf("Event [%s] published in asynchronous mode", e.Name)
 	for idx, ec := range es.subscribers[e.Name] {
 		if ec.CallOnce {
 			if !ec.published {
@@ -273,7 +211,12 @@ func (es *EventStore) PublishSync(e *Event) {
 		return
 	}
 
-	log.Debugf("Event [%s] publishing in synchronous mode", e.Name)
+	if es.a.Log() == nil {
+		log.Debugf("Event [%s] publishing in synchronous mode", e.Name)
+	} else {
+		es.a.Log().Debugf("Event [%s] publishing in synchronous mode", e.Name)
+	}
+
 	for idx, ec := range es.subscribers[e.Name] {
 		if ec.CallOnce {
 			if !ec.published {
@@ -307,7 +250,7 @@ func (es *EventStore) Unsubscribe(event string, callback EventCallbackFunc) {
 	es.mu.Lock()
 	defer es.mu.Unlock()
 	if !es.IsEventExists(event) {
-		log.Warnf("Subscribers not exists for event: %s", event)
+		es.a.Log().Warnf("Subscribers not exists for event: %s", event)
 		return
 	}
 
@@ -315,12 +258,12 @@ func (es *EventStore) Unsubscribe(event string, callback EventCallbackFunc) {
 		ec := es.subscribers[event][idx]
 		if funcEqual(ec.Callback, callback) {
 			es.subscribers[event] = append(es.subscribers[event][:idx], es.subscribers[event][idx+1:]...)
-			log.Debugf("Callback: %s, unsubscribed from event: %s", funcName(callback), event)
+			es.a.Log().Debugf("Callback: %s, unsubscribed from event: %s", funcName(callback), event)
 			return
 		}
 	}
 
-	log.Warnf("Given callback: %s, not found in eventStore for event: %s", funcName(callback), event)
+	es.a.Log().Warnf("Given callback: %s, not found in eventStore for event: %s", funcName(callback), event)
 }
 
 // SubscriberCount method returns subscriber count for given event name.
@@ -338,70 +281,11 @@ func (es *EventStore) sortAndPublishSync(e *Event) {
 	}
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // EventCallbacks methods
-//___________________________________
+//______________________________________________________________________________
 
 // Sort interface for EventCallbacks
 func (ec EventCallbacks) Len() int           { return len(ec) }
 func (ec EventCallbacks) Less(i, j int) bool { return ec[i].priority < ec[j].priority }
 func (ec EventCallbacks) Swap(i, j int)      { ec[i], ec[j] = ec[j], ec[i] }
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
-
-func publishOnRequestEvent(ctx *Context) {
-	if onRequestFunc != nil {
-		ctx.decorated = true
-		onRequestFunc(&Event{Name: EventOnRequest, Data: ctx})
-		ctx.decorated = false
-	}
-}
-
-func publishOnPreReplyEvent(ctx *Context) {
-	if onPreReplyFunc != nil {
-		onPreReplyFunc(&Event{Name: EventOnPreReply, Data: ctx})
-	}
-}
-
-func publishOnAfterReplyEvent(ctx *Context) {
-	if onAfterReplyFunc != nil {
-		onAfterReplyFunc(&Event{Name: EventOnAfterReply, Data: ctx})
-	}
-}
-
-func publishOnPreAuthEvent(ctx *Context) {
-	if onPreAuthFunc != nil {
-		onPreAuthFunc(&Event{Name: EventOnPreAuth, Data: ctx})
-	}
-}
-
-func publishOnPostAuthEvent(ctx *Context) {
-	if onPostAuthFunc != nil {
-		onPostAuthFunc(&Event{Name: EventOnPostAuth, Data: ctx})
-	}
-}
-
-// funcEqual method to compare to function callback interface data. In effect
-// comparing the pointers of the indirect layer. Read more about the
-// representation of functions here: http://golang.org/s/go11func
-func funcEqual(a, b interface{}) bool {
-	av := reflect.ValueOf(&a).Elem()
-	bv := reflect.ValueOf(&b).Elem()
-	return av.InterfaceData() == bv.InterfaceData()
-}
-
-// funcName method to get callback function name.
-func funcName(f interface{}) string {
-	fi := ess.GetFunctionInfo(f)
-	return fi.Name
-}
-
-func parsePriority(priority ...int) int {
-	pr := 1 // default priority is 1
-	if len(priority) > 0 && priority[0] > 0 {
-		pr = priority[0]
-	}
-	return pr
-}

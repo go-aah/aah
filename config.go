@@ -5,142 +5,119 @@
 package aah
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 
 	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 )
 
-var (
-	appConfig   *config.Config
-	isHotReload = false
-)
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app methods
+//______________________________________________________________________________
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//___________________________________
-
-// AppConfig method returns aah application configuration instance.
-func AppConfig() *config.Config {
-	return appConfig
+func (a *app) Config() *config.Config {
+	return a.cfg
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app Unexported methods
+//______________________________________________________________________________
 
-func appConfigDir() string {
-	return filepath.Join(AppBaseDir(), "config")
-}
-
-func initConfig(cfgDir string) error {
-	confPath := filepath.Join(cfgDir, "aah.conf")
-
-	cfg, err := config.LoadFile(confPath)
+func (a *app) initConfig() error {
+	aahConf := filepath.Join(a.configDir(), "aah.conf")
+	cfg, err := config.LoadFile(aahConf)
 	if err != nil {
-		return fmt.Errorf("aah application %s", err)
+		return err
 	}
 
-	appConfig = cfg
-
+	a.cfg = cfg
+	a.sc = make(chan os.Signal, 2)
 	return nil
 }
 
-func hotReloadConfig() {
-	isHotReload = true
-	defer func() { isHotReload = false }()
-
-	log.Info("Configuration reload and application reinitialization is in-progress ...")
-	var err error
-
-	cfgDir := appConfigDir()
-	if err = initConfig(cfgDir); err != nil {
-		log.Errorf("Unable to reload aah.conf: %v", err)
-		return
-	}
-
-	if err = initAppVariables(); err != nil {
-		log.Errorf("Unable to reinitialize aah application variables: %v", err)
-		return
-	}
-
-	logDir := appLogsDir()
-	if err = initLogs(logDir, AppConfig()); err != nil {
-		log.Errorf("Unable to reinitialize application logger: %v", err)
-		return
-	}
-
-	i18nDir := appI18nDir()
-	if ess.IsFileExists(i18nDir) {
-		if err = initI18n(i18nDir); err != nil {
-			log.Errorf("Unable to reinitialize application i18n: %v", err)
-			return
-		}
-	}
-
-	if err = initRoutes(cfgDir, AppConfig()); err != nil {
-		log.Errorf("Unable to reinitialize application %v", err)
-		return
-	}
-
-	viewDir := appViewsDir()
-	if ess.IsFileExists(viewDir) {
-		if err = initViewEngine(viewDir, AppConfig()); err != nil {
-			log.Errorf("Unable to reinitialize application views: %v", err)
-			return
-		}
-	}
-
-	if err = initSecurity(AppConfig()); err != nil {
-		log.Errorf("Unable to reinitialize application security manager: %v", err)
-		return
-	}
-
-	if AppConfig().BoolDefault("server.access_log.enable", false) {
-		if err = initAccessLog(logDir, AppConfig()); err != nil {
-			log.Errorf("Unable to reinitialize application access log: %v", err)
-			return
-		}
-	}
-
-	if AppConfig().BoolDefault("server.dump_log.enable", false) {
-		if err = initDumpLog(logDir, AppConfig()); err != nil {
-			log.Errorf("Unable to reinitialize application dump log: %v", err)
-			return
-		}
-	}
-
-	log.Info("Configuration reload and application reinitialization is successful")
-}
-
-func listenForHotConfigReload() {
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGHUP)
+func (a *app) listenForHotConfigReload() {
+	signal.Notify(a.sc, syscall.SIGHUP)
 	for {
-		<-sc
-		log.Warn("Hangup signal (SIGHUP) received")
-		if appProfile == appDefaultProfile {
-			log.Info("Currently active environment profile is 'dev', config hot-reload is not applicable")
+		<-a.sc
+		a.Log().Warn("Hangup signal (SIGHUP) received")
+		if a.IsProfile(defaultEnvProfile) {
+			a.Log().Info("Currently active environment profile is 'dev', config hot-reload is not applicable")
 			continue
 		}
-		hotReloadConfig()
+		a.hotReloadConfig()
 	}
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Template methods
-//___________________________________
+func (a *app) hotReloadConfig() {
+	a.hotReload = true
+	defer func() { a.hotReload = false }()
+
+	a.Log().Info("Configuration reload and application reinitialization is in-progress ...")
+	var err error
+
+	if err = a.initConfig(); err != nil {
+		a.Log().Errorf("Unable to reload aah.conf: %v", err)
+		return
+	}
+
+	if err = a.initConfigValues(); err != nil {
+		a.Log().Errorf("Unable to reinitialize aah application variables: %v", err)
+		return
+	}
+
+	if err = a.initLog(); err != nil {
+		a.Log().Errorf("Unable to reinitialize application logger: %v", err)
+		return
+	}
+
+	if err = a.initI18n(); err != nil {
+		a.Log().Errorf("Unable to reinitialize application i18n: %v", err)
+		return
+	}
+
+	if err = a.initRouter(); err != nil {
+		a.Log().Errorf("Unable to reinitialize application %v", err)
+		return
+	}
+
+	if err = a.initView(); err != nil {
+		a.Log().Errorf("Unable to reinitialize application views: %v", err)
+		return
+	}
+
+	if err = a.initSecurity(); err != nil {
+		a.Log().Errorf("Unable to reinitialize application security manager: %v", err)
+		return
+	}
+
+	if a.accessLogEnabled {
+		if err = a.initAccessLog(); err != nil {
+			a.Log().Errorf("Unable to reinitialize application access log: %v", err)
+			return
+		}
+	}
+
+	if a.dumpLogEnabled {
+		if err = a.initDumpLog(); err != nil {
+			a.Log().Errorf("Unable to reinitialize application dump log: %v", err)
+			return
+		}
+	}
+
+	a.Log().Info("Configuration reload and application reinitialization is successfully")
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// View Template methods
+//______________________________________________________________________________
 
 // tmplConfig method provides access to application config on templates.
-func tmplConfig(key string) interface{} {
-	if value, found := AppConfig().Get(key); found {
+func (vm *viewManager) tmplConfig(key string) interface{} {
+	if value, found := vm.a.Config().Get(key); found {
 		return sanatizeValue(value)
 	}
-	log.Warnf("app config key not found: %v", key)
+	vm.a.Log().Warnf("app config key not found: %s", key)
 	return ""
 }

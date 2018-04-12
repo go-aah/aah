@@ -5,28 +5,20 @@
 package aah
 
 import (
-	"errors"
-	"fmt"
-	"io/ioutil"
+	"html/template"
+	"io"
+	"mime"
 	"net"
 	"net/http"
-	"os"
 	"path"
 	"path/filepath"
 	"reflect"
-	"strconv"
+	"sort"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 )
-
-func getWorkingDir() string {
-	wd, _ := os.Getwd()
-	return wd
-}
 
 func isValidTimeUnit(str string, units ...string) bool {
 	for _, v := range units {
@@ -37,75 +29,28 @@ func isValidTimeUnit(str string, units ...string) bool {
 	return false
 }
 
-func checkSSLConfigValues(isSSLEnabled, isLetsEncrypt bool, sslCert, sslKey string) error {
-	if isSSLEnabled {
-		if !isLetsEncrypt && (ess.IsStrEmpty(sslCert) || ess.IsStrEmpty(sslKey)) {
-			return errors.New("SSL config is incomplete; either enable 'server.ssl.lets_encrypt.enable' or provide 'server.ssl.cert' & 'server.ssl.key' value")
-		} else if !isLetsEncrypt {
-			if !ess.IsFileExists(sslCert) {
-				return fmt.Errorf("SSL cert file not found: %s", sslCert)
-			}
-
-			if !ess.IsFileExists(sslKey) {
-				return fmt.Errorf("SSL key file not found: %s", sslKey)
-			}
-		}
-	}
-
-	if isLetsEncrypt && !isSSLEnabled {
-		return errors.New("let's encrypt enabled, however SSL 'server.ssl.enable' is not enabled for application")
-	}
-	return nil
-}
-
-func writePID(cfg *config.Config, appBinaryName, appBaseDir string) {
-	// Get the application PID
-	appPID = os.Getpid()
-
-	pidFile := cfg.StringDefault("pid_file", "")
-	if ess.IsStrEmpty(pidFile) {
-		pidFile = filepath.Join(appBaseDir, appBinaryName)
-	}
-
-	if !strings.HasSuffix(pidFile, ".pid") {
-		pidFile += ".pid"
-	}
-
-	if err := ioutil.WriteFile(pidFile, []byte(strconv.Itoa(appPID)), 0644); err != nil {
-		log.Error(err)
-	}
-}
-
-func getBinaryFileName() string {
-	return ess.StripExt(AppBuildInfo().BinaryName)
-}
-
-// This method is similar to
-// https://golang.org/src/net/http/transfer.go#bodyAllowedForStatus
-func isResponseBodyAllowed(code int) bool {
-	if (code >= http.StatusContinue && code < http.StatusOK) ||
-		code == http.StatusNoContent || code == http.StatusNotModified {
+// bodyAllowedForStatus reports whether a given response status code
+// permits a body. See RFC 2616, section 4.4.
+//
+// This method taken from https://golang.org/src/net/http/transfer.go#bodyAllowedForStatus
+func bodyAllowedForStatus(status int) bool {
+	switch {
+	case status >= 100 && status <= 199:
+		return false
+	case status == 204: // Status NoContent
+		return false
+	case status == 304: // Status NotModified
 		return false
 	}
 	return true
-}
-
-func resolveControllerName(ctx *Context) string {
-	if ess.IsStrEmpty(ctx.controller.Namespace) {
-		return ctx.controller.Name()
-	}
-	return path.Join(ctx.controller.Namespace, ctx.controller.Name())
-}
-
-func isCharsetExists(value string) bool {
-	return strings.Contains(value, "charset")
 }
 
 // TODO this method is candidate for essentials library
 // move it when you get a time
 func firstNonZeroString(values ...string) string {
 	for _, v := range values {
-		if !ess.IsStrEmpty(v) {
+		v = strings.TrimSpace(v)
+		if len(v) > 0 {
 			return v
 		}
 	}
@@ -123,27 +68,23 @@ func firstNonZeroInt64(values ...int64) int64 {
 	return 0
 }
 
-func identifyContentType(ctx *Context) *ahttp.ContentType {
-	// based on 'Accept' Header
-	if !ess.IsStrEmpty(ctx.Req.AcceptContentType.Mime) &&
-		ctx.Req.AcceptContentType.Mime != "*/*" {
-		return ctx.Req.AcceptContentType
+// resolveDefaultContentType method returns the Content-Type based on given
+// input.
+func resolveDefaultContentType(ct string) *ahttp.ContentType {
+	switch ct {
+	case "html":
+		return ahttp.ContentTypeHTML
+	case "json":
+		return ahttp.ContentTypeJSON
+	case "xml":
+		return ahttp.ContentTypeXML
+	case "text":
+		return ahttp.ContentTypePlainText
+	case "js":
+		return ahttp.ContentTypeJavascript
+	default:
+		return nil
 	}
-
-	// as per 'render.default' in aah.conf or nil
-	return defaultContentType()
-}
-
-func parsePort(port string) string {
-	if !ess.IsStrEmpty(port) {
-		return port
-	}
-
-	if AppIsSSLEnabled() {
-		return "443"
-	}
-
-	return "80"
 }
 
 func parseHost(address, toPort string) string {
@@ -170,4 +111,161 @@ func kind(t reflect.Type) reflect.Kind {
 		return t.Elem().Kind()
 	}
 	return t.Kind()
+}
+
+func actualType(v interface{}) reflect.Type {
+	vt := reflect.TypeOf(v)
+	if vt.Kind() == reflect.Ptr {
+		vt = vt.Elem()
+	}
+
+	return vt
+}
+
+// createRegistryKeyAndNamespace method creates the controller registry key.
+func createRegistryKeyAndNamespace(cType reflect.Type) (string, string) {
+	namespace := cType.PkgPath()
+	if idx := strings.Index(namespace, "controllers"); idx > -1 {
+		namespace = namespace[idx+11:]
+	}
+
+	if ess.IsStrEmpty(namespace) {
+		return strings.ToLower(cType.Name()), ""
+	}
+
+	if strings.HasPrefix(namespace, string(filepath.Separator)) {
+		namespace = namespace[1:]
+	}
+
+	return strings.ToLower(path.Join(namespace, cType.Name())), namespace
+}
+
+// findEmbeddedContext method does breadth-first search on struct anonymous
+// field to find `aah.Context` index positions.
+func findEmbeddedContext(controllerType reflect.Type) [][]int {
+	var indexes [][]int
+	type nodeType struct {
+		val   reflect.Value
+		index []int
+	}
+
+	queue := []nodeType{{reflect.New(controllerType), []int{}}}
+
+	for len(queue) > 0 {
+		var (
+			node     = queue[0]
+			elem     = node.val
+			elemType = elem.Type()
+		)
+
+		if elemType.Kind() == reflect.Ptr {
+			elem = elem.Elem()
+			elemType = elem.Type()
+		}
+
+		queue = queue[1:]
+		if elemType.Kind() != reflect.Struct {
+			continue
+		}
+
+		for i := 0; i < elem.NumField(); i++ {
+			// skip non-anonymous fields
+			field := elemType.Field(i)
+			if !field.Anonymous {
+				continue
+			}
+
+			// If it's a `aah.Context`, record the field indexes
+			if field.Type == ctxPtrType {
+				indexes = append(indexes, append(node.index, i))
+				continue
+			}
+
+			fieldValue := elem.Field(i)
+			queue = append(queue,
+				nodeType{fieldValue, append(append([]int{}, node.index...), i)})
+		}
+	}
+
+	return indexes
+}
+
+func sortHeaderKeys(hdrs http.Header) []string {
+	keys := make([]string, 0, len(hdrs))
+	for key := range hdrs {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func parseCacheBustPart(name, part string) string {
+	if strings.Contains(name, part) {
+		name = strings.Replace(name, "-"+part, "", 1)
+		name = strings.Replace(name, part+"-", "", 1)
+	}
+	return name
+}
+
+// checkGzipRequired method return for static which requires gzip response.
+func checkGzipRequired(file string) bool {
+	switch filepath.Ext(file) {
+	case ".css", ".js", ".html", ".htm", ".json", ".xml",
+		".txt", ".csv", ".ttf", ".otf", ".eot":
+		return true
+	default:
+		return false
+	}
+}
+
+// detectFileContentType method to identify the static file content-type.
+func detectFileContentType(file string, content io.ReadSeeker) (string, error) {
+	ctype := mime.TypeByExtension(filepath.Ext(file))
+	if ctype == "" {
+		// read a chunk to decide between utf-8 text and binary
+		// only 512 bytes expected by `http.DetectContentType`
+		var buf [512]byte
+		n, _ := io.ReadFull(content, buf[:])
+		ctype = http.DetectContentType(buf[:n])
+
+		// rewind to output whole file
+		if _, err := content.Seek(0, io.SeekStart); err != nil {
+			return "", errSeeker
+		}
+	}
+	return ctype, nil
+}
+
+// sanatizeValue method sanatizes string type value, rest we can't do any.
+// It's a user responbility.
+func sanatizeValue(value interface{}) interface{} {
+	switch v := value.(type) {
+	case string:
+		return template.HTMLEscapeString(v)
+	default:
+		return v
+	}
+}
+
+// funcEqual method to compare to function callback interface data. In effect
+// comparing the pointers of the indirect layer. Read more about the
+// representation of functions here: http://golang.org/s/go11func
+func funcEqual(a, b interface{}) bool {
+	av := reflect.ValueOf(&a).Elem()
+	bv := reflect.ValueOf(&b).Elem()
+	return av.InterfaceData() == bv.InterfaceData()
+}
+
+// funcName method to get callback function name.
+func funcName(f interface{}) string {
+	fi := ess.GetFunctionInfo(f)
+	return fi.Name
+}
+
+func parsePriority(priority ...int) int {
+	pr := 1 // default priority is 1
+	if len(priority) > 0 && priority[0] > 0 {
+		pr = priority[0]
+	}
+	return pr
 }

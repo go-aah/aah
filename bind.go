@@ -5,7 +5,6 @@
 package aah
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -27,23 +26,11 @@ const (
 	allContentTypes     = "*/*"
 )
 
-var (
-	keyQueryParamName           = keyOverrideI18nName
-	keyPathParamName            = keyOverrideI18nName
-	requestParsers              = make(map[string]requestParser)
-	isContentNegotiationEnabled bool
-	acceptedContentTypes        []string
-	offeredContentTypes         []string
-	autobindPriority            []string
-
-	errInvalidParsedValue = errors.New("aah: parsed value is invalid")
-)
-
 type requestParser func(ctx *Context) flowResult
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package method
-//___________________________________
+//______________________________________________________________________________
 
 // AddValueParser method adds given custom value parser for the `reflect.Type`
 func AddValueParser(typ reflect.Type, parser valpar.Parser) error {
@@ -93,22 +80,22 @@ func ValidateValue(v interface{}, rules string) bool {
 	return valpar.ValidateValue(v, rules)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Bind Middleware
-//___________________________________
+//______________________________________________________________________________
 
 // BindMiddleware method parses the incoming HTTP request to collects request
 // parameters (Path, Form, Query, Multipart) stores into context. Request
 // params are made available in View via template functions.
 func BindMiddleware(ctx *Context, m *Middleware) {
-	if AppI18n() != nil {
+	if ctx.a.I18n() != nil {
 		// i18n locale HTTP header `Accept-Language` value override via
 		// Path Variable and URL Query Param (config i18n { param_name { ... } }).
 		// Note: Query parameter takes precedence of all.
 		if locale := firstNonZeroString(
-			ctx.Req.QueryValue(keyQueryParamName),
-			ctx.Req.PathValue(keyPathParamName)); !ess.IsStrEmpty(locale) {
-			ctx.Req.Locale = ahttp.NewLocale(locale)
+			ctx.Req.QueryValue(ctx.a.bindMgr.keyQueryParamName),
+			ctx.Req.PathValue(ctx.a.bindMgr.keyPathParamName)); !ess.IsStrEmpty(locale) {
+			ctx.Req.SetLocale(ahttp.NewLocale(locale))
 		}
 	}
 
@@ -116,13 +103,13 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 		goto PCont
 	}
 
-	ctx.Log().Debugf("Request Content-Type mime: %s", ctx.Req.ContentType.Mime)
+	ctx.Log().Debugf("Request Content-Type mime: %s", ctx.Req.ContentType())
 
 	// Content Negotitaion - Accepted & Offered, refer to GitHub #75
-	if isContentNegotiationEnabled {
-		if len(acceptedContentTypes) > 0 &&
-			!ess.IsSliceContainsString(acceptedContentTypes, ctx.Req.ContentType.Mime) {
-			ctx.Log().Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType.Mime)
+	if ctx.a.bindMgr.isContentNegotiationEnabled {
+		if len(ctx.a.bindMgr.acceptedContentTypes) > 0 &&
+			!ess.IsSliceContainsString(ctx.a.bindMgr.acceptedContentTypes, ctx.Req.ContentType().Mime) {
+			ctx.Log().Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType())
 			ctx.Reply().Error(&Error{
 				Reason:  ErrContentTypeNotAccepted,
 				Code:    http.StatusUnsupportedMediaType,
@@ -131,27 +118,27 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 			return
 		}
 
-		if len(offeredContentTypes) > 0 &&
-			!ess.IsSliceContainsString(offeredContentTypes, ctx.Req.AcceptContentType.Mime) {
+		if len(ctx.a.bindMgr.offeredContentTypes) > 0 &&
+			!ess.IsSliceContainsString(ctx.a.bindMgr.offeredContentTypes, ctx.Req.AcceptContentType().Mime) {
 			ctx.Reply().Error(&Error{
 				Reason:  ErrContentTypeNotOffered,
 				Code:    http.StatusNotAcceptable,
 				Message: http.StatusText(http.StatusNotAcceptable),
 			})
-			ctx.Log().Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType.Mime)
+			ctx.Log().Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType())
 			return
 		}
 	}
 
 	// Prevent DDoS attacks by large HTTP request bodies by enforcing
-	// configured hard limit, GitHub #83.
-	if ctx.Req.ContentType.Mime != ahttp.ContentTypeMultipartForm.Mime {
+	// configured hard limit for non-multipart/form-data Content-Type GitHub #83.
+	if !ahttp.ContentTypeMultipartForm.IsEqual(ctx.Req.ContentType().Mime) {
 		ctx.Req.Unwrap().Body = http.MaxBytesReader(ctx.Res, ctx.Req.Unwrap().Body,
-			firstNonZeroInt64(ctx.route.MaxBodySize, appMaxBodyBytesSize))
+			firstNonZeroInt64(ctx.route.MaxBodySize, ctx.a.maxBodyBytes))
 	}
 
 	// Parse request content by Content-Type
-	if parser, found := requestParsers[ctx.Req.ContentType.Mime]; found {
+	if parser, found := ctx.a.bindMgr.requestParsers[ctx.Req.ContentType().Mime]; found {
 		if res := parser(ctx); res == flowStop {
 			return
 		}
@@ -159,19 +146,90 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 
 PCont:
 	// Compose request details, we can log at the end of the request.
-	if isDumpLogEnabled {
-		ctx.Set(keyAahRequestDump, composeRequestDump(ctx))
+	if ctx.a.dumpLogEnabled {
+		ctx.Set(keyAahRequestDump, ctx.a.dumpLog.composeRequestDump(ctx))
 	}
 
 	m.Next(ctx)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app Unexported methods
+//______________________________________________________________________________
+
+func (a *app) initBind() error {
+	cfg := a.Config()
+
+	bindMgr := &bindManager{
+		keyPathParamName:            cfg.StringDefault("i18n.param_name.path", keyOverrideI18nName),
+		keyQueryParamName:           cfg.StringDefault("i18n.param_name.query", keyOverrideI18nName),
+		isContentNegotiationEnabled: cfg.BoolDefault("request.content_negotiation.enable", false),
+		requestParsers:              make(map[string]requestParser),
+	}
+
+	// Content Negotitaion, GitHub #75
+	bindMgr.acceptedContentTypes, _ = cfg.StringList("request.content_negotiation.accepted")
+	for idx, v := range bindMgr.acceptedContentTypes {
+		bindMgr.acceptedContentTypes[idx] = strings.ToLower(v)
+		if v == allContentTypes {
+			// when `*/*` is mentioned, don't check the condition
+			// because it means every content type is allowed
+			bindMgr.acceptedContentTypes = make([]string, 0)
+			break
+		}
+	}
+
+	bindMgr.offeredContentTypes, _ = cfg.StringList("request.content_negotiation.offered")
+	for idx, v := range bindMgr.offeredContentTypes {
+		bindMgr.offeredContentTypes[idx] = strings.ToLower(v)
+		if v == allContentTypes {
+			// when `*/*` is mentioned, don't check the condition
+			// because it means every content type is allowed
+			bindMgr.offeredContentTypes = make([]string, 0)
+			break
+		}
+	}
+
+	// Auto Parse and Bind, GitHub #26
+	bindMgr.requestParsers[ahttp.ContentTypeMultipartForm.Mime] = multipartFormParser
+	bindMgr.requestParsers[ahttp.ContentTypeForm.Mime] = formParser
+
+	bindMgr.autobindPriority = reverseSlice(strings.Split(cfg.StringDefault("request.auto_bind.priority", "PFQ"), ""))
+	timeFormats, found := cfg.StringList("format.time")
+	if !found {
+		timeFormats = []string{
+			"2006-01-02T15:04:05Z07:00",
+			"2006-01-02T15:04:05Z",
+			"2006-01-02 15:04:05",
+			"2006-01-02"}
+	}
+	valpar.TimeFormats = timeFormats
+	valpar.StructTagName = cfg.StringDefault("request.auto_bind.tag_name", "bind")
+
+	a.bindMgr = bindMgr
+	return nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Bind Manager
+//______________________________________________________________________________
+
+type bindManager struct {
+	keyQueryParamName           string
+	keyPathParamName            string
+	requestParsers              map[string]requestParser
+	isContentNegotiationEnabled bool
+	acceptedContentTypes        []string
+	offeredContentTypes         []string
+	autobindPriority            []string
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Content Parser methods
-//___________________________________
+//______________________________________________________________________________
 
 func multipartFormParser(ctx *Context) flowResult {
-	if err := ctx.Req.Unwrap().ParseMultipartForm(appMultipartMaxMemory); err != nil {
+	if err := ctx.Req.Unwrap().ParseMultipartForm(ctx.a.multipartMaxMemory); err != nil {
 		ctx.Log().Errorf("Unable to parse multipart form: %s", err)
 	} else {
 		ctx.Req.Params.Form = ctx.Req.Unwrap().MultipartForm.Value
@@ -189,11 +247,11 @@ func formParser(ctx *Context) flowResult {
 	return flowCont
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Action Parameters Auto Parse
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Context - Action Parameters Auto Parse
+//______________________________________________________________________________
 
-func parseParameters(ctx *Context) ([]reflect.Value, *Error) {
+func (ctx *Context) parseParameters() ([]reflect.Value, *Error) {
 	paramCnt := len(ctx.action.Parameters)
 
 	// If parameters not exists, return here
@@ -202,7 +260,7 @@ func parseParameters(ctx *Context) ([]reflect.Value, *Error) {
 	}
 
 	// Parse and Bind parameters
-	params := createParams(ctx)
+	params := ctx.createParams()
 	var err error
 	actionArgs := make([]reflect.Value, paramCnt)
 	for idx, val := range ctx.action.Parameters {
@@ -225,12 +283,12 @@ func parseParameters(ctx *Context) ([]reflect.Value, *Error) {
 				}
 			}
 		} else if val.kind == reflect.Struct {
-			ct := ctx.Req.ContentType.Mime
+			ct := ctx.Req.ContentType().Mime
 			if ct == ahttp.ContentTypeJSON.Mime || ct == ahttp.ContentTypeJSONText.Mime ||
 				ct == ahttp.ContentTypeXML.Mime || ct == ahttp.ContentTypeXMLText.Mime {
 				result, err = valpar.Body(ct, ctx.Req.Body(), val.Type)
-				if isDumpLogEnabled && dumpRequestBody {
-					addReqBodyIntoCtx(ctx, result)
+				if ctx.a.dumpLogEnabled && ctx.a.dumpLog.dumpRequestBody {
+					ctx.a.dumpLog.addReqBodyIntoCtx(ctx, result)
 				}
 			} else {
 				result, err = valpar.Struct("", val.Type, params)
@@ -275,9 +333,9 @@ func parseParameters(ctx *Context) ([]reflect.Value, *Error) {
 }
 
 // Create param values based on autobind priority
-func createParams(ctx *Context) url.Values {
+func (ctx *Context) createParams() url.Values {
 	params := make(url.Values)
-	for _, priority := range autobindPriority {
+	for _, priority := range ctx.a.bindMgr.autobindPriority {
 		switch priority {
 		case "P": // Path Values
 			for k, v := range ctx.Req.Params.Path {
@@ -296,74 +354,24 @@ func createParams(ctx *Context) url.Values {
 	return params
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Template methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// View Template methods
+//______________________________________________________________________________
 
 // tmplPathParam method returns Request Path Param value for the given key.
-func tmplPathParam(viewArgs map[string]interface{}, key string) interface{} {
+func (vm *viewManager) tmplPathParam(viewArgs map[string]interface{}, key string) interface{} {
 	params := viewArgs[KeyViewArgRequestParams].(*ahttp.Params)
 	return sanatizeValue(params.PathValue(key))
 }
 
 // tmplFormParam method returns Request Form value for the given key.
-func tmplFormParam(viewArgs map[string]interface{}, key string) interface{} {
+func (vm *viewManager) tmplFormParam(viewArgs map[string]interface{}, key string) interface{} {
 	params := viewArgs[KeyViewArgRequestParams].(*ahttp.Params)
 	return sanatizeValue(params.FormValue(key))
 }
 
 // tmplQueryParam method returns Request Query String value for the given key.
-func tmplQueryParam(viewArgs map[string]interface{}, key string) interface{} {
+func (vm *viewManager) tmplQueryParam(viewArgs map[string]interface{}, key string) interface{} {
 	params := viewArgs[KeyViewArgRequestParams].(*ahttp.Params)
 	return sanatizeValue(params.QueryValue(key))
-}
-
-func bindInitialize(e *Event) {
-	cfg := AppConfig()
-	keyPathParamName = cfg.StringDefault("i18n.param_name.path", keyOverrideI18nName)
-	keyQueryParamName = cfg.StringDefault("i18n.param_name.query", keyOverrideI18nName)
-
-	// Content Negotitaion, GitHub #75
-	isContentNegotiationEnabled = cfg.BoolDefault("request.content_negotiation.enable", false)
-	acceptedContentTypes, _ = cfg.StringList("request.content_negotiation.accepted")
-	for idx, v := range acceptedContentTypes {
-		acceptedContentTypes[idx] = strings.ToLower(v)
-		if v == allContentTypes {
-			// when `*/*` is mentioned, don't check the condition
-			// because it means every content type is allowed
-			acceptedContentTypes = make([]string, 0)
-			break
-		}
-	}
-
-	offeredContentTypes, _ = cfg.StringList("request.content_negotiation.offered")
-	for idx, v := range offeredContentTypes {
-		offeredContentTypes[idx] = strings.ToLower(v)
-		if v == allContentTypes {
-			// when `*/*` is mentioned, don't check the condition
-			// because it means every content type is allowed
-			offeredContentTypes = make([]string, 0)
-			break
-		}
-	}
-
-	// Auto Parse and Bind, GitHub #26
-	requestParsers[ahttp.ContentTypeMultipartForm.Mime] = multipartFormParser
-	requestParsers[ahttp.ContentTypeForm.Mime] = formParser
-
-	autobindPriority = reverseSlice(strings.Split(cfg.StringDefault("request.auto_bind.priority", "PFQ"), ""))
-	timeFormats, found := cfg.StringList("format.time")
-	if !found {
-		timeFormats = []string{
-			"2006-01-02T15:04:05Z07:00",
-			"2006-01-02T15:04:05Z",
-			"2006-01-02 15:04:05",
-			"2006-01-02"}
-	}
-	valpar.TimeFormats = timeFormats
-	valpar.StructTagName = cfg.StringDefault("request.auto_bind.tag_name", "bind")
-}
-
-func init() {
-	OnStart(bindInitialize)
 }

@@ -10,7 +10,6 @@ import (
 	"net/url"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/acrypto"
@@ -27,26 +26,12 @@ const (
 	// KeyViewArgSubject key name is used to store `Subject` instance into `ViewArgs`.
 	KeyViewArgSubject = "_aahSubject"
 
-	keyAntiCSRFSecret = "_AntiCSRFSecret"
+	keyAntiCSRF = "_AntiCSRF"
 )
 
-var appSecurityManager *security.Manager
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
-//___________________________________
-
-// AppSecurityManager method returns the application security instance,
-// which manages the Session, CORS, CSRF, Security Headers, etc.
-func AppSecurityManager() *security.Manager {
-	return appSecurityManager
-}
-
-// AppSessionManager method returns the application session manager.
-// By default session is stateless.
-func AppSessionManager() *session.Manager {
-	return AppSecurityManager().SessionManager
-}
+//______________________________________________________________________________
 
 // AddSessionStore method allows you to add custom session store which
 // implements `session.Storer` interface. The `name` parameter is used in
@@ -63,9 +48,37 @@ func AddPasswordAlgorithm(name string, encoder acrypto.PasswordEncoder) error {
 	return acrypto.AddPasswordAlgorithm(name, encoder)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app methods
+//______________________________________________________________________________
+
+func (a *app) SecurityManager() *security.Manager {
+	return a.securityMgr
+}
+
+func (a *app) SessionManager() *session.Manager {
+	return a.SecurityManager().SessionManager
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app Unexported methods
+//______________________________________________________________________________
+
+func (a *app) initSecurity() error {
+	asecmgr := security.New()
+	asecmgr.IsSSLEnabled = a.IsSSLEnabled()
+	if err := asecmgr.Init(a.Config()); err != nil {
+		return err
+	}
+
+	asecmgr.AntiCSRF.Enabled = (a.ViewEngine() != nil)
+	a.securityMgr = asecmgr
+	return nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Authentication and Authorization Middleware
-//_____________________________________________
+//______________________________________________________________________________
 
 // AuthcAuthzMiddleware is aah Authentication and Authorization Middleware.
 func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
@@ -77,11 +90,11 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 		return
 	}
 
-	authScheme := AppSecurityManager().GetAuthScheme(ctx.route.Auth)
+	authScheme := ctx.a.SecurityManager().GetAuthScheme(ctx.route.Auth)
 	if authScheme == nil {
 		// If one or more auth schemes are defined in `security.auth_schemes { ... }`
 		// and routes `auth` attribute is not defined then framework treats that route as `403 Forbidden`.
-		if AppSecurityManager().IsAuthSchemesConfigured() {
+		if ctx.a.SecurityManager().IsAuthSchemesConfigured() {
 			ctx.Log().Warnf("Auth schemes are configured in security.conf, however attribute 'auth' or 'default_auth' is not defined in routes.conf, so treat it as 403 forbidden: %v", ctx.Req.Path)
 			ctx.Reply().Error(&Error{
 				Reason:  ErrAccessDenied,
@@ -98,8 +111,8 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 	}
 
 	// loadSession method loads session from request for `stateful` session.
-	if AppSessionManager().IsStateful() {
-		ctx.subject.Session = AppSessionManager().GetSession(ctx.Req.Unwrap())
+	if ctx.a.SessionManager().IsStateful() {
+		ctx.Subject().Session = ctx.a.SessionManager().GetSession(ctx.Req.Unwrap())
 	}
 
 	ctx.Log().Debugf("Route auth scheme: %s", authScheme.Scheme())
@@ -126,6 +139,7 @@ func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 		if ctx.Session().IsKeyExists(KeyViewArgAuthcInfo) {
 			ctx.Subject().AuthenticationInfo = ctx.Session().Get(KeyViewArgAuthcInfo).(*authc.AuthenticationInfo)
 			ctx.Subject().AuthorizationInfo = formAuth.DoAuthorizationInfo(ctx.Subject().AuthenticationInfo)
+			ctx.logger = ctx.Log().WithField("principal", ctx.Subject().AuthenticationInfo.PrimaryPrincipal().Value)
 		} else {
 			ctx.Log().Warn("It seems there is an issue with session data - AuthenticationInfo")
 		}
@@ -144,7 +158,7 @@ func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 		return flowStop
 	}
 
-	publishOnPreAuthEvent(ctx)
+	ctx.e.publishOnPreAuthEvent(ctx)
 
 	// Do Authentication
 	authcInfo, err := formAuth.DoAuthenticate(formAuth.ExtractAuthenticationToken(ctx.Req))
@@ -161,7 +175,9 @@ func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 		return flowStop
 	}
 
-	ctx.Log().Debug(ctx.Subject().AuthenticationInfo)
+	ctx.logger = ctx.Log().WithField("principal", authcInfo.PrimaryPrincipal().Value)
+
+	ctx.Log().Debug(authcInfo)
 	ctx.Log().Info("Authentication successful")
 	ctx.Subject().AuthenticationInfo = authcInfo
 	ctx.Subject().AuthorizationInfo = formAuth.DoAuthorizationInfo(authcInfo)
@@ -170,19 +186,19 @@ func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 
 	// Change the Anti-CSRF token in use for a request after login for security purposes.
 	ctx.Log().Debug("Change Anti-CSRF secret after login for security purpose")
-	ctx.AddViewArg(keyAntiCSRFSecret, AppSecurityManager().AntiCSRF.GenerateSecret())
+	ctx.AddViewArg(keyAntiCSRF, ctx.a.SecurityManager().AntiCSRF.GenerateSecret())
 
 	// Remove the credential
 	ctx.Subject().AuthenticationInfo.Credential = nil
 	ctx.Session().Set(KeyViewArgAuthcInfo, ctx.Subject().AuthenticationInfo)
 
-	publishOnPostAuthEvent(ctx)
+	ctx.e.publishOnPostAuthEvent(ctx)
 
-	rt := ctx.Req.Unwrap().FormValue("_rt")
+	rt := ctx.Req.Unwrap().FormValue("_rt") // redirect to value
 	if formAuth.IsAlwaysToDefaultTarget || ess.IsStrEmpty(rt) {
 		ctx.Reply().Redirect(formAuth.DefaultTargetURL)
 	} else {
-		ctx.Log().Debugf("Redirect to URL found: %v", rt)
+		ctx.Log().Debugf("Redirect to URL found ('_rt'): %v", rt)
 		ctx.Reply().Redirect(rt)
 	}
 
@@ -191,7 +207,7 @@ func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 
 // doAuthcAndAuthz method does Authentication and Authorization.
 func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
-	publishOnPreAuthEvent(ctx)
+	ctx.e.publishOnPreAuthEvent(ctx)
 
 	// Do Authentication
 	authcInfo, err := ascheme.DoAuthenticate(ascheme.ExtractAuthenticationToken(ctx.Req))
@@ -211,7 +227,9 @@ func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 		return flowStop
 	}
 
-	ctx.Log().Debug(ctx.Subject().AuthenticationInfo)
+	ctx.logger = ctx.Log().WithField("principal", authcInfo.PrimaryPrincipal().Value)
+
+	ctx.Log().Debug(authcInfo)
 	ctx.Log().Info("Authentication successful")
 	ctx.Subject().AuthenticationInfo = authcInfo
 	ctx.Subject().AuthorizationInfo = ascheme.DoAuthorizationInfo(authcInfo)
@@ -221,28 +239,30 @@ func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 	// Remove the credential
 	ctx.Subject().AuthenticationInfo.Credential = nil
 
-	publishOnPostAuthEvent(ctx)
+	ctx.e.publishOnPostAuthEvent(ctx)
 
 	return flowCont
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Anti-CSRF Middleware
-//___________________________________
+//______________________________________________________________________________
 
+// AntiCSRFMiddleware provides feature to prevent Cross-Site Request Forgery (CSRF)
+// attacks.
 func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// If Anti-CSRF is not enabled, move on.
 	// It is highly recommended to enable for web application.
-	if !AppSecurityManager().AntiCSRF.Enabled || !ctx.route.IsAntiCSRFCheck || AppViewEngine() == nil {
-		ctx.Log().Tracef("Anti CSRF protection is not enabled [%s: %s], clear the cookie if present.", ctx.Req.Method, ctx.Req.Path)
-		AppSecurityManager().AntiCSRF.ClearCookie(ctx.Res, ctx.Req)
+	if !ctx.a.SecurityManager().AntiCSRF.Enabled || !ctx.route.IsAntiCSRFCheck || ctx.a.ViewEngine() == nil {
+		// ctx.Log().Tracef("Anti CSRF protection is not enabled [%s: %s], clear the cookie if present.", ctx.Req.Method, ctx.Req.Path)
+		ctx.a.SecurityManager().AntiCSRF.ClearCookie(ctx.Res, ctx.Req)
 		m.Next(ctx)
 		return
 	}
 
 	// Get cipher secret from anti-csrf cookie
-	secret := AppSecurityManager().AntiCSRF.CipherSecret(ctx.Req)
-	ctx.AddViewArg(keyAntiCSRFSecret, secret)
+	secret := ctx.a.SecurityManager().AntiCSRF.CipherSecret(ctx.Req)
+	ctx.AddViewArg(keyAntiCSRF, secret)
 
 	// HTTP Method is safe per defined in
 	// https://tools.ietf.org/html/rfc7231#section-4.2.1
@@ -269,7 +289,7 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// Barth et al. found that the Referer header is missing for
 	// same-domain requests in only about 0.2% of cases or less, so
 	// we can use strict Referer checking.
-	if ctx.Req.Scheme == "https" {
+	if ctx.Req.Scheme == ahttp.SchemeHTTPS {
 		referer, err := url.Parse(ctx.Req.Referer)
 		if err != nil {
 			ctx.Log().Warnf("Anti-CSRF: malformed referer %s", ctx.Req.Referer)
@@ -291,7 +311,7 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 			return
 		}
 
-		if !anticsrf.IsSameOrigin(ctx.Req.Unwrap().URL, referer) {
+		if !anticsrf.IsSameOrigin(ctx.Req.URL(), referer) {
 			ctx.Log().Warnf("Anti-CSRF: bad referer %s", ctx.Req.Referer)
 			ctx.Reply().Error(&Error{
 				Reason:  anticsrf.ErrBadReferer,
@@ -303,8 +323,8 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	}
 
 	// Get request cipher secret from HTTP header or Form
-	requestSecret := AppSecurityManager().AntiCSRF.RequestCipherSecret(ctx.Req)
-	if requestSecret == nil || !AppSecurityManager().AntiCSRF.IsAuthentic(secret, requestSecret) {
+	requestSecret := ctx.a.SecurityManager().AntiCSRF.RequestCipherSecret(ctx.Req)
+	if requestSecret == nil || !ctx.a.SecurityManager().AntiCSRF.IsAuthentic(secret, requestSecret) {
 		ctx.Log().Warn("Anti-CSRF: verification failed, invalid cipher secret")
 		ctx.Reply().Error(&Error{
 			Reason:  anticsrf.ErrNoCookieFound,
@@ -313,52 +333,35 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 		})
 		return
 	}
-	ctx.Log().Trace("Anti-CSRF cipher secret verification passed")
+	ctx.Log().Debug("Anti-CSRF cipher secret verification passed")
 
 	m.Next(ctx)
 
-	writeAntiCSRFCookie(ctx, ctx.viewArgs[keyAntiCSRFSecret].([]byte))
+	writeAntiCSRFCookie(ctx, ctx.viewArgs[keyAntiCSRF].([]byte))
 }
 
 func writeAntiCSRFCookie(ctx *Context, secret []byte) {
-	if err := AppSecurityManager().AntiCSRF.SetCookie(ctx.Res, secret); err != nil {
+	if err := ctx.a.SecurityManager().AntiCSRF.SetCookie(ctx.Res, secret); err != nil {
 		ctx.Log().Error("Unable to write Anti-CSRF cookie")
 	}
-	ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderCookie)
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
-
-func initSecurity(appCfg *config.Config) error {
-	asecmgr := security.New()
-	asecmgr.IsSSLEnabled = AppIsSSLEnabled()
-	if err := asecmgr.Init(appCfg); err != nil {
-		return err
-	}
-	asecmgr.AntiCSRF.Enabled = (AppViewEngine() != nil)
-	appSecurityManager = asecmgr
-
-	return nil
 }
 
 func isFormAuthLoginRoute(ctx *Context) bool {
-	authScheme := AppSecurityManager().GetAuthScheme(ctx.route.Auth)
+	authScheme := ctx.a.SecurityManager().GetAuthScheme(ctx.route.Auth)
 	if authScheme != nil && authScheme.Scheme() == "form" {
 		return authScheme.(*scheme.FormAuth).LoginSubmitURL == ctx.route.Path
 	}
 	return false
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Template methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// View Template methods
+//______________________________________________________________________________
 
 // tmplSessionValue method returns session value for the given key. If session
 // object unavailable this method returns nil.
-func tmplSessionValue(viewArgs map[string]interface{}, key string) interface{} {
-	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+func (vm *viewManager) tmplSessionValue(viewArgs map[string]interface{}, key string) interface{} {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
 		if sub.Session != nil {
 			value := sub.Session.Get(key)
 			return sanatizeValue(value)
@@ -369,8 +372,8 @@ func tmplSessionValue(viewArgs map[string]interface{}, key string) interface{} {
 
 // tmplFlashValue method returns session value for the given key. If session
 // object unavailable this method returns nil.
-func tmplFlashValue(viewArgs map[string]interface{}, key string) interface{} {
-	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+func (vm *viewManager) tmplFlashValue(viewArgs map[string]interface{}, key string) interface{} {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
 		if sub.Session != nil {
 			return sanatizeValue(sub.Session.GetFlash(key))
 		}
@@ -379,8 +382,8 @@ func tmplFlashValue(viewArgs map[string]interface{}, key string) interface{} {
 }
 
 // tmplIsAuthenticated method returns the value of `Session.IsAuthenticated`.
-func tmplIsAuthenticated(viewArgs map[string]interface{}) bool {
-	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+func (vm *viewManager) tmplIsAuthenticated(viewArgs map[string]interface{}) bool {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
 		if sub.Session != nil {
 			return sub.Session.IsAuthenticated
 		}
@@ -389,40 +392,40 @@ func tmplIsAuthenticated(viewArgs map[string]interface{}) bool {
 }
 
 // tmplHasRole method returns the value of `Subject.HasRole`.
-func tmplHasRole(viewArgs map[string]interface{}, role string) bool {
-	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+func (vm *viewManager) tmplHasRole(viewArgs map[string]interface{}, role string) bool {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
 		return sub.HasRole(role)
 	}
 	return false
 }
 
 // tmplHasAllRoles method returns the value of `Subject.HasAllRoles`.
-func tmplHasAllRoles(viewArgs map[string]interface{}, roles ...string) bool {
-	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+func (vm *viewManager) tmplHasAllRoles(viewArgs map[string]interface{}, roles ...string) bool {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
 		return sub.HasAllRoles(roles...)
 	}
 	return false
 }
 
 // tmplHasAnyRole method returns the value of `Subject.HasAnyRole`.
-func tmplHasAnyRole(viewArgs map[string]interface{}, roles ...string) bool {
-	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+func (vm *viewManager) tmplHasAnyRole(viewArgs map[string]interface{}, roles ...string) bool {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
 		return sub.HasAnyRole(roles...)
 	}
 	return false
 }
 
 // tmplIsPermitted method returns the value of `Subject.IsPermitted`.
-func tmplIsPermitted(viewArgs map[string]interface{}, permission string) bool {
-	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+func (vm *viewManager) tmplIsPermitted(viewArgs map[string]interface{}, permission string) bool {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
 		return sub.IsPermitted(permission)
 	}
 	return false
 }
 
 // tmplIsPermittedAll method returns the value of `Subject.IsPermittedAll`.
-func tmplIsPermittedAll(viewArgs map[string]interface{}, permissions ...string) bool {
-	if sub := getSubjectFromViewArgs(viewArgs); sub != nil {
+func (vm *viewManager) tmplIsPermittedAll(viewArgs map[string]interface{}, permissions ...string) bool {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
 		return sub.IsPermittedAll(permissions...)
 	}
 	return false
@@ -430,14 +433,14 @@ func tmplIsPermittedAll(viewArgs map[string]interface{}, permissions ...string) 
 
 // tmplAntiCSRFToken method returns the salted Anti-CSRF secret for the view,
 // if enabled otherwise empty string.
-func tmplAntiCSRFToken(viewArgs map[string]interface{}) string {
-	if AppSecurityManager().AntiCSRF.Enabled {
-		return AppSecurityManager().AntiCSRF.SaltCipherSecret(viewArgs[keyAntiCSRFSecret].([]byte))
+func (vm *viewManager) tmplAntiCSRFToken(viewArgs map[string]interface{}) string {
+	if vm.a.SecurityManager().AntiCSRF.Enabled {
+		return vm.a.SecurityManager().AntiCSRF.SaltCipherSecret(viewArgs[keyAntiCSRF].([]byte))
 	}
 	return ""
 }
 
-func getSubjectFromViewArgs(viewArgs map[string]interface{}) *security.Subject {
+func (vm *viewManager) getSubjectFromViewArgs(viewArgs map[string]interface{}) *security.Subject {
 	if sv, found := viewArgs[KeyViewArgSubject]; found {
 		return sv.(*security.Subject)
 	}

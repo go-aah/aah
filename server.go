@@ -7,269 +7,248 @@ package aah
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
-	"time"
 
-	"golang.org/x/crypto/acme/autocert"
-
-	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 )
 
-var (
-	aahServer          *http.Server
-	appEngine          *engine
-	appTLSCfg          *tls.Config
-	appAutocertManager *autocert.Manager
-)
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app methods
+//______________________________________________________________________________
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//___________________________________
+func (a *app) Start() {
+	defer a.aahRecover()
 
-// AddServerTLSConfig method can be used for custom TLS config for aah server.
-//
-// DEPRECATED: Use method `aah.SetTLSConfig` instead. Planned to be removed in `v1.0` release.
-func AddServerTLSConfig(tlsCfg *tls.Config) {
-	// DEPRECATED, planned to be removed in v1.0
-	log.Warn("DEPRECATED: Method 'AddServerTLSConfig' deprecated in v0.9, use method 'SetTLSConfig' instead. Deprecated method will not break your functionality, its good to update to new method.")
-
-	SetTLSConfig(tlsCfg)
-}
-
-// SetTLSConfig method is used to set custom TLS config for aah server.
-// Note: if `server.ssl.lets_encrypt.enable=true` then framework sets the
-// `GetCertificate` from autocert manager.
-//
-// Use `aah.OnInit` or `func init() {...}` to assign your custom TLS Config.
-func SetTLSConfig(tlsCfg *tls.Config) {
-	appTLSCfg = tlsCfg
-}
-
-// Start method starts the Go HTTP server based on aah config "server.*".
-func Start() {
-	defer aahRecover()
-
-	if !appInitialized {
-		log.Fatal("aah application is not initialized, call `aah.Init` before the `aah.Start`.")
+	if !a.initialized {
+		a.Log().Fatal("aah application is not initialized, call `aah.Init` before the `aah.Start`.")
 	}
 
 	sessionMode := "stateless"
-	if AppSessionManager().IsStateful() {
+	if a.SessionManager().IsStateful() {
 		sessionMode = "stateful"
 	}
 
-	log.Infof("App Name: %v", AppName())
-	log.Infof("App Version: %v", AppBuildInfo().Version)
-	log.Infof("App Build Date: %v", AppBuildInfo().Date)
-	log.Infof("App Profile: %v", AppProfile())
-	log.Infof("App TLS/SSL Enabled: %v", AppIsSSLEnabled())
-	log.Infof("App View Engine: %v", AppConfig().StringDefault("view.engine", "go"))
-	log.Infof("App Session Mode: %v", sessionMode)
-	log.Infof("App Anti-CSRF Protection Enabled: %v", AppSecurityManager().AntiCSRF.Enabled)
+	a.Log().Infof("App Name: %s", a.Name())
+	a.Log().Infof("App Version: %s", a.BuildInfo().Version)
+	a.Log().Infof("App Build Date: %s", a.BuildInfo().Date)
+	a.Log().Infof("App Profile: %s", a.Profile())
+	a.Log().Infof("App TLS/SSL Enabled: %t", a.IsSSLEnabled())
 
-	if log.IsLevelDebug() {
-		log.Debugf("App Route Domains: %v", strings.Join(AppRouter().DomainAddresses(), ", "))
-		if AppI18n() != nil {
-			log.Debugf("App i18n Locales: %v", strings.Join(AppI18n().Locales(), ", "))
-		}
+	if a.viewMgr != nil {
+		a.Log().Infof("App View Engine: %s", a.viewMgr.engineName)
+	}
 
-		for event := range AppEventStore().subscribers {
-			for _, c := range AppEventStore().subscribers[event] {
-				log.Debugf("Callback: %s, subscribed to event: %s", funcName(c.Callback), event)
+	a.Log().Infof("App Session Mode: %s", sessionMode)
+
+	if a.webApp || a.viewMgr != nil {
+		a.Log().Infof("App Anti-CSRF Protection Enabled: %t", a.SecurityManager().AntiCSRF.Enabled)
+	}
+
+	a.Log().Info("App Route Domains:")
+	for _, name := range a.Router().DomainAddresses() {
+		a.Log().Infof("      Host: %s, CORS Enabled: %t", name, a.Router().Domains[name].CORSEnabled)
+	}
+
+	if a.I18n() != nil {
+		a.Log().Infof("App i18n Locales: %s", strings.Join(a.I18n().Locales(), ", "))
+	}
+
+	if a.Log().IsLevelDebug() {
+		for event := range a.EventStore().subscribers {
+			for _, c := range a.EventStore().subscribers[event] {
+				a.Log().Debugf("Callback: %s, subscribed to event: %s", funcName(c.Callback), event)
 			}
 		}
 	}
 
-	// Publish `OnStart` event
-	AppEventStore().sortAndPublishSync(&Event{Name: EventOnStart})
+	a.Log().Infof("App Shutdown Grace Timeout: %s", a.shutdownGraceTimeStr)
 
-	appEngine = newEngine(AppConfig())
-	aahServer = &http.Server{
-		Handler:        appEngine,
-		ReadTimeout:    appHTTPReadTimeout,
-		WriteTimeout:   appHTTPWriteTimeout,
-		MaxHeaderBytes: appHTTPMaxHdrBytes,
-		ErrorLog:       log.ToGoLogger(),
+	// Publish `OnStart` event
+	a.EventStore().sortAndPublishSync(&Event{Name: EventOnStart})
+
+	hl := a.Log().ToGoLogger()
+	hl.SetOutput(ioutil.Discard)
+
+	a.server = &http.Server{
+		Handler:        a.engine,
+		ReadTimeout:    a.httpReadTimeout,
+		WriteTimeout:   a.httpWriteTimeout,
+		MaxHeaderBytes: a.httpMaxHdrBytes,
+		ErrorLog:       hl,
 	}
 
-	aahServer.SetKeepAlivesEnabled(AppConfig().BoolDefault("server.keep_alive", true))
+	a.server.SetKeepAlivesEnabled(a.Config().BoolDefault("server.keep_alive", true))
+	a.writePID()
 
-	go writePID(AppConfig(), getBinaryFileName(), AppBaseDir())
-	go listenForHotConfigReload()
+	go a.listenForHotConfigReload()
 
 	// Unix Socket
-	if strings.HasPrefix(AppHTTPAddress(), "unix") {
-		startUnix(aahServer, AppHTTPAddress())
+	if strings.HasPrefix(a.HTTPAddress(), "unix") {
+		a.startUnix()
 		return
 	}
 
-	aahServer.Addr = fmt.Sprintf("%s:%s", AppHTTPAddress(), AppHTTPPort())
+	a.server.Addr = fmt.Sprintf("%s:%s", a.HTTPAddress(), a.HTTPPort())
 
 	// HTTPS
-	if AppIsSSLEnabled() {
-		startHTTPS(aahServer)
+	if a.IsSSLEnabled() {
+		a.startHTTPS()
 		return
 	}
 
 	// HTTP
-	startHTTP(aahServer)
+	a.startHTTP()
 }
 
-// Shutdown method allows aah server to shutdown gracefully with given timeoout
-// in seconds. It's invoked on OS signal `SIGINT` and `SIGTERM`.
-//
-// Method performs:
-//    - Graceful server shutdown with timeout by `server.timeout.grace_shutdown`
-//    - Publishes `OnShutdown` event
-//    - Exits program with code 0
-func Shutdown() {
-	graceTime := AppConfig().StringDefault("server.timeout.grace_shutdown", "60s")
-	if !(strings.HasSuffix(graceTime, "s") || strings.HasSuffix(graceTime, "m")) {
-		log.Warn("'server.timeout.grace_shutdown' value is not a valid time unit, assigning default")
-		graceTime = "60s"
-	}
-
-	graceTimeout, _ := time.ParseDuration(graceTime)
-	ctx, cancel := context.WithTimeout(context.Background(), graceTimeout)
+func (a *app) Shutdown() {
+	ctx, cancel := context.WithTimeout(context.Background(), a.shutdownGraceTimeout)
 	defer cancel()
 
-	log.Trace("aah go server shutdown with timeout: ", graceTime)
-	if err := aahServer.Shutdown(ctx); err != nil && err != http.ErrServerClosed {
-		log.Error(err)
+	a.Log().Warn("aah go server graceful shutdown triggered with timeout of ", a.shutdownGraceTimeStr)
+	if err := a.server.Shutdown(ctx); err != nil && err != http.ErrServerClosed {
+		a.Log().Error(err)
 	}
 
+	a.shutdownRedirectServer()
+
 	// Publish `OnShutdown` event
-	AppEventStore().sortAndPublishSync(&Event{Name: EventOnShutdown})
+	a.EventStore().sortAndPublishSync(&Event{Name: EventOnShutdown})
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// app Unexported methods
+//______________________________________________________________________________
 
-func startUnix(server *http.Server, address string) {
-	sockFile := address[5:]
+func (a *app) writePID() {
+	// Get the application PID
+	a.pid = os.Getpid()
+
+	pidFile := a.Config().StringDefault("pid_file", "")
+	if ess.IsStrEmpty(pidFile) {
+		pidFile = filepath.Join(a.BaseDir(), a.binaryFilename())
+	}
+
+	if !strings.HasSuffix(pidFile, ".pid") {
+		pidFile += ".pid"
+	}
+
+	if err := ioutil.WriteFile(pidFile, []byte(strconv.Itoa(a.pid)), 0644); err != nil {
+		a.Log().Error(err)
+	}
+}
+
+func (a *app) startUnix() {
+	sockFile := a.HTTPAddress()[5:]
 	if err := os.Remove(sockFile); !os.IsNotExist(err) {
-		logAsFatal(err)
+		a.Log().Fatal(err)
 	}
 
 	listener, err := net.Listen("unix", sockFile)
-	logAsFatal(err)
+	if err != nil {
+		a.Log().Fatal(err)
+		return
+	}
 
-	server.Addr = address
-	log.Infof("aah go server running on %v", server.Addr)
-	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
-		log.Error(err)
+	a.server.Addr = a.HTTPAddress()
+	a.Log().Infof("aah go server running on %v", a.server.Addr)
+	if err := a.server.Serve(listener); err != nil && err != http.ErrServerClosed {
+		a.Log().Error(err)
 	}
 }
 
-func startHTTPS(server *http.Server) {
+func (a *app) startHTTPS() {
 	// Assign user-defined TLS config if provided
-	if appTLSCfg == nil {
-		server.TLSConfig = new(tls.Config)
+	if a.tlsCfg == nil {
+		a.server.TLSConfig = new(tls.Config)
 	} else {
-		log.Info("Adding user provided TLS Config")
-		server.TLSConfig = appTLSCfg
+		a.Log().Info("Adding user provided TLS Config")
+		a.server.TLSConfig = a.tlsCfg
 	}
 
 	// Add cert, if let's encrypt enabled
-	if appIsLetsEncrypt {
-		log.Infof("Let's Encypyt CA Cert enabled")
-		server.TLSConfig.GetCertificate = appAutocertManager.GetCertificate
+	if a.IsLetsEncrypt() {
+		a.Log().Infof("Let's Encypyt CA Cert enabled")
+		a.server.TLSConfig.GetCertificate = a.autocertMgr.GetCertificate
 	} else {
-		log.Infof("SSLCert: %v, SSLKey: %v", appSSLCert, appSSLKey)
+		a.Log().Infof("SSLCert: %s, SSLKey: %s", a.sslCert, a.sslKey)
 	}
 
 	// Enable & Disable HTTP/2
-	if AppConfig().BoolDefault("server.ssl.disable_http2", false) {
+	if a.Config().BoolDefault("server.ssl.disable_http2", false) {
 		// To disable HTTP/2 is-
 		//  - Don't add "h2" to TLSConfig.NextProtos
 		//  - Initialize TLSNextProto with empty map
 		// Otherwise Go will enable HTTP/2 by default. It's not gonna listen to you :)
-		server.TLSNextProto = map[string]func(*http.Server, *tls.Conn, http.Handler){}
+		a.server.TLSNextProto = map[string]func(*http.Server, *tls.Conn, http.Handler){}
 	} else {
-		server.TLSConfig.NextProtos = append(server.TLSConfig.NextProtos, "h2")
+		a.server.TLSConfig.NextProtos = append(a.server.TLSConfig.NextProtos, "h2")
 	}
 
 	// start HTTP redirect server if enabled
-	go startHTTPRedirect(AppConfig())
+	go a.startHTTPRedirect()
 
-	printStartupNote()
-	if err := server.ListenAndServeTLS(appSSLCert, appSSLKey); err != nil && err != http.ErrServerClosed {
-		log.Error(err)
+	a.printStartupNote()
+	if err := a.server.ListenAndServeTLS(a.sslCert, a.sslKey); err != nil && err != http.ErrServerClosed {
+		a.Log().Error(err)
 	}
 }
 
-func startHTTP(server *http.Server) {
-	printStartupNote()
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Error(err)
+func (a *app) startHTTP() {
+	a.printStartupNote()
+	if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		a.Log().Error(err)
 	}
 }
 
-func startHTTPRedirect(cfg *config.Config) {
+func (a *app) startHTTPRedirect() {
+	cfg := a.Config()
 	keyPrefix := "server.ssl.redirect_http"
 	if !cfg.BoolDefault(keyPrefix+".enable", false) {
 		return
 	}
 
-	address := cfg.StringDefault("server.address", "")
-	toPort := parsePort(cfg.StringDefault("server.port", appDefaultHTTPPort))
+	address := a.HTTPAddress()
+	toPort := a.parsePort(cfg.StringDefault("server.port", defaultHTTPPort))
 	fromPort, found := cfg.String(keyPrefix + ".port")
 	if !found {
-		log.Errorf("'%s.port' is required value, unable to start redirect server", keyPrefix)
+		a.Log().Errorf("'%s.port' is required value, unable to start redirect server", keyPrefix)
 		return
 	}
 	redirectCode := cfg.IntDefault(keyPrefix+".code", http.StatusTemporaryRedirect)
 
-	log.Infof("aah go redirect server running on %s:%s", address, fromPort)
-	if err := http.ListenAndServe(address+":"+fromPort, http.HandlerFunc(
-		func(w http.ResponseWriter, r *http.Request) {
+	a.Log().Infof("aah go redirect server running on %s:%s", address, fromPort)
+	a.redirectServer = &http.Server{
+		Addr: address + ":" + fromPort,
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			target := "https://" + parseHost(r.Host, toPort) + r.URL.Path
 			if len(r.URL.RawQuery) > 0 {
 				target += "?" + r.URL.RawQuery
 			}
 			http.Redirect(w, r, target, redirectCode)
-		})); err != nil && err != http.ErrServerClosed {
-		log.Error(err)
+		}),
+	}
+
+	if err := a.redirectServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		a.Log().Error(err)
 	}
 }
 
-func initAutoCertManager(cfg *config.Config) error {
-	if !AppIsSSLEnabled() || !appIsLetsEncrypt {
-		return nil
+func (a *app) shutdownRedirectServer() {
+	if a.redirectServer != nil {
+		_ = a.redirectServer.Close()
 	}
-
-	hostPolicy, found := cfg.StringList("server.ssl.lets_encrypt.host_policy")
-	if !found || len(hostPolicy) == 0 {
-		return errors.New("'server.ssl.lets_encrypt.host_policy' is empty, provide at least one hostname")
-	}
-
-	renewBefore := time.Duration(cfg.IntDefault("server.ssl.lets_encrypt.renew_before", 10))
-
-	appAutocertManager = &autocert.Manager{
-		Prompt:      autocert.AcceptTOS,
-		HostPolicy:  autocert.HostWhitelist(hostPolicy...),
-		RenewBefore: 24 * renewBefore * time.Hour,
-		ForceRSA:    cfg.BoolDefault("server.ssl.lets_encrypt.force_rsa", false),
-		Email:       cfg.StringDefault("server.ssl.lets_encrypt.email", ""),
-	}
-
-	cacheDir := cfg.StringDefault("server.ssl.lets_encrypt.cache_dir", "")
-	if !ess.IsStrEmpty(cacheDir) {
-		appAutocertManager.Cache = autocert.DirCache(cacheDir)
-	}
-
-	return nil
 }
 
-func printStartupNote() {
-	port := firstNonZeroString(AppConfig().StringDefault("server.port", appDefaultHTTPPort), AppConfig().StringDefault("server.proxyport", ""))
-	log.Infof("aah go server running on %s:%s", AppHTTPAddress(), parsePort(port))
+func (a *app) printStartupNote() {
+	port := firstNonZeroString(
+		a.Config().StringDefault("server.port", defaultHTTPPort),
+		a.Config().StringDefault("server.proxyport", ""))
+	a.Log().Infof("aah go server running on %s:%s", a.HTTPAddress(), a.parsePort(port))
 }

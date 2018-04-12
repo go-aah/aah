@@ -11,32 +11,12 @@ import (
 	"aahframework.org/log.v0"
 )
 
-var (
-	mwStack []MiddlewareFunc
-	mwChain []*Middleware
-)
+// MiddlewareFunc func type is aah framework middleware signature.
+type MiddlewareFunc func(ctx *Context, m *Middleware)
 
-type (
-	// MiddlewareFunc func type is aah framework middleware signature.
-	MiddlewareFunc func(ctx *Context, m *Middleware)
-
-	// Middleware struct is to implement aah framework middleware chain.
-	Middleware struct {
-		next    MiddlewareFunc
-		further *Middleware
-	}
-)
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
-//___________________________________
-
-// Middlewares method adds given middleware into middleware stack
-func Middlewares(middlewares ...MiddlewareFunc) {
-	mwStack = append(mwStack, middlewares...)
-
-	invalidateMwChain()
-}
+//______________________________________________________________________________
 
 // ToMiddleware method expands the possibilities. It helps Golang community to
 // convert the third-party or your own net/http middleware into `aah.MiddlewareFunc`
@@ -63,9 +43,15 @@ func ToMiddleware(handler interface{}) MiddlewareFunc {
 	}
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Middleware methods
-//___________________________________
+//______________________________________________________________________________
+
+// Middleware struct is to implement aah framework middleware chain.
+type Middleware struct {
+	next    MiddlewareFunc
+	further *Middleware
+}
 
 // Next method calls next middleware in the chain if available.
 func (mw *Middleware) Next(ctx *Context) {
@@ -79,44 +65,81 @@ func (mw *Middleware) Next(ctx *Context) {
 	}
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// engine - Middleware
+//______________________________________________________________________________
+
+// Middlewares method adds given middleware into middleware stack
+func (e *engine) Middlewares(middlewares ...MiddlewareFunc) {
+	e.mwStack = append(e.mwStack, middlewares...)
+
+	e.invalidateMwChain()
+}
+
+func (e *engine) invalidateMwChain() {
+	e.mwChain = nil
+	cnt := len(e.mwStack)
+	e.mwChain = make([]*Middleware, cnt)
+
+	for idx := 0; idx < cnt; idx++ {
+		e.mwChain[idx] = &Middleware{next: e.mwStack[idx]}
+	}
+
+	for idx := cnt - 1; idx > 0; idx-- {
+		e.mwChain[idx-1].further = e.mwChain[idx]
+	}
+
+	e.mwChain[cnt-1].further = &Middleware{}
+}
+
+type beforeInterceptor interface {
+	Before()
+}
+
+type afterInterceptor interface {
+	After()
+}
+
+type finallyInterceptor interface {
+	Finally()
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Action middleware
-//___________________________________
+//______________________________________________________________________________
 
 // ActionMiddleware performs
 //	- Executes Interceptors (Before, Before<ActionName>, After, After<ActionName>,
 //				Panic, Panic<ActionName>, Finally, Finally<ActionName>)
 // 	- Invokes Controller Action
 func ActionMiddleware(ctx *Context, m *Middleware) {
-	target := reflect.ValueOf(ctx.target)
-	controller := resolveControllerName(ctx)
-
 	// Finally action and method. Always executed if present
 	defer func() {
-		if finallyActionMethod := target.MethodByName(incpFinallyActionName + ctx.action.Name); finallyActionMethod.IsValid() {
-			ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpFinallyActionName+ctx.action.Name)
+		if finallyActionMethod := ctx.targetrv.MethodByName(incpFinallyActionName + ctx.action.Name); finallyActionMethod.IsValid() {
+			ctx.Log().Debugf("Calling interceptor: %s.%s", ctx.controller.FqName, incpFinallyActionName+ctx.action.Name)
 			finallyActionMethod.Call(emptyArg)
 		}
 
-		if finallyAction := target.MethodByName(incpFinallyActionName); finallyAction.IsValid() {
-			ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpFinallyActionName)
-			finallyAction.Call(emptyArg)
+		// Finally: executes always if its implemented. Its applicable for every action in the controller
+		if cntrl, ok := ctx.target.(finallyInterceptor); ok {
+			ctx.Log().Debugf("Calling interceptor: %s.Finally", ctx.controller.FqName)
+			cntrl.Finally()
 		}
 	}()
 
 	// Panic action and method
 	defer func() {
 		if r := recover(); r != nil {
-			if ctx.abort {
-				return
-			}
+			// if ctx.abort {
+			// 	return
+			// }
 
-			if panicActionMethod := target.MethodByName(incpPanicActionName + ctx.action.Name); panicActionMethod.IsValid() {
-				ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpPanicActionName+ctx.action.Name)
+			if panicActionMethod := ctx.targetrv.MethodByName(incpPanicActionName + ctx.action.Name); panicActionMethod.IsValid() {
+				ctx.Log().Debugf("Calling interceptor: %s.%s", ctx.controller.FqName, incpPanicActionName+ctx.action.Name)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicActionMethod.Call(rv)
-			} else if panicAction := target.MethodByName(incpPanicActionName); panicAction.IsValid() {
-				ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpPanicActionName)
+			} else if panicAction := ctx.targetrv.MethodByName(incpPanicActionName); panicAction.IsValid() {
+				ctx.Log().Debugf("Calling interceptor: %s.%s", ctx.controller.FqName, incpPanicActionName)
 				rv := append([]reflect.Value{}, reflect.ValueOf(r))
 				panicAction.Call(rv)
 			} else { // propagate it
@@ -125,88 +148,36 @@ func ActionMiddleware(ctx *Context, m *Middleware) {
 		}
 	}()
 
-	// Before action
-	if beforeAction := target.MethodByName(incpBeforeActionName); beforeAction.IsValid() {
-		ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpBeforeActionName)
-		beforeAction.Call(emptyArg)
+	// Before: executes before every action in the controller
+	if cntrl, ok := ctx.target.(beforeInterceptor); ok {
+		ctx.Log().Debugf("Calling interceptor: %s.Before", ctx.controller.FqName)
+		cntrl.Before()
 	}
 
 	// Before action method
 	if !ctx.abort {
-		if beforeActionMethod := target.MethodByName(incpBeforeActionName + ctx.action.Name); beforeActionMethod.IsValid() {
-			ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpBeforeActionName+ctx.action.Name)
+		if beforeActionMethod := ctx.targetrv.MethodByName(incpBeforeActionName + ctx.action.Name); beforeActionMethod.IsValid() {
+			ctx.Log().Debugf("Calling interceptor: %s.%s", ctx.controller.FqName, incpBeforeActionName+ctx.action.Name)
 			beforeActionMethod.Call(emptyArg)
 		}
 	}
 
-	// Invokes Controller action
-	invokeAction(ctx)
+	// Calls controller action
+	ctx.callAction()
 
 	// After action method
 	if !ctx.abort {
-		if afterActionMethod := target.MethodByName(incpAfterActionName + ctx.action.Name); afterActionMethod.IsValid() {
-			ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpAfterActionName+ctx.action.Name)
+		if afterActionMethod := ctx.targetrv.MethodByName(incpAfterActionName + ctx.action.Name); afterActionMethod.IsValid() {
+			ctx.Log().Debugf("Calling interceptor: %s.%s", ctx.controller.FqName, incpAfterActionName+ctx.action.Name)
 			afterActionMethod.Call(emptyArg)
 		}
 	}
 
-	// After action
+	// After: executes after every action in the controller
 	if !ctx.abort {
-		if afterAction := target.MethodByName(incpAfterActionName); afterAction.IsValid() {
-			ctx.Log().Debugf("Calling interceptor: %s.%s", controller, incpAfterActionName)
-			afterAction.Call(emptyArg)
+		if cntrl, ok := ctx.target.(afterInterceptor); ok {
+			ctx.Log().Debugf("Calling interceptor: %s.After", ctx.controller.FqName)
+			cntrl.After()
 		}
 	}
-}
-
-// invokeAction calls the requested action on controller
-func invokeAction(ctx *Context) {
-	target := reflect.ValueOf(ctx.target)
-	controllerName := resolveControllerName(ctx)
-	action := target.MethodByName(ctx.action.Name)
-
-	if !action.IsValid() {
-		ctx.Log().Errorf("Action '%s' doesn't exists on controller '%s'", ctx.action.Name, controllerName)
-		ctx.Reply().Error(&Error{
-			Reason:  ErrControllerOrActionNotFound,
-			Code:    http.StatusNotFound,
-			Message: http.StatusText(http.StatusNotFound),
-		})
-		return
-	}
-
-	ctx.Log().Debugf("Calling controller: %s.%s", controllerName, ctx.action.Name)
-
-	// Parse Action Parameters
-	actionArgs, err := parseParameters(ctx)
-	if err != nil { // Any error of parameter parsing result in 400 Bad Request
-		ctx.Reply().Error(err)
-		return
-	}
-
-	if action.Type().IsVariadic() {
-		action.CallSlice(actionArgs)
-	} else {
-		action.Call(actionArgs)
-	}
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
-
-func invalidateMwChain() {
-	mwChain = nil
-	cnt := len(mwStack)
-	mwChain = make([]*Middleware, cnt)
-
-	for idx := 0; idx < cnt; idx++ {
-		mwChain[idx] = &Middleware{next: mwStack[idx]}
-	}
-
-	for idx := cnt - 1; idx > 0; idx-- {
-		mwChain[idx-1].further = mwChain[idx]
-	}
-
-	mwChain[cnt-1].further = &Middleware{}
 }
