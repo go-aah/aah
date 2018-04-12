@@ -17,7 +17,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"testb/app/models"
 	"testing"
 	"time"
 
@@ -390,9 +389,7 @@ type testSiteController struct {
 
 func (s *testSiteController) Index() {
 	s.Reply().HTML(Data{
-		"Greet": models.Greet{
-			Message: "Welcome to aah framework - Test Application webapp1",
-		},
+		"Message":     "Welcome to aah framework - Test Application webapp1",
 		"IsSubDomain": s.Subdomain(),
 		"StaticRoute": s.IsStaticRoute(),
 	})
