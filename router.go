@@ -73,10 +73,13 @@ func IsDefaultAction(action string) bool {
 // Router is used to register all application routes and finds the appropriate
 // route information for incoming request path.
 type Router struct {
-	Domains    map[string]*Domain
-	configPath string
-	config     *config.Config
-	appCfg     *config.Config
+	Domains      map[string]*Domain
+	rootDomain   *Domain
+	singleDomain *Domain
+	addresses    []string
+	configPath   string
+	config       *config.Config
+	appCfg       *config.Config
 }
 
 // Load method loads a configuration from given file e.g. `routes.conf` and
@@ -112,6 +115,10 @@ func (r *Router) FindDomain(req *ahttp.Request) *Domain {
 
 // Lookup method returns domain for given host otherwise nil.
 func (r *Router) Lookup(host string) *Domain {
+	if r.singleDomain != nil {
+		// only one domain scenario
+		return r.singleDomain
+	}
 	host = strings.ToLower(host)
 
 	// Extact match of host value
@@ -136,25 +143,13 @@ func (r *Router) Lookup(host string) *Domain {
 // For e.g.: sample.com, admin.sample.com, *.sample.com.
 // Root Domain is `sample.com`.
 func (r *Router) RootDomain() *Domain {
-	for _, d := range r.Domains {
-		if d.IsSubDomain {
-			continue
-		}
-		return d
-	}
-	return nil
+	return r.rootDomain
 }
 
 // DomainAddresses method returns domain addresses (host:port) from
 // routes configuration.
 func (r *Router) DomainAddresses() []string {
-	var addresses []string
-
-	for k := range r.Domains {
-		addresses = append(addresses, k)
-	}
-
-	return addresses
+	return r.addresses
 }
 
 // RegisteredActions method returns all the controller name and it's actions
@@ -275,8 +270,24 @@ func (r *Router) processRoutesConfig() (err error) {
 		}
 
 		r.Domains[key] = domain
+		r.addresses = append(r.addresses, key)
 
 	} // End of domains
+
+	// Only one domain scenario
+	if len(r.Domains) == 1 {
+		r.singleDomain = r.Domains[r.addresses[0]]
+	}
+
+	// find out root domain
+	// Note: Assuming of one domain and multiple sub-domains configured
+	// otherwise it will have first non-subdomain reference.
+	for _, d := range r.Domains {
+		if !d.IsSubDomain {
+			r.rootDomain = d
+			break
+		}
+	}
 
 	r.config.ClearProfile()
 	return
