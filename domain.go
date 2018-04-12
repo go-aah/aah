@@ -174,13 +174,7 @@ func (d *Domain) ReverseURLm(routeName string, args map[string]interface{}) stri
 		reverseURL = fmt.Sprintf("%s?%s", reverseURL, urlValues.Encode())
 	}
 
-	rURL, err := url.Parse(reverseURL)
-	if err != nil {
-		log.Error(err)
-		return ""
-	}
-
-	return rURL.String()
+	return reverseURL
 }
 
 // ReverseURL method composes route reverse URL for given route and
@@ -235,13 +229,7 @@ func (d *Domain) ReverseURL(routeName string, args ...interface{}) string {
 		reverseURL = path.Join(reverseURL, segment)
 	}
 
-	rURL, err := url.Parse(reverseURL)
-	if err != nil {
-		log.Error(err)
-		return ""
-	}
-
-	return rURL.String()
+	return reverseURL
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

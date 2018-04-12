@@ -106,7 +106,13 @@ func (r *Router) Load() (err error) {
 // FindDomain returns domain routes configuration based on http request
 // otherwise nil.
 func (r *Router) FindDomain(req *ahttp.Request) *Domain {
-	host := strings.ToLower(req.Host)
+	// DEPRECATED to be removed in v1.0 release
+	return r.Lookup(req.Host)
+}
+
+// Lookup method returns domain for given host otherwise nil.
+func (r *Router) Lookup(host string) *Domain {
+	host = strings.ToLower(host)
 
 	// Extact match of host value
 	// for e.g.: sample.com:8080, www.sample.com:8080, admin.sample.com:8080
@@ -181,7 +187,7 @@ func (r *Router) processRoutesConfig() (err error) {
 	_ = r.config.SetProfile("domains")
 
 	// allocate for no. of domains
-	r.Domains = make(map[string]*Domain, len(domains))
+	r.Domains = make(map[string]*Domain)
 	log.Debugf("Domain count: %d", len(domains))
 
 	for _, key := range domains {
