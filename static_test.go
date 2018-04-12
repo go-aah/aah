@@ -7,83 +7,67 @@ package aah
 import (
 	"bytes"
 	"io/ioutil"
-	"net/http/httptest"
-	"os"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/router.v0"
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/test.v0/assert"
 )
 
-func TestStaticFileAndDirectoryListing(t *testing.T) {
-	appCfg, _ := config.ParseString("")
-	e := newEngine(appCfg)
-
-	testStaticServe(t, e, "http://localhost:8080/static/css/aah\x00.css", "static", "css/aah\x00.css", "", "500 Internal Server Error", false)
-
-	testStaticServe(t, e, "http://localhost:8080/static/", "static", "", "", `<title>Listing of /static/</title>`, true)
-
-	testStaticServe(t, e, "http://localhost:8080/static", "static", "", "", "403 Directory listing not allowed", false)
-
-	testStaticServe(t, e, "http://localhost:8080/static", "static", "", "", `<a href="/static/">Moved Permanently</a>`, true)
-
-	testStaticServe(t, e, "http://localhost:8080/static/test.txt", "static", "test.txt", "", "This is file content of test.txt", false)
-
-	appIsProfileProd = true
-	testStaticServe(t, e, "http://localhost:8080/robots.txt", "static", "", "test.txt", "This is file content of test.txt", false)
-	appIsProfileProd = false
-}
-
-func TestStaticMisc(t *testing.T) {
-	// File extension check for gzip
-	v1 := checkGzipRequired("sample.css")
-	assert.True(t, v1)
-
-	v2 := checkGzipRequired("font.otf")
-	assert.True(t, v2)
-
-	// directoryList for read error
-	r1 := httptest.NewRequest("GET", "http://localhost:8080/assets/css/app.css", nil)
-	w1 := httptest.NewRecorder()
-	f, err := os.Open(filepath.Join(getTestdataPath(), "static", "test.txt"))
+func TestStaticFilesDelivery(t *testing.T) {
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts, err := newTestServer(t, importPath)
 	assert.Nil(t, err)
+	defer ts.Close()
 
-	directoryList(w1, r1, f)
-	assert.Equal(t, "Error reading directory", w1.Body.String())
+	t.Logf("Test Server URL [Static Files Delivery]: %s", ts.URL)
 
-	// cache bust filename parse
-	filename := parseCacheBustPart("aah-813e524.css", "813e524")
-	assert.Equal(t, "aah.css", filename)
-}
+	httpClient := new(http.Client)
 
-func TestParseStaticCacheMap(t *testing.T) {
-	appConfig, _ = config.ParseString(`
-		cache {
-		  static {
-		    default_cache_control = "public, max-age=31536000"
+	// Static File - /robots.txt
+	t.Log("Static File - /robots.txt")
+	resp, err := httpClient.Get(ts.URL + "/robots.txt")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.True(t, strings.Contains(responseBody(resp), "User-agent: *"))
+	assert.Equal(t, "no-cache, no-store, must-revalidate", resp.Header.Get(ahttp.HeaderCacheControl))
 
-				mime_types {
-		      css_js {
-		        mime = "text/css, application/javascript"
-		        cache_control = "public, max-age=2628000, must-revalidate, proxy-revalidate"
-		      }
+	// Static File - /assets/css/aah.css
+	t.Log("Static File - /assets/css/aah.css")
+	resp, err = httpClient.Get(ts.URL + "/assets/css/aah.css")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.True(t, strings.Contains(responseBody(resp), "Minimal aah framework application template CSS."))
+	assert.Equal(t, "no-cache, no-store, must-revalidate", resp.Header.Get(ahttp.HeaderCacheControl))
 
-		      images {
-		        mime = "image/jpeg, image/png, image/gif, image/svg+xml, image/x-icon"
-		        cache_control = "public, max-age=2628000, must-revalidate, proxy-revalidate"
-		      }
-		    }
-		  }
-		}
-	`)
+	// Directory Listing - /assets
+	t.Log("Directory Listing - /assets")
+	resp, err = httpClient.Get(ts.URL + "/assets")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	body := responseBody(resp)
+	assert.True(t, strings.Contains(body, "<title>Listing of /assets/</title>"))
+	assert.True(t, strings.Contains(body, "<h1>Listing of /assets/</h1><hr>"))
+	assert.True(t, strings.Contains(body, `<a href="robots.txt">robots.txt</a>`))
+	assert.Equal(t, "", resp.Header.Get(ahttp.HeaderCacheControl))
 
-	parseStaticMimeCacheMap(&Event{})
-	assert.Equal(t, "public, max-age=2628000, must-revalidate, proxy-revalidate", cacheHeader("image/png"))
-	assert.Equal(t, "public, max-age=31536000", cacheHeader("application/x-font-ttf"))
-	appConfig = nil
+	// Static File - /assets/img/aah-framework-logo.png
+	t.Log("Static File - /assets/img/aah-framework-logo.png")
+	resp, err = httpClient.Get(ts.URL + "/assets/img/aah-framework-logo.png")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, "image/png", resp.Header.Get(ahttp.HeaderContentType))
+	assert.Equal(t, "6990", resp.Header.Get(ahttp.HeaderContentLength))
+	assert.Equal(t, "no-cache, no-store, must-revalidate", resp.Header.Get(ahttp.HeaderCacheControl))
+
+	// Static File - /assets/img/notfound/file.txt
+	t.Log("Static File - /assets/img/notfound/file.txt")
+	resp, err = httpClient.Get(ts.URL + "/assets/img/notfound/file.txt")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, "0", resp.Header.Get(ahttp.HeaderContentLength))
 }
 
 func TestStaticDetectContentType(t *testing.T) {
@@ -120,26 +104,7 @@ func TestStaticDetectContentType(t *testing.T) {
 	v, _ = detectFileContentType("file.css", nil)
 	assert.Equal(t, "text/css; charset=utf-8", v)
 
-	content, _ := ioutil.ReadFile(filepath.Join(getTestdataPath(), "test-image.noext"))
+	content, _ := ioutil.ReadFile(filepath.Join(testdataBaseDir(), "test-image.noext"))
 	v, _ = detectFileContentType("test-image.noext", bytes.NewReader(content))
 	assert.Equal(t, "image/png", v)
-}
-
-func testStaticServe(t *testing.T, e *engine, reqURL, dir, filePath, file, result string, listDir bool) {
-	r := httptest.NewRequest("GET", reqURL, nil)
-	w := httptest.NewRecorder()
-	ctx := e.prepareContext(w, r)
-	ctx.route = &router.Route{IsStatic: true, Dir: dir, ListDir: listDir, File: file}
-	ctx.Req.Params.Path = map[string]string{
-		"filepath": filePath,
-	}
-	appBaseDir = getTestdataPath()
-	err := e.serveStatic(ctx)
-	appBaseDir = ""
-	assert.Nil(t, err)
-	if !strings.Contains(w.Body.String(), result) {
-		t.Log(w.Body.String(), result)
-	}
-
-	assert.True(t, strings.Contains(w.Body.String(), result))
 }

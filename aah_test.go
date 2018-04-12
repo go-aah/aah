@@ -5,211 +5,549 @@
 package aah
 
 import (
+	"bytes"
+	"compress/gzip"
+	"io"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"testb/app/models"
 	"testing"
 	"time"
 
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
 )
 
-func TestAahInitAppVariables(t *testing.T) {
-	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
-	err := initConfig(cfgDir)
+func TestAahApp(t *testing.T) {
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts, err := newTestServer(t, importPath)
 	assert.Nil(t, err)
+	defer ts.Close()
 
-	err = initAppVariables()
+	t.Logf("Test Server URL: %s", ts.URL)
+
+	// Do not follow redirect
+	if http.DefaultClient.CheckRedirect == nil {
+		http.DefaultClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	}
+
+	// GET - /index.html or /
+	t.Log("GET - /index.html or /")
+	req, err := http.NewRequest(ahttp.MethodGet, ts.URL+"?lang=en", nil)
 	assert.Nil(t, err)
+	req.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
+	result := fireRequest(t, req)
+	assert.Equal(t, 200, result.StatusCode)
+	assert.NotNil(t, result.Header)
+	assert.Equal(t, "text/html; charset=utf-8", result.Header.Get(ahttp.HeaderContentType))
+	assert.Equal(t, "SAMEORIGIN", result.Header.Get(ahttp.HeaderXFrameOptions))
+	assert.Equal(t, "nosniff", result.Header.Get(ahttp.HeaderXContentTypeOptions))
+	assert.Equal(t, "Before Called successfully", result.Header.Get("X-Before-Interceptor"))
+	assert.Equal(t, "After Called successfully", result.Header.Get("X-After-Interceptor"))
+	assert.Equal(t, "Finally Called successfully", result.Header.Get("X-Finally-Interceptor"))
+	assert.True(t, strings.Contains(result.Body, "Test Application webapp1 Yes it works!!!"))
+	assert.True(t, strings.Contains(result.Body, "aah framework web application"))
 
-	AppConfig().SetString("env.dev.test_value", "dev test value")
-	err = initAppVariables()
+	// GET - /get-text.html
+	t.Log("GET - /get-text.html")
+	req, err = http.NewRequest(ahttp.MethodGet, ts.URL+"/get-text.html", nil)
 	assert.Nil(t, err)
+	req.Header.Add(ahttp.HeaderAcceptEncoding, "gzip, deflate, sdch, br")
+	result = fireRequest(t, req)
+	assert.Equal(t, 200, result.StatusCode)
+	assert.NotNil(t, result.Header)
+	assert.Equal(t, "SAMEORIGIN", result.Header.Get(ahttp.HeaderXFrameOptions))
+	assert.Equal(t, "nosniff", result.Header.Get(ahttp.HeaderXContentTypeOptions))
+	assert.Equal(t, "BeforeText Called successfully", result.Header.Get("X-Beforetext-Interceptor"))
+	assert.Equal(t, "AfterText Called successfully", result.Header.Get("X-Aftertext-Interceptor"))
+	assert.Equal(t, "FinallyText Called successfully", result.Header.Get("X-Finallytext-Interceptor"))
+	assert.True(t, strings.Contains(result.Body, "This is text render response"))
 
-	assert.Equal(t, "aahframework", AppName())
-	assert.Equal(t, "aah framework test config", AppDesc())
-	assert.Equal(t, "127.0.0.1", AppHTTPAddress())
-	assert.Equal(t, "80", AppHTTPPort())
-	assert.Equal(t, "en", AppDefaultI18nLang())
-	assert.True(t, ess.IsStrEmpty(AppImportPath()))
-	assert.False(t, AppIsSSLEnabled())
-	assert.Equal(t, "dev", AppProfile())
-	assert.Equal(t, "1m30s", appHTTPReadTimeout.String())
-	assert.Equal(t, "1m30s", appHTTPWriteTimeout.String())
-	assert.Equal(t, 1048576, appHTTPMaxHdrBytes)
-	assert.False(t, appInitialized)
-	assert.Equal(t, int64(33554432), appMultipartMaxMemory)
-	assert.True(t, ess.IsStrEmpty(appSSLCert))
-	assert.True(t, ess.IsStrEmpty(appSSLKey))
-
-	AppConfig().SetString("env.default", "dev")
-	profiles := AllAppProfiles()
-	assert.NotNil(t, profiles)
-	assert.True(t, len(profiles) == 1)
-	assert.Equal(t, "dev", profiles[0])
-
-	// App port no
-	AppConfig().SetString("server.port", "")
-	assert.Equal(t, "80", AppHTTPPort())
-	appIsSSLEnabled = true
-	assert.Equal(t, "443", AppHTTPPort())
-
-	// app packaged
-	assert.False(t, appIsPackaged)
-
-	// init auto cert
-	AppConfig().SetBool("server.ssl.enable", true)
-	AppConfig().SetBool("server.ssl.lets_encrypt.enable", true)
-	defer ess.DeleteFiles(filepath.Join(getTestdataPath(), "autocert"))
-	AppConfig().SetString("server.ssl.lets_encrypt.cache_dir", filepath.Join(getTestdataPath(), "autocert"))
-	err = initAppVariables()
+	// Redirect - /test-redirect.html
+	t.Log("Redirect - /test-redirect.html")
+	req, err = http.NewRequest(ahttp.MethodGet, ts.URL+"/test-redirect.html", nil)
 	assert.Nil(t, err)
-	assert.NotNil(t, appAutocertManager)
+	result = fireRequest(t, req)
+	assert.Equal(t, 302, result.StatusCode)
+	assert.NotNil(t, result.Header)
+	assert.True(t, result.Header.Get(ahttp.HeaderLocation) != "")
+	assert.True(t, strings.Contains(result.Body, "Found"))
 
-	AppConfig().SetBool("server.ssl.enable", false)
-	err = initAppVariables()
-	assert.Equal(t, "let's encrypt enabled, however SSL 'server.ssl.enable' is not enabled for application", err.Error())
+	// Redirect - /test-redirect.html?mode=text_get
+	t.Log("Redirect - /test-redirect.html?mode=text_get")
+	req, err = http.NewRequest(ahttp.MethodGet, ts.URL+"/test-redirect.html?mode=text_get", nil)
+	assert.Nil(t, err)
+	result = fireRequest(t, req)
+	assert.Equal(t, 302, result.StatusCode)
+	assert.NotNil(t, result.Header)
+	hdrLocation := result.Header.Get(ahttp.HeaderLocation)
+	assert.True(t, hdrLocation != "")
+	assert.True(t, strings.Contains(hdrLocation, "Param2"))
+	assert.True(t, strings.Contains(result.Body, "Found"))
 
-	// revert values
-	AppConfig().SetString("server.port", appDefaultHTTPPort)
-	AppConfig().SetBool("server.ssl.lets_encrypt.enable", false)
+	// Redirect - /test-redirect.html?mode=status
+	t.Log("Redirect - /test-redirect.html?mode=status")
+	req, err = http.NewRequest(ahttp.MethodGet, ts.URL+"/test-redirect.html?mode=status", nil)
+	assert.Nil(t, err)
+	result = fireRequest(t, req)
+	assert.Equal(t, 307, result.StatusCode)
+	assert.NotNil(t, result.Header)
+	assert.True(t, result.Header.Get(ahttp.HeaderLocation) != "")
+	assert.True(t, strings.Contains(result.Body, "Temporary Redirect"))
 
-	// config error scenario
+	// Redirect - /test-redirect.html?mode=redirect_decrep
+	t.Log("Redirect - /test-redirect.html?mode=redirect_decrep")
+	req, err = http.NewRequest(ahttp.MethodGet, ts.URL+"/test-redirect.html?mode=redirect_decrep", nil)
+	assert.Nil(t, err)
+	result = fireRequest(t, req)
+	assert.Equal(t, 307, result.StatusCode)
+	assert.NotNil(t, result.Header)
+	assert.True(t, result.Header.Get(ahttp.HeaderLocation) != "")
+	assert.True(t, strings.Contains(result.Body, "Temporary Redirect"))
 
-	// unsupported read timeout
-	AppConfig().SetString("server.timeout.read", "20h")
-	err = initAppVariables()
-	assert.NotNil(t, err)
-	assert.Equal(t, "'server.timeout.{read|write}' value is not a valid time unit", err.Error())
-	AppConfig().SetString("server.timeout.read", "90s")
+	// Form Submit - /form-submit - Anti-CSRF nicely guarded the form request :)
+	t.Log("Form Submit - /form-submit - Anti-CSRF nicely guarded the form request :)")
+	form := url.Values{}
+	form.Add("id", "1000001")
+	form.Add("product_name", "Test Product")
+	form.Add("username", "welcome")
+	form.Add("email", "welcome@welcome.com")
+	req, err = http.NewRequest(ahttp.MethodPost, ts.URL+"/form-submit", strings.NewReader(form.Encode()))
+	assert.Nil(t, err)
+	req.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeForm.String())
+	result = fireRequest(t, req)
+	assert.Equal(t, 403, result.StatusCode)
+	assert.NotNil(t, result.Header)
+	assert.True(t, strings.Contains(result.Body, "403 Forbidden"))
 
-	// read timeout parsing error
-	AppConfig().SetString("server.timeout.read", "ss")
-	err = initAppVariables()
-	assert.Equal(t, "'server.timeout.read': time: invalid duration ss", err.Error())
-	AppConfig().SetString("server.timeout.read", "90s")
+	// Form Submit - /form-submit with anti_csrf_token
+	t.Log("Form Submit - /form-submit with anti_csrf_token")
+	secret := ts.app.SecurityManager().AntiCSRF.GenerateSecret()
+	secretstr := ts.app.SecurityManager().AntiCSRF.SaltCipherSecret(secret)
+	form.Add("anti_csrf_token", secretstr)
+	wt := httptest.NewRecorder()
+	ts.app.SecurityManager().AntiCSRF.SetCookie(wt, secret)
+	cookieValue := wt.Header().Get("Set-Cookie")
+	req, err = http.NewRequest(ahttp.MethodPost, ts.URL+"/form-submit", strings.NewReader(form.Encode()))
+	assert.Nil(t, err)
+	req.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeForm.String())
+	req.Header.Set(ahttp.HeaderCookie, cookieValue)
+	result = fireRequest(t, req)
+	assert.Equal(t, 200, result.StatusCode)
+	assert.True(t, strings.Contains(result.Body, "Data recevied successfully"))
+	assert.True(t, strings.Contains(result.Body, "welcome@welcome.com"))
+	assert.True(t, strings.Contains(strings.Join(result.Header["Set-Cookie"], "||"), "aah_session="))
 
-	// write timout pasring error
-	AppConfig().SetString("server.timeout.write", "mm")
-	err = initAppVariables()
-	assert.Equal(t, "'server.timeout.write': time: invalid duration mm", err.Error())
-	AppConfig().SetString("server.timeout.write", "90s")
+	// CreateRecord - /create-record - JSON post request
+	// This is webapp test app, send request with anti_csrf_token on HTTP header
+	t.Log("CreateRecord - /create-record - JSON post request\n" +
+		"This is webapp test app, send request with anti_csrf_token on HTTP header")
+	jsonStr := `{
+		"first_name":"My firstname",
+		"last_name": "My lastname",
+		"email": "email@myemail.com",
+		"number": 8253645635463
+	}`
+	req, err = http.NewRequest(ahttp.MethodPost, ts.URL+"/create-record", strings.NewReader(jsonStr))
+	assert.Nil(t, err)
+	req.Header.Set(ahttp.HeaderContentType, ahttp.ContentTypeJSON.String())
+	req.Header.Set("X-Anti-CSRF-Token", secretstr)
+	req.Header.Set(ahttp.HeaderCookie, cookieValue)
+	req.Header.Set(ahttp.HeaderXRequestID, ess.NewGUID()+"jeeva")
+	result = fireRequest(t, req)
+	assert.Equal(t, 200, result.StatusCode)
+	assert.True(t, strings.Contains(result.Body, "JSON Payload recevied successfully"))
+	assert.True(t, strings.Contains(result.Body, "8253645635463"))
+	assert.True(t, strings.Contains(result.Body, "email@myemail.com"))
 
-	// max header bytes parsing error
-	AppConfig().SetString("server.max_header_bytes", "2sb")
-	err = initAppVariables()
-	assert.Equal(t, "'server.max_header_bytes' value is not a valid size unit", err.Error())
-	AppConfig().SetString("server.max_header_bytes", "1mb")
-
-	// ssl cert required if enabled
-	AppConfig().SetBool("server.ssl.enable", true)
-	err = initAppVariables()
-	assert.True(t, (!appIsLetsEncrypt && strings.Contains(err.Error(), "server.ssl.cert")))
-	assert.True(t, (!appIsLetsEncrypt && strings.Contains(err.Error(), "server.ssl.key")))
-	AppConfig().SetBool("server.ssl.enable", false)
-
-	// multipart size parsing error
-	AppConfig().SetString("request.multipart_size", "2sb")
-	err = initAppVariables()
-	assert.Equal(t, "'request.multipart_size' value is not a valid size unit", err.Error())
-	AppConfig().SetString("request.multipart_size", "12mb")
-
-	SetAppPackaged(true)
-	assert.True(t, appIsPackaged)
-
-	// cleanup
-	appConfig = nil
-	SetAppPackaged(false)
 }
 
-func TestAahInitPath(t *testing.T) {
-	err := initPath("github.com/jeevatkm/testapp")
-	assert.NotNil(t, err)
-	assert.Equal(t, "aah application does not exists: github.com/jeevatkm/testapp", err.Error())
-	assert.True(t, !ess.IsStrEmpty(goSrcDir))
-	assert.True(t, !ess.IsStrEmpty(goPath))
+func TestAppMisc(t *testing.T) {
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts, err := newTestServer(t, importPath)
+	assert.Nil(t, err)
+	defer ts.Close()
 
-	// cleanup
-	appImportPath, appBaseDir, goPath, goSrcDir = "", "", "", ""
-	appIsPackaged = false
-}
+	t.Logf("Test Server URL [App Misc]: %s", ts.URL)
 
-func TestAahRecover(t *testing.T) {
-	defer aahRecover()
+	a := ts.app
 
-	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
-	err := initConfig(cfgDir)
+	assert.Equal(t, "web", a.Type())
+	assert.Equal(t, "aah framework web application", a.Desc())
+	assert.False(t, a.IsPackaged())
+	a.SetPackaged(true)
+	assert.True(t, a.IsPackaged())
+	assert.True(t, a.IsProfileDev())
+	assert.True(t, strings.Contains(strings.Join(a.AllProfiles(), " "), "prod"))
+
+	ll := a.NewChildLogger(log.Fields{"key1": "value1"})
+	assert.NotNil(t, ll)
+
+	// simualate CLI call
+	t.Log("simualate CLI call")
+	a.SetBuildInfo(nil)
+	err = a.Init(importPath)
 	assert.Nil(t, err)
 
-	panic("this is recover test")
-}
-
-func TestWritePID(t *testing.T) {
-	pidfile := filepath.Join(getTestdataPath(), "test-app")
-	defer ess.DeleteFiles(pidfile + ".pid")
-
-	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
-	err := initConfig(cfgDir)
+	// SSL
+	t.Log("SSL")
+	a.SetTLSConfig(nil)
+	a.Config().SetBool("server.ssl.enable", true)
+	a.Config().SetBool("server.ssl.lets_encrypt.enable", true)
+	err = a.checkSSLConfigValues()
+	assert.Nil(t, err)
+	err = a.initAutoCertManager()
 	assert.Nil(t, err)
 
-	writePID(AppConfig(), "test-app", getTestdataPath())
-	assert.True(t, ess.IsFileExists(pidfile+".pid"))
+	// simulate import path
+	t.Log("simulate import path")
+	a.importPath = "github.com/jeevatkm/noapp"
+	err = a.initPath()
+	assert.Nil(t, err)
 }
 
-func TestAahBuildInfo(t *testing.T) {
-	assert.Nil(t, AppBuildInfo())
+func fireRequest(t *testing.T, req *http.Request) *testResult {
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Errorf("Request failed %s", err)
+		t.FailNow()
+		return nil
+	}
 
-	buildTime := time.Now().Format(time.RFC3339)
-	SetAppBuildInfo(&BuildInfo{
-		BinaryName: "testapp",
-		Date:       buildTime,
+	return &testResult{
+		StatusCode: resp.StatusCode,
+		Header:     resp.Header,
+		Body:       responseBody(resp),
+		Raw:        resp,
+	}
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Test Server
+//______________________________________________________________________________
+
+func newTestServer(t *testing.T, importPath string) (*testServer, error) {
+	ts := &testServer{
+		app: newApp(),
+	}
+
+	ts.server = httptest.NewServer(ts.app.engine)
+	ts.URL = ts.server.URL
+
+	ts.app.SetBuildInfo(&BuildInfo{
+		BinaryName: filepath.Base(importPath),
+		Date:       time.Now().Format(time.RFC3339),
 		Version:    "1.0.0",
 	})
 
-	assert.NotNil(t, AppBuildInfo())
-	assert.Equal(t, "testapp", AppBuildInfo().BinaryName)
-	assert.Equal(t, buildTime, AppBuildInfo().Date)
-	assert.Equal(t, "1.0.0", AppBuildInfo().Version)
+	if err := ts.app.Init(importPath); err != nil {
+		return nil, err
+	}
+
+	// Manually do it here here, for aah CLI test no issue `aah test` :)
+	ts.manualInit()
+
+	ts.app.Log().(*log.Logger).SetWriter(ioutil.Discard)
+
+	return ts, nil
 }
 
-func TestAahConfigValidation(t *testing.T) {
-	err := checkSSLConfigValues(true, false, "/path/to/cert.pem", "/path/to/cert.key")
-	assert.Equal(t, "SSL cert file not found: /path/to/cert.pem", err.Error())
-
-	certPath := filepath.Join(getTestdataPath(), "cert.pem")
-	defer ess.DeleteFiles(certPath)
-	_ = ioutil.WriteFile(certPath, []byte("cert.pem file"), 0755)
-	err = checkSSLConfigValues(true, false, certPath, "/path/to/cert.key")
-	assert.Equal(t, "SSL key file not found: /path/to/cert.key", err.Error())
+type testResult struct {
+	StatusCode int
+	Header     http.Header
+	Body       string
+	Raw        *http.Response
 }
 
-func TestAahAppInit(t *testing.T) {
-	Init("aahframework.org/aah.v0/testdata")
-	assert.NotNil(t, appConfig)
-	assert.NotNil(t, appRouter)
-	assert.NotNil(t, appSecurityManager)
-
-	oldAppBuildInfo := appBuildInfo
-	appBuildInfo = nil
-
-	Init("aahframework.org/aah.v0/testdata")
-	appBuildInfo = oldAppBuildInfo
-
-	// reset it
-	appConfig = nil
-	appBaseDir = ""
+// TestServer provides capabilities to test aah application end-to-end.
+//
+// Note: after sometime I will expose this test server, I'm not fully satisfied with
+// the implementation yet! Becuase there are short comings in the test server....
+type testServer struct {
+	URL    string
+	app    *app
+	server *httptest.Server
 }
 
-func TestAahMisc(t *testing.T) {
-	assert.Equal(t, int64(0), firstNonZeroInt64(0))
+func (ts *testServer) Close() {
+	ts.server.Close()
+}
 
-	assert.True(t, kind(reflect.TypeOf(sample{})) == reflect.Struct)
+// It a workaround to init required things for application, since test `webapp1`
+// residing in `aahframework.org/aah.v0/testdata/webapp1`.
+//
+// This is not required for actual application residing in $GOPATH :)
+func (ts *testServer) manualInit() {
+	// adding middlewares
+	ts.app.engine.Middlewares(
+		RouteMiddleware,
+		CORSMiddleware,
+		BindMiddleware,
+		AntiCSRFMiddleware,
+		AuthcAuthzMiddleware,
+		ActionMiddleware,
+	)
 
-	host := parseHost("localhost:::8080", "")
-	assert.Equal(t, "localhost:::8080", host)
+	// adding controller
+	ts.app.AddController((*testSiteController)(nil), []*MethodInfo{
+		{
+			Name:       "Index",
+			Parameters: []*ParameterInfo{},
+		},
+		{
+			Name:       "Text",
+			Parameters: []*ParameterInfo{},
+		},
+		{
+			Name: "Redirect",
+			Parameters: []*ParameterInfo{
+				&ParameterInfo{Name: "mode", Type: reflect.TypeOf((*string)(nil))},
+			},
+		},
+		{
+			Name: "FormSubmit",
+			Parameters: []*ParameterInfo{
+				&ParameterInfo{Name: "id", Type: reflect.TypeOf((*int)(nil))},
+				&ParameterInfo{Name: "info", Type: reflect.TypeOf((**sample)(nil))},
+			},
+		},
+		{
+			Name: "CreateRecord",
+			Parameters: []*ParameterInfo{
+				&ParameterInfo{Name: "info", Type: reflect.TypeOf((**sampleJSON)(nil))},
+			},
+		},
+		{
+			Name:       "XML",
+			Parameters: []*ParameterInfo{},
+		},
+		{
+			Name: "JSONP",
+			Parameters: []*ParameterInfo{
+				&ParameterInfo{Name: "callback", Type: reflect.TypeOf((*string)(nil))},
+			},
+		},
+		{
+			Name:       "TriggerPanic",
+			Parameters: []*ParameterInfo{},
+		},
+		{
+			Name:       "BinaryBytes",
+			Parameters: []*ParameterInfo{},
+		},
+		{
+			Name:       "SendFile",
+			Parameters: []*ParameterInfo{},
+		},
+		{
+			Name:       "Cookies",
+			Parameters: []*ParameterInfo{},
+		},
+	})
 
-	host = parseHost("localhost:8080", "")
-	assert.Equal(t, "localhost", host)
+	// reset controller namespace and key
+	cregistry := make(controllerRegistry)
+	for k, v := range ts.app.engine.cregistry {
+		v.Namespace = ""
+		cregistry[path.Base(k)] = v
+	}
+	ts.app.engine.cregistry = cregistry
+}
+
+// Test types
+type sample struct {
+	ProductID   int    `bind:"id"`
+	ProductName string `bind:"product_name"`
+	Username    string `bind:"username"`
+	Email       string `bind:"email"`
+	Page        int    `bind:"page"`
+	Count       string `bind:"count"`
+}
+
+type sampleJSON struct {
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
+	Number    int    `json:"number"`
+}
+
+// Test Controller
+
+type testSiteController struct {
+	*Context
+}
+
+func (s *testSiteController) Index() {
+	s.Reply().HTML(Data{
+		"Greet": models.Greet{
+			Message: "Welcome to aah framework - Test Application webapp1",
+		},
+		"IsSubDomain": s.Subdomain(),
+		"StaticRoute": s.IsStaticRoute(),
+	})
+}
+
+func (s *testSiteController) Text() {
+	s.Reply().Text(s.Msg("test.text.msg.render"))
+}
+
+func (s *testSiteController) Redirect(mode string) {
+	switch mode {
+	case "status":
+		s.Reply().RedirectWithStatus(s.ReverseURL("text_get"), 307)
+	case "text_get":
+		s.Reply().Redirect(s.ReverseURLm("text_get", map[string]interface{}{
+			"param1": "param1value",
+			"Param2": "Param2Value",
+		}))
+	case "redirect_decrep":
+		s.Reply().RedirectSts(s.ReverseURL("text_get"), 307)
+	default:
+		s.Reply().Redirect(s.ReverseURL("index"))
+	}
+}
+
+func (s *testSiteController) FormSubmit(id int, info *sample) {
+	s.Session().Set("session_val1", "This is my session 1 value")
+	s.Reply().JSON(Data{
+		"message": "Data recevied successfully",
+		"success": true,
+		"id":      id,
+		"data":    info,
+	})
+}
+
+func (s *testSiteController) CreateRecord(info *sampleJSON) {
+	s.Reply().JSON(Data{
+		"message": "JSON Payload recevied successfully",
+		"success": true,
+		"data":    info,
+	})
+}
+
+func (s *testSiteController) XML() {
+	s.Reply().XML(Data{
+		"message": "This is XML payload result",
+		"success": true,
+	})
+}
+
+func (s *testSiteController) JSONP(callback string) {
+	s.Reply().JSONP(sample{
+		Username:    "myuser_name",
+		ProductName: "JSONP product",
+		ProductID:   190398398,
+		Email:       "email@email.com",
+		Page:        2,
+		Count:       "1000",
+	}, callback)
+}
+
+func (s *testSiteController) TriggerPanic() {
+	if s.Req.AcceptContentType().IsEqual("application/json") {
+		s.Reply().ContentType(ahttp.ContentTypeJSON.String())
+	}
+	panic("This panic flow test and recovery")
+}
+
+func (s *testSiteController) BinaryBytes() {
+	s.Reply().
+		HeaderAppend(ahttp.HeaderContentType, ahttp.ContentTypePlainText.String()).
+		Binary([]byte("This is my Binary Bytes"))
+}
+
+func (s *testSiteController) SendFile() {
+	s.Reply().
+		Header("X-Before-Interceptor", "").
+		Header(ahttp.HeaderContentType, ""). // this is just invoke the method
+		Header(ahttp.HeaderContentType, "text/css").
+		FileInline(filepath.Join("static", "css", "aah.css"), "aah.css")
+	s.Reply().IsContentTypeSet()
+}
+
+func (s *testSiteController) Cookies() {
+	s.Reply().Cookie(&http.Cookie{
+		Name:     "test_cookie_1",
+		Value:    "This is test cookie value 1",
+		Path:     "/",
+		Expires:  time.Now().AddDate(1, 0, 0),
+		HttpOnly: true,
+	}).
+		Cookie(&http.Cookie{
+			Name:     "test_cookie_2",
+			Value:    "This is test cookie value 2",
+			Path:     "/",
+			Expires:  time.Now().AddDate(1, 0, 0),
+			HttpOnly: true,
+		}).Text("Hey I'm sending cookies for you :)")
+}
+
+func (s *testSiteController) HandleError(err *Error) bool {
+	s.Log().Infof("we got the callbakc from error handler: %s", err)
+	s.Reply().Header("X-Cntrl-ErrorHandler", "true")
+	return false
+}
+
+func (s *testSiteController) Before() {
+	s.Reply().Header("X-Before-Interceptor", "Before Called successfully")
+	s.Log().Info("Before controller interceptor")
+}
+
+func (s *testSiteController) After() {
+	s.Reply().Header("X-After-Interceptor", "After Called successfully")
+	s.Log().Info("After controller interceptor")
+}
+
+func (s *testSiteController) Finally() {
+	s.Reply().Header("X-Finally-Interceptor", "Finally Called successfully")
+	s.Log().Info("Finally controller interceptor")
+}
+
+func (s *testSiteController) BeforeText() {
+	s.Reply().Header("X-BeforeText-Interceptor", "BeforeText Called successfully")
+	s.Log().Info("Before action Text interceptor")
+}
+
+func (s *testSiteController) AfterText() {
+	s.Reply().Header("X-AfterText-Interceptor", "AfterText Called successfully")
+	s.Log().Info("After action Text interceptor")
+}
+
+func (s *testSiteController) FinallyText() {
+	s.Reply().Header("X-FinallyText-Interceptor", "FinallyText Called successfully")
+	s.Log().Info("Finally action Text interceptor")
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Test util methods
+//______________________________________________________________________________
+
+func testdataBaseDir() string {
+	wd, _ := os.Getwd()
+	if idx := strings.Index(wd, "testdata"); idx > 0 {
+		wd = wd[:idx]
+	}
+	return filepath.Join(wd, "testdata")
+}
+
+func responseBody(res *http.Response) string {
+	body := res.Body
+	defer ess.CloseQuietly(body)
+	if strings.Contains(res.Header.Get(ahttp.HeaderContentEncoding), "gzip") {
+		body, _ = gzip.NewReader(body)
+	}
+	buf := new(bytes.Buffer)
+	io.Copy(buf, body)
+	return buf.String()
 }

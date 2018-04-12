@@ -1,0 +1,68 @@
+##############################################################
+# webapp1 - aah framework project
+#
+# Note: Add it to version control
+##############################################################
+
+# Build section is used during aah application compile and build command.
+build {
+  # Application binary name
+  # Default value is `name` attribute value from `aah.conf`
+  #binary_name = "webapp1"
+
+  # Used as fallback if
+  #   - `git commit sha` or
+  #   - `AAH_APP_VERSION` environment value is not available.
+  version = "0.0.1"
+
+  # If application is missing any dependencies in `build import path`
+  # during a compile and build, aah CLI will try to get dependencies
+  # using 'go get <package>'.
+  # Default value is `false`.
+  #dep_get = true
+
+  flags = ["-i"]
+
+  ldflags = ""
+
+  tags = ""
+
+  # AST excludes is used for `aah.Context` inspection and generating aah
+  # application main Go file. Valid exclude patterns
+  # refer: https://golang.org/pkg/path/filepath/#Match
+  ast_excludes = ["*_test.go", ".*", "*.bak", "*.tmp", "vendor"]
+
+  # Packing excludes is used to exclude file/directory during aah application
+  # build archive. Valid exclude patterns
+  # refer: https://golang.org/pkg/path/filepath/#Match
+  excludes = ["*.go", "*_test.go", ".*", "*.bak", "*.tmp", "vendor", "app", "build", "tests", "logs"]
+}
+
+# Logger configuration for aah CLI tool.
+log {
+  # Log level
+  # Default value is `info`.
+  #level = "info"
+
+  # Log colored output
+  # Default value is `true`.
+  #color = false
+}
+
+# Hot-Reload is development purpose to help developer.
+# Read more about implementation here - https://aahframework.org/issues/4
+#
+# NOTE: Do not use hot-reload feature for production purpose, it's not recommended.
+hot_reload {
+  # Default value is `true`.
+  enable = true
+
+  # Watch configuration - files/directories exclusion list.
+  watch {
+    # Note: static directory not required to be monitored, since server delivers
+    # up-to-date file on environment profile `dev`.
+    dir_excludes = [".*"]
+
+    file_excludes = [".*", "_test.go", "LICENSE", "README.md"]
+  }
+}

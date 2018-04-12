@@ -6,7 +6,6 @@ package aah
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -27,8 +26,10 @@ func (th *TestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestMiddlewareToHandler(t *testing.T) {
-	mwStack = make([]MiddlewareFunc, 0)
-	mwStack = append(mwStack,
+	a := newApp()
+	e := a.engine
+
+	e.Middlewares(
 		ToMiddleware(thirdPartyMiddleware3),
 		ToMiddleware(http.HandlerFunc(thirdPartyMiddleware2)),
 		ToMiddleware(&TestHandler{}),
@@ -36,25 +37,20 @@ func TestMiddlewareToHandler(t *testing.T) {
 		ToMiddleware(invaildHandlerType),
 	)
 
-	invalidateMwChain()
-
-	req := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
-	ctx := &Context{
-		Req: ahttp.ParseRequest(req, &ahttp.Request{}),
-		Res: ahttp.GetResponseWriter(httptest.NewRecorder()),
-	}
+	req := httptest.NewRequest(ahttp.MethodGet, "http://localhost:8080/doc/v0.3/mydoc.html", nil)
+	ctx := newContext(httptest.NewRecorder(), req)
 
 	// Execute the middleware
-	mwChain[0].Next(ctx)
+	e.mwChain[0].Next(ctx)
 
 	w := ctx.Res.Unwrap().(*httptest.ResponseRecorder)
 	resp := w.Result()
-	body, _ := ioutil.ReadAll(resp.Body)
-	t.Log(string(body))
+	body := responseBody(resp)
+	t.Log(body)
 
 	assert.Equal(t, http.StatusAccepted, resp.StatusCode)
-	assert.Equal(t, "text/html; charset=utf-8", resp.Header.Get("Content-Type"))
-	assert.True(t, strings.Contains(string(body), "localhost:8080--GET--/doc/v0.3/mydoc.html"))
+	assert.Equal(t, "text/html; charset=utf-8", resp.Header.Get(ahttp.HeaderContentType))
+	assert.True(t, strings.Contains(body, "localhost:8080--GET--/doc/v0.3/mydoc.html"))
 }
 
 func thirdPartyMiddleware1(w http.ResponseWriter, r *http.Request) {

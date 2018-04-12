@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+  {{ import "error_header.html" . -}}
+  <body>
+    <div class="container">{{ with .Error }}
+      <div class="content">
+        <div class="title">
+          {{ .Code }} {{ .Message }}
+        </div>
+      </div>{{ end }}
+    </div>
+    {{ import "error_footer.html" . -}}
+  </body>
+</html>
