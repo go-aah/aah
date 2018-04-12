@@ -54,7 +54,7 @@ func (a *app) hotReloadConfig() {
 	a.hotReload = true
 	defer func() { a.hotReload = false }()
 
-	a.Log().Info("Configuration reload and application reinitialization is in-progress ...")
+	a.Log().Info("Configuration hot-reload and application reinitialization starts ...")
 	var err error
 
 	if err = a.initConfig(); err != nil {
@@ -106,7 +106,7 @@ func (a *app) hotReloadConfig() {
 		}
 	}
 
-	a.Log().Info("Configuration reload and application reinitialization is successfully")
+	a.Log().Info("Configuration hot-reload and application reinitialization was successful")
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
