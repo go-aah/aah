@@ -104,7 +104,7 @@ func TestEngineTestRequests(t *testing.T) {
 	assert.Equal(t, "application/json; charset=utf-8", resp.Header.Get(ahttp.HeaderContentType))
 	assert.Equal(t, "true", resp.Header.Get("X-Centrallized-ErrorHandler"))
 	assert.Equal(t, "true", resp.Header.Get("X-Cntrl-ErrorHandler"))
-	assert.True(t, strings.Contains(responseBody(resp), `"message": "Internal Server Error"`))
+	assert.True(t, strings.Contains(responseBody(resp), `"message":"Internal Server Error"`))
 
 	// Panic Flow test XML - /trigger-panic
 	t.Log("Panic Flow test XML - /trigger-panic")
@@ -119,19 +119,8 @@ func TestEngineTestRequests(t *testing.T) {
 	assert.Equal(t, "true", resp.Header.Get("X-Cntrl-ErrorHandler"))
 	assert.True(t, strings.Contains(responseBody(resp), `<message>Internal Server Error</message>`))
 
-	// GET XML pretty response - /get-xml
-	t.Log("GET XML pretty response - /get-xml")
-	ts.app.renderPretty = true
-	resp, err = httpClient.Get(ts.URL + "/get-xml")
-	assert.Nil(t, err)
-	assert.Equal(t, 200, resp.StatusCode)
-	assert.Equal(t, "application/xml; charset=utf-8", resp.Header.Get(ahttp.HeaderContentType))
-	assert.Equal(t, "131", resp.Header.Get(ahttp.HeaderContentLength))
-	assert.True(t, strings.Contains(responseBody(resp), "<Message>This is XML payload result</Message>"))
-
 	// GET XML non-pretty response - /get-xml
 	t.Log("GET XML non-pretty response - /get-xml")
-	ts.app.renderPretty = false
 	resp, err = httpClient.Get(ts.URL + "/get-xml")
 	assert.Nil(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -139,26 +128,8 @@ func TestEngineTestRequests(t *testing.T) {
 	assert.Equal(t, "120", resp.Header.Get(ahttp.HeaderContentLength))
 	assert.True(t, strings.Contains(responseBody(resp), "<Message>This is XML payload result</Message>"))
 
-	// GET JSONP pretty response - /get-jsonp?callback=welcome1
-	t.Log("GET JSONP pretty response - /get-jsonp?callback=welcome1")
-	ts.app.renderPretty = true
-	resp, err = httpClient.Get(ts.URL + "/get-jsonp?callback=welcome1")
-	assert.Nil(t, err)
-	assert.Equal(t, 200, resp.StatusCode)
-	assert.Equal(t, "application/javascript; charset=utf-8", resp.Header.Get(ahttp.HeaderContentType))
-	assert.Equal(t, "176", resp.Header.Get(ahttp.HeaderContentLength))
-	assert.Equal(t, `welcome1({
-    "ProductID": 190398398,
-    "ProductName": "JSONP product",
-    "Username": "myuser_name",
-    "Email": "email@email.com",
-    "Page": 2,
-    "Count": "1000"
-});`, responseBody(resp))
-
 	// GET JSONP non-pretty response - /get-jsonp?callback=welcome1
 	t.Log("GET JSONP non-pretty response - /get-jsonp?callback=welcome1")
-	ts.app.renderPretty = false
 	resp, err = httpClient.Get(ts.URL + "/get-jsonp?callback=welcome1")
 	assert.Nil(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -168,13 +139,21 @@ func TestEngineTestRequests(t *testing.T) {
 
 	// GET JSONP non-pretty response no callback input - /get-jsonp
 	t.Log("GET JSONP non-pretty response no callback input - /get-jsonp")
-	ts.app.renderPretty = false
 	resp, err = httpClient.Get(ts.URL + "/get-jsonp")
 	assert.Nil(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, "application/javascript; charset=utf-8", resp.Header.Get(ahttp.HeaderContentType))
 	assert.Equal(t, "128", resp.Header.Get(ahttp.HeaderContentLength))
 	assert.True(t, strings.HasPrefix(responseBody(resp), `{"ProductID":190398398,"ProductName":"JSONP product","Username"`))
+
+	// GET SecureJSON response - /secure-json
+	t.Log("GET SecureJSON response - /secure-json")
+	resp, err = httpClient.Get(ts.URL + "/secure-json")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, "application/json; charset=utf-8", resp.Header.Get(ahttp.HeaderContentType))
+	assert.Equal(t, "134", resp.Header.Get(ahttp.HeaderContentLength))
+	assert.True(t, strings.HasPrefix(responseBody(resp), `)]}',`))
 
 	// GET Binary bytes - /binary-bytes
 	t.Log("GET Binary bytes - /binary-bytes")

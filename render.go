@@ -17,6 +17,10 @@ import (
 	"aahframework.org/essentials.v0"
 )
 
+const (
+	defaultSecureJSONPrefix = ")]}',\n"
+)
+
 var (
 	// JSONMarshal is used to register external JSON library for Marshalling.
 	JSONMarshal func(v interface{}) ([]byte, error)
@@ -75,20 +79,11 @@ func (t textRender) Render(w io.Writer) (err error) {
 // jsonRender renders the response JSON content.
 type jsonRender struct {
 	Data interface{}
-	r    *Reply
 }
 
 // Render method writes JSON into HTTP response.
 func (j jsonRender) Render(w io.Writer) error {
-	var jsonBytes []byte
-	var err error
-
-	if j.r.ctx.a.renderPretty {
-		jsonBytes, err = JSONMarshalIndent(j.Data, "", "    ")
-	} else {
-		jsonBytes, err = JSONMarshal(j.Data)
-	}
-
+	jsonBytes, err := JSONMarshal(j.Data)
 	if err != nil {
 		return err
 	}
@@ -105,20 +100,11 @@ func (j jsonRender) Render(w io.Writer) error {
 type jsonpRender struct {
 	Callback string
 	Data     interface{}
-	r        *Reply
 }
 
 // Render method writes JSONP into HTTP response.
 func (j jsonpRender) Render(w io.Writer) error {
-	var jsonBytes []byte
-	var err error
-
-	if j.r.ctx.a.renderPretty {
-		jsonBytes, err = JSONMarshalIndent(j.Data, "", "    ")
-	} else {
-		jsonBytes, err = JSONMarshal(j.Data)
-	}
-
+	jsonBytes, err := JSONMarshal(j.Data)
 	if err != nil {
 		return err
 	}
@@ -133,26 +119,40 @@ func (j jsonpRender) Render(w io.Writer) error {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// SecureJSON Render
+//______________________________________________________________________________
+
+type secureJSONRender struct {
+	Prefix string
+	Data   interface{}
+}
+
+func (s secureJSONRender) Render(w io.Writer) error {
+	jsonBytes, err := JSONMarshal(s.Data)
+	if err != nil {
+		return err
+	}
+
+	if _, err = w.Write([]byte(s.Prefix)); err != nil {
+		return err
+	}
+
+	_, err = w.Write(jsonBytes)
+	return err
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // XML Render
 //______________________________________________________________________________
 
 // xmlRender renders the response XML content.
 type xmlRender struct {
 	Data interface{}
-	r    *Reply
 }
 
 // Render method writes XML into HTTP response.
 func (x xmlRender) Render(w io.Writer) error {
-	var xmlBytes []byte
-	var err error
-
-	if x.r.ctx.a.renderPretty {
-		xmlBytes, err = xml.MarshalIndent(x.Data, "", "    ")
-	} else {
-		xmlBytes, err = xml.Marshal(x.Data)
-	}
-
+	xmlBytes, err := xml.Marshal(x.Data)
 	if err != nil {
 		return err
 	}
