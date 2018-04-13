@@ -134,11 +134,8 @@ func (x xmlRender) Render(w io.Writer) error {
 		return err
 	}
 
-	if _, err = w.Write(xmlBytes); err != nil {
-		return err
-	}
-
-	return nil
+	_, err = w.Write(xmlBytes)
+	return err
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
