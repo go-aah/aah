@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -107,4 +109,47 @@ func TestStaticDetectContentType(t *testing.T) {
 	content, _ := ioutil.ReadFile(filepath.Join(testdataBaseDir(), "test-image.noext"))
 	v, _ = detectFileContentType("test-image.noext", bytes.NewReader(content))
 	assert.Equal(t, "image/png", v)
+}
+
+func TestStaticCacheHeader(t *testing.T) {
+	sm := staticManager{
+		mimeCacheHdrMap: map[string]string{
+			"text/css":               "public, max-age=604800, proxy-revalidate",
+			"application/javascript": "public, max-age=604800, proxy-revalidate",
+			"image/png":              "public, max-age=604800, proxy-revalidate",
+		},
+		defaultCacheHdr: "public, max-age=31536000",
+	}
+
+	str := sm.cacheHeader("application/json")
+	assert.Equal(t, "public, max-age=31536000", str)
+
+	str = sm.cacheHeader("image/png")
+	assert.Equal(t, "public, max-age=604800, proxy-revalidate", str)
+
+	str = sm.cacheHeader("application/json; charset=utf-8")
+	assert.Equal(t, "public, max-age=31536000", str)
+
+	str = sm.cacheHeader("text/css")
+	assert.Equal(t, "public, max-age=604800, proxy-revalidate", str)
+}
+
+func TestStaticWriteFileError(t *testing.T) {
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts, err := newTestServer(t, importPath)
+	assert.Nil(t, err)
+	defer ts.Close()
+
+	t.Logf("Test Server URL [Static Write File Error]: %s", ts.URL)
+
+	sm := ts.app.staticMgr
+	req := httptest.NewRequest(ahttp.MethodGet, "http://localhost:8080/assets/js/myfile.js", nil)
+
+	w1 := httptest.NewRecorder()
+	sm.writeFileError(ahttp.AcquireResponseWriter(w1), ahttp.AcquireRequest(req), os.ErrPermission)
+	assert.Equal(t, "403 Forbidden", responseBody(w1.Result()))
+
+	w2 := httptest.NewRecorder()
+	sm.writeFileError(ahttp.AcquireResponseWriter(w2), ahttp.AcquireRequest(req), nil)
+	assert.Equal(t, "500 Internal Server Error", responseBody(w2.Result()))
 }

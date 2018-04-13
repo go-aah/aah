@@ -47,84 +47,13 @@ func TestRenderJSON(t *testing.T) {
 		Address: "this is my street",
 	}
 
-	a := newApp()
-	reply := newReply(&Context{a: a})
-	json1 := jsonRender{Data: data, r: reply}
+	json1 := jsonRender{Data: data}
 	err := json1.Render(buf)
 	assert.FailOnError(t, err, "")
 	assert.Equal(t, `{"Name":"John","Age":28,"Address":"this is my street"}`,
 		buf.String())
 }
 
-// func TestRenderJSONP(t *testing.T) {
-// 	buf := acquireBuffer()
-//
-// 	data := struct {
-// 		Name    string
-// 		Age     int
-// 		Address string
-// 	}{
-// 		Name:    "John",
-// 		Age:     28,
-// 		Address: "this is my street",
-// 	}
-//
-// 	renderPretty = true
-// 	json1 := jsonpRender{Data: data, Callback: "mycallback"}
-// 	err := json1.Render(buf)
-// 	assert.FailOnError(t, err, "")
-// 	assert.Equal(t, `mycallback({
-//     "Name": "John",
-//     "Age": 28,
-//     "Address": "this is my street"
-// });`, buf.String())
-//
-// 	buf.Reset()
-// 	renderPretty = false
-//
-// 	err = json1.Render(buf)
-// 	assert.FailOnError(t, err, "")
-// 	assert.Equal(t, `mycallback({"Name":"John","Age":28,"Address":"this is my street"});`,
-// 		buf.String())
-// }
-//
-// func TestRenderXML(t *testing.T) {
-// 	buf := acquireBuffer()
-//
-// 	type Sample struct {
-// 		Name    string
-// 		Age     int
-// 		Address string
-// 	}
-//
-// 	data := Sample{
-// 		Name:    "John",
-// 		Age:     28,
-// 		Address: "this is my street",
-// 	}
-//
-// 	renderPretty = true
-// 	xml1 := xmlRender{Data: data}
-// 	err := xml1.Render(buf)
-// 	assert.FailOnError(t, err, "")
-// 	assert.Equal(t, `<?xml version="1.0" encoding="UTF-8"?>
-// <Sample>
-//     <Name>John</Name>
-//     <Age>28</Age>
-//     <Address>this is my street</Address>
-// </Sample>`, buf.String())
-//
-// 	buf.Reset()
-//
-// 	renderPretty = false
-//
-// 	err = xml1.Render(buf)
-// 	assert.FailOnError(t, err, "")
-// 	assert.Equal(t, `<?xml version="1.0" encoding="UTF-8"?>
-// <Sample><Name>John</Name><Age>28</Age><Address>this is my street</Address></Sample>`,
-// 		buf.String())
-// }
-//
 func TestRenderFailureXML(t *testing.T) {
 	buf := new(bytes.Buffer)
 
@@ -138,9 +67,7 @@ func TestRenderFailureXML(t *testing.T) {
 		Address: "this is my street",
 	}
 
-	a := newApp()
-	reply := newReply(&Context{a: a})
-	xml1 := xmlRender{Data: data, r: reply}
+	xml1 := xmlRender{Data: data}
 	err := xml1.Render(buf)
 	assert.Equal(t, "xml: unsupported type: struct { Name string; Age int; Address string }", err.Error())
 }
@@ -149,7 +76,6 @@ func TestRenderFileNotExistsAndDir(t *testing.T) {
 	buf := new(bytes.Buffer)
 
 	// Directory error
-	// buf.Reset()
 	file1 := binaryRender{Path: os.Getenv("HOME")}
 	err := file1.Render(buf)
 	assert.NotNil(t, err)
