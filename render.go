@@ -75,20 +75,11 @@ func (t textRender) Render(w io.Writer) (err error) {
 // jsonRender renders the response JSON content.
 type jsonRender struct {
 	Data interface{}
-	r    *Reply
 }
 
 // Render method writes JSON into HTTP response.
 func (j jsonRender) Render(w io.Writer) error {
-	var jsonBytes []byte
-	var err error
-
-	if j.r.ctx.a.renderPretty {
-		jsonBytes, err = JSONMarshalIndent(j.Data, "", "    ")
-	} else {
-		jsonBytes, err = JSONMarshal(j.Data)
-	}
-
+	jsonBytes, err := JSONMarshal(j.Data)
 	if err != nil {
 		return err
 	}
@@ -105,20 +96,11 @@ func (j jsonRender) Render(w io.Writer) error {
 type jsonpRender struct {
 	Callback string
 	Data     interface{}
-	r        *Reply
 }
 
 // Render method writes JSONP into HTTP response.
 func (j jsonpRender) Render(w io.Writer) error {
-	var jsonBytes []byte
-	var err error
-
-	if j.r.ctx.a.renderPretty {
-		jsonBytes, err = JSONMarshalIndent(j.Data, "", "    ")
-	} else {
-		jsonBytes, err = JSONMarshal(j.Data)
-	}
-
+	jsonBytes, err := JSONMarshal(j.Data)
 	if err != nil {
 		return err
 	}
@@ -139,20 +121,11 @@ func (j jsonpRender) Render(w io.Writer) error {
 // xmlRender renders the response XML content.
 type xmlRender struct {
 	Data interface{}
-	r    *Reply
 }
 
 // Render method writes XML into HTTP response.
 func (x xmlRender) Render(w io.Writer) error {
-	var xmlBytes []byte
-	var err error
-
-	if x.r.ctx.a.renderPretty {
-		xmlBytes, err = xml.MarshalIndent(x.Data, "", "    ")
-	} else {
-		xmlBytes, err = xml.Marshal(x.Data)
-	}
-
+	xmlBytes, err := xml.Marshal(x.Data)
 	if err != nil {
 		return err
 	}

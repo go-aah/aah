@@ -103,7 +103,6 @@ type app struct {
 	staticAccessLogEnabled bool
 	dumpLogEnabled         bool
 	defaultContentType     *ahttp.ContentType
-	renderPretty           bool
 	shutdownGraceTimeStr   string
 	shutdownGraceTimeout   time.Duration
 	initialized            bool
@@ -428,7 +427,6 @@ func (a *app) initConfigValues() (err error) {
 	a.accessLogEnabled = cfg.BoolDefault("server.access_log.enable", false)
 	a.staticAccessLogEnabled = cfg.BoolDefault("server.access_log.static_file", true)
 	a.dumpLogEnabled = cfg.BoolDefault("server.dump_log.enable", false)
-	a.renderPretty = cfg.BoolDefault("render.pretty", false)
 	a.defaultContentType = resolveDefaultContentType(a.Config().StringDefault("render.default", ""))
 	if a.defaultContentType == nil {
 		return errors.New("'render.default' config value is not defined")

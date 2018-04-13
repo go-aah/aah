@@ -145,7 +145,7 @@ func (r *Reply) ContentType(contentType string) *Reply {
 // Response rendered pretty if 'render.pretty' is true.
 func (r *Reply) JSON(data interface{}) *Reply {
 	r.ContentType(ahttp.ContentTypeJSON.String())
-	r.Render(&jsonRender{Data: data, r: r})
+	r.Render(&jsonRender{Data: data})
 	return r
 }
 
@@ -153,7 +153,7 @@ func (r *Reply) JSON(data interface{}) *Reply {
 // and it sets HTTP 'Content-Type' as 'application/javascript; charset=utf-8'.
 func (r *Reply) JSONP(data interface{}, callback string) *Reply {
 	r.ContentType(ahttp.ContentTypeJavascript.String())
-	r.Render(&jsonpRender{Data: data, Callback: callback, r: r})
+	r.Render(&jsonpRender{Data: data, Callback: callback})
 	return r
 }
 
@@ -162,7 +162,7 @@ func (r *Reply) JSONP(data interface{}, callback string) *Reply {
 // Response rendered pretty if 'render.pretty' is true.
 func (r *Reply) XML(data interface{}) *Reply {
 	r.ContentType(ahttp.ContentTypeXML.String())
-	r.Render(&xmlRender{Data: data, r: r})
+	r.Render(&xmlRender{Data: data})
 	return r
 }
 
