@@ -148,6 +148,16 @@ func (r *Reply) JSON(data interface{}) *Reply {
 	return r
 }
 
+// SecureJSON method renders given data as Secure JSON into response.
+// and it sets HTTP 'Content-Type' as 'application/json; charset=utf-8'.
+//
+// See config `render.secure_json.prefix`.
+func (r *Reply) SecureJSON(data interface{}) *Reply {
+	r.ContentType(ahttp.ContentTypeJSON.String())
+	r.Render(&secureJSONRender{Data: data, Prefix: r.ctx.a.secureJSONPrefix})
+	return r
+}
+
 // JSONP method renders given data as JSONP response with callback
 // and it sets HTTP 'Content-Type' as 'application/javascript; charset=utf-8'.
 func (r *Reply) JSONP(data interface{}, callback string) *Reply {
