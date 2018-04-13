@@ -17,6 +17,10 @@ import (
 	"aahframework.org/essentials.v0"
 )
 
+const (
+	defaultSecureJSONPrefix = ")]}',\n"
+)
+
 var (
 	// JSONMarshal is used to register external JSON library for Marshalling.
 	JSONMarshal func(v interface{}) ([]byte, error)
@@ -111,6 +115,29 @@ func (j jsonpRender) Render(w io.Writer) error {
 		_, err = fmt.Fprintf(w, "%s(%s);", j.Callback, jsonBytes)
 	}
 
+	return err
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// SecureJSON Render
+//______________________________________________________________________________
+
+type secureJSONRender struct {
+	Prefix string
+	Data   interface{}
+}
+
+func (s secureJSONRender) Render(w io.Writer) error {
+	jsonBytes, err := JSONMarshal(s.Data)
+	if err != nil {
+		return err
+	}
+
+	if _, err = w.Write([]byte(s.Prefix)); err != nil {
+		return err
+	}
+
+	_, err = w.Write(jsonBytes)
 	return err
 }
 
