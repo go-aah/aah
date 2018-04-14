@@ -106,7 +106,7 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 	ctx.Log().Debugf("Request Content-Type mime: %s", ctx.Req.ContentType())
 
 	// Content Negotitaion - Accepted & Offered, refer to GitHub #75
-	if ctx.a.bindMgr.isContentNegotiationEnabled {
+	if ctx.a.bindMgr.contentNegotiationEnabled {
 		if len(ctx.a.bindMgr.acceptedContentTypes) > 0 &&
 			!ess.IsSliceContainsString(ctx.a.bindMgr.acceptedContentTypes, ctx.Req.ContentType().Mime) {
 			ctx.Log().Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType())
@@ -161,10 +161,10 @@ func (a *app) initBind() error {
 	cfg := a.Config()
 
 	bindMgr := &bindManager{
-		keyPathParamName:            cfg.StringDefault("i18n.param_name.path", keyOverrideI18nName),
-		keyQueryParamName:           cfg.StringDefault("i18n.param_name.query", keyOverrideI18nName),
-		isContentNegotiationEnabled: cfg.BoolDefault("request.content_negotiation.enable", false),
-		requestParsers:              make(map[string]requestParser),
+		keyPathParamName:          cfg.StringDefault("i18n.param_name.path", keyOverrideI18nName),
+		keyQueryParamName:         cfg.StringDefault("i18n.param_name.query", keyOverrideI18nName),
+		contentNegotiationEnabled: cfg.BoolDefault("request.content_negotiation.enable", false),
+		requestParsers:            make(map[string]requestParser),
 	}
 
 	// Content Negotitaion, GitHub #75
@@ -215,13 +215,13 @@ func (a *app) initBind() error {
 //______________________________________________________________________________
 
 type bindManager struct {
-	keyQueryParamName           string
-	keyPathParamName            string
-	requestParsers              map[string]requestParser
-	isContentNegotiationEnabled bool
-	acceptedContentTypes        []string
-	offeredContentTypes         []string
-	autobindPriority            []string
+	contentNegotiationEnabled bool
+	keyQueryParamName         string
+	keyPathParamName          string
+	acceptedContentTypes      []string
+	offeredContentTypes       []string
+	autobindPriority          []string
+	requestParsers            map[string]requestParser
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

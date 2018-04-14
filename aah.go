@@ -77,36 +77,36 @@ func newApp() *app {
 
 // app struct represents aah application.
 type app struct {
-	name                   string
-	importPath             string
-	baseDir                string
 	webApp                 bool
 	physicalPathMode       bool
 	isPackaged             bool
-	envProfile             string
-	sslCert                string
-	sslKey                 string
-	httpReadTimeout        time.Duration
-	httpWriteTimeout       time.Duration
-	httpMaxHdrBytes        int
-	multipartMaxMemory     int64
-	maxBodyBytes           int64
-	pid                    int
-	buildInfo              *BuildInfo
 	serverHeaderEnabled    bool
-	serverHeader           string
 	requestIDEnabled       bool
-	requestIDHeaderKey     string
 	gzipEnabled            bool
 	secureHeadersEnabled   bool
 	accessLogEnabled       bool
 	staticAccessLogEnabled bool
 	dumpLogEnabled         bool
-	defaultContentType     *ahttp.ContentType
-	shutdownGraceTimeStr   string
-	shutdownGraceTimeout   time.Duration
 	initialized            bool
 	hotReload              bool
+	pid                    int
+	httpMaxHdrBytes        int
+	multipartMaxMemory     int64
+	maxBodyBytes           int64
+	name                   string
+	importPath             string
+	baseDir                string
+	envProfile             string
+	sslCert                string
+	sslKey                 string
+	serverHeader           string
+	requestIDHeaderKey     string
+	shutdownGraceTimeStr   string
+	httpReadTimeout        time.Duration
+	httpWriteTimeout       time.Duration
+	shutdownGraceTimeout   time.Duration
+	buildInfo              *BuildInfo
+	defaultContentType     *ahttp.ContentType
 
 	cfg            *config.Config
 	tlsCfg         *tls.Config

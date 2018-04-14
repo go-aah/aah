@@ -133,10 +133,7 @@ func createRegistryKeyAndNamespace(cType reflect.Type) (string, string) {
 		return strings.ToLower(cType.Name()), ""
 	}
 
-	if strings.HasPrefix(namespace, string(filepath.Separator)) {
-		namespace = namespace[1:]
-	}
-
+	namespace = strings.TrimPrefix(namespace, string(filepath.Separator))
 	return strings.ToLower(path.Join(namespace, cType.Name())), namespace
 }
 

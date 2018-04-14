@@ -74,6 +74,7 @@ func TestRouterCORS(t *testing.T) {
 	// CORS preflight request
 	t.Log("CORS preflight request")
 	req3, err := http.NewRequest(ahttp.MethodOptions, ts.URL+"/users/edit", nil)
+	assert.Nil(t, err)
 	req3.Header.Set(ahttp.HeaderAccessControlRequestMethod, ahttp.MethodPost)
 	req3.Header.Set(ahttp.HeaderOrigin, "http://sample.com")
 	ctx3 := newContext(httptest.NewRecorder(), req3)
@@ -92,6 +93,7 @@ func TestRouterCORS(t *testing.T) {
 	// CORS regular request
 	t.Log("CORS regular request")
 	req4, err := http.NewRequest(ahttp.MethodOptions, ts.URL+"/users/edit", nil)
+	assert.Nil(t, err)
 	req4.Header.Set(ahttp.HeaderOrigin, "http://sample.com")
 	ctx4 := newContext(httptest.NewRecorder(), req4)
 	ctx4.a = ts.app
@@ -109,6 +111,7 @@ func TestRouterCORS(t *testing.T) {
 	// Preflight invalid origin
 	t.Log("Preflight invalid origin")
 	req5, err := http.NewRequest(ahttp.MethodOptions, ts.URL+"/users/edit", nil)
+	assert.Nil(t, err)
 	req5.Header.Set(ahttp.HeaderAccessControlRequestMethod, ahttp.MethodPost)
 	req5.Header.Set(ahttp.HeaderOrigin, "http://example.com")
 	ctx5 := newContext(httptest.NewRecorder(), req5)
