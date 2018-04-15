@@ -146,6 +146,15 @@ func TestEngineTestRequests(t *testing.T) {
 	assert.Equal(t, "128", resp.Header.Get(ahttp.HeaderContentLength))
 	assert.True(t, strings.HasPrefix(responseBody(resp), `{"ProductID":190398398,"ProductName":"JSONP product","Username"`))
 
+	// GET SecureJSON response - /secure-json
+	t.Log("GET SecureJSON response - /secure-json")
+	resp, err = httpClient.Get(ts.URL + "/secure-json")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, "application/json; charset=utf-8", resp.Header.Get(ahttp.HeaderContentType))
+	assert.Equal(t, "134", resp.Header.Get(ahttp.HeaderContentLength))
+	assert.True(t, strings.HasPrefix(responseBody(resp), `)]}',`))
+
 	// GET Binary bytes - /binary-bytes
 	t.Log("GET Binary bytes - /binary-bytes")
 	resp, err = httpClient.Get(ts.URL + "/binary-bytes")

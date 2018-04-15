@@ -338,6 +338,10 @@ func (ts *testServer) manualInit() {
 			},
 		},
 		{
+			Name:       "SecureJSON",
+			Parameters: []*ParameterInfo{},
+		},
+		{
 			Name:       "TriggerPanic",
 			Parameters: []*ParameterInfo{},
 		},
@@ -449,6 +453,17 @@ func (s *testSiteController) JSONP(callback string) {
 		Page:        2,
 		Count:       "1000",
 	}, callback)
+}
+
+func (s *testSiteController) SecureJSON() {
+	s.Reply().SecureJSON(sample{
+		Username:    "myuser_name",
+		ProductName: "JSONP product",
+		ProductID:   190398398,
+		Email:       "email@email.com",
+		Page:        2,
+		Count:       "1000",
+	})
 }
 
 func (s *testSiteController) TriggerPanic() {

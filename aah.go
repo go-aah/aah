@@ -101,6 +101,7 @@ type app struct {
 	sslKey                 string
 	serverHeader           string
 	requestIDHeaderKey     string
+	secureJSONPrefix       string
 	shutdownGraceTimeStr   string
 	httpReadTimeout        time.Duration
 	httpWriteTimeout       time.Duration
@@ -431,6 +432,8 @@ func (a *app) initConfigValues() (err error) {
 	if a.defaultContentType == nil {
 		return errors.New("'render.default' config value is not defined")
 	}
+
+	a.secureJSONPrefix = cfg.StringDefault("render.secure_json.prefix", defaultSecureJSONPrefix)
 
 	ahttp.GzipLevel = cfg.IntDefault("render.gzip.level", 5)
 	if !(ahttp.GzipLevel >= 1 && ahttp.GzipLevel <= 9) {
