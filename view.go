@@ -133,10 +133,6 @@ type viewManager struct {
 // resolve method resolves the view template based available facts, such as
 // controller name, action and user provided inputs.
 func (vm *viewManager) resolve(ctx *Context) {
-	if ctx.Reply().err != nil || !ctx.Reply().isHTML() {
-		return
-	}
-
 	// Resolving view by convention and configuration
 	reply := ctx.Reply()
 	if reply.Rdr == nil {
@@ -144,6 +140,10 @@ func (vm *viewManager) resolve(ctx *Context) {
 	}
 
 	htmlRdr := reply.Rdr.(*htmlRender)
+	if htmlRdr.Template != nil {
+		// template already populated in it, no need to go forward
+		return
+	}
 
 	if ess.IsStrEmpty(htmlRdr.Layout) && vm.defaultLayoutEnabled {
 		htmlRdr.Layout = vm.defaultTmplLayout

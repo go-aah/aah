@@ -6,6 +6,7 @@ package aah
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -25,6 +26,10 @@ const (
 
 const (
 	gzipContentEncoding = "gzip"
+
+	// Standard frame type MTU size is 1500 bytes so 1400 bytes would make sense
+	// to Gzip by default. Read: https://en.wikipedia.org/wiki/Maximum_transmission_unit
+	defaultGzipMinSize = 1400
 )
 
 var (
@@ -152,6 +157,8 @@ func (e *engine) publishOnPostAuthEvent(ctx *Context) {
 
 // ServeHTTP method implementation of http.Handler interface.
 func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer e.a.aahRecover() // just in case
+
 	// Capture the startTime earlier, so that value is as accurate.
 	startTime := time.Now()
 
@@ -160,7 +167,12 @@ func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx.Set(reqStartTimeKey, startTime)
 	defer e.releaseContext(ctx)
 
-	// Recovery handling, capture every possible panic's
+	// Record access log
+	if e.a.accessLogEnabled {
+		defer e.a.accessLog.Log(ctx)
+	}
+
+	// Recovery handling
 	defer e.handleRecovery(ctx)
 
 	if e.a.requestIDEnabled {
@@ -251,90 +263,77 @@ func (e *engine) writeReply(ctx *Context) {
 		return
 	}
 
-	bodyAllowed := bodyAllowedForStatus(ctx.Reply().Code)
-	if bodyAllowed {
-		// check ContentType
-		if ess.IsStrEmpty(ctx.Reply().ContType) {
-			ctx.Reply().ContentType(ctx.detectContentType().String())
-		}
+	// Check ContentType and detect it if need be
+	if ess.IsStrEmpty(ctx.Reply().ContType) {
+		ctx.Reply().ContentType(ctx.detectContentType().String())
+	}
 
-		// resolving view template
-		if e.a.viewMgr != nil {
+	if bodyAllowedForStatus(ctx.Reply().Code) {
+		if e.a.viewMgr != nil && ctx.Reply().isHTML() {
 			e.a.viewMgr.resolve(ctx)
 		}
 
-		// Render and detect the errors earlier. So that framework can write the
-		// error info without messing with response on the wire.
-		ctx.render()
-
-		// Gzip, 1kb above TODO make it configurable from aah.conf
-		if e.a.gzipEnabled && ctx.Req.IsGzipAccepted &&
-			ctx.Reply().gzip && ctx.Reply().Body() != nil && ctx.Reply().Body().Len() > 1024 {
-			ctx.wrapGzipWriter()
-		}
-	}
-
-	// HTTP ContentType
-	ctx.Res.Header().Set(ahttp.HeaderContentType, ctx.Reply().ContType)
-
-	// HTTP Status
-	ctx.Res.WriteHeader(ctx.Reply().Code)
-
-	// Write response on the wire
-	if bodyAllowed {
-		e.writeBody(ctx)
-
+		e.writeOnWire(ctx)
+	} else {
+		ctx.Res.Header().Set(ahttp.HeaderContentType, ctx.Reply().ContType)
+		ctx.Res.WriteHeader(ctx.Reply().Code)
 	}
 
 	// 'OnAfterReply' server extension point
 	e.publishOnAfterReplyEvent(ctx)
 
-	// Send data to access log channel
-	if e.a.accessLogEnabled {
-		e.sendToAccessLog(ctx)
-	}
-
 	// Dump request and response
 	if e.a.dumpLogEnabled {
-		e.dump(ctx)
+		e.a.dumpLog.Dump(ctx)
 	}
 }
 
-func (e *engine) writeBody(ctx *Context) {
-	if e.a.dumpLogEnabled && e.a.dumpLog.dumpResponseBody {
-		ctx.a.dumpLog.addResBodyIntoCtx(ctx)
+func (e *engine) writeOnWire(ctx *Context) {
+	re := ctx.Reply()
+
+	// Render it
+	re.body = acquireBuffer()
+	if err := re.Rdr.Render(re.body); err != nil {
+		fmt.Println("DEV:", err)
+		ctx.Log().Error("Response render error: ", err)
+		panic(ErrRenderResponse)
 	}
 
-	// For Prod && HTML && minifier exists
-	if e.a.IsProfileProd() && ctx.Reply().isHTML() && e.a.viewMgr.minifier != nil {
-		if err := e.a.viewMgr.minifier(ctx.Reply().ContType, ctx.Res, ctx.Reply().Body()); err != nil {
-			ctx.Log().Errorf("Minifier error: %s", err.Error())
+	// Check response qualify for Gzip
+	if e.a.gzipEnabled && ctx.Req.IsGzipAccepted &&
+		re.gzip && re.body.Len() > defaultGzipMinSize {
+		ctx.Res = wrapGzipWriter(ctx.Res)
+	}
+
+	ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+	ctx.Res.WriteHeader(re.Code)
+
+	var w io.Writer = ctx.Res
+
+	// If response dump log enabled with response body
+	if e.a.dumpLogEnabled && e.a.dumpLog.logResponseBody {
+		resBuf := acquireBuffer()
+		w = io.MultiWriter([]io.Writer{w, resBuf}...)
+		ctx.Set(keyAahResponseBodyBuf, resBuf)
+	}
+
+	// currently write error on wire is not propagated to error
+	// since we can't do anything after that.
+	// It could be network error, client is gone, etc.
+	if re.isHTML() && e.minifierExists() {
+		// HTML Minifier configured
+		if err := e.a.viewMgr.minifier(re.ContType, w, re.body); err != nil {
+			ctx.Log().Error(err)
 		}
-		return
-	}
-
-	// For all cases
-	if _, err := ctx.Reply().Body().WriteTo(ctx.Res); err != nil {
-		ctx.Log().Error(err)
+	} else {
+		if _, err := re.body.WriteTo(w); err != nil {
+			ctx.Log().Error(err)
+		}
 	}
 }
 
-func (e *engine) sendToAccessLog(ctx *Context) {
-	al := e.a.accessLog.logPool.Get().(*accessLog)
-	al.StartTime = ctx.Get(reqStartTimeKey).(time.Time)
-
-	// All the bytes have been written on the wire
-	// so calculate elapsed time
-	al.ElapsedDuration = time.Since(al.StartTime)
-
-	req := *ctx.Req
-	al.Request = &req
-	al.RequestID = firstNonZeroString(req.Header.Get(e.a.requestIDHeaderKey), "-")
-	al.ResStatus = ctx.Res.Status()
-	al.ResBytes = ctx.Res.BytesWritten()
-	al.ResHdr = ctx.Res.Header()
-
-	e.a.accessLog.logChan <- al
+func (e *engine) minifierExists() bool {
+	return e.a.viewMgr != nil && e.a.viewMgr.minifier != nil
 }
 
 func (e *engine) releaseContext(ctx *Context) {

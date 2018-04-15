@@ -146,10 +146,10 @@ func TestStaticWriteFileError(t *testing.T) {
 	req := httptest.NewRequest(ahttp.MethodGet, "http://localhost:8080/assets/js/myfile.js", nil)
 
 	w1 := httptest.NewRecorder()
-	sm.writeFileError(ahttp.AcquireResponseWriter(w1), ahttp.AcquireRequest(req), os.ErrPermission)
+	sm.writeError(ahttp.AcquireResponseWriter(w1), ahttp.AcquireRequest(req), os.ErrPermission)
 	assert.Equal(t, "403 Forbidden", responseBody(w1.Result()))
 
 	w2 := httptest.NewRecorder()
-	sm.writeFileError(ahttp.AcquireResponseWriter(w2), ahttp.AcquireRequest(req), nil)
+	sm.writeError(ahttp.AcquireResponseWriter(w2), ahttp.AcquireRequest(req), nil)
 	assert.Equal(t, "500 Internal Server Error", responseBody(w2.Result()))
 }

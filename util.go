@@ -266,3 +266,19 @@ func parsePriority(priority ...int) int {
 	}
 	return pr
 }
+
+func stripCharset(ct string) string {
+	if idx := strings.IndexByte(ct, ';'); idx > 0 {
+		return ct[:idx]
+	}
+	return ct
+}
+
+// wrapGzipWriter method writes respective header for gzip and wraps write into
+// gzip writer.
+func wrapGzipWriter(res ahttp.ResponseWriter) ahttp.ResponseWriter {
+	res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
+	res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
+	res.Header().Del(ahttp.HeaderContentLength)
+	return ahttp.WrapGzipWriter(res)
+}
