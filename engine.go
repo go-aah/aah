@@ -6,7 +6,6 @@ package aah
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -290,11 +289,14 @@ func (e *engine) writeReply(ctx *Context) {
 
 func (e *engine) writeOnWire(ctx *Context) {
 	re := ctx.Reply()
+	if _, ok := re.Rdr.(*binaryRender); ok {
+		e.writeBinary(ctx)
+		return
+	}
 
 	// Render it
 	re.body = acquireBuffer()
 	if err := re.Rdr.Render(re.body); err != nil {
-		fmt.Println("DEV:", err)
 		ctx.Log().Error("Response render error: ", err)
 		panic(ErrRenderResponse)
 	}
@@ -329,6 +331,25 @@ func (e *engine) writeOnWire(ctx *Context) {
 		if _, err := re.body.WriteTo(w); err != nil {
 			ctx.Log().Error(err)
 		}
+	}
+}
+
+func (e *engine) writeBinary(ctx *Context) {
+	re := ctx.Reply()
+
+	// Check response qualify for Gzip
+	if e.a.gzipEnabled && ctx.Req.IsGzipAccepted && re.gzip {
+		ctx.Res = wrapGzipWriter(ctx.Res)
+	}
+
+	ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+	ctx.Res.WriteHeader(re.Code)
+
+	// currently write error on wire is not propagated to error
+	// since we can't do anything after that.
+	// It could be network error, client is gone, etc.
+	if err := re.Rdr.Render(ctx.Res); err != nil {
+		ctx.Log().Error("Response write error: ", err)
 	}
 }
 
