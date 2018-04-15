@@ -133,10 +133,7 @@ func createRegistryKeyAndNamespace(cType reflect.Type) (string, string) {
 		return strings.ToLower(cType.Name()), ""
 	}
 
-	if strings.HasPrefix(namespace, string(filepath.Separator)) {
-		namespace = namespace[1:]
-	}
-
+	namespace = strings.TrimPrefix(namespace, string(filepath.Separator))
 	return strings.ToLower(path.Join(namespace, cType.Name())), namespace
 }
 
@@ -268,4 +265,20 @@ func parsePriority(priority ...int) int {
 		pr = priority[0]
 	}
 	return pr
+}
+
+func stripCharset(ct string) string {
+	if idx := strings.IndexByte(ct, ';'); idx > 0 {
+		return ct[:idx]
+	}
+	return ct
+}
+
+// wrapGzipWriter method writes respective header for gzip and wraps write into
+// gzip writer.
+func wrapGzipWriter(res ahttp.ResponseWriter) ahttp.ResponseWriter {
+	res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
+	res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
+	res.Header().Del(ahttp.HeaderContentLength)
+	return ahttp.WrapGzipWriter(res)
 }

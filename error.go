@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"strings"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
@@ -30,6 +29,7 @@ var (
 	ErrGeneric                    = errors.New("aah: generic error")
 	ErrValidation                 = errors.New("aah: validation error")
 	ErrRenderResponse             = errors.New("aah: render response error")
+	ErrWriteResponse              = errors.New("aah: write response error")
 )
 
 var defaultErrorHTMLTemplate = template.Must(template.New("error_template").Parse(`<!DOCTYPE html>
@@ -155,12 +155,11 @@ func (er *errorManager) Handle(ctx *Context) {
 // in the aah. It writes the response based on HTTP Content-Type.
 func (er *errorManager) DefaultHandler(ctx *Context, err *Error) bool {
 	ct := ctx.Reply().ContType
-
 	if ess.IsStrEmpty(ct) {
 		ct = ctx.detectContentType().Mime
-	} else if idx := strings.IndexByte(ct, ';'); idx > 0 {
-		ct = ct[:idx]
 	}
+
+	ct = stripCharset(ct)
 
 	// Set HTTP response code
 	ctx.Reply().Status(err.Code)

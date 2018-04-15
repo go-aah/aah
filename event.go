@@ -54,10 +54,11 @@ type (
 
 	// EventCallback type is store particular callback in priority for calling sequance.
 	EventCallback struct {
-		Callback  EventCallbackFunc
-		CallOnce  bool
-		priority  int
+		Callback EventCallbackFunc
+		CallOnce bool
+
 		published bool
+		priority  int
 	}
 
 	// EventCallbacks type is slice of `EventCallback` type.
@@ -167,8 +168,8 @@ func (a *app) EventStore() *EventStore {
 type EventStore struct {
 	a           *app
 	e           *engine
-	subscribers map[string]EventCallbacks
 	mu          *sync.Mutex
+	subscribers map[string]EventCallbacks
 }
 
 // IsEventExists method returns true if given event is exists in the event store

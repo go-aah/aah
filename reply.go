@@ -22,18 +22,18 @@ var (
 
 // Reply gives you control and convenient way to write a response effectively.
 type Reply struct {
+	Rdr      Render
 	Code     int
 	ContType string
-	Rdr      Render
 
-	body     *bytes.Buffer
-	cookies  []*http.Cookie
 	redirect bool
-	path     string
 	done     bool
 	gzip     bool
-	err      *Error
+	path     string
 	ctx      *Context
+	body     *bytes.Buffer
+	cookies  []*http.Cookie
+	err      *Error
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

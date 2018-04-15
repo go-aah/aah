@@ -6,9 +6,12 @@ package aah
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
@@ -99,55 +102,55 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 		}
 	}
 
-	if ctx.Req.Method == ahttp.MethodGet {
-		goto PCont
-	}
+	// Per https://tools.ietf.org/html/rfc7231#section-8.1.3
+	if ctx.a.bindMgr.payloadSupported.MatchString(ctx.Req.Method) {
+		ctx.Log().Debugf("Request Content-Type mime: %s", ctx.Req.ContentType())
 
-	ctx.Log().Debugf("Request Content-Type mime: %s", ctx.Req.ContentType())
+		// Content Negotitaion - Accepted & Offered, refer to GitHub #75
+		if ctx.a.bindMgr.contentNegotiationEnabled {
+			if len(ctx.a.bindMgr.acceptedContentTypes) > 0 &&
+				!ess.IsSliceContainsString(ctx.a.bindMgr.acceptedContentTypes, ctx.Req.ContentType().Mime) {
+				ctx.Log().Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType())
+				ctx.Reply().Error(&Error{
+					Reason:  ErrContentTypeNotAccepted,
+					Code:    http.StatusUnsupportedMediaType,
+					Message: http.StatusText(http.StatusUnsupportedMediaType),
+				})
+				return
+			}
 
-	// Content Negotitaion - Accepted & Offered, refer to GitHub #75
-	if ctx.a.bindMgr.isContentNegotiationEnabled {
-		if len(ctx.a.bindMgr.acceptedContentTypes) > 0 &&
-			!ess.IsSliceContainsString(ctx.a.bindMgr.acceptedContentTypes, ctx.Req.ContentType().Mime) {
-			ctx.Log().Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType())
-			ctx.Reply().Error(&Error{
-				Reason:  ErrContentTypeNotAccepted,
-				Code:    http.StatusUnsupportedMediaType,
-				Message: http.StatusText(http.StatusUnsupportedMediaType),
-			})
-			return
+			if len(ctx.a.bindMgr.offeredContentTypes) > 0 &&
+				!ess.IsSliceContainsString(ctx.a.bindMgr.offeredContentTypes, ctx.Req.AcceptContentType().Mime) {
+				ctx.Reply().Error(&Error{
+					Reason:  ErrContentTypeNotOffered,
+					Code:    http.StatusNotAcceptable,
+					Message: http.StatusText(http.StatusNotAcceptable),
+				})
+				ctx.Log().Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType())
+				return
+			}
 		}
 
-		if len(ctx.a.bindMgr.offeredContentTypes) > 0 &&
-			!ess.IsSliceContainsString(ctx.a.bindMgr.offeredContentTypes, ctx.Req.AcceptContentType().Mime) {
-			ctx.Reply().Error(&Error{
-				Reason:  ErrContentTypeNotOffered,
-				Code:    http.StatusNotAcceptable,
-				Message: http.StatusText(http.StatusNotAcceptable),
-			})
-			ctx.Log().Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType())
-			return
+		// Prevent DDoS attacks by large HTTP request bodies by enforcing
+		// configured hard limit for non-multipart/form-data Content-Type GitHub #83.
+		if !ahttp.ContentTypeMultipartForm.IsEqual(ctx.Req.ContentType().Mime) {
+			ctx.Req.Unwrap().Body = http.MaxBytesReader(ctx.Res, ctx.Req.Unwrap().Body,
+				firstNonZeroInt64(ctx.route.MaxBodySize, ctx.a.maxBodyBytes))
 		}
-	}
 
-	// Prevent DDoS attacks by large HTTP request bodies by enforcing
-	// configured hard limit for non-multipart/form-data Content-Type GitHub #83.
-	if !ahttp.ContentTypeMultipartForm.IsEqual(ctx.Req.ContentType().Mime) {
-		ctx.Req.Unwrap().Body = http.MaxBytesReader(ctx.Res, ctx.Req.Unwrap().Body,
-			firstNonZeroInt64(ctx.route.MaxBodySize, ctx.a.maxBodyBytes))
-	}
-
-	// Parse request content by Content-Type
-	if parser, found := ctx.a.bindMgr.requestParsers[ctx.Req.ContentType().Mime]; found {
-		if res := parser(ctx); res == flowStop {
-			return
+		// Set the tee reader if dump log enabled with request body enabled
+		if ctx.a.dumpLogEnabled && ctx.a.dumpLog.logRequestBody {
+			reqBuf := acquireBuffer()
+			ctx.Req.Unwrap().Body = ioutil.NopCloser(io.TeeReader(ctx.Req.Unwrap().Body, reqBuf))
+			ctx.Set(keyAahRequestBodyBuf, reqBuf)
 		}
-	}
 
-PCont:
-	// Compose request details, we can log at the end of the request.
-	if ctx.a.dumpLogEnabled {
-		ctx.Set(keyAahRequestDump, ctx.a.dumpLog.composeRequestDump(ctx))
+		// Parse request content by Content-Type
+		if parser, found := ctx.a.bindMgr.requestParsers[ctx.Req.ContentType().Mime]; found {
+			if res := parser(ctx); res == flowStop {
+				return
+			}
+		}
 	}
 
 	m.Next(ctx)
@@ -161,10 +164,11 @@ func (a *app) initBind() error {
 	cfg := a.Config()
 
 	bindMgr := &bindManager{
-		keyPathParamName:            cfg.StringDefault("i18n.param_name.path", keyOverrideI18nName),
-		keyQueryParamName:           cfg.StringDefault("i18n.param_name.query", keyOverrideI18nName),
-		isContentNegotiationEnabled: cfg.BoolDefault("request.content_negotiation.enable", false),
-		requestParsers:              make(map[string]requestParser),
+		keyPathParamName:          cfg.StringDefault("i18n.param_name.path", keyOverrideI18nName),
+		keyQueryParamName:         cfg.StringDefault("i18n.param_name.query", keyOverrideI18nName),
+		contentNegotiationEnabled: cfg.BoolDefault("request.content_negotiation.enable", false),
+		requestParsers:            make(map[string]requestParser),
+		payloadSupported:          regexp.MustCompile(`(POST|PUT|DELETE)`),
 	}
 
 	// Content Negotitaion, GitHub #75
@@ -215,13 +219,14 @@ func (a *app) initBind() error {
 //______________________________________________________________________________
 
 type bindManager struct {
-	keyQueryParamName           string
-	keyPathParamName            string
-	requestParsers              map[string]requestParser
-	isContentNegotiationEnabled bool
-	acceptedContentTypes        []string
-	offeredContentTypes         []string
-	autobindPriority            []string
+	contentNegotiationEnabled bool
+	keyQueryParamName         string
+	keyPathParamName          string
+	acceptedContentTypes      []string
+	offeredContentTypes       []string
+	autobindPriority          []string
+	requestParsers            map[string]requestParser
+	payloadSupported          *regexp.Regexp
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -284,12 +289,9 @@ func (ctx *Context) parseParameters() ([]reflect.Value, *Error) {
 			}
 		} else if val.kind == reflect.Struct {
 			ct := ctx.Req.ContentType().Mime
-			if ct == ahttp.ContentTypeJSON.Mime || ct == ahttp.ContentTypeJSONText.Mime ||
-				ct == ahttp.ContentTypeXML.Mime || ct == ahttp.ContentTypeXMLText.Mime {
+			if ct == ahttp.ContentTypeJSON.Mime || ct == ahttp.ContentTypeXML.Mime ||
+				ct == ahttp.ContentTypeJSONText.Mime || ct == ahttp.ContentTypeXMLText.Mime {
 				result, err = valpar.Body(ct, ctx.Req.Body(), val.Type)
-				if ctx.a.dumpLogEnabled && ctx.a.dumpLog.dumpRequestBody {
-					ctx.a.dumpLog.addReqBodyIntoCtx(ctx, result)
-				}
 			} else {
 				result, err = valpar.Struct("", val.Type, params)
 			}
@@ -298,7 +300,7 @@ func (ctx *Context) parseParameters() ([]reflect.Value, *Error) {
 		// check error
 		if err != nil {
 			if !result.IsValid() {
-				ctx.Log().Errorf("Parsed result value is invalid or value parser not found [param: %s, type: %s]",
+				ctx.Log().Errorf("Parsed parameter value is invalid or value parser not found [param: %s, type: %s]",
 					val.Name, val.Type)
 			}
 

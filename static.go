@@ -80,21 +80,20 @@ func (s *staticManager) Serve(ctx *Context) error {
 		if os.IsNotExist(err) {
 			return errFileNotFound
 		}
-		s.writeFileError(ctx.Res, ctx.Req, err)
+		s.writeError(ctx.Res, ctx.Req, err)
 		return nil
 	}
 	defer ess.CloseQuietly(f)
 
 	fi, err := f.Stat()
 	if err != nil {
-		s.writeFileError(ctx.Res, ctx.Req, err)
+		s.writeError(ctx.Res, ctx.Req, err)
 		return nil
 	}
 
-	// Gzip, 1kb above, TODO make it configurable from aah.conf
 	if s.a.gzipEnabled && ctx.Req.IsGzipAccepted &&
-		fi.Size() > 1024 && checkGzipRequired(filePath) {
-		ctx.wrapGzipWriter()
+		fi.Size() > defaultGzipMinSize && checkGzipRequired(filePath) {
+		ctx.Res = wrapGzipWriter(ctx.Res)
 	}
 
 	// write headers
@@ -125,7 +124,7 @@ func (s *staticManager) Serve(ctx *Context) error {
 
 		// Send data to access log channel
 		if s.a.accessLogEnabled && s.a.staticAccessLogEnabled {
-			s.e.sendToAccessLog(ctx)
+			s.a.accessLog.Log(ctx)
 		}
 		return nil
 	}
@@ -149,7 +148,7 @@ func (s *staticManager) Serve(ctx *Context) error {
 
 		// Send data to access log channel
 		if s.a.accessLogEnabled && s.a.staticAccessLogEnabled {
-			s.e.sendToAccessLog(ctx)
+			s.a.accessLog.Log(ctx)
 		}
 		return nil
 	}
@@ -177,11 +176,7 @@ func (s *staticManager) httpDirAndFilePath(ctx *Context) (http.Dir, string) {
 }
 
 func (s *staticManager) cacheHeader(contentType string) string {
-	if idx := strings.IndexByte(contentType, ';'); idx > 0 {
-		contentType = contentType[:idx]
-	}
-
-	if hdrValue, found := s.mimeCacheHdrMap[contentType]; found {
+	if hdrValue, found := s.mimeCacheHdrMap[stripCharset(contentType)]; found {
 		return hdrValue
 	}
 	return s.defaultCacheHdr
@@ -224,7 +219,7 @@ func (s *staticManager) listDirectory(res http.ResponseWriter, req *http.Request
 	fmt.Fprintf(res, "</html>\n")
 }
 
-func (s *staticManager) writeFileError(res ahttp.ResponseWriter, req *ahttp.Request, err error) {
+func (s *staticManager) writeError(res ahttp.ResponseWriter, req *ahttp.Request, err error) {
 	if os.IsPermission(err) {
 		s.a.Log().Warnf("Static file permission issue: %s", req.Path)
 		res.WriteHeader(http.StatusForbidden)

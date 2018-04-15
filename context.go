@@ -314,15 +314,6 @@ func (ctx *Context) detectContentType() *ahttp.ContentType {
 	return acceptContType
 }
 
-// wrapGzipWriter method writes respective header for gzip and wraps write into
-// gzip writer.
-func (ctx *Context) wrapGzipWriter() {
-	ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
-	ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
-	ctx.Res.Header().Del(ahttp.HeaderContentLength)
-	ctx.Res = ahttp.WrapGzipWriter(ctx.Res)
-}
-
 // writeCookies method writes the user provided cookies and session cookie; also
 // saves the session data into session store if its stateful.
 func (ctx *Context) writeCookies() {
@@ -380,25 +371,6 @@ func (ctx *Context) writeHeaders() {
 				}
 			}
 		}
-	}
-}
-
-// Render method renders and detects the errors earlier. Writes the
-// error info if any.
-func (ctx *Context) render() {
-	r := ctx.Reply()
-	if r.Rdr == nil {
-		return
-	}
-
-	r.body = acquireBuffer()
-	if err := r.Rdr.Render(r.body); err != nil {
-		ctx.Log().Error("Render response body error: ", err)
-
-		// panic would be appropriate here, since it handle by aah error
-		// handling mechanism. This is second spot in entire
-		// aah framework the `panic` used.
-		panic(ErrRenderResponse)
 	}
 }
 

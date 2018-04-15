@@ -120,9 +120,26 @@ type accessLogger struct {
 	logPool  *sync.Pool
 }
 
+func (aal *accessLogger) Log(ctx *Context) {
+	al := aal.logPool.Get().(*accessLog)
+	al.StartTime = ctx.Get(reqStartTimeKey).(time.Time)
+
+	// All the bytes have been written on the wire
+	// so calculate elapsed time
+	al.ElapsedDuration = time.Since(al.StartTime)
+
+	req := *ctx.Req
+	al.Request = &req
+	al.RequestID = firstNonZeroString(req.Header.Get(aal.a.requestIDHeaderKey), "-")
+	al.ResStatus = ctx.Res.Status()
+	al.ResBytes = ctx.Res.BytesWritten()
+	al.ResHdr = ctx.Res.Header()
+
+	aal.logChan <- al
+}
+
 func (aal *accessLogger) listenToLogChan() {
-	for {
-		al := <-aal.logChan
+	for al := range aal.logChan {
 		aal.logger.Print(aal.accessLogFormatter(al))
 	}
 }
