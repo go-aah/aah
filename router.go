@@ -86,7 +86,7 @@ func handleRoute(ctx *Context) flowResult {
 	}
 	ctx.domain = domain
 
-	route, pathParams, rts := domain.Lookup(ctx.Req)
+	route, pathParams, rts := domain.Lookup(ctx.Req.Unwrap())
 	if route == nil { // route not found
 		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
 			return flowStop

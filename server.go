@@ -77,7 +77,7 @@ func (a *app) Start() {
 	hl.SetOutput(ioutil.Discard)
 
 	a.server = &http.Server{
-		Handler:        a.engine,
+		Handler:        a,
 		ReadTimeout:    a.httpReadTimeout,
 		WriteTimeout:   a.httpWriteTimeout,
 		MaxHeaderBytes: a.httpMaxHdrBytes,
@@ -173,7 +173,7 @@ func (a *app) startHTTPS() {
 	}
 
 	// Add cert, if let's encrypt enabled
-	if a.IsLetsEncrypt() {
+	if a.IsLetsEncryptEnabled() {
 		a.Log().Infof("Let's Encypyt CA Cert enabled")
 		a.server.TLSConfig.GetCertificate = a.autocertMgr.GetCertificate
 	} else {

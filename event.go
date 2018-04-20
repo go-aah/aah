@@ -97,23 +97,23 @@ func (a *app) OnShutdown(ecb EventCallbackFunc, priority ...int) {
 }
 
 func (a *app) OnRequest(sef EventCallbackFunc) {
-	a.engine.OnRequest(sef)
+	a.he.OnRequest(sef)
 }
 
 func (a *app) OnPreReply(sef EventCallbackFunc) {
-	a.engine.OnPreReply(sef)
+	a.he.OnPreReply(sef)
 }
 
 func (a *app) OnAfterReply(sef EventCallbackFunc) {
-	a.engine.OnAfterReply(sef)
+	a.he.OnAfterReply(sef)
 }
 
 func (a *app) OnPreAuth(sef EventCallbackFunc) {
-	a.engine.OnPreAuth(sef)
+	a.he.OnPreAuth(sef)
 }
 
 func (a *app) OnPostAuth(sef EventCallbackFunc) {
-	a.engine.OnPostAuth(sef)
+	a.he.OnPostAuth(sef)
 }
 
 func (a *app) PublishEvent(eventName string, data interface{}) {
@@ -167,7 +167,6 @@ func (a *app) EventStore() *EventStore {
 // EventStore type holds all the events belongs to aah application.
 type EventStore struct {
 	a           *app
-	e           *engine
 	mu          *sync.Mutex
 	subscribers map[string]EventCallbacks
 }

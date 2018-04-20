@@ -29,6 +29,10 @@ const (
 	allContentTypes     = "*/*"
 )
 
+var (
+	emptyArg = make([]reflect.Value, 0)
+)
+
 type requestParser func(ctx *Context) flowResult
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -287,7 +291,7 @@ func (ctx *Context) parseParameters() ([]reflect.Value, *Error) {
 					}
 				}
 			}
-		} else if val.kind == reflect.Struct {
+		} else if val.Kind == reflect.Struct {
 			ct := ctx.Req.ContentType().Mime
 			if ct == ahttp.ContentTypeJSON.Mime || ct == ahttp.ContentTypeXML.Mime ||
 				ct == ahttp.ContentTypeJSONText.Mime || ct == ahttp.ContentTypeXMLText.Mime {
@@ -313,7 +317,7 @@ func (ctx *Context) parseParameters() ([]reflect.Value, *Error) {
 		}
 
 		// Apply Validation for type `struct`
-		if val.kind == reflect.Struct {
+		if val.Kind == reflect.Struct {
 			if errs, _ := Validate(result.Interface()); errs != nil {
 				ctx.Log().Errorf("Param validation failed [name: %s, type: %s], Validation Errors:\n%v",
 					val.Name, val.Type, errs.Error())

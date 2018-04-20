@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"html/template"
 
+	"aahframework.org/ainsp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/i18n.v0"
 	"aahframework.org/log.v0"
@@ -172,6 +173,11 @@ func SetTLSConfig(tlsCfg *tls.Config) {
 	defaultApp.SetTLSConfig(tlsCfg)
 }
 
+// AppIsWebSocketEnabled method returns true if WebSocket enabled otherwise false.
+// func AppIsWebSocketEnabled() bool {
+// 	return defaultApp.IsWebSocketEnabled()
+// }
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // App module instance methods
 //______________________________________________________________________________
@@ -209,9 +215,13 @@ func AppEventStore() *EventStore {
 }
 
 // AddController method adds given controller into controller registory.
-// with "dereferenced" a.k.a "indirecting".
-func AddController(c interface{}, methods []*MethodInfo) {
+func AddController(c interface{}, methods []*ainsp.Method) {
 	defaultApp.AddController(c, methods)
+}
+
+// AddWebSocket method adds given WebSocket into WebSocket registry.
+func AddWebSocket(w interface{}, methods []*ainsp.Method) {
+	defaultApp.AddWebSocket(w, methods)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -246,7 +256,7 @@ func SetErrorHandler(handlerFunc ErrorHandlerFunc) {
 
 // Middlewares method adds given middleware into middleware stack
 func Middlewares(middlewares ...MiddlewareFunc) {
-	defaultApp.engine.Middlewares(middlewares...)
+	defaultApp.he.Middlewares(middlewares...)
 }
 
 // AddLoggerHook method adds given logger into aah application default logger.

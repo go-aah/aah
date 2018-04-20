@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/ainsp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/test.v0/assert"
 	"aahframework.org/view.v0"
@@ -63,8 +64,8 @@ func TestViewResolveView(t *testing.T) {
 
 	type AppController struct{}
 	cType := reflect.TypeOf(AppController{})
-	ctx.controller = &controllerInfo{Name: cType.Name(), Type: cType, NoSuffixName: "app"}
-	ctx.action = &MethodInfo{Name: "Index", Parameters: []*ParameterInfo{}}
+	ctx.controller = &ainsp.Target{Name: cType.Name(), Type: cType, NoSuffixName: "app"}
+	ctx.action = &ainsp.Method{Name: "Index", Parameters: []*ainsp.Parameter{}}
 	ctx.Reply().ContentType(ahttp.ContentTypeHTML.Raw())
 	ctx.AddViewArg("MyName", "aah framework")
 
@@ -100,7 +101,7 @@ func TestViewResolveView(t *testing.T) {
 	// Namespace/Sub-package
 	t.Log("Namespace/Sub-package")
 	ts.app.envProfile = "prod"
-	ctx.controller = &controllerInfo{Type: reflect.TypeOf(AppController{}), Namespace: "frontend"}
+	ctx.controller = &ainsp.Target{Type: reflect.TypeOf(AppController{}), Namespace: "frontend"}
 	ctx.Reply().HTMLf("index.html", Data{})
 	vm.resolve(ctx)
 	htmlRdr = ctx.Reply().Rdr.(*htmlRender)

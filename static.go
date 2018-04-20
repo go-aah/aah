@@ -31,7 +31,6 @@ var (
 func (a *app) initStatic() error {
 	a.staticMgr = &staticManager{
 		a:                     a,
-		e:                     a.engine,
 		mimeCacheHdrMap:       make(map[string]string),
 		noCacheHdrValue:       "no-cache, no-store, must-revalidate",
 		dirListDateTimeFormat: "2006-01-02 15:04:05",
@@ -58,7 +57,6 @@ func (a *app) initStatic() error {
 
 type staticManager struct {
 	a                     *app
-	e                     *engine
 	defaultCacheHdr       string
 	noCacheHdrValue       string
 	dirListDateTimeFormat string
@@ -115,12 +113,12 @@ func (s *staticManager) Serve(ctx *Context) error {
 		}
 
 		// 'OnPreReply' server extension point
-		s.e.publishOnPreReplyEvent(ctx)
+		s.a.he.publishOnPreReplyEvent(ctx)
 
 		http.ServeContent(ctx.Res, ctx.Req.Unwrap(), path.Base(filePath), fi.ModTime(), f)
 
 		// 'OnAfterReply' server extension point
-		s.e.publishOnAfterReplyEvent(ctx)
+		s.a.he.publishOnAfterReplyEvent(ctx)
 
 		// Send data to access log channel
 		if s.a.accessLogEnabled && s.a.staticAccessLogEnabled {
@@ -139,12 +137,12 @@ func (s *staticManager) Serve(ctx *Context) error {
 		}
 
 		// 'OnPreReply' server extension point
-		s.e.publishOnPreReplyEvent(ctx)
+		s.a.he.publishOnPreReplyEvent(ctx)
 
 		s.listDirectory(ctx.Res, ctx.Req.Unwrap(), f)
 
 		// 'OnAfterReply' server extension point
-		s.e.publishOnAfterReplyEvent(ctx)
+		s.a.he.publishOnAfterReplyEvent(ctx)
 
 		// Send data to access log channel
 		if s.a.accessLogEnabled && s.a.staticAccessLogEnabled {

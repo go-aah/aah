@@ -40,7 +40,7 @@ func (a *app) AddViewEngine(name string, engine view.Enginer) error {
 
 func (a *app) SetMinifier(fn MinifierFunc) {
 	if a.viewMgr == nil {
-		a.viewMgr = &viewManager{a: a, e: a.engine}
+		a.viewMgr = &viewManager{a: a}
 	}
 
 	if a.viewMgr.minifier != nil {
@@ -68,7 +68,6 @@ func (a *app) initView() error {
 
 	viewMgr := &viewManager{
 		a:                     a,
-		e:                     a.engine,
 		engineName:            engineName,
 		fileExt:               a.Config().StringDefault("view.ext", defaultViewFileExt),
 		defaultTmplLayout:     "master" + a.Config().StringDefault("view.ext", defaultViewFileExt),
@@ -119,7 +118,6 @@ func (a *app) initView() error {
 
 type viewManager struct {
 	a                     *app
-	e                     *engine
 	engineName            string
 	engine                view.Enginer
 	fileExt               string

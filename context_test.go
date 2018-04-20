@@ -7,7 +7,6 @@ package aah
 import (
 	"io/ioutil"
 	"net/http/httptest"
-	"reflect"
 	"testing"
 
 	"aahframework.org/ahttp.v0"
@@ -15,34 +14,6 @@ import (
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
 	"aahframework.org/test.v0/assert"
-)
-
-type (
-	Anonymous1 struct {
-		Name string
-	}
-
-	Func1 func(e *Event)
-
-	Level1 struct{ *Context }
-
-	Level2 struct{ Level1 }
-
-	Level3 struct{ Level2 }
-
-	Level4 struct{ Level3 }
-
-	Path1 struct {
-		Anonymous Anonymous1
-		*Context
-	}
-
-	Path2 struct {
-		Level1
-		Path1
-		Level4
-		Func1
-	}
 )
 
 func TestContextSubdomain(t *testing.T) {
@@ -135,49 +106,4 @@ func TestContextSetMethod(t *testing.T) {
 	// invalid method
 	ctx.SetMethod("nomethod")
 	assert.Equal(t, "GET", ctx.Req.Method)
-}
-
-func TestContextEmbeddedAndController(t *testing.T) {
-	a := newApp()
-
-	a.AddController((*Level1)(nil), []*MethodInfo{
-		{
-			Name:       "Index",
-			Parameters: []*ParameterInfo{},
-		},
-	})
-	a.AddController((*Level2)(nil), []*MethodInfo{
-		{
-			Name:       "Scope",
-			Parameters: []*ParameterInfo{},
-		},
-	})
-	a.AddController((*Level3)(nil), []*MethodInfo{
-		{
-			Name: "Testing",
-			Parameters: []*ParameterInfo{
-				{
-					Name: "userId",
-					Type: reflect.TypeOf((*int)(nil)),
-				},
-			},
-		},
-	})
-	a.AddController((*Level4)(nil), nil)
-	a.AddController((*Path1)(nil), nil)
-	a.AddController((*Path2)(nil), nil)
-
-	testEmbeddedIndexes(t, Level1{}, [][]int{{0}})
-	testEmbeddedIndexes(t, Level2{}, [][]int{{0, 0}})
-	testEmbeddedIndexes(t, Level3{}, [][]int{{0, 0, 0}})
-	testEmbeddedIndexes(t, Level4{}, [][]int{{0, 0, 0, 0}})
-	testEmbeddedIndexes(t, Path1{}, [][]int{{1}})
-	testEmbeddedIndexes(t, Path2{}, [][]int{{0, 0}, {1, 1}, {2, 0, 0, 0, 0}})
-}
-
-func testEmbeddedIndexes(t *testing.T, c interface{}, expected [][]int) {
-	actual := findEmbeddedContext(reflect.TypeOf(c))
-	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("Indexes do not match. expected %v actual %v", expected, actual)
-	}
 }

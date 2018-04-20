@@ -157,7 +157,7 @@ func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 	assert.Nil(t, err)
 
 	r1 := httptest.NewRequest("GET", "http://localhost:8080/doc/v0.3/mydoc.html", nil)
-	ctx := ts.app.engine.newContext()
+	ctx := ts.app.he.newContext()
 	ctx.Req = ahttp.AcquireRequest(r1)
 	ctx.route = &router.Route{Auth: "form_auth"}
 	AuthcAuthzMiddleware(ctx, &Middleware{})
@@ -244,7 +244,7 @@ func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
 
 	r1, err := http.NewRequest(ahttp.MethodGet, "http://localhost:8080/doc/v0.3/mydoc.html", nil)
 	assert.Nil(t, err)
-	ctx1 := ts.app.engine.newContext()
+	ctx1 := ts.app.he.newContext()
 	ctx1.Req = ahttp.AcquireRequest(r1)
 	ctx1.Res = ahttp.AcquireResponseWriter(httptest.NewRecorder())
 	ctx1.route = &router.Route{Auth: "basic_auth"}

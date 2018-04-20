@@ -106,7 +106,6 @@ type ErrorHandler interface {
 func (a *app) initError() error {
 	a.errorMgr = &errorManager{
 		a: a,
-		e: a.engine,
 	}
 
 	return nil
@@ -118,7 +117,6 @@ func (a *app) initError() error {
 
 type errorManager struct {
 	a           *app
-	e           *engine
 	handlerFunc ErrorHandlerFunc
 }
 

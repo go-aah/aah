@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/ainsp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
@@ -27,7 +28,7 @@ func TestErrorCallControllerHandler(t *testing.T) {
 	assert.Nil(t, err)
 	ctx := &Context{
 		Req:        ahttp.AcquireRequest(req),
-		controller: &controllerInfo{FqName: "testErrorController1"},
+		controller: &ainsp.Target{FqName: "testErrorController1"},
 		target:     &testErrorController1{},
 	}
 

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/ainsp.v0"
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
@@ -27,6 +28,7 @@ import (
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
 	"aahframework.org/security.v0"
+	"aahframework.org/ws.v0"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -58,16 +60,18 @@ func newApp() *app {
 		mu: new(sync.Mutex),
 	}
 
-	aahApp.engine = &engine{
-		a:         aahApp,
-		ctxPool:   new(sync.Pool),
-		cregistry: make(controllerRegistry),
+	aahApp.he = &httpEngine{
+		a:       aahApp,
+		ctxPool: new(sync.Pool),
+		registry: &ainsp.TargetRegistry{
+			Registry:   make(map[string]*ainsp.Target),
+			SearchType: ctxPtrType,
+		},
 	}
-	aahApp.engine.ctxPool.New = func() interface{} { return aahApp.engine.newContext() }
+	aahApp.he.ctxPool.New = func() interface{} { return aahApp.he.newContext() }
 
 	aahApp.eventStore = &EventStore{
 		a:           aahApp,
-		e:           aahApp.engine,
 		subscribers: make(map[string]EventCallbacks),
 		mu:          new(sync.Mutex),
 	}
@@ -111,7 +115,8 @@ type app struct {
 
 	cfg            *config.Config
 	tlsCfg         *tls.Config
-	engine         *engine
+	he             *httpEngine
+	wse            *ws.Engine
 	server         *http.Server
 	redirectServer *http.Server
 	autocertMgr    *autocert.Manager
@@ -199,6 +204,9 @@ func (a *app) Init(importPath string) error {
 			if err = a.initDumpLog(); err != nil {
 				return err
 			}
+		}
+		if a.IsWebSocketEnabled() {
+			a.wse = ws.New(a.cfg, a.logger)
 		}
 	}
 
@@ -301,8 +309,12 @@ func (a *app) IsSSLEnabled() bool {
 	return a.cfg.BoolDefault("server.ssl.enable", false)
 }
 
-func (a *app) IsLetsEncrypt() bool {
+func (a *app) IsLetsEncryptEnabled() bool {
 	return a.cfg.BoolDefault("server.ssl.lets_encrypt.enable", false)
+}
+
+func (a *app) IsWebSocketEnabled() bool {
+	return a.cfg.BoolDefault("server.websocket.enable", false)
 }
 
 func (a *app) NewChildLogger(fields log.Fields) log.Loggerer {
@@ -313,6 +325,16 @@ func (a *app) SetTLSConfig(tlsCfg *tls.Config) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.tlsCfg = tlsCfg
+}
+
+func (a *app) AddController(c interface{}, methods []*ainsp.Method) {
+	a.he.registry.Add(c, methods)
+}
+
+func (a *app) AddWebSocket(w interface{}, methods []*ainsp.Method) {
+	if a.wse != nil {
+		a.wse.AddWebSocket(w, methods)
+	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -452,9 +474,9 @@ func (a *app) initConfigValues() (err error) {
 
 func (a *app) checkSSLConfigValues() error {
 	if a.IsSSLEnabled() {
-		if !a.IsLetsEncrypt() && (ess.IsStrEmpty(a.sslCert) || ess.IsStrEmpty(a.sslKey)) {
+		if !a.IsLetsEncryptEnabled() && (ess.IsStrEmpty(a.sslCert) || ess.IsStrEmpty(a.sslKey)) {
 			return errors.New("SSL config is incomplete; either enable 'server.ssl.lets_encrypt.enable' or provide 'server.ssl.cert' & 'server.ssl.key' value")
-		} else if !a.IsLetsEncrypt() {
+		} else if !a.IsLetsEncryptEnabled() {
 			if !ess.IsFileExists(a.sslCert) {
 				return fmt.Errorf("SSL cert file not found: %s", a.sslCert)
 			}
@@ -465,14 +487,14 @@ func (a *app) checkSSLConfigValues() error {
 		}
 	}
 
-	if a.IsLetsEncrypt() && !a.IsSSLEnabled() {
+	if a.IsLetsEncryptEnabled() && !a.IsSSLEnabled() {
 		return errors.New("let's encrypt enabled, however SSL 'server.ssl.enable' is not enabled for application")
 	}
 	return nil
 }
 
 func (a *app) initAutoCertManager() error {
-	if !a.IsSSLEnabled() || !a.IsLetsEncrypt() {
+	if !a.IsSSLEnabled() || !a.IsLetsEncryptEnabled() {
 		return nil
 	}
 
@@ -528,4 +550,80 @@ func (a *app) aahRecover() {
 		a.Log().Error("Recovered from panic:")
 		a.Log().Error(buf.String())
 	}
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// App - Engines
+//______________________________________________________________________________
+
+// ServeHTTP method implementation of http.Handler interface.
+func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer a.aahRecover()
+	if isWebSocket(r) {
+		a.handleWebSocket(w, r)
+	} else {
+		a.handleHTTP(w, r)
+	}
+}
+func (a *app) handleHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx := a.he.ctxPool.Get().(*Context)
+	ctx.Req, ctx.Res = ahttp.AcquireRequest(r), ahttp.AcquireResponseWriter(w)
+	ctx.Set(reqStartTimeKey, time.Now())
+	defer a.he.releaseContext(ctx)
+
+	// Record access log
+	if a.accessLogEnabled {
+		defer a.accessLog.Log(ctx)
+	}
+
+	// Recovery handling
+	defer a.he.handleRecovery(ctx)
+
+	if a.requestIDEnabled {
+		ctx.setRequestID()
+	}
+
+	// 'OnRequest' server extension point
+	a.he.publishOnRequestEvent(ctx)
+
+	// Middlewares, interceptors, targeted controller
+	if len(a.he.mwChain) == 0 {
+		ctx.Log().Error("'init.go' file introduced in release v0.10; please check your 'app-base-dir/app' " +
+			"and then add to your version control")
+		ctx.Reply().Error(&Error{
+			Reason:  ErrGeneric,
+			Code:    http.StatusInternalServerError,
+			Message: http.StatusText(http.StatusInternalServerError),
+		})
+	} else {
+		a.he.mwChain[0].Next(ctx)
+	}
+
+	a.he.writeReply(ctx)
+}
+
+func (a *app) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	domain := a.Router().Lookup(ahttp.IdentifyHost(r))
+	if domain == nil {
+		a.wse.Log().Errorf("WS: domain not found: %s", ahttp.IdentifyHost(r))
+		ws.WriteHTTPError(w, http.StatusNotFound, fmt.Sprintf("%d %s", http.StatusNotFound, http.StatusText(http.StatusNotFound)))
+		return
+	}
+
+	r.Method = "WS" // for route lookup
+	route, pathParams, _ := domain.Lookup(r)
+	if route == nil {
+		a.wse.Log().Errorf("WS: route not found: %s", r.URL.Path)
+		ws.WriteHTTPError(w, http.StatusNotFound, fmt.Sprintf("%d %s", http.StatusNotFound, http.StatusText(http.StatusNotFound)))
+		return
+	}
+
+	ctx, err := a.wse.Connect(w, r, route, pathParams)
+	if err != nil {
+		// WebSocket connection error
+		return
+	}
+
+	ctx.CallAction()
+	a.wse.PublishPostDisconnect(ctx)
 }

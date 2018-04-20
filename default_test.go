@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"aahframework.org/ainsp.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
 	"aahframework.org/view.v0"
@@ -82,7 +83,7 @@ func TestDefaultApp(t *testing.T) {
 	SetTLSConfig(&tls.Config{})
 
 	// Add controller
-	AddController(reflect.ValueOf(testSiteController{}), make([]*MethodInfo, 0))
+	AddController(reflect.ValueOf(testSiteController{}), make([]*ainsp.Method, 0))
 
 	SetErrorHandler(func(ctx *Context, e *Error) bool {
 		t.Log("Error hanlder")
