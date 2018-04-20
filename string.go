@@ -6,6 +6,9 @@ package ess
 
 import "strings"
 
+// StringEmpty is empty string constant. Using `ess.StringEmpty` instead of "".
+const StringEmpty = ""
+
 // IsStrEmpty returns true if strings is empty otherwise false
 func IsStrEmpty(v string) bool {
 	return len(strings.TrimSpace(v)) == 0

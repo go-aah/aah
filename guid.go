@@ -38,7 +38,7 @@ var (
 // Package methods
 //___________________________________
 
-// NewGUID method returns a new Globally Unique identifier (GUID).
+// NewGUID method returns a new Globally Unique Identifier (GUID).
 //
 // The 12-byte `UniqueId` consists of-
 //   - 4-byte value representing the seconds since the Unix epoch,
@@ -46,8 +46,8 @@ var (
 //   - 2-byte process id, and
 //   - 3-byte counter, starting with a random value.
 //
-// NewGUID generation using Mongo Object ID algorithm to generate globally
-// unique ids - https://docs.mongodb.com/manual/reference/method/ObjectId/
+// Uses Mongo Object ID algorithm to generate globally unique ids -
+// https://docs.mongodb.com/manual/reference/method/ObjectId/
 func NewGUID() string {
 	var b [12]byte
 	// Timestamp, 4 bytes, big endian
