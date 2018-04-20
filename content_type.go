@@ -39,6 +39,9 @@ var (
 
 	// ContentTypeJavascript content type.
 	ContentTypeJavascript = parseMediaType("application/javascript; charset=utf-8")
+
+	// ContentTypeEventStream Server-Sent Events content type.
+	ContentTypeEventStream = parseMediaType("text/event-stream")
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

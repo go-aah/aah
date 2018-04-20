@@ -8,7 +8,11 @@ package ahttp
 
 import (
 	"io"
+	"net"
 	"net/http"
+	"strings"
+
+	"aahframework.org/essentials.v0"
 )
 
 // HTTP Method names
@@ -90,4 +94,55 @@ func WrapGzipWriter(w io.Writer) ResponseWriter {
 	gr.gw = acquireGzipWriter(w)
 	gr.r = w.(*Response)
 	return gr
+}
+
+// IdentifyScheme method is to identify value of protocol value. It's is derived
+// one, Go language doesn't provide directly.
+//  - `X-Forwarded-Proto` is not empty return value as is
+//  - `http.Request.TLS` is not nil value is `https`
+//  - `http.Request.TLS` is nil value is `http`
+func IdentifyScheme(r *http.Request) string {
+	scheme := r.Header.Get("X-Forwarded-Proto")
+	if scheme == "" {
+		if r.TLS == nil {
+			return "http"
+		}
+		return "https"
+	}
+	return scheme
+}
+
+// IdentifyHost method is to correct Hosyt source value from HTTP request.
+func IdentifyHost(r *http.Request) string {
+	if r.URL.Host == "" {
+		return r.Host
+	}
+	return r.URL.Host
+}
+
+// ClientIP method returns remote Client IP address aka Remote IP.
+// It parses in the order of given set of headers otherwise it uses default
+// default header set `X-Forwarded-For`, `X-Real-IP`, "X-Appengine-Remote-Addr"
+// and finally `http.Request.RemoteAddr`.
+func ClientIP(r *http.Request, hdrs ...string) string {
+	if len(hdrs) == 0 {
+		hdrs = []string{"X-Forwarded-For", "X-Real-IP", "X-Appengine-Remote-Addr"}
+	}
+
+	for _, hdrKey := range hdrs {
+		if hv := r.Header.Get(hdrKey); !ess.IsStrEmpty(hv) {
+			index := strings.Index(hv, ",")
+			if index == -1 {
+				return strings.TrimSpace(hv)
+			}
+			return strings.TrimSpace(hv[:index])
+		}
+	}
+
+	// Remote Address
+	if remoteAddr, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return strings.TrimSpace(remoteAddr)
+	}
+
+	return ""
 }

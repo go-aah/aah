@@ -91,7 +91,6 @@ func TestHTTPParseRequest(t *testing.T) {
 	assert.Nil(t, err)
 	assert.False(t, aahReq.IsJSONP())
 	assert.False(t, aahReq.IsAJAX())
-	assert.False(t, aahReq.IsWebSocket())
 
 	aahReq.SetAcceptContentType(nil)
 	assert.NotNil(t, aahReq.AcceptContentType())
@@ -186,19 +185,19 @@ func TestHTTPRequestCookies(t *testing.T) {
 
 func TestRequestSchemeDerived(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://127.0.0.1:8080/welcome.html", nil)
-	scheme1 := identifyScheme(req)
+	scheme1 := IdentifyScheme(req)
 	assert.Equal(t, "http", scheme1)
 
 	req.TLS = &tls.ConnectionState{}
-	scheme2 := identifyScheme(req)
+	scheme2 := IdentifyScheme(req)
 	assert.Equal(t, "https", scheme2)
 
 	req.Header.Set(HeaderXForwardedProto, "https")
-	scheme3 := identifyScheme(req)
+	scheme3 := IdentifyScheme(req)
 	assert.Equal(t, "https", scheme3)
 
 	req.Header.Set(HeaderXForwardedProto, "http")
-	scheme4 := identifyScheme(req)
+	scheme4 := IdentifyScheme(req)
 	assert.Equal(t, "http", scheme4)
 }
 

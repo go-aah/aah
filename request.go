@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -21,10 +20,8 @@ import (
 )
 
 const (
-	jsonpReqParamKey  = "callback"
-	ajaxHeaderValue   = "XMLHttpRequest"
-	wsHdrVal          = "websocket"
-	connHdrValPartial = "upgrade"
+	jsonpReqParamKey = "callback"
+	ajaxHeaderValue  = "XMLHttpRequest"
 )
 
 var requestPool = &sync.Pool{New: func() interface{} { return &Request{} }}
@@ -36,8 +33,8 @@ var requestPool = &sync.Pool{New: func() interface{} { return &Request{} }}
 // ParseRequest method populates the given aah framework `ahttp.Request`
 // instance from Go HTTP request.
 func ParseRequest(r *http.Request, req *Request) *Request {
-	req.Scheme = identifyScheme(r)
-	req.Host = host(r)
+	req.Scheme = IdentifyScheme(r)
+	req.Host = IdentifyHost(r)
 	req.Proto = r.Proto
 	req.Method = r.Method
 	req.Path = r.URL.Path
@@ -153,26 +150,7 @@ func (r *Request) SetAcceptEncoding(encoding *AcceptSpec) *Request {
 // could configure headers of their choice. For e.g.
 // X-Appengine-Remote-Addr, etc.
 func (r *Request) ClientIP() string {
-	// Header X-Forwarded-For
-	if fwdFor := r.Header.Get(HeaderXForwardedFor); !ess.IsStrEmpty(fwdFor) {
-		index := strings.Index(fwdFor, ",")
-		if index == -1 {
-			return strings.TrimSpace(fwdFor)
-		}
-		return strings.TrimSpace(fwdFor[:index])
-	}
-
-	// Header X-Real-Ip
-	if realIP := r.Header.Get(HeaderXRealIP); !ess.IsStrEmpty(realIP) {
-		return strings.TrimSpace(realIP)
-	}
-
-	// Remote Address
-	if remoteAddr, _, err := net.SplitHostPort(r.Unwrap().RemoteAddr); err == nil {
-		return strings.TrimSpace(remoteAddr)
-	}
-
-	return ""
+	return ClientIP(r.Unwrap())
 }
 
 // Cookie method returns a named cookie from HTTP request otherwise error.
@@ -224,12 +202,6 @@ func (r *Request) IsJSONP() bool {
 // `XMLHttpRequest` otherwise false.
 func (r *Request) IsAJAX() bool {
 	return r.Header.Get(HeaderXRequestedWith) == ajaxHeaderValue
-}
-
-// IsWebSocket method returns true if request is WebSocket otherwise false.
-func (r *Request) IsWebSocket() bool {
-	return r.Header.Get(HeaderUpgrade) == wsHdrVal &&
-		strings.Contains(strings.ToLower(r.Header.Get(HeaderConnection)), connHdrValPartial)
 }
 
 // URL method return underlying request URL instance.
@@ -451,29 +423,6 @@ func (p *Params) FormFile(key string) (multipart.File, *multipart.FileHeader, er
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
-
-// identifyScheme method is to identify value of protocol value. It's is derived
-// one, Go language doesn't provide directly.
-//  - `X-Forwarded-Proto` is not empty return value as is
-//  - `http.Request.TLS` is not nil value is `https`
-//  - `http.Request.TLS` is nil value is `http`
-func identifyScheme(r *http.Request) string {
-	scheme := r.Header.Get(HeaderXForwardedProto)
-	if scheme == "" {
-		if r.TLS == nil {
-			return SchemeHTTP // "http"
-		}
-		return SchemeHTTPS // "https"
-	}
-	return scheme
-}
-
-func host(r *http.Request) string {
-	if r.URL.Host == "" {
-		return r.Host
-	}
-	return r.URL.Host
-}
 
 func getReferer(hdr http.Header) string {
 	referer := hdr.Get(HeaderReferer)
