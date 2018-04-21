@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"aahframework.org/essentials.v0"
@@ -216,4 +218,54 @@ func parseParamFieldExpr(pkgName string, expr ast.Expr) (*typeExpr, error) {
 	}
 
 	return nil, errInvalidActionParam
+}
+
+func atype(v interface{}) reflect.Type {
+	vt := reflect.TypeOf(v)
+	if vt.Kind() == reflect.Ptr {
+		vt = vt.Elem()
+	}
+
+	return vt
+}
+
+func kind(t reflect.Type) reflect.Kind {
+	if t.Kind() == reflect.Ptr {
+		return t.Elem().Kind()
+	}
+	return t.Kind()
+}
+
+// targetKeyAndNamespace method creates the target registry key.
+func targetKeyAndNamespace(ttyp reflect.Type) (string, string) {
+	namespace := ttyp.PkgPath()
+	if idx := strings.Index(namespace, "controllers"); idx > -1 {
+		namespace = namespace[idx+11:]
+	} else if idx := strings.Index(namespace, "websockets"); idx > -1 {
+		namespace = namespace[idx+10:]
+	}
+
+	if ess.IsStrEmpty(namespace) {
+		return strings.ToLower(ttyp.Name()), ""
+	}
+
+	namespace = strings.TrimPrefix(namespace, string(filepath.Separator))
+	return strings.ToLower(path.Join(namespace, ttyp.Name())), namespace
+}
+
+func createAlias(packageName, importPath string, importPaths map[string]string) {
+	importPath = filepath.ToSlash(importPath)
+	if _, found := importPaths[importPath]; !found {
+		cnt := 0
+		pkgAlias := packageName
+
+		for isPkgAliasExists(importPaths, pkgAlias) {
+			pkgAlias = fmt.Sprintf("%s%d", packageName, cnt)
+			cnt++
+		}
+
+		if !ess.IsStrEmpty(pkgAlias) && !ess.IsStrEmpty(importPath) {
+			importPaths[importPath] = pkgAlias
+		}
+	}
 }
