@@ -5,6 +5,7 @@
 package router
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,6 +18,7 @@ import (
 
 func TestRouterCORS1(t *testing.T) {
 	_ = log.SetLevel("TRACE")
+	log.SetWriter(ioutil.Discard)
 	wd, _ := os.Getwd()
 	appCfg, _ := config.ParseString("")
 	router := New(filepath.Join(wd, "testdata", "routes-cors-1.conf"), appCfg)

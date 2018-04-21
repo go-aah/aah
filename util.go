@@ -54,9 +54,9 @@ func checkValidationRule(pathSeg string) (string, string, bool, bool) {
 }
 
 func addRegisteredAction(methods map[string]map[string]uint8, route *Route) {
-	if controller, found := methods[route.Controller]; found {
-		controller[route.Action] = 1
+	if target, found := methods[route.Target]; found {
+		target[route.Action] = 1
 	} else {
-		methods[route.Controller] = map[string]uint8{route.Action: 1}
+		methods[route.Target] = map[string]uint8{route.Action: 1}
 	}
 }

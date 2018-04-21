@@ -7,6 +7,7 @@ package router
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"path"
 	"strings"
@@ -22,24 +23,24 @@ import (
 
 // Domain is used to hold domain related routes and it's route configuration
 type Domain struct {
-	Name                  string
-	Host                  string
-	Port                  string
 	IsSubDomain           bool
 	MethodNotAllowed      bool
 	RedirectTrailingSlash bool
 	AutoOptions           bool
+	CORSEnabled           bool
+	Name                  string
+	Host                  string
+	Port                  string
 	DefaultAuth           string
 	CORS                  *CORS
-	CORSEnabled           bool
 	trees                 map[string]*node
 	routes                map[string]*Route
 }
 
-// Lookup method finds a route, path parameters, redirect trailing slash
-// indicator for given `ahttp.Request` by domain and request URI
-// otherwise returns nil and false.
-func (d *Domain) Lookup(req *ahttp.Request) (*Route, ahttp.PathParams, bool) {
+// Lookup method looks up route if found it returns route, path parameters,
+// redirect trailing slash indicator for given `ahttp.Request` by domain
+// and request URI otherwise returns nil and false.
+func (d *Domain) Lookup(req *http.Request) (*Route, ahttp.PathParams, bool) {
 	// HTTP method override support
 	overrideMethod := req.Header.Get(ahttp.HeaderXHTTPMethodOverride)
 	if !ess.IsStrEmpty(overrideMethod) && req.Method == ahttp.MethodPost {
@@ -52,7 +53,7 @@ func (d *Domain) Lookup(req *ahttp.Request) (*Route, ahttp.PathParams, bool) {
 		return nil, nil, false
 	}
 
-	route, pathParams, rts, err := tree.find(req.Path)
+	route, pathParams, rts, err := tree.find(req.URL.Path)
 	if route != nil && err == nil {
 		return route.(*Route), pathParams, rts
 	} else if rts { // possible Redirect Trailing Slash
@@ -243,7 +244,7 @@ func (d *Domain) key() string {
 	return strings.ToLower(d.Host + ":" + d.Port)
 }
 
-func (d *Domain) lookupRouteTree(req *ahttp.Request) (*node, bool) {
+func (d *Domain) lookupRouteTree(req *http.Request) (*node, bool) {
 	// get route tree for request method
 	if tree, found := d.trees[req.Method]; found {
 		return tree, true

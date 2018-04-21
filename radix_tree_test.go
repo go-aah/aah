@@ -555,7 +555,6 @@ func TestTreeWildcardConflictEx(t *testing.T) {
 		}
 
 		err := tree.add(conflict.route, "conflict.route")
-		fmt.Println(err)
 
 		if !regexp.MustCompile(fmt.Sprintf("'%s' in new path .* conflicts with existing wildcard '%s' in existing prefix '%s'", conflict.segPath, conflict.existSegPath, conflict.existPath)).MatchString(err.Error()) {
 			t.Fatalf("invalid wildcard conflict error (%v)", err.Error())

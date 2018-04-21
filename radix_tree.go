@@ -43,12 +43,12 @@ var (
 type nodeType uint8
 
 type node struct {
-	path      string
 	wildChild bool
 	nType     nodeType
 	maxParams uint8
-	indices   string
 	priority  uint32
+	path      string
+	indices   string
 	edges     []*node
 	value     interface{}
 }

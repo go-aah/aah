@@ -47,17 +47,17 @@ var (
 // Spec: https://www.w3.org/TR/cors/
 // Friendly Read: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
 type CORS struct {
-	AllowOrigins     []string
-	AllowMethods     []string
-	AllowHeaders     []string
-	ExposeHeaders    []string
 	AllowCredentials bool
-	MaxAge           string
+	allowAllOrigins  bool
+	allowAllMethods  bool
+	allowAllHeaders  bool
 
-	maxAgeStr       string
-	allowAllOrigins bool
-	allowAllMethods bool
-	allowAllHeaders bool
+	MaxAge        string
+	maxAgeStr     string
+	AllowOrigins  []string
+	AllowMethods  []string
+	AllowHeaders  []string
+	ExposeHeaders []string
 }
 
 // AddOrigins method adds the given origin into allow origin list.

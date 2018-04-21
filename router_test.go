@@ -15,7 +15,6 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -47,7 +46,7 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	// After loading just couple of assertion
 	reqCancelBooking1 := createHTTPRequest("localhost:8080", "/hotels/12345/cancel")
 	reqCancelBooking1.Method = ahttp.MethodPost
-	domain := router.FindDomain(reqCancelBooking1)
+	domain := router.Lookup(reqCancelBooking1.Host)
 	route, pathParam, rts := domain.Lookup(reqCancelBooking1)
 	assert.Equal(t, "cancel_booking", route.Name)
 	assert.Equal(t, "12345", pathParam.Get("id"))
@@ -57,7 +56,7 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	// possible redirect trailing slash
 	reqCancelBooking2 := createHTTPRequest("localhost:8080", "/hotels/12345/cancel/")
 	reqCancelBooking2.Method = ahttp.MethodPost
-	domain = router.FindDomain(reqCancelBooking2)
+	domain = router.Lookup(reqCancelBooking2.Host)
 	_, _, rts = domain.Lookup(reqCancelBooking2)
 	assert.True(t, rts)
 
@@ -65,7 +64,7 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	cancelBooking := domain.LookupByName("cancel_booking")
 	assert.Equal(t, "hotels_group", cancelBooking.ParentName)
 	assert.Equal(t, "cancel_booking", cancelBooking.Name)
-	assert.Equal(t, "Hotel", cancelBooking.Controller)
+	assert.Equal(t, "Hotel", cancelBooking.Target)
 	assert.Equal(t, "POST", cancelBooking.Method)
 
 	routeNotFound := domain.LookupByName("cancel_booking_not_found")
@@ -95,7 +94,7 @@ func TestRouterWildcardSubdomain(t *testing.T) {
 
 	reqCancelBooking := createHTTPRequest("localhost:8080", "/hotels/12345/cancel")
 	reqCancelBooking.Method = ahttp.MethodPost
-	domain := router.FindDomain(reqCancelBooking)
+	domain := router.Lookup(reqCancelBooking.Host)
 	assert.Equal(t, "localhost", domain.Host)
 
 	rootDomain := router.RootDomain()
@@ -104,26 +103,26 @@ func TestRouterWildcardSubdomain(t *testing.T) {
 
 	reqWildcardUsername1 := createHTTPRequest("username1.localhost:8080", "/")
 	reqWildcardUsername1.Method = ahttp.MethodGet
-	domain = router.FindDomain(reqWildcardUsername1)
+	domain = router.Lookup(reqWildcardUsername1.Host)
 	assert.Equal(t, "*.localhost", domain.Host)
 	assert.Equal(t, "8080", domain.Port)
 
 	route1, _, rts1 := domain.Lookup(reqWildcardUsername1)
 	assert.False(t, rts1)
 	assert.Equal(t, "index", route1.Name)
-	assert.Equal(t, "wildcard/AppController", route1.Controller)
+	assert.Equal(t, "wildcard/AppController", route1.Target)
 	assert.Equal(t, "/", route1.Path)
 
 	reqWildcardUsername2 := createHTTPRequest("username2.localhost:8080", "/")
 	reqWildcardUsername2.Method = ahttp.MethodGet
-	domain = router.FindDomain(reqWildcardUsername2)
+	domain = router.Lookup(reqWildcardUsername2.Host)
 	assert.Equal(t, "*.localhost", domain.Host)
 	assert.Equal(t, "8080", domain.Port)
 
 	route2, _, rts2 := domain.Lookup(reqWildcardUsername2)
 	assert.False(t, rts2)
 	assert.Equal(t, "index", route2.Name)
-	assert.Equal(t, "wildcard/AppController", route2.Controller)
+	assert.Equal(t, "wildcard/AppController", route2.Target)
 	assert.Equal(t, "/", route2.Path)
 }
 
@@ -136,7 +135,7 @@ func TestRouterStaticLoadConfiguration(t *testing.T) {
 	// /favicon.ico
 	req1 := createHTTPRequest("localhost:8080", "/favicon.ico")
 	req1.Method = ahttp.MethodGet
-	domain := router.FindDomain(req1)
+	domain := router.Lookup(req1.Host)
 	route, pathParam, rts := domain.Lookup(req1)
 	assert.Nil(t, pathParam)
 	assert.False(t, rts)
@@ -149,7 +148,7 @@ func TestRouterStaticLoadConfiguration(t *testing.T) {
 	// /static/img/aahframework.png
 	req2 := createHTTPRequest("localhost:8080", "/static/img/aahframework.png")
 	req2.Method = ahttp.MethodGet
-	domain = router.FindDomain(req2)
+	domain = router.Lookup(req2.Host)
 	route, pathParam, rts = domain.Lookup(req2)
 	assert.NotNil(t, pathParam)
 	assert.False(t, rts)
@@ -186,7 +185,7 @@ func TestRouterErrorControllerLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-controller-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-controller-error.conf")
 	assert.NotNil(t, router)
-	assert.Equal(t, "'app_index.controller' key is missing", err.Error())
+	assert.Equal(t, "'app_index.controller' or 'app_index.websocket' key is missing", err.Error())
 }
 
 func TestRouterErrorStaticPathLoadConfiguration(t *testing.T) {
@@ -241,10 +240,10 @@ func TestRouterDomainConfig(t *testing.T) {
 	router, err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
-	domain := router.FindDomain(createHTTPRequest("localhost:8080", ""))
+	domain := router.FindDomain(ahttp.AcquireRequest(createHTTPRequest("localhost:8080", "/")))
 	assert.NotNil(t, domain)
 
-	domain = router.FindDomain(createHTTPRequest("www.aahframework.org", ""))
+	domain = router.FindDomain(ahttp.AcquireRequest(createHTTPRequest("www.aahframework.org", "/")))
 	assert.Nil(t, domain)
 }
 
@@ -284,12 +283,12 @@ func TestRouterDomainAllowed(t *testing.T) {
 	assert.FailNowOnError(t, err, "")
 
 	req := createHTTPRequest("localhost:8080", "/login")
-	domain := router.FindDomain(req)
+	domain := router.FindDomain(ahttp.AcquireRequest(req))
 	allow := domain.Allowed(ahttp.MethodGet, "/login")
 	assert.NotNil(t, allow)
 	assert.False(t, ess.IsStrEmpty(allow))
 
-	domain = router.FindDomain(req)
+	domain = router.FindDomain(ahttp.AcquireRequest(req))
 	allow = domain.Allowed(ahttp.MethodPost, "*")
 	assert.NotNil(t, allow)
 	assert.True(t, strings.Contains(allow, ahttp.MethodPost))
@@ -297,7 +296,7 @@ func TestRouterDomainAllowed(t *testing.T) {
 
 	// domain not exists
 	reqNotExists := createHTTPRequest("notexists:8080", "/")
-	domain = router.FindDomain(reqNotExists)
+	domain = router.Lookup(reqNotExists.Host)
 	assert.Nil(t, domain)
 }
 
@@ -306,7 +305,7 @@ func TestRouterDomainReverseURL(t *testing.T) {
 	assert.FailNowOnError(t, err, "")
 
 	req := createHTTPRequest("localhost:8080", "/")
-	domain := router.FindDomain(req)
+	domain := router.Lookup(req.Host)
 
 	// route name not exists
 	emptyURL := domain.ReverseURLm("not_exists_routename", map[string]interface{}{})
@@ -365,31 +364,31 @@ func TestRouterDomainAddRoute(t *testing.T) {
 	}
 
 	route1 := &Route{
-		Name:       "route1",
-		Path:       "/info/:user/project/:project",
-		Method:     "GET",
-		Controller: "Info",
-		Action:     "ShowProject",
+		Name:   "route1",
+		Path:   "/info/:user/project/:project",
+		Method: "GET",
+		Target: "Info",
+		Action: "ShowProject",
 	}
 	err := domain.AddRoute(route1)
 	assert.FailNowOnError(t, err, "unexpected error")
 
 	route2 := &Route{
-		Name:       "index",
-		Path:       "/",
-		Method:     "GET",
-		Controller: "App",
-		Action:     "Index",
+		Name:   "index",
+		Path:   "/",
+		Method: "GET",
+		Target: "App",
+		Action: "Index",
 	}
 	err = domain.AddRoute(route2)
 	assert.FailNowOnError(t, err, "unexpected error")
 
 	routeError := &Route{
-		Name:       "route_error",
-		Path:       "/",
-		Method:     "GET",
-		Controller: "App",
-		Action:     "Index",
+		Name:   "route_error",
+		Path:   "/",
+		Method: "GET",
+		Target: "App",
+		Action: "Index",
 	}
 	err = domain.AddRoute(routeError)
 	assert.True(t, strings.Contains(err.Error(), "value is already registered"))
@@ -426,7 +425,7 @@ func TestRouterNamespaceConfig(t *testing.T) {
 }
 
 func TestRouterNamespaceSimplifiedConfig(t *testing.T) {
-	_ = log.SetLevel("TRACE")
+
 	wd, _ := os.Getwd()
 	appCfg, _ := config.ParseString("")
 	router := New(filepath.Join(wd, "testdata", "routes-simplified.conf"), appCfg)
@@ -441,17 +440,17 @@ func TestRouterNamespaceSimplifiedConfig(t *testing.T) {
 	assert.Equal(t, "/baskets", routes["show_basket"].Path)
 	assert.Equal(t, "GET", routes["show_basket"].Method)
 	assert.Equal(t, "anonymous", routes["show_basket"].Auth)
-	assert.Equal(t, "BasketController", routes["show_basket"].Controller)
+	assert.Equal(t, "BasketController", routes["show_basket"].Target)
 
 	// create_basket
 	assert.Equal(t, "/baskets", routes["create_basket"].Path)
 	assert.Equal(t, "POST", routes["create_basket"].Method)
 	assert.Equal(t, "form_auth", routes["create_basket"].Auth)
-	assert.Equal(t, "BasketController", routes["create_basket"].Controller)
+	assert.Equal(t, "BasketController", routes["create_basket"].Target)
 }
 
 func TestRouterNamespaceSimplified2Config(t *testing.T) {
-	_ = log.SetLevel("TRACE")
+
 	wd, _ := os.Getwd()
 	appCfg, _ := config.ParseString("")
 	router := New(filepath.Join(wd, "testdata", "routes-simplified-2.conf"), appCfg)
@@ -482,7 +481,7 @@ func TestRouterNamespaceSimplified2Config(t *testing.T) {
 }
 
 func TestRouterStaticSectionBaseDirForFilePaths(t *testing.T) {
-	_ = log.SetLevel("TRACE")
+
 	wd, _ := os.Getwd()
 	appCfg, _ := config.ParseString("")
 	router := New(filepath.Join(wd, "testdata", "routes-static.conf"), appCfg)
@@ -513,8 +512,33 @@ func TestRouterStaticSectionBaseDirForFilePaths(t *testing.T) {
 	assert.Equal(t, "'static.favicon.base_dir' value is missing", err.Error())
 }
 
+func TestRouterWebSocketConfig(t *testing.T) {
+	wd, _ := os.Getwd()
+	appCfg, _ := config.ParseString("")
+	router := New(filepath.Join(wd, "testdata", "routes-websocket.conf"), appCfg)
+	err := router.Load()
+	assert.FailNowOnError(t, err, "")
+
+	routes := router.Domains["localhost:8080"].routes
+	assert.NotNil(t, routes)
+	assert.Equal(t, 7, len(routes))
+
+	// WebSocket
+	assert.Equal(t, "/ws/binary", routes["ws_binary"].Path)
+	assert.Equal(t, "WS", routes["ws_binary"].Method)
+	assert.Equal(t, "anonymous", routes["ws_binary"].Auth)
+	assert.Equal(t, "TestWebSocket", routes["ws_binary"].Target)
+	assert.Equal(t, "Binary", routes["ws_binary"].Action)
+
+	assert.Equal(t, "/ws/text", routes["ws_text"].Path)
+	assert.Equal(t, "WS", routes["ws_text"].Method)
+	assert.Equal(t, "anonymous", routes["ws_text"].Auth)
+	assert.Equal(t, "TestWebSocket", routes["ws_text"].Target)
+	assert.Equal(t, "Text", routes["ws_text"].Action)
+}
+
 func createRouter(filename string) (*Router, error) {
-	_ = log.SetLevel("TRACE")
+
 	wd, _ := os.Getwd()
 	appCfg, _ := config.ParseString(`routes {
 			localhost {
@@ -528,16 +552,13 @@ func createRouter(filename string) (*Router, error) {
 	return router, err
 }
 
-func createHTTPRequest(host, path string) *ahttp.Request {
-	req := &ahttp.Request{
-		Raw: &http.Request{Host: host},
+func createHTTPRequest(host, path string) *http.Request {
+	req := &http.Request{
+		Host: host,
 	}
 
-	req.Host = req.Raw.Host
-
 	if !ess.IsStrEmpty(path) {
-		req.Raw.URL = &url.URL{Path: path}
-		req.Path = req.Raw.URL.Path
+		req.URL = &url.URL{Path: path}
 	}
 
 	return req

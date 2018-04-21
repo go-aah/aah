@@ -22,7 +22,10 @@ import (
 	"aahframework.org/log.v0"
 )
 
-const wildcardSubdomainPrefix = "*."
+const (
+	wildcardSubdomainPrefix = "*."
+	methodWebSocket         = "WS"
+)
 
 var (
 	// HTTPMethodActionMap is default Controller Action name for corresponding
@@ -158,14 +161,26 @@ func (r *Router) RegisteredActions() map[string]map[string]uint8 {
 	methods := map[string]map[string]uint8{}
 	for _, d := range r.Domains {
 		for _, route := range d.routes {
-			if route.IsStatic {
+			if route.IsStatic || route.Method == methodWebSocket {
 				continue
 			}
-
 			addRegisteredAction(methods, route)
 		}
 	}
+	return methods
+}
 
+// RegisteredWSActions method returns all the WebSocket name and it's actions
+// configured in the "routes.conf".
+func (r *Router) RegisteredWSActions() map[string]map[string]uint8 {
+	methods := map[string]map[string]uint8{}
+	for _, d := range r.Domains {
+		for _, route := range d.routes {
+			if route.Method == methodWebSocket {
+				addRegisteredAction(methods, route)
+			}
+		}
+	}
 	return methods
 }
 
@@ -263,8 +278,8 @@ func (r *Router) processRoutesConfig() (err error) {
 				if !ess.IsStrEmpty(dr.ParentName) {
 					parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
 				}
-				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Controller: %v, Action: %v, Auth: %v, MaxBodySize: %v\nCORS: [%v]\nValidation Rules:%v\n",
-					dr.Name, parentInfo, dr.Path, dr.Method, dr.Controller, dr.Action, dr.Auth, dr.MaxBodySize,
+				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Target: %v, Action: %v, Auth: %v, MaxBodySize: %v\nCORS: [%v]\nValidation Rules:%v\n",
+					dr.Name, parentInfo, dr.Path, dr.Method, dr.Target, dr.Action, dr.Auth, dr.MaxBodySize,
 					dr.CORS, dr.validationRules)
 			}
 		}
@@ -342,33 +357,32 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 
 // Route holds the single route details.
 type Route struct {
+	IsAntiCSRFCheck bool
+	IsStatic        bool
+	ListDir         bool
+	MaxBodySize     int64
 	Name            string
 	Path            string
 	Method          string
-	Controller      string
+	Target          string
 	Action          string
 	ParentName      string
 	Auth            string
-	MaxBodySize     int64
-	IsAntiCSRFCheck bool
+	Dir             string
+	File            string
 	CORS            *CORS
-
-	// static route fields in-addition to above
-	IsStatic bool
-	Dir      string
-	File     string
-	ListDir  bool
 
 	validationRules map[string]string
 }
 
 type parentRouteInfo struct {
-	ParentName  string
-	PrefixPath  string
-	Controller  string
-	Auth        string
-	CORS        *CORS
-	CORSEnabled bool
+	ParentName    string
+	PrefixPath    string
+	Target        string
+	Auth          string
+	AntiCSRFCheck bool
+	CORS          *CORS
+	CORSEnabled   bool
 }
 
 // IsDir method returns true if serving directory otherwise false.
@@ -434,21 +448,23 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 			}
 		}
 
+		// getting 'method', default to GET, if method not found
+		routeMethod := strings.ToUpper(cfg.StringDefault(routeName+".method", ahttp.MethodGet))
+
 		// check child routes exists
 		notToSkip := true
 		if cfg.IsExists(routeName + ".routes") {
-			if !cfg.IsExists(routeName+".action") || !cfg.IsExists(routeName+".controller") {
+			if !cfg.IsExists(routeName+".action") &&
+				(!cfg.IsExists(routeName+".controller") || !cfg.IsExists(routeName+".websocket")) {
 				notToSkip = false
 			}
 		}
 
-		// getting 'method', default to GET, if method not found
-		routeMethod := strings.ToUpper(cfg.StringDefault(routeName+".method", ahttp.MethodGet))
-
-		// getting 'controller'
-		routeController := cfg.StringDefault(routeName+".controller", routeInfo.Controller)
-		if ess.IsStrEmpty(routeController) && notToSkip {
-			err = fmt.Errorf("'%v.controller' key is missing", routeName)
+		// getting 'target' info for e.g.: controller, websocket
+		routeTarget := cfg.StringDefault(routeName+".controller",
+			cfg.StringDefault(routeName+".websocket", routeInfo.Target))
+		if ess.IsStrEmpty(routeTarget) && notToSkip {
+			err = fmt.Errorf("'%v.controller' or '%v.websocket' key is missing", routeName, routeName)
 			return
 		}
 
@@ -471,7 +487,7 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		}
 
 		// getting Anti-CSRF check value, GitHub go-aah/aah#115
-		routeAntiCSRFCheck := cfg.BoolDefault(routeName+".anti_csrf_check", true)
+		routeAntiCSRFCheck := cfg.BoolDefault(routeName+".anti_csrf_check", routeInfo.AntiCSRFCheck)
 
 		// CORS
 		var cors *CORS
@@ -491,7 +507,7 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 					Name:            routeName,
 					Path:            actualRoutePath,
 					Method:          strings.TrimSpace(m),
-					Controller:      routeController,
+					Target:          routeTarget,
 					Action:          routeAction,
 					ParentName:      routeInfo.ParentName,
 					Auth:            routeAuth,
@@ -506,12 +522,13 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		// loading child routes
 		if childRoutes, found := cfg.GetSubConfig(routeName + ".routes"); found {
 			croutes, er := parseRoutesSection(childRoutes, &parentRouteInfo{
-				ParentName:  routeName,
-				PrefixPath:  routePath,
-				Controller:  routeController,
-				Auth:        routeAuth,
-				CORS:        cors,
-				CORSEnabled: routeInfo.CORSEnabled,
+				ParentName:    routeName,
+				PrefixPath:    routePath,
+				Target:        routeTarget,
+				Auth:          routeAuth,
+				AntiCSRFCheck: routeAntiCSRFCheck,
+				CORS:          cors,
+				CORSEnabled:   routeInfo.CORSEnabled,
 			})
 			if er != nil {
 				err = er
