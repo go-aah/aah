@@ -48,7 +48,7 @@ func TestEngineWSClient(t *testing.T) {
 	setAuthCallback(t, wse, true)
 
 	// Add WebSocket
-	addTextWebSocket(t, wse)
+	addWebSocket(t, wse)
 
 	ts := createTestServer(t, wse)
 	assert.NotNil(t, ts)
@@ -57,62 +57,52 @@ func TestEngineWSClient(t *testing.T) {
 	wsURL := strings.Replace(ts.URL, "http", "ws", -1)
 
 	// test cases
-	testTextMsg(t, wsURL)
-	testBinaryMsg(t, wsURL)
-	testJSONMsg(t, wsURL)
-	testXMLMsg(t, wsURL)
-}
+	testcases := []struct {
+		label   string
+		wsURL   string
+		opCode  gws.OpCode
+		content []byte
+	}{
+		{
+			label:   "WS Text msg test",
+			wsURL:   fmt.Sprintf("%s?encoding=text", wsURL),
+			opCode:  gws.OpText,
+			content: []byte("Hi welcome to aah ws test text msg"),
+		},
+		{
+			label:   "WS Binary msg test",
+			wsURL:   fmt.Sprintf("%s?encoding=binary", wsURL),
+			opCode:  gws.OpBinary,
+			content: []byte("Hi welcome to aah ws test binary msg"),
+		},
+		{
+			label:   "WS JSON msg test",
+			wsURL:   fmt.Sprintf("%s?encoding=json", wsURL),
+			opCode:  gws.OpText,
+			content: []byte(`{"content":"Hello JSON","value":23436723}`),
+		},
 
-func testTextMsg(t *testing.T, tsURL string) {
-	t.Log("test text msg")
-	conn, _, _, err := gws.Dial(context.Background(), fmt.Sprintf("%s?encoding=text", tsURL))
-	assert.FailNowOnError(t, err, "connection failure")
+		{
+			label:   "WS XML msg test",
+			wsURL:   fmt.Sprintf("%s?encoding=xml", wsURL),
+			opCode:  gws.OpText,
+			content: []byte(`<Msg><Content>Hello JSON</Content><Value>23436723</Value></Msg>`),
+		},
+	}
 
-	testText1 := "Hi welcome to aah ws test 1"
-	err = wsutil.WriteClientText(conn, []byte(testText1))
-	assert.FailNowOnError(t, err, "Unable to send text msg to server")
-	b, err := wsutil.ReadServerText(conn)
-	assert.Nil(t, err)
-	assert.Equal(t, testText1, string(b))
-}
+	for _, tc := range testcases {
+		t.Run(tc.label, func(t *testing.T) {
+			conn, _, _, err := gws.Dial(context.Background(), tc.wsURL)
+			assert.FailNowOnError(t, err, "connection failure")
 
-func testBinaryMsg(t *testing.T, tsURL string) {
-	t.Log("test binary msg")
-	conn, _, _, err := gws.Dial(context.Background(), fmt.Sprintf("%s?encoding=binary", tsURL))
-	assert.FailNowOnError(t, err, "connection failure")
-
-	testBin1 := []byte("Hi welcome to aah ws test 1")
-	err = wsutil.WriteClientBinary(conn, testBin1)
-	assert.FailNowOnError(t, err, "Unable to send binary msg to server")
-	b, err := wsutil.ReadServerBinary(conn)
-	assert.Nil(t, err)
-	assert.Equal(t, testBin1, b)
-}
-
-func testJSONMsg(t *testing.T, tsURL string) {
-	t.Log("test JSON msg")
-	conn, _, _, err := gws.Dial(context.Background(), fmt.Sprintf("%s?encoding=json", tsURL))
-	assert.FailNowOnError(t, err, "connection failure")
-
-	testJSON1 := `{"content":"Hello JSON","value":23436723}`
-	err = wsutil.WriteClientText(conn, []byte(testJSON1))
-	assert.FailNowOnError(t, err, "Unable to send JSON msg to server")
-	b, err := wsutil.ReadServerText(conn)
-	assert.Nil(t, err)
-	assert.Equal(t, testJSON1, string(b))
-}
-
-func testXMLMsg(t *testing.T, tsURL string) {
-	t.Log("test XML msg")
-	conn, _, _, err := gws.Dial(context.Background(), fmt.Sprintf("%s?encoding=xml", tsURL))
-	assert.FailNowOnError(t, err, "connection failure")
-
-	testXML1 := `<Msg><Content>Hello JSON</Content><Value>23436723</Value></Msg>`
-	err = wsutil.WriteClientText(conn, []byte(testXML1))
-	assert.FailNowOnError(t, err, "Unable to send XML msg to server")
-	b, err := wsutil.ReadServerText(conn)
-	assert.Nil(t, err)
-	assert.Equal(t, testXML1, string(b))
+			err = wsutil.WriteClientMessage(conn, tc.opCode, tc.content)
+			assert.FailNowOnError(t, err, "Unable to send msg to ws server")
+			b, op, err := wsutil.ReadServerData(conn)
+			assert.Nil(t, err)
+			assert.Equal(t, tc.opCode, op)
+			assert.Equal(t, tc.content, b)
+		})
+	}
 }
 
 func newEngine(t *testing.T, cfg *config.Config) *Engine {
@@ -189,7 +179,7 @@ func createTestServer(t *testing.T, wse *Engine) *httptest.Server {
 	return httptest.NewServer(handler)
 }
 
-func addTextWebSocket(t *testing.T, wse *Engine) {
+func addWebSocket(t *testing.T, wse *Engine) {
 	wse.AddWebSocket((*testWebSocket)(nil), []*ainsp.Method{
 		{Name: "Text", Parameters: []*ainsp.Parameter{{Name: "encoding", Type: reflect.TypeOf((*string)(nil))}}},
 		{Name: "Binary", Parameters: []*ainsp.Parameter{{Name: "encoding", Type: reflect.TypeOf((*string)(nil))}}},
