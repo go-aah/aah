@@ -206,7 +206,9 @@ func (a *app) Init(importPath string) error {
 			}
 		}
 		if a.IsWebSocketEnabled() {
-			a.wse = ws.New(a.cfg, a.logger)
+			if a.wse, err = ws.New(a.cfg, a.logger); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -332,8 +334,40 @@ func (a *app) AddController(c interface{}, methods []*ainsp.Method) {
 }
 
 func (a *app) AddWebSocket(w interface{}, methods []*ainsp.Method) {
+	if a.wse == nil {
+		a.Log().Warn("It seems you have not enabled the WebSocket feature, refer to 'server.websocket.enable'")
+		return
+	}
+	a.wse.AddWebSocket(w, methods)
+}
+
+func (a *app) OnWSPreConnect(ecf ws.EventCallbackFunc) {
 	if a.wse != nil {
-		a.wse.AddWebSocket(w, methods)
+		a.wse.OnPreConnect(ecf)
+	}
+}
+
+func (a *app) OnWSPostConnect(ecf ws.EventCallbackFunc) {
+	if a.wse != nil {
+		a.wse.OnPostConnect(ecf)
+	}
+}
+
+func (a *app) OnWSPostDisconnect(ecf ws.EventCallbackFunc) {
+	if a.wse != nil {
+		a.wse.OnPostDisconnect(ecf)
+	}
+}
+
+func (a *app) OnWSError(ecf ws.EventCallbackFunc) {
+	if a.wse != nil {
+		a.wse.OnError(ecf)
+	}
+}
+
+func (a *app) SetWSAuthCallback(ac ws.AuthCallbackFunc) {
+	if a.wse != nil {
+		a.wse.SetAuthCallback(ac)
 	}
 }
 
@@ -565,6 +599,7 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.handleHTTP(w, r)
 	}
 }
+
 func (a *app) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := a.he.ctxPool.Get().(*Context)
 	ctx.Req, ctx.Res = ahttp.AcquireRequest(r), ahttp.AcquireResponseWriter(w)
@@ -606,7 +641,7 @@ func (a *app) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	domain := a.Router().Lookup(ahttp.IdentifyHost(r))
 	if domain == nil {
 		a.wse.Log().Errorf("WS: domain not found: %s", ahttp.IdentifyHost(r))
-		ws.WriteHTTPError(w, http.StatusNotFound, fmt.Sprintf("%d %s", http.StatusNotFound, http.StatusText(http.StatusNotFound)))
+		a.wse.ReplyError(w, http.StatusNotFound)
 		return
 	}
 
@@ -614,16 +649,18 @@ func (a *app) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	route, pathParams, _ := domain.Lookup(r)
 	if route == nil {
 		a.wse.Log().Errorf("WS: route not found: %s", r.URL.Path)
-		ws.WriteHTTPError(w, http.StatusNotFound, fmt.Sprintf("%d %s", http.StatusNotFound, http.StatusText(http.StatusNotFound)))
+		a.wse.ReplyError(w, http.StatusNotFound)
 		return
 	}
 
 	ctx, err := a.wse.Connect(w, r, route, pathParams)
 	if err != nil {
-		// WebSocket connection error
+		if err == ws.ErrWebSocketNotFound {
+			a.wse.Log().Errorf("WS: route not found: %s", r.URL.Path)
+			a.wse.ReplyError(w, http.StatusNotFound)
+		}
 		return
 	}
 
-	ctx.CallAction()
-	a.wse.PublishPostDisconnect(ctx)
+	a.wse.CallAction(ctx)
 }

@@ -16,6 +16,7 @@ import (
 	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/session"
 	"aahframework.org/view.v0"
+	"aahframework.org/ws.v0"
 )
 
 var defaultApp = newApp()
@@ -219,9 +220,56 @@ func AddController(c interface{}, methods []*ainsp.Method) {
 	defaultApp.AddController(c, methods)
 }
 
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// App WebSocket methods
+//______________________________________________________________________________
+
 // AddWebSocket method adds given WebSocket into WebSocket registry.
 func AddWebSocket(w interface{}, methods []*ainsp.Method) {
 	defaultApp.AddWebSocket(w, methods)
+}
+
+// OnWSPreConnect method sets WebSocket `OnPreConnect` event callback into
+// WebSocket engine.
+//
+// Event published before each WebSocket connection been established.
+func OnWSPreConnect(ecf ws.EventCallbackFunc) {
+	defaultApp.OnWSPreConnect(ecf)
+}
+
+// OnWSPostConnect method sets WebSocket `OnPostConnect` event callback into
+// WebSocket engine.
+//
+// Event published after each WebSocket connection successfully established.
+func OnWSPostConnect(ecf ws.EventCallbackFunc) {
+	defaultApp.OnWSPostConnect(ecf)
+}
+
+// OnWSPostDisconnect method sets WebSocket `OnPostDisconnect` event callback into
+// WebSocket engine.
+//
+// Event published after each WebSocket connection is disconncted from aah server
+// such as client disconnct, connection interrupted, etc.
+func OnWSPostDisconnect(ecf ws.EventCallbackFunc) {
+	defaultApp.OnWSPostDisconnect(ecf)
+}
+
+// OnWSError method sets WebSocket `OnError` event callback into
+// WebSocket engine.
+//
+// Event published for mismatch origin, action parameter parse error,
+// authentication failure, websocket initial connection failure,
+// websocket not found.
+func OnWSError(ecf ws.EventCallbackFunc) {
+	defaultApp.OnWSError(ecf)
+}
+
+// SetWSAuthCallback method sets the WebSocket authentication callback. It gets
+// called for every WebSocket connection.
+//
+// Authentication callback function should return true for success otherwise false.
+func SetWSAuthCallback(ac ws.AuthCallbackFunc) {
+	defaultApp.SetWSAuthCallback(ac)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

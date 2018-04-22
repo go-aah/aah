@@ -203,6 +203,6 @@ func wrapGzipWriter(res ahttp.ResponseWriter) ahttp.ResponseWriter {
 
 // IsWebSocket method returns true if request is WebSocket otherwise false.
 func isWebSocket(r *http.Request) bool {
-	return r.Header.Get(ahttp.HeaderUpgrade) == "websocket" &&
+	return strings.ToLower(r.Header.Get(ahttp.HeaderUpgrade)) == "websocket" &&
 		strings.Contains(strings.ToLower(r.Header.Get(ahttp.HeaderConnection)), "upgrade")
 }
