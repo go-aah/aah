@@ -5,8 +5,8 @@
 package ws
 
 import (
-	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,6 +16,18 @@ import (
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
+//______________________________________________________________________________
+
+func IsDisconnected(err error) bool {
+	switch err {
+	case ErrConnectionClosed, ErrUseOfClosedConnection:
+		return true
+	}
+	return false
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Package Unexported methods
 //______________________________________________________________________________
 
 // WriteHTTPError is to write WebSocket context error.
@@ -38,9 +50,9 @@ func createError(err error) error {
 
 	msg := err.Error()
 	if strings.HasPrefix(msg, "ws closed") {
-		return errors.New("aahws: connection closed")
-	} else if strings.HasSuffix(msg, "use of closed network connection") {
-		return errors.New("aahws: use of closed ws connection")
+		return ErrConnectionClosed
+	} else if err == io.EOF || strings.HasSuffix(msg, "use of closed network connection") {
+		return ErrUseOfClosedConnection
 	}
 	return fmt.Errorf("aah%s", msg)
 }

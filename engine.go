@@ -46,6 +46,8 @@ var (
 	ErrAuthenticationFailed   = errors.New("aahws: authentication failed")
 	ErrWebSocketNotFound      = errors.New("aahws: not found")
 	ErrWebSocketConnectFailed = errors.New("aahws: connect failed")
+	ErrConnectionClosed       = errors.New("aahws: connection closed")
+	ErrUseOfClosedConnection  = errors.New("aahws: use of closed ws connection")
 )
 
 // EventCallbackFunc func type used for all WebSocket event callback.
@@ -121,7 +123,7 @@ func (e *Engine) SetAuthCallback(ac AuthCallbackFunc) {
 	e.doAuth = ac
 }
 
-// Connect method primarly does upgrades HTTP connection into WebSocket
+// Connect method primarily does upgrades HTTP connection into WebSocket
 // connection.
 //
 // Along with Check Origin, Authentication Callback and aah WebSocket events
