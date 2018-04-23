@@ -18,10 +18,13 @@ import (
 	"aahframework.org/forge.v0"
 )
 
-// Version no. of aahframework.org/config library
-var Version = "0.4.2"
-
 var errKeyNotFound = errors.New("config: not found")
+
+// NewEmptyConfig method returns aah empty config instance.
+func NewEmptyConfig() *Config {
+	cfg, _ := ParseString("")
+	return cfg
+}
 
 // Config handles the configuration values and enables environment profile's,
 // merge, etc. Also it provide nice and handly methods for accessing config values.
