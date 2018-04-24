@@ -85,7 +85,6 @@ func (a *app) initAccessLog() error {
 
 	aaLogger := &accessLogger{
 		a:       a,
-		e:       a.engine,
 		logger:  aaLog,
 		logPool: &sync.Pool{New: func() interface{} { return new(accessLog) }},
 	}
@@ -113,7 +112,6 @@ func (a *app) initAccessLog() error {
 
 type accessLogger struct {
 	a        *app
-	e        *engine
 	logger   *log.Logger
 	fmtFlags []ess.FmtFlagPart
 	logChan  chan *accessLog

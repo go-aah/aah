@@ -10,7 +10,6 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"path"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -104,87 +103,6 @@ func reverseSlice(s []string) []string {
 		s[i], s[j] = s[j], s[i]
 	}
 	return s
-}
-
-func kind(t reflect.Type) reflect.Kind {
-	if t.Kind() == reflect.Ptr {
-		return t.Elem().Kind()
-	}
-	return t.Kind()
-}
-
-func actualType(v interface{}) reflect.Type {
-	vt := reflect.TypeOf(v)
-	if vt.Kind() == reflect.Ptr {
-		vt = vt.Elem()
-	}
-
-	return vt
-}
-
-// createRegistryKeyAndNamespace method creates the controller registry key.
-func createRegistryKeyAndNamespace(cType reflect.Type) (string, string) {
-	namespace := cType.PkgPath()
-	if idx := strings.Index(namespace, "controllers"); idx > -1 {
-		namespace = namespace[idx+11:]
-	}
-
-	if ess.IsStrEmpty(namespace) {
-		return strings.ToLower(cType.Name()), ""
-	}
-
-	namespace = strings.TrimPrefix(namespace, string(filepath.Separator))
-	return strings.ToLower(path.Join(namespace, cType.Name())), namespace
-}
-
-// findEmbeddedContext method does breadth-first search on struct anonymous
-// field to find `aah.Context` index positions.
-func findEmbeddedContext(controllerType reflect.Type) [][]int {
-	var indexes [][]int
-	type nodeType struct {
-		val   reflect.Value
-		index []int
-	}
-
-	queue := []nodeType{{reflect.New(controllerType), []int{}}}
-
-	for len(queue) > 0 {
-		var (
-			node     = queue[0]
-			elem     = node.val
-			elemType = elem.Type()
-		)
-
-		if elemType.Kind() == reflect.Ptr {
-			elem = elem.Elem()
-			elemType = elem.Type()
-		}
-
-		queue = queue[1:]
-		if elemType.Kind() != reflect.Struct {
-			continue
-		}
-
-		for i := 0; i < elem.NumField(); i++ {
-			// skip non-anonymous fields
-			field := elemType.Field(i)
-			if !field.Anonymous {
-				continue
-			}
-
-			// If it's a `aah.Context`, record the field indexes
-			if field.Type == ctxPtrType {
-				indexes = append(indexes, append(node.index, i))
-				continue
-			}
-
-			fieldValue := elem.Field(i)
-			queue = append(queue,
-				nodeType{fieldValue, append(append([]int{}, node.index...), i)})
-		}
-	}
-
-	return indexes
 }
 
 func sortHeaderKeys(hdrs http.Header) []string {
@@ -281,4 +199,10 @@ func wrapGzipWriter(res ahttp.ResponseWriter) ahttp.ResponseWriter {
 	res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
 	res.Header().Del(ahttp.HeaderContentLength)
 	return ahttp.WrapGzipWriter(res)
+}
+
+// IsWebSocket method returns true if request is WebSocket otherwise false.
+func isWebSocket(r *http.Request) bool {
+	return strings.ToLower(r.Header.Get(ahttp.HeaderUpgrade)) == "websocket" &&
+		strings.Contains(strings.ToLower(r.Header.Get(ahttp.HeaderConnection)), "upgrade")
 }

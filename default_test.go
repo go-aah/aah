@@ -15,9 +15,11 @@ import (
 	"testing"
 	"time"
 
+	"aahframework.org/ainsp.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
 	"aahframework.org/view.v0"
+	ws "aahframework.org/ws.v0"
 )
 
 func TestDefaultApp(t *testing.T) {
@@ -82,7 +84,7 @@ func TestDefaultApp(t *testing.T) {
 	SetTLSConfig(&tls.Config{})
 
 	// Add controller
-	AddController(reflect.ValueOf(testSiteController{}), make([]*MethodInfo, 0))
+	AddController(reflect.ValueOf(testSiteController{}), make([]*ainsp.Method, 0))
 
 	SetErrorHandler(func(ctx *Context, e *Error) bool {
 		t.Log("Error hanlder")
@@ -151,6 +153,39 @@ func TestDefaultApp(t *testing.T) {
 	UnsubscribeEventf("custom-event-1", eventFunc1)
 	UnsubscribeEventFunc("custom-event-2", eventFunc1)
 	UnsubscribeEvent("custom-event-1", EventCallback{Callback: eventFunc1})
+
+	// WebSocket
+	AddWebSocket((*testWebSocket)(nil), []*ainsp.Method{
+		{Name: "Text", Parameters: []*ainsp.Parameter{{Name: "encoding", Type: reflect.TypeOf((*string)(nil))}}},
+		{Name: "Binary", Parameters: []*ainsp.Parameter{{Name: "encoding", Type: reflect.TypeOf((*string)(nil))}}},
+	})
+	OnWSPreConnect(func(eventName string, ctx *ws.Context) {
+		t.Logf("Event: %s called", eventName)
+		assert.Equal(t, ws.EventOnPreConnect, eventName)
+		assert.NotNil(t, ctx)
+	})
+	OnWSPostConnect(func(eventName string, ctx *ws.Context) {
+		t.Logf("Event: %s called", eventName)
+		assert.Equal(t, ws.EventOnPostConnect, eventName)
+		assert.NotNil(t, ctx)
+	})
+	OnWSPostDisconnect(func(eventName string, ctx *ws.Context) {
+		t.Logf("Event: %s called", eventName)
+		assert.Equal(t, ws.EventOnPostDisconnect, eventName)
+		assert.NotNil(t, ctx)
+	})
+	OnWSError(func(eventName string, ctx *ws.Context) {
+		t.Logf("Event: %s called", eventName)
+		assert.Equal(t, ws.EventOnError, eventName)
+		assert.NotNil(t, ctx)
+	})
+	SetWSAuthCallback(func(ctx *ws.Context) bool {
+		assert.NotNil(t, ctx)
+		t.Logf("Authentication callback called for %s", ctx.Req.Path)
+		ctx.Header.Set("X-WS-Test-Auth", "Success")
+		// success auth
+		return true
+	})
 
 	// Set default app profile to prod
 	t.Log("Set default app profile to prod")

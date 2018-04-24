@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/ainsp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
@@ -241,7 +242,7 @@ func newTestServer(t *testing.T, importPath string) (*testServer, error) {
 		app: newApp(),
 	}
 
-	ts.server = httptest.NewServer(ts.app.engine)
+	ts.server = httptest.NewServer(ts.app)
 	ts.URL = ts.server.URL
 
 	ts.app.SetBuildInfo(&BuildInfo{
@@ -289,7 +290,7 @@ func (ts *testServer) Close() {
 // This is not required for actual application residing in $GOPATH :)
 func (ts *testServer) manualInit() {
 	// adding middlewares
-	ts.app.engine.Middlewares(
+	ts.app.he.Middlewares(
 		RouteMiddleware,
 		CORSMiddleware,
 		BindMiddleware,
@@ -299,73 +300,73 @@ func (ts *testServer) manualInit() {
 	)
 
 	// adding controller
-	ts.app.AddController((*testSiteController)(nil), []*MethodInfo{
+	ts.app.AddController((*testSiteController)(nil), []*ainsp.Method{
 		{
 			Name:       "Index",
-			Parameters: []*ParameterInfo{},
+			Parameters: []*ainsp.Parameter{},
 		},
 		{
 			Name:       "Text",
-			Parameters: []*ParameterInfo{},
+			Parameters: []*ainsp.Parameter{},
 		},
 		{
 			Name: "Redirect",
-			Parameters: []*ParameterInfo{
-				&ParameterInfo{Name: "mode", Type: reflect.TypeOf((*string)(nil))},
+			Parameters: []*ainsp.Parameter{
+				&ainsp.Parameter{Name: "mode", Type: reflect.TypeOf((*string)(nil))},
 			},
 		},
 		{
 			Name: "FormSubmit",
-			Parameters: []*ParameterInfo{
-				&ParameterInfo{Name: "id", Type: reflect.TypeOf((*int)(nil))},
-				&ParameterInfo{Name: "info", Type: reflect.TypeOf((**sample)(nil))},
+			Parameters: []*ainsp.Parameter{
+				&ainsp.Parameter{Name: "id", Type: reflect.TypeOf((*int)(nil))},
+				&ainsp.Parameter{Name: "info", Type: reflect.TypeOf((**sample)(nil))},
 			},
 		},
 		{
 			Name: "CreateRecord",
-			Parameters: []*ParameterInfo{
-				&ParameterInfo{Name: "info", Type: reflect.TypeOf((**sampleJSON)(nil))},
+			Parameters: []*ainsp.Parameter{
+				&ainsp.Parameter{Name: "info", Type: reflect.TypeOf((**sampleJSON)(nil))},
 			},
 		},
 		{
 			Name:       "XML",
-			Parameters: []*ParameterInfo{},
+			Parameters: []*ainsp.Parameter{},
 		},
 		{
 			Name: "JSONP",
-			Parameters: []*ParameterInfo{
-				&ParameterInfo{Name: "callback", Type: reflect.TypeOf((*string)(nil))},
+			Parameters: []*ainsp.Parameter{
+				&ainsp.Parameter{Name: "callback", Type: reflect.TypeOf((*string)(nil))},
 			},
 		},
 		{
 			Name:       "SecureJSON",
-			Parameters: []*ParameterInfo{},
+			Parameters: []*ainsp.Parameter{},
 		},
 		{
 			Name:       "TriggerPanic",
-			Parameters: []*ParameterInfo{},
+			Parameters: []*ainsp.Parameter{},
 		},
 		{
 			Name:       "BinaryBytes",
-			Parameters: []*ParameterInfo{},
+			Parameters: []*ainsp.Parameter{},
 		},
 		{
 			Name:       "SendFile",
-			Parameters: []*ParameterInfo{},
+			Parameters: []*ainsp.Parameter{},
 		},
 		{
 			Name:       "Cookies",
-			Parameters: []*ParameterInfo{},
+			Parameters: []*ainsp.Parameter{},
 		},
 	})
 
 	// reset controller namespace and key
-	cregistry := make(controllerRegistry)
-	for k, v := range ts.app.engine.cregistry {
+	cregistry := &ainsp.TargetRegistry{Registry: make(map[string]*ainsp.Target), SearchType: ctxPtrType}
+	for k, v := range ts.app.he.registry.Registry {
 		v.Namespace = ""
-		cregistry[path.Base(k)] = v
+		cregistry.Registry[path.Base(k)] = v
 	}
-	ts.app.engine.cregistry = cregistry
+	ts.app.he.registry = cregistry
 }
 
 // Test types

@@ -11,6 +11,14 @@ import (
 	"aahframework.org/log.v0"
 )
 
+const (
+	// Interceptor Action Name
+	incpBeforeActionName  = "Before"
+	incpAfterActionName   = "After"
+	incpPanicActionName   = "Panic"
+	incpFinallyActionName = "Finally"
+)
+
 // MiddlewareFunc func type is aah framework middleware signature.
 type MiddlewareFunc func(ctx *Context, m *Middleware)
 
@@ -70,13 +78,13 @@ func (mw *Middleware) Next(ctx *Context) {
 //______________________________________________________________________________
 
 // Middlewares method adds given middleware into middleware stack
-func (e *engine) Middlewares(middlewares ...MiddlewareFunc) {
+func (e *httpEngine) Middlewares(middlewares ...MiddlewareFunc) {
 	e.mwStack = append(e.mwStack, middlewares...)
 
 	e.invalidateMwChain()
 }
 
-func (e *engine) invalidateMwChain() {
+func (e *httpEngine) invalidateMwChain() {
 	e.mwChain = nil
 	cnt := len(e.mwStack)
 	e.mwChain = make([]*Middleware, cnt)

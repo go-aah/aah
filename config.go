@@ -5,6 +5,7 @@
 package aah
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -29,7 +30,7 @@ func (a *app) initConfig() error {
 	aahConf := filepath.Join(a.configDir(), "aah.conf")
 	cfg, err := config.LoadFile(aahConf)
 	if err != nil {
-		return err
+		return fmt.Errorf("aah.conf: %s", err)
 	}
 
 	a.cfg = cfg

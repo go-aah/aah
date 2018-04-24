@@ -27,7 +27,7 @@ func (th *TestHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func TestMiddlewareToHandler(t *testing.T) {
 	a := newApp()
-	e := a.engine
+	e := a.he
 
 	e.Middlewares(
 		ToMiddleware(thirdPartyMiddleware3),

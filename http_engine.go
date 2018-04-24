@@ -9,9 +9,9 @@ import (
 	"io"
 	"net/http"
 	"sync"
-	"time"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/ainsp.v0"
 	"aahframework.org/aruntime.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
@@ -45,20 +45,18 @@ type (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Engine
+// HTTP Engine
 //______________________________________________________________________________
 
-// Engine is the aah framework application server handler.
-//
-// Implements `http.Handler` interface.
-type engine struct {
-	a         *app
-	ctxPool   *sync.Pool
-	mwStack   []MiddlewareFunc
-	mwChain   []*Middleware
-	cregistry controllerRegistry
+// HTTP Engine for aah framework
+type httpEngine struct {
+	a        *app
+	ctxPool  *sync.Pool
+	mwStack  []MiddlewareFunc
+	mwChain  []*Middleware
+	registry *ainsp.TargetRegistry
 
-	// server extensions
+	// http engine events/extensions
 	onRequestFunc    EventCallbackFunc
 	onPreReplyFunc   EventCallbackFunc
 	onAfterReplyFunc EventCallbackFunc
@@ -66,15 +64,15 @@ type engine struct {
 	onPostAuthFunc   EventCallbackFunc
 }
 
-func (e *engine) Log() log.Loggerer {
+func (e *httpEngine) Log() log.Loggerer {
 	return e.a.logger
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Engine - Server Extensions
+// HTTP Engine - Server Extensions
 //______________________________________________________________________________
 
-func (e *engine) OnRequest(sef EventCallbackFunc) {
+func (e *httpEngine) OnRequest(sef EventCallbackFunc) {
 	if e.onRequestFunc != nil {
 		e.Log().Warnf("Changing 'OnRequest' server extension from '%s' to '%s'",
 			funcName(e.onRequestFunc), funcName(sef))
@@ -82,7 +80,7 @@ func (e *engine) OnRequest(sef EventCallbackFunc) {
 	e.onRequestFunc = sef
 }
 
-func (e *engine) OnPreReply(sef EventCallbackFunc) {
+func (e *httpEngine) OnPreReply(sef EventCallbackFunc) {
 	if e.onPreReplyFunc != nil {
 		e.Log().Warnf("Changing 'OnPreReply' server extension from '%s' to '%s'",
 			funcName(e.onPreReplyFunc), funcName(sef))
@@ -90,7 +88,7 @@ func (e *engine) OnPreReply(sef EventCallbackFunc) {
 	e.onPreReplyFunc = sef
 }
 
-func (e *engine) OnAfterReply(sef EventCallbackFunc) {
+func (e *httpEngine) OnAfterReply(sef EventCallbackFunc) {
 	if e.onAfterReplyFunc != nil {
 		e.Log().Warnf("Changing 'OnAfterReply' server extension from '%s' to '%s'",
 			funcName(e.onAfterReplyFunc), funcName(sef))
@@ -98,7 +96,7 @@ func (e *engine) OnAfterReply(sef EventCallbackFunc) {
 	e.onAfterReplyFunc = sef
 }
 
-func (e *engine) OnPreAuth(sef EventCallbackFunc) {
+func (e *httpEngine) OnPreAuth(sef EventCallbackFunc) {
 	if e.onPreAuthFunc != nil {
 		e.Log().Warnf("Changing 'OnPreAuth' server extension from '%s' to '%s'",
 			funcName(e.onPreAuthFunc), funcName(sef))
@@ -106,7 +104,7 @@ func (e *engine) OnPreAuth(sef EventCallbackFunc) {
 	e.onPreAuthFunc = sef
 }
 
-func (e *engine) OnPostAuth(sef EventCallbackFunc) {
+func (e *httpEngine) OnPostAuth(sef EventCallbackFunc) {
 	if e.onPostAuthFunc != nil {
 		e.Log().Warnf("Changing 'OnPostAuth' server extension from '%s' to '%s'",
 			funcName(e.onPostAuthFunc), funcName(sef))
@@ -115,10 +113,10 @@ func (e *engine) OnPostAuth(sef EventCallbackFunc) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Engine - Server Extension Publish
+// HTTP Engine - Server Extension Publish
 //______________________________________________________________________________
 
-func (e *engine) publishOnRequestEvent(ctx *Context) {
+func (e *httpEngine) publishOnRequestEvent(ctx *Context) {
 	if e.onRequestFunc != nil {
 		ctx.decorated = true
 		e.onRequestFunc(&Event{Name: EventOnRequest, Data: ctx})
@@ -126,88 +124,41 @@ func (e *engine) publishOnRequestEvent(ctx *Context) {
 	}
 }
 
-func (e *engine) publishOnPreReplyEvent(ctx *Context) {
+func (e *httpEngine) publishOnPreReplyEvent(ctx *Context) {
 	if e.onPreReplyFunc != nil {
 		e.onPreReplyFunc(&Event{Name: EventOnPreReply, Data: ctx})
 	}
 }
 
-func (e *engine) publishOnAfterReplyEvent(ctx *Context) {
+func (e *httpEngine) publishOnAfterReplyEvent(ctx *Context) {
 	if e.onAfterReplyFunc != nil {
 		e.onAfterReplyFunc(&Event{Name: EventOnAfterReply, Data: ctx})
 	}
 }
 
-func (e *engine) publishOnPreAuthEvent(ctx *Context) {
+func (e *httpEngine) publishOnPreAuthEvent(ctx *Context) {
 	if e.onPreAuthFunc != nil {
 		e.onPreAuthFunc(&Event{Name: EventOnPreAuth, Data: ctx})
 	}
 }
 
-func (e *engine) publishOnPostAuthEvent(ctx *Context) {
+func (e *httpEngine) publishOnPostAuthEvent(ctx *Context) {
 	if e.onPostAuthFunc != nil {
 		e.onPostAuthFunc(&Event{Name: EventOnPostAuth, Data: ctx})
 	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Engine - HTTP Handler
-//______________________________________________________________________________
-
-// ServeHTTP method implementation of http.Handler interface.
-func (e *engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	defer e.a.aahRecover() // just in case
-
-	// Capture the startTime earlier, so that value is as accurate.
-	startTime := time.Now()
-
-	ctx := e.ctxPool.Get().(*Context)
-	ctx.Req, ctx.Res = ahttp.AcquireRequest(r), ahttp.AcquireResponseWriter(w)
-	ctx.Set(reqStartTimeKey, startTime)
-	defer e.releaseContext(ctx)
-
-	// Record access log
-	if e.a.accessLogEnabled {
-		defer e.a.accessLog.Log(ctx)
-	}
-
-	// Recovery handling
-	defer e.handleRecovery(ctx)
-
-	if e.a.requestIDEnabled {
-		ctx.setRequestID()
-	}
-
-	// 'OnRequest' server extension point
-	e.publishOnRequestEvent(ctx)
-
-	// Middlewares, interceptors, targeted controller
-	if len(e.mwChain) == 0 {
-		ctx.Log().Error("'init.go' file introduced in release v0.10; please check your 'app-base-dir/app' " +
-			"and then add to your version control")
-		ctx.Reply().Error(&Error{
-			Reason:  ErrGeneric,
-			Code:    http.StatusInternalServerError,
-			Message: http.StatusText(http.StatusInternalServerError),
-		})
-	} else {
-		e.mwChain[0].Next(ctx)
-	}
-
-	e.writeReply(ctx)
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Engine Unexported methods
 //______________________________________________________________________________
 
-func (e *engine) newContext() *Context {
+func (e *httpEngine) newContext() *Context {
 	return &Context{a: e.a, e: e}
 }
 
 // handleRecovery method handles application panics and recovers from it.
 // Panic gets translated into HTTP Internal Server Error (Status 500).
-func (e *engine) handleRecovery(ctx *Context) {
+func (e *httpEngine) handleRecovery(ctx *Context) {
 	if r := recover(); r != nil {
 		ctx.Log().Errorf("Internal Server Error on %s", ctx.Req.Path)
 
@@ -235,15 +186,16 @@ func (e *engine) handleRecovery(ctx *Context) {
 }
 
 // writeReply method writes the response on the wire based on `Reply` instance.
-func (e *engine) writeReply(ctx *Context) {
-	if ctx.Reply().err != nil {
+func (e *httpEngine) writeReply(ctx *Context) {
+	re := ctx.Reply()
+	if re.err != nil {
 		e.a.errorMgr.Handle(ctx)
 	}
 
 	// don't go forward, if:
 	// 	- Response already written on the wire, refer to method `Reply().Done()`
 	// 	- Static file route
-	if ctx.Reply().done || ctx.IsStaticRoute() {
+	if re.done || ctx.IsStaticRoute() {
 		return
 	}
 
@@ -256,26 +208,26 @@ func (e *engine) writeReply(ctx *Context) {
 	// Set Cookies
 	ctx.writeCookies()
 
-	if ctx.Reply().redirect { // handle redirects
-		ctx.Log().Debugf("Redirecting to '%s' with status '%d'", ctx.Reply().path, ctx.Reply().Code)
-		http.Redirect(ctx.Res, ctx.Req.Unwrap(), ctx.Reply().path, ctx.Reply().Code)
+	if re.redirect { // handle redirects
+		ctx.Log().Debugf("Redirecting to '%s' with status '%d'", re.path, re.Code)
+		http.Redirect(ctx.Res, ctx.Req.Unwrap(), re.path, re.Code)
 		return
 	}
 
 	// Check ContentType and detect it if need be
-	if ess.IsStrEmpty(ctx.Reply().ContType) {
-		ctx.Reply().ContentType(ctx.detectContentType().String())
+	if ess.IsStrEmpty(re.ContType) {
+		re.ContentType(ctx.detectContentType().String())
 	}
 
-	if bodyAllowedForStatus(ctx.Reply().Code) {
-		if e.a.viewMgr != nil && ctx.Reply().isHTML() {
+	if bodyAllowedForStatus(re.Code) {
+		if e.a.viewMgr != nil && re.isHTML() {
 			e.a.viewMgr.resolve(ctx)
 		}
 
 		e.writeOnWire(ctx)
 	} else {
-		ctx.Res.Header().Set(ahttp.HeaderContentType, ctx.Reply().ContType)
-		ctx.Res.WriteHeader(ctx.Reply().Code)
+		ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+		ctx.Res.WriteHeader(re.Code)
 	}
 
 	// 'OnAfterReply' server extension point
@@ -287,7 +239,7 @@ func (e *engine) writeReply(ctx *Context) {
 	}
 }
 
-func (e *engine) writeOnWire(ctx *Context) {
+func (e *httpEngine) writeOnWire(ctx *Context) {
 	re := ctx.Reply()
 	if _, ok := re.Rdr.(*binaryRender); ok {
 		e.writeBinary(ctx)
@@ -295,6 +247,11 @@ func (e *engine) writeOnWire(ctx *Context) {
 	}
 
 	// Render it
+	if re.Rdr == nil {
+		ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+		ctx.Res.WriteHeader(re.Code)
+		return
+	}
 	re.body = acquireBuffer()
 	if err := re.Rdr.Render(re.body); err != nil {
 		ctx.Log().Error("Response render error: ", err)
@@ -334,7 +291,7 @@ func (e *engine) writeOnWire(ctx *Context) {
 	}
 }
 
-func (e *engine) writeBinary(ctx *Context) {
+func (e *httpEngine) writeBinary(ctx *Context) {
 	re := ctx.Reply()
 
 	// Check response qualify for Gzip
@@ -353,11 +310,11 @@ func (e *engine) writeBinary(ctx *Context) {
 	}
 }
 
-func (e *engine) minifierExists() bool {
+func (e *httpEngine) minifierExists() bool {
 	return e.a.viewMgr != nil && e.a.viewMgr.minifier != nil
 }
 
-func (e *engine) releaseContext(ctx *Context) {
+func (e *httpEngine) releaseContext(ctx *Context) {
 	ahttp.ReleaseResponseWriter(ctx.Res)
 	ahttp.ReleaseRequest(ctx.Req)
 	security.ReleaseSubject(ctx.subject)

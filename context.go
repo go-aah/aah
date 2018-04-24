@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/ainsp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
@@ -47,9 +48,9 @@ type Context struct {
 	Res ahttp.ResponseWriter
 
 	a          *app
-	e          *engine
-	controller *controllerInfo
-	action     *MethodInfo
+	e          *httpEngine
+	controller *ainsp.Target
+	action     *ainsp.Method
 	actionrv   reflect.Value
 	target     interface{}
 	targetrv   reflect.Value
@@ -248,7 +249,7 @@ func (ctx *Context) Get(key string) interface{} {
 	return ctx.values[key]
 }
 
-// Log method addeds field `Request ID` into current log context and returns
+// Log method adds field `Request ID` into current log context and returns
 // the logger.
 func (ctx *Context) Log() log.Loggerer {
 	if ctx.logger == nil {
@@ -277,7 +278,7 @@ func (ctx *Context) setRequestID() {
 // setTarget method sets contoller, action, embedded context into
 // controller.
 func (ctx *Context) setTarget(route *router.Route) error {
-	if ctx.controller = ctx.e.cregistry.Lookup(route); ctx.controller == nil {
+	if ctx.controller = ctx.e.registry.Lookup(route.Target); ctx.controller == nil {
 		return errTargetNotFound
 	}
 

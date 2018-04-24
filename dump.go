@@ -52,7 +52,6 @@ func (a *app) initDumpLog() error {
 
 	a.dumpLog = &dumpLogger{
 		a:               a,
-		e:               a.engine,
 		logger:          adLog,
 		logRequestBody:  a.Config().BoolDefault("server.dump_log.request_body", false),
 		logResponseBody: a.Config().BoolDefault("server.dump_log.response_body", false),
@@ -67,7 +66,6 @@ func (a *app) initDumpLog() error {
 
 type dumpLogger struct {
 	a               *app
-	e               *engine
 	logger          *log.Logger
 	logRequestBody  bool
 	logResponseBody bool

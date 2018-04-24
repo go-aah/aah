@@ -47,7 +47,7 @@ func (a *app) Start() {
 
 	a.Log().Infof("App Session Mode: %s", sessionMode)
 
-	if a.webApp || a.viewMgr != nil {
+	if a.appType == "web" || a.viewMgr != nil {
 		a.Log().Infof("App Anti-CSRF Protection Enabled: %t", a.SecurityManager().AntiCSRF.Enabled)
 	}
 
@@ -77,7 +77,7 @@ func (a *app) Start() {
 	hl.SetOutput(ioutil.Discard)
 
 	a.server = &http.Server{
-		Handler:        a.engine,
+		Handler:        a,
 		ReadTimeout:    a.httpReadTimeout,
 		WriteTimeout:   a.httpWriteTimeout,
 		MaxHeaderBytes: a.httpMaxHdrBytes,
@@ -173,7 +173,7 @@ func (a *app) startHTTPS() {
 	}
 
 	// Add cert, if let's encrypt enabled
-	if a.IsLetsEncrypt() {
+	if a.IsLetsEncryptEnabled() {
 		a.Log().Infof("Let's Encypyt CA Cert enabled")
 		a.server.TLSConfig.GetCertificate = a.autocertMgr.GetCertificate
 	} else {

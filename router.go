@@ -86,7 +86,7 @@ func handleRoute(ctx *Context) flowResult {
 	}
 	ctx.domain = domain
 
-	route, pathParams, rts := domain.Lookup(ctx.Req)
+	route, pathParams, rts := domain.Lookup(ctx.Req.Unwrap())
 	if route == nil { // route not found
 		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
 			return flowStop
@@ -125,7 +125,7 @@ func handleRoute(ctx *Context) flowResult {
 
 	if err := ctx.setTarget(route); err == errTargetNotFound {
 		// No controller or action found for the route
-		ctx.Log().Warnf("Target not found, Controller: %s, Action: %s", route.Controller, route.Action)
+		ctx.Log().Warnf("Target not found, Controller: %s, Action: %s", route.Target, route.Action)
 		ctx.Reply().Error(&Error{
 			Reason:  ErrControllerOrActionNotFound,
 			Code:    http.StatusNotFound,
