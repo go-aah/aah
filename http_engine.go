@@ -187,14 +187,15 @@ func (e *httpEngine) handleRecovery(ctx *Context) {
 
 // writeReply method writes the response on the wire based on `Reply` instance.
 func (e *httpEngine) writeReply(ctx *Context) {
-	if ctx.Reply().err != nil {
+	re := ctx.Reply()
+	if re.err != nil {
 		e.a.errorMgr.Handle(ctx)
 	}
 
 	// don't go forward, if:
 	// 	- Response already written on the wire, refer to method `Reply().Done()`
 	// 	- Static file route
-	if ctx.Reply().done || ctx.IsStaticRoute() {
+	if re.done || ctx.IsStaticRoute() {
 		return
 	}
 
@@ -207,26 +208,26 @@ func (e *httpEngine) writeReply(ctx *Context) {
 	// Set Cookies
 	ctx.writeCookies()
 
-	if ctx.Reply().redirect { // handle redirects
-		ctx.Log().Debugf("Redirecting to '%s' with status '%d'", ctx.Reply().path, ctx.Reply().Code)
-		http.Redirect(ctx.Res, ctx.Req.Unwrap(), ctx.Reply().path, ctx.Reply().Code)
+	if re.redirect { // handle redirects
+		ctx.Log().Debugf("Redirecting to '%s' with status '%d'", re.path, re.Code)
+		http.Redirect(ctx.Res, ctx.Req.Unwrap(), re.path, re.Code)
 		return
 	}
 
 	// Check ContentType and detect it if need be
-	if ess.IsStrEmpty(ctx.Reply().ContType) {
-		ctx.Reply().ContentType(ctx.detectContentType().String())
+	if ess.IsStrEmpty(re.ContType) {
+		re.ContentType(ctx.detectContentType().String())
 	}
 
-	if bodyAllowedForStatus(ctx.Reply().Code) {
-		if e.a.viewMgr != nil && ctx.Reply().isHTML() {
+	if bodyAllowedForStatus(re.Code) {
+		if e.a.viewMgr != nil && re.isHTML() {
 			e.a.viewMgr.resolve(ctx)
 		}
 
 		e.writeOnWire(ctx)
 	} else {
-		ctx.Res.Header().Set(ahttp.HeaderContentType, ctx.Reply().ContType)
-		ctx.Res.WriteHeader(ctx.Reply().Code)
+		ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+		ctx.Res.WriteHeader(re.Code)
 	}
 
 	// 'OnAfterReply' server extension point
@@ -246,6 +247,11 @@ func (e *httpEngine) writeOnWire(ctx *Context) {
 	}
 
 	// Render it
+	if re.Rdr == nil {
+		ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+		ctx.Res.WriteHeader(re.Code)
+		return
+	}
 	re.body = acquireBuffer()
 	if err := re.Rdr.Render(re.body); err != nil {
 		ctx.Log().Error("Response render error: ", err)

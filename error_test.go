@@ -19,7 +19,7 @@ type testErrorController1 struct {
 }
 
 func (tec *testErrorController1) HandleError(err *Error) bool {
-	log.Info("I have handler it")
+	log.Info("I have handled it at controller level")
 	return true
 }
 

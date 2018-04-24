@@ -81,7 +81,6 @@ func newApp() *app {
 
 // app struct represents aah application.
 type app struct {
-	webApp                 bool
 	physicalPathMode       bool
 	isPackaged             bool
 	serverHeaderEnabled    bool
@@ -98,6 +97,7 @@ type app struct {
 	multipartMaxMemory     int64
 	maxBodyBytes           int64
 	name                   string
+	appType                string
 	importPath             string
 	baseDir                string
 	envProfile             string
@@ -335,7 +335,7 @@ func (a *app) AddController(c interface{}, methods []*ainsp.Method) {
 
 func (a *app) AddWebSocket(w interface{}, methods []*ainsp.Method) {
 	if a.wse == nil {
-		a.Log().Warn("It seems you have not enabled the WebSocket feature, refer to 'server.websocket.enable'")
+		a.Log().Warn("It seems you have implemented WebSockets, However not enabled it, refer to https://aahframework.org/websocket.html")
 		return
 	}
 	a.wse.AddWebSocket(w, methods)
@@ -427,7 +427,7 @@ func (a *app) initPath() (err error) {
 func (a *app) initConfigValues() (err error) {
 	cfg := a.Config()
 	a.name = cfg.StringDefault("name", filepath.Base(a.BaseDir()))
-	a.webApp = strings.ToLower(cfg.StringDefault("type", "")) == "web"
+	a.appType = strings.ToLower(cfg.StringDefault("type", ""))
 
 	a.envProfile = cfg.StringDefault("env.active", defaultEnvProfile)
 	if err = a.SetProfile(a.Profile()); err != nil {
@@ -465,40 +465,42 @@ func (a *app) initConfigValues() (err error) {
 		return err
 	}
 
-	maxBodySizeStr := cfg.StringDefault("request.max_body_size", "5mb")
-	if a.maxBodyBytes, err = ess.StrToBytes(maxBodySizeStr); err != nil {
-		return errors.New("'request.max_body_size' value is not a valid size unit")
-	}
+	if a.appType != "websocket" {
+		maxBodySizeStr := cfg.StringDefault("request.max_body_size", "5mb")
+		if a.maxBodyBytes, err = ess.StrToBytes(maxBodySizeStr); err != nil {
+			return errors.New("'request.max_body_size' value is not a valid size unit")
+		}
 
-	multipartMemoryStr := cfg.StringDefault("request.multipart_size", "32mb")
-	if a.multipartMaxMemory, err = ess.StrToBytes(multipartMemoryStr); err != nil {
-		return errors.New("'request.multipart_size' value is not a valid size unit")
-	}
+		multipartMemoryStr := cfg.StringDefault("request.multipart_size", "32mb")
+		if a.multipartMaxMemory, err = ess.StrToBytes(multipartMemoryStr); err != nil {
+			return errors.New("'request.multipart_size' value is not a valid size unit")
+		}
 
-	a.serverHeader = cfg.StringDefault("server.header", "")
-	a.serverHeaderEnabled = !ess.IsStrEmpty(a.serverHeader)
-	a.requestIDEnabled = cfg.BoolDefault("request.id.enable", true)
-	a.requestIDHeaderKey = cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID)
-	a.secureHeadersEnabled = cfg.BoolDefault("security.http_header.enable", true)
-	a.gzipEnabled = cfg.BoolDefault("render.gzip.enable", true)
-	a.accessLogEnabled = cfg.BoolDefault("server.access_log.enable", false)
-	a.staticAccessLogEnabled = cfg.BoolDefault("server.access_log.static_file", true)
-	a.dumpLogEnabled = cfg.BoolDefault("server.dump_log.enable", false)
-	a.defaultContentType = resolveDefaultContentType(a.Config().StringDefault("render.default", ""))
-	if a.defaultContentType == nil {
-		return errors.New("'render.default' config value is not defined")
-	}
+		a.serverHeader = cfg.StringDefault("server.header", "")
+		a.serverHeaderEnabled = !ess.IsStrEmpty(a.serverHeader)
+		a.requestIDEnabled = cfg.BoolDefault("request.id.enable", true)
+		a.requestIDHeaderKey = cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID)
+		a.secureHeadersEnabled = cfg.BoolDefault("security.http_header.enable", true)
+		a.gzipEnabled = cfg.BoolDefault("render.gzip.enable", true)
+		a.accessLogEnabled = cfg.BoolDefault("server.access_log.enable", false)
+		a.staticAccessLogEnabled = cfg.BoolDefault("server.access_log.static_file", true)
+		a.dumpLogEnabled = cfg.BoolDefault("server.dump_log.enable", false)
+		a.defaultContentType = resolveDefaultContentType(a.Config().StringDefault("render.default", ""))
+		if a.defaultContentType == nil {
+			return errors.New("'render.default' config value is not defined")
+		}
 
-	a.secureJSONPrefix = cfg.StringDefault("render.secure_json.prefix", defaultSecureJSONPrefix)
+		a.secureJSONPrefix = cfg.StringDefault("render.secure_json.prefix", defaultSecureJSONPrefix)
 
-	ahttp.GzipLevel = cfg.IntDefault("render.gzip.level", 5)
-	if !(ahttp.GzipLevel >= 1 && ahttp.GzipLevel <= 9) {
-		return fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel)
+		ahttp.GzipLevel = cfg.IntDefault("render.gzip.level", 5)
+		if !(ahttp.GzipLevel >= 1 && ahttp.GzipLevel <= 9) {
+			return fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel)
+		}
 	}
 
 	a.shutdownGraceTimeStr = cfg.StringDefault("server.timeout.grace_shutdown", "60s")
 	if !(strings.HasSuffix(a.shutdownGraceTimeStr, "s") || strings.HasSuffix(a.shutdownGraceTimeStr, "m")) {
-		a.Log().Warn("'server.timeout.grace_shutdown' value is not a valid time unit, assigning default value 60s")
+		log.Warn("'server.timeout.grace_shutdown' value is not a valid time unit, assigning default value 60s")
 		a.shutdownGraceTimeStr = "60s"
 	}
 	a.shutdownGraceTimeout, _ = time.ParseDuration(a.shutdownGraceTimeStr)
