@@ -111,7 +111,11 @@ func (e *engine) resolveView(ctx *Context) {
 		reply.Rdr = &HTML{}
 	}
 
-	htmlRdr := reply.Rdr.(*HTML)
+	htmlRdr, ok := reply.Rdr.(*HTML)
+	if !ok {
+		// Even its content type HTML, possibly Custom Render implementation
+		return
+	}
 
 	if ess.IsStrEmpty(htmlRdr.Layout) && appIsDefaultLayoutEnabled {
 		htmlRdr.Layout = appDefaultTmplLayout
