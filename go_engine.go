@@ -139,7 +139,7 @@ func (e *GoViewEngine) loadLayoutTemplates(layouts []string) error {
 			}
 
 			for _, file := range files {
-				tfiles := []string{file, layout}
+				tfiles := []string{layout, file}
 				tmplKey := StripPathPrefixAt(filepath.ToSlash(file), "views/")
 				tmpl := e.NewTemplate(tmplKey)
 				tmplfiles := e.AntiCSRFField.InsertOnFiles(tfiles...)
