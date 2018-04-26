@@ -137,9 +137,11 @@ func (vm *viewManager) resolve(ctx *Context) {
 		reply.Rdr = &htmlRender{}
 	}
 
-	htmlRdr := reply.Rdr.(*htmlRender)
-	if htmlRdr.Template != nil {
-		// template already populated in it, no need to go forward
+	htmlRdr, ok := reply.Rdr.(*htmlRender)
+	if !ok || htmlRdr.Template != nil {
+		// 1. If its not type `htmlRender`, possibly custom render implementation
+		// 2. Template already populated in it
+		// So no need to go forward
 		return
 	}
 
