@@ -27,6 +27,7 @@ type Domain struct {
 	MethodNotAllowed      bool
 	RedirectTrailingSlash bool
 	AutoOptions           bool
+	AntiCSRFEnabled       bool
 	CORSEnabled           bool
 	Name                  string
 	Host                  string

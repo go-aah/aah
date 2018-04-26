@@ -229,6 +229,7 @@ func (r *Router) processRoutesConfig() (err error) {
 			RedirectTrailingSlash: domainCfg.BoolDefault("redirect_trailing_slash", true),
 			AutoOptions:           domainCfg.BoolDefault("auto_options", true),
 			DefaultAuth:           domainCfg.StringDefault("default_auth", ""),
+			AntiCSRFEnabled:       domainCfg.BoolDefault("anti_csrf_check", true),
 			CORSEnabled:           domainCfg.BoolDefault("cors.enable", false),
 			trees:                 make(map[string]*node),
 			routes:                make(map[string]*Route),
@@ -335,9 +336,10 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 	}
 
 	routes, err := parseRoutesSection(routesCfg, &parentRouteInfo{
-		Auth:        domain.DefaultAuth,
-		CORS:        domain.CORS,
-		CORSEnabled: domainCfg.BoolDefault("cors.enable", false),
+		Auth:          domain.DefaultAuth,
+		CORS:          domain.CORS,
+		AntiCSRFCheck: domain.AntiCSRFEnabled,
+		CORSEnabled:   domain.CORSEnabled,
 	})
 	if err != nil {
 		return err
