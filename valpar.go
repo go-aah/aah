@@ -151,7 +151,9 @@ func Struct(key string, typ reflect.Type, params url.Values) (reflect.Value, err
 			goto rv
 		}
 
-		f.Set(v)
+		if v.IsValid() {
+			f.Set(v)
+		}
 	}
 
 rv:
