@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"html"
 	"net"
 	"net/http"
 	"net/url"
@@ -47,15 +48,18 @@ type Context struct {
 	actionArgs []reflect.Value
 	logger     log.Loggerer
 	reason     error
+	abortCode  int
 }
 
 // ReadText method reads a text value from WebSocket client.
+//
+// Note: Method does HTML sanatize internally. Refer to `html.EscapeString`.
 func (ctx *Context) ReadText() (string, error) {
 	data, err := wsutil.ReadClientText(ctx.Conn)
 	if err != nil {
 		return "", createError(err)
 	}
-	return string(data), nil
+	return html.EscapeString(string(data)), nil
 }
 
 // ReadBinary method reads a binary data from WebSocket client.
@@ -144,6 +148,16 @@ func (ctx *Context) ErrorReason() error {
 	return ctx.reason
 }
 
+// Abort method is useful for `OnPreConnect` event, aah user could make a choice
+// of proceed or abort.
+//
+// For e.g.:
+// 	ctx.Abort(http.StatusUnauthorized)
+// 	ctx.Abort(http.StatusForbidden)
+func (ctx *Context) Abort(httpErroCode int) {
+	ctx.abortCode = httpErroCode
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Context struct Unexported methods
 //______________________________________________________________________________
@@ -160,11 +174,11 @@ func (ctx *Context) callAction() {
 
 func (ctx *Context) setTarget(targetName, methodName string) error {
 	if ctx.websocket = ctx.e.registry.Lookup(targetName); ctx.websocket == nil {
-		return ErrWebSocketNotFound
+		return ErrNotFound
 	}
 
 	if ctx.action = ctx.websocket.Lookup(methodName); ctx.action == nil {
-		return ErrWebSocketNotFound
+		return ErrNotFound
 	}
 
 	target := reflect.New(ctx.websocket.Type)
@@ -172,7 +186,7 @@ func (ctx *Context) setTarget(targetName, methodName string) error {
 	// check method exists or not
 	ctx.actionrv = reflect.ValueOf(target.Interface()).MethodByName(ctx.action.Name)
 	if !ctx.actionrv.IsValid() {
-		return ErrWebSocketNotFound
+		return ErrNotFound
 	}
 
 	targetElem := target.Elem()

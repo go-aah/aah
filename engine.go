@@ -41,20 +41,17 @@ const (
 
 // WebSocket errors
 var (
-	ErrOriginMismatch         = errors.New("aahws: origin mismatch")
-	ErrParameterParseFailed   = errors.New("aahws: parameter parse failed")
-	ErrAuthenticationFailed   = errors.New("aahws: authentication failed")
-	ErrWebSocketNotFound      = errors.New("aahws: not found")
-	ErrWebSocketConnectFailed = errors.New("aahws: connect failed")
-	ErrConnectionClosed       = errors.New("aahws: connection closed")
-	ErrUseOfClosedConnection  = errors.New("aahws: use of closed ws connection")
+	ErrOriginMismatch        = errors.New("aahws: origin mismatch")
+	ErrParameterParseFailed  = errors.New("aahws: parameter parse failed")
+	ErrNotFound              = errors.New("aahws: not found")
+	ErrConnectFailed         = errors.New("aahws: connect failed")
+	ErrAbortRequest          = errors.New("aahws: abort request")
+	ErrConnectionClosed      = errors.New("aahws: connection closed")
+	ErrUseOfClosedConnection = errors.New("aahws: use of closed ws connection")
 )
 
 // EventCallbackFunc func type used for all WebSocket event callback.
 type EventCallbackFunc func(eventName string, ctx *Context)
-
-// AuthCallbackFunc func type used for WebSocket authentication.
-type AuthCallbackFunc func(ctx *Context) bool
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Engine type and its methods
@@ -66,8 +63,8 @@ type Engine struct {
 	checkOrigin      bool
 	originWhitelist  []*url.URL
 	cfg              *config.Config
+	router           *router.Router
 	registry         *ainsp.TargetRegistry
-	doAuth           AuthCallbackFunc
 	onPreConnect     EventCallbackFunc
 	onPostConnect    EventCallbackFunc
 	onPostDisconnect EventCallbackFunc
@@ -115,20 +112,60 @@ func (e *Engine) OnError(ecf EventCallbackFunc) {
 	e.onError = ecf
 }
 
-// SetAuthCallback method sets the WebSocket authentication callback. It gets
-// called for every WebSocket connection.
-//
-// Authentication callback function should return true for success otherwise false.
-func (e *Engine) SetAuthCallback(ac AuthCallbackFunc) {
-	e.doAuth = ac
-}
-
-// Connect method primarily does upgrades HTTP connection into WebSocket
+// Handle method primarily does upgrades HTTP connection into WebSocket
 // connection.
 //
-// Along with Check Origin, Authentication Callback and aah WebSocket events
-// such as `OnPreConnect`, `OnPostConnect`, `OnPostDisconnect` and `OnError`.
-func (e *Engine) Connect(w http.ResponseWriter, r *http.Request, route *router.Route, pathParams ahttp.PathParams) (*Context, error) {
+// Along with Check Origin, aah WebSocket events such as `OnPreConnect`,
+// `OnPostConnect`, `OnPostDisconnect` and `OnError`.
+func (e *Engine) Handle(w http.ResponseWriter, r *http.Request) {
+	domain := e.router.Lookup(ahttp.IdentifyHost(r))
+	if domain == nil {
+		e.Log().Errorf("WS: domain not found: %s", ahttp.IdentifyHost(r))
+		e.replyError(w, http.StatusNotFound)
+		return
+	}
+
+	if r.Method != ahttp.MethodGet {
+		e.Log().Errorf("WS: method not allowed: %s", r.Method)
+		e.replyError(w, http.StatusMethodNotAllowed)
+		return
+	}
+
+	r.Method = "WS" // for route lookup
+	route, pathParams, _ := domain.Lookup(r)
+	if route == nil {
+		e.Log().Errorf("WS: route not found: %s", r.URL.Path)
+		e.replyError(w, http.StatusNotFound)
+		return
+	}
+
+	ctx, err := e.connect(w, r, route, pathParams)
+	if err != nil {
+		if err == ErrNotFound {
+			e.Log().Errorf("WS: route not found: %s", r.URL.Path)
+			e.replyError(w, http.StatusNotFound)
+		}
+		return
+	}
+
+	// CallAction method calls the defined action for the WebSocket.
+	ctx.callAction()
+
+	if e.onPostDisconnect != nil {
+		e.onPostDisconnect(EventOnPostDisconnect, ctx)
+	}
+}
+
+// Log method provides logging methods at WebSocket engine.
+func (e *Engine) Log() log.Loggerer {
+	return e.logger
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Engine Unexported methods
+//______________________________________________________________________________
+
+func (e *Engine) connect(w http.ResponseWriter, r *http.Request, route *router.Route, pathParams ahttp.PathParams) (*Context, error) {
 	ctx := e.newContext(r, route, pathParams)
 
 	// Check Origin
@@ -136,7 +173,7 @@ func (e *Engine) Connect(w http.ResponseWriter, r *http.Request, route *router.R
 		ctx.Log().Error("WS: Origin mismatch")
 		ctx.reason = ErrOriginMismatch
 		e.publishOnErrorEvent(ctx)
-		e.ReplyError(w, http.StatusBadRequest)
+		e.replyError(w, http.StatusBadRequest)
 		return nil, ErrOriginMismatch
 	}
 
@@ -152,30 +189,23 @@ func (e *Engine) Connect(w http.ResponseWriter, r *http.Request, route *router.R
 		ctx.Log().Errorf("WS: Parameters error %v", err)
 		ctx.reason = ErrParameterParseFailed
 		e.publishOnErrorEvent(ctx)
-		e.ReplyError(w, http.StatusBadRequest)
+		e.replyError(w, http.StatusBadRequest)
 		return nil, ErrParameterParseFailed
-	}
-
-	// Do authentication
-	if e.doAuth != nil {
-		if !e.doAuth(ctx) {
-			ctx.Log().Errorf("WS: Authentication failed for WebSocket connection: %s", ctx.Req)
-			ctx.reason = ErrAuthenticationFailed
-			e.publishOnErrorEvent(ctx)
-			e.ReplyError(w, http.StatusUnauthorized)
-			return nil, ErrAuthenticationFailed
-		}
 	}
 
 	if e.onPreConnect != nil {
 		e.onPreConnect(EventOnPreConnect, ctx)
+		if ctx.abortCode != 0 {
+			e.replyError(w, ctx.abortCode)
+			return nil, ErrAbortRequest
+		}
 	}
 
 	r.Method = ahttp.MethodGet // back to GET for upgrade
 	conn, _, hs, err := gws.UpgradeHTTP(r, w, ctx.Header)
 	if err != nil {
 		ctx.Log().Errorf("WS: Unable establish a WebSocket connection for '%s'", ctx.Req.Path)
-		ctx.reason = ErrWebSocketConnectFailed
+		ctx.reason = ErrConnectFailed
 		e.publishOnErrorEvent(ctx)
 		return nil, err
 	}
@@ -190,29 +220,6 @@ func (e *Engine) Connect(w http.ResponseWriter, r *http.Request, route *router.R
 
 	return ctx, nil
 }
-
-// CallAction method calls the defined action for the WebSocket.
-func (e *Engine) CallAction(ctx *Context) {
-	ctx.callAction()
-
-	if e.onPostDisconnect != nil {
-		e.onPostDisconnect(EventOnPostDisconnect, ctx)
-	}
-}
-
-// ReplyError method writes HTTP error response.
-func (e *Engine) ReplyError(w http.ResponseWriter, errCode int) {
-	writeHTTPError(w, errCode, fmt.Sprintf("%d %s", errCode, http.StatusText(errCode)))
-}
-
-// Log method provides logging methods at WebSocket engine.
-func (e *Engine) Log() log.Loggerer {
-	return e.logger
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Engine Unexported methods
-//______________________________________________________________________________
 
 func (e *Engine) newContext(r *http.Request, route *router.Route, pathParams ahttp.PathParams) *Context {
 	ctx := &Context{
@@ -230,6 +237,11 @@ func (e *Engine) newContext(r *http.Request, route *router.Route, pathParams aht
 		},
 	}
 	return ctx
+}
+
+// ReplyError method writes HTTP error response.
+func (e *Engine) replyError(w http.ResponseWriter, errCode int) {
+	writeHTTPError(w, errCode, fmt.Sprintf("%d %s", errCode, http.StatusText(errCode)))
 }
 
 func (e *Engine) isSameOrigin(ctx *Context) bool {

@@ -18,6 +18,8 @@ import (
 // Package methods
 //______________________________________________________________________________
 
+// IsDisconnected method is helper to identify error is disconnect related.
+// If it is returns true otherwise false.
 func IsDisconnected(err error) bool {
 	switch err {
 	case ErrConnectionClosed, ErrUseOfClosedConnection:

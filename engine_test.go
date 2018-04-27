@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -41,16 +44,12 @@ func TestEngineWSClient(t *testing.T) {
 	cfg, _ := config.ParseString(cfgStr)
 	wse := newEngine(t, cfg)
 
-	// Adding events
-	addWebSocketEvents(t, wse)
-
-	// Adding Authentication
-	setAuthCallback(t, wse, true)
-
-	// Add WebSocket
-	addWebSocket(t, wse)
-
-	ts := createTestServer(t, wse)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(ahttp.HeaderOrigin) == "" {
+			r.Header.Set(ahttp.HeaderOrigin, fmt.Sprintf("http://%s", ahttp.IdentifyHost(r)))
+		}
+		wse.Handle(w, r)
+	}))
 	assert.NotNil(t, ts)
 	t.Logf("Test WS server running here : %s", ts.URL)
 
@@ -65,39 +64,70 @@ func TestEngineWSClient(t *testing.T) {
 	}{
 		{
 			label:   "WS Text msg test",
-			wsURL:   fmt.Sprintf("%s?encoding=text", wsURL),
+			wsURL:   fmt.Sprintf("%s/ws/text", wsURL),
 			opCode:  gws.OpText,
 			content: []byte("Hi welcome to aah ws test text msg"),
 		},
 		{
 			label:   "WS Binary msg test",
-			wsURL:   fmt.Sprintf("%s?encoding=binary", wsURL),
+			wsURL:   fmt.Sprintf("%s/ws/binary", wsURL),
 			opCode:  gws.OpBinary,
 			content: []byte("Hi welcome to aah ws test binary msg"),
 		},
 		{
 			label:   "WS JSON msg test",
-			wsURL:   fmt.Sprintf("%s?encoding=json", wsURL),
+			wsURL:   fmt.Sprintf("%s/ws/json", wsURL),
 			opCode:  gws.OpText,
 			content: []byte(`{"content":"Hello JSON","value":23436723}`),
 		},
-
 		{
 			label:   "WS XML msg test",
-			wsURL:   fmt.Sprintf("%s?encoding=xml", wsURL),
+			wsURL:   fmt.Sprintf("%s/ws/xml", wsURL),
 			opCode:  gws.OpText,
 			content: []byte(`<Msg><Content>Hello JSON</Content><Value>23436723</Value></Msg>`),
+		},
+		{
+			label: "WS preconnect abort test",
+			wsURL: fmt.Sprintf("%s/ws/text?abort=true", wsURL),
+		},
+		{
+			label: "WS disconnect test",
+			wsURL: fmt.Sprintf("%s/ws/text?disconnect=true", wsURL),
+		},
+		{
+			label: "WS not exists test",
+			wsURL: fmt.Sprintf("%s/ws/notexists", wsURL),
+		},
+		{
+			label: "WS no target test",
+			wsURL: fmt.Sprintf("%s/ws/notarget", wsURL),
 		},
 	}
 
 	for _, tc := range testcases {
 		t.Run(tc.label, func(t *testing.T) {
 			conn, _, _, err := gws.Dial(context.Background(), tc.wsURL)
+			if err != nil {
+				switch {
+				case strings.HasSuffix(err.Error(), "401"),
+					strings.HasSuffix(err.Error(), "404"):
+					return
+				}
+			}
 			assert.FailNowOnError(t, err, "connection failure")
 
 			err = wsutil.WriteClientMessage(conn, tc.opCode, tc.content)
-			assert.FailNowOnError(t, err, "Unable to send msg to ws server")
+			if err != nil {
+				if !strings.Contains(err.Error(), "broken pipe") {
+					assert.FailNowOnError(t, err, "Unable to send msg to ws server")
+				}
+				return
+			}
+
 			b, op, err := wsutil.ReadServerData(conn)
+			if err != nil && (err == io.EOF || strings.Contains(err.Error(), "reset by peer")) {
+				return
+			}
 			assert.Nil(t, err)
 			assert.Equal(t, tc.opCode, op)
 			assert.Equal(t, tc.content, b)
@@ -109,10 +139,20 @@ func newEngine(t *testing.T, cfg *config.Config) *Engine {
 	l, err := log.New(cfg)
 	assert.Nil(t, err)
 
-	wse, err := New(cfg, l)
+	r := router.New(filepath.Join(testdataBaseDir(), "routes.conf"), config.NewEmptyConfig())
+	err = r.Load()
+	assert.Nil(t, err)
+
+	wse, err := New(cfg, l, r)
 	assert.Nil(t, err)
 	assert.NotNil(t, wse.logger)
 	assert.NotNil(t, wse.cfg)
+
+	// Adding events
+	addWebSocketEvents(t, wse)
+
+	// Add WebSocket
+	addWebSocket(t, wse)
 
 	return wse
 }
@@ -122,11 +162,18 @@ func addWebSocketEvents(t *testing.T, wse *Engine) {
 		t.Logf("Event: %s called", eventName)
 		assert.Equal(t, EventOnPreConnect, eventName)
 		assert.NotNil(t, ctx)
+
+		if ctx.Req.QueryValue("abort") == "true" {
+			ctx.Abort(http.StatusUnauthorized) // WS request stops there
+		}
 	})
 	wse.OnPostConnect(func(eventName string, ctx *Context) {
 		t.Logf("Event: %s called", eventName)
 		assert.Equal(t, EventOnPostConnect, eventName)
 		assert.NotNil(t, ctx)
+		if ctx.Req.QueryValue("disconnect") == "true" {
+			ctx.Disconnect()
+		}
 	})
 	wse.OnPostDisconnect(func(eventName string, ctx *Context) {
 		t.Logf("Event: %s called", eventName)
@@ -134,56 +181,17 @@ func addWebSocketEvents(t *testing.T, wse *Engine) {
 		assert.NotNil(t, ctx)
 	})
 	wse.OnError(func(eventName string, ctx *Context) {
-		t.Logf("Event: %s called", eventName)
+		t.Logf("Event: %s called: %s", eventName, ctx.ErrorReason())
 		assert.Equal(t, EventOnError, eventName)
 		assert.NotNil(t, ctx)
 	})
 }
 
-func setAuthCallback(t *testing.T, wse *Engine, mode bool) {
-	wse.SetAuthCallback(func(ctx *Context) bool {
-		assert.NotNil(t, ctx)
-		t.Logf("Authentication callback called for %s", ctx.Req.Path)
-		ctx.Header.Set("X-WS-Test-Auth", "Success")
-		// success auth
-		return mode
-	})
-}
-
-func createTestServer(t *testing.T, wse *Engine) *httptest.Server {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		route := &router.Route{Target: "testWebSocket"}
-		switch r.URL.Query().Get("encoding") {
-		case "text":
-			route.Action = "Text"
-		case "binary":
-			route.Action = "Binary"
-		case "json":
-			route.Action = "JSON"
-		case "xml":
-			route.Action = "XML"
-		}
-
-		r.Header.Set(ahttp.HeaderOrigin, r.URL.String())
-
-		ctx, err := wse.Connect(w, r, route, ahttp.PathParams{})
-		if err != nil {
-			if err == ErrWebSocketNotFound {
-				wse.ReplyError(w, http.StatusNotFound)
-			}
-		}
-
-		wse.CallAction(ctx)
-	})
-
-	return httptest.NewServer(handler)
-}
-
 func addWebSocket(t *testing.T, wse *Engine) {
 	wse.AddWebSocket((*testWebSocket)(nil), []*ainsp.Method{
-		{Name: "Text", Parameters: []*ainsp.Parameter{{Name: "encoding", Type: reflect.TypeOf((*string)(nil))}}},
+		{Name: "Text"},
 		{Name: "Binary", Parameters: []*ainsp.Parameter{{Name: "encoding", Type: reflect.TypeOf((*string)(nil))}}},
-		{Name: "JSON", Parameters: []*ainsp.Parameter{{Name: "encoding", Type: reflect.TypeOf((*string)(nil))}}},
+		{Name: "JSON"},
 		{Name: "XML"},
 	})
 }
@@ -192,11 +200,12 @@ type testWebSocket struct {
 	*Context
 }
 
-func (e *testWebSocket) Text(encoding string) {
+func (e *testWebSocket) Text() {
 	for {
 		str, err := e.ReadText()
 		if err != nil {
 			e.Log().Error(err)
+			IsDisconnected(err)
 			return
 		}
 
@@ -229,7 +238,7 @@ func (e *testWebSocket) Binary(encoding string) {
 	}
 }
 
-func (e *testWebSocket) JSON(encoding string) {
+func (e *testWebSocket) JSON() {
 	t := &testing.T{}
 	ip := e.Req.ClientIP()
 	assert.True(t, ip != "")
@@ -257,9 +266,8 @@ func (e *testWebSocket) JSON(encoding string) {
 
 func (e *testWebSocket) XML() {
 	t := &testing.T{}
-	assert.Equal(t, "xml", e.Req.QueryValue("encoding"))
 	assert.Equal(t, "", e.Req.QueryValue("notexists"))
-	assert.True(t, len(e.Req.QueryArrayValue("encoding")) > 0)
+	assert.True(t, len(e.Req.QueryArrayValue("encoding")) == 0)
 	assert.Equal(t, "", e.Req.PathValue("discussion"))
 
 	type msg struct {
@@ -279,4 +287,12 @@ func (e *testWebSocket) XML() {
 			return
 		}
 	}
+}
+
+func testdataBaseDir() string {
+	wd, _ := os.Getwd()
+	if idx := strings.Index(wd, "testdata"); idx > 0 {
+		wd = wd[:idx]
+	}
+	return filepath.Join(wd, "testdata")
 }
