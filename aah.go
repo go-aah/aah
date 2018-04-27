@@ -60,7 +60,7 @@ func newApp() *app {
 		mu: new(sync.Mutex),
 	}
 
-	aahApp.he = &httpEngine{
+	aahApp.he = &HTTPEngine{
 		a:       aahApp,
 		ctxPool: new(sync.Pool),
 		registry: &ainsp.TargetRegistry{
@@ -115,7 +115,7 @@ type app struct {
 
 	cfg            *config.Config
 	tlsCfg         *tls.Config
-	he             *httpEngine
+	he             *HTTPEngine
 	wse            *ws.Engine
 	server         *http.Server
 	redirectServer *http.Server
@@ -206,7 +206,7 @@ func (a *app) Init(importPath string) error {
 			}
 		}
 		if a.IsWebSocketEnabled() {
-			if a.wse, err = ws.New(a.cfg, a.logger); err != nil {
+			if a.wse, err = ws.New(a.cfg, a.logger, a.router); err != nil {
 				return err
 			}
 		}
@@ -330,45 +330,23 @@ func (a *app) SetTLSConfig(tlsCfg *tls.Config) {
 }
 
 func (a *app) AddController(c interface{}, methods []*ainsp.Method) {
-	a.he.registry.Add(c, methods)
+	a.HTTPEngine().registry.Add(c, methods)
 }
 
 func (a *app) AddWebSocket(w interface{}, methods []*ainsp.Method) {
+	a.WSEngine().AddWebSocket(w, methods)
+}
+
+func (a *app) HTTPEngine() *HTTPEngine {
+	return a.he
+}
+
+func (a *app) WSEngine() *ws.Engine {
 	if a.wse == nil {
-		a.Log().Warn("It seems you have implemented WebSockets, However not enabled it, refer to https://aahframework.org/websocket.html")
-		return
+		a.Log().Warn("It seems WebSocket is not enabled, set 'server.websocket.enable' to true." +
+			" Refer to https://docs.aahframework.org/websocket.html")
 	}
-	a.wse.AddWebSocket(w, methods)
-}
-
-func (a *app) OnWSPreConnect(ecf ws.EventCallbackFunc) {
-	if a.wse != nil {
-		a.wse.OnPreConnect(ecf)
-	}
-}
-
-func (a *app) OnWSPostConnect(ecf ws.EventCallbackFunc) {
-	if a.wse != nil {
-		a.wse.OnPostConnect(ecf)
-	}
-}
-
-func (a *app) OnWSPostDisconnect(ecf ws.EventCallbackFunc) {
-	if a.wse != nil {
-		a.wse.OnPostDisconnect(ecf)
-	}
-}
-
-func (a *app) OnWSError(ecf ws.EventCallbackFunc) {
-	if a.wse != nil {
-		a.wse.OnError(ecf)
-	}
-}
-
-func (a *app) SetWSAuthCallback(ac ws.AuthCallbackFunc) {
-	if a.wse != nil {
-		a.wse.SetAuthCallback(ac)
-	}
+	return a.wse
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -384,8 +362,12 @@ func (a *app) logsDir() string {
 }
 
 func (a *app) showDeprecatedMsg(msg string, v ...interface{}) {
-	a.Log().Warnf("DEPRECATED: "+msg, v...)
-	a.Log().Warn("Deprecated elements are planned to be remove in major release v1.0.0")
+	warnf := log.Warnf
+	if a.Log() != nil {
+		warnf = a.Log().Warnf
+	}
+	warnf("DEPRECATED: "+msg, v...)
+	warnf("Deprecated elements are planned to be remove in major release v1.0.0")
 }
 
 func (a *app) initPath() (err error) {
@@ -596,73 +578,8 @@ func (a *app) aahRecover() {
 func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer a.aahRecover()
 	if isWebSocket(r) {
-		a.handleWebSocket(w, r)
+		a.wse.Handle(w, r)
 	} else {
-		a.handleHTTP(w, r)
+		a.he.Handle(w, r)
 	}
-}
-
-func (a *app) handleHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := a.he.ctxPool.Get().(*Context)
-	ctx.Req, ctx.Res = ahttp.AcquireRequest(r), ahttp.AcquireResponseWriter(w)
-	ctx.Set(reqStartTimeKey, time.Now())
-	defer a.he.releaseContext(ctx)
-
-	// Record access log
-	if a.accessLogEnabled {
-		defer a.accessLog.Log(ctx)
-	}
-
-	// Recovery handling
-	defer a.he.handleRecovery(ctx)
-
-	if a.requestIDEnabled {
-		ctx.setRequestID()
-	}
-
-	// 'OnRequest' server extension point
-	a.he.publishOnRequestEvent(ctx)
-
-	// Middlewares, interceptors, targeted controller
-	if len(a.he.mwChain) == 0 {
-		ctx.Log().Error("'init.go' file introduced in release v0.10; please check your 'app-base-dir/app' " +
-			"and then add to your version control")
-		ctx.Reply().Error(&Error{
-			Reason:  ErrGeneric,
-			Code:    http.StatusInternalServerError,
-			Message: http.StatusText(http.StatusInternalServerError),
-		})
-	} else {
-		a.he.mwChain[0].Next(ctx)
-	}
-
-	a.he.writeReply(ctx)
-}
-
-func (a *app) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	domain := a.Router().Lookup(ahttp.IdentifyHost(r))
-	if domain == nil {
-		a.wse.Log().Errorf("WS: domain not found: %s", ahttp.IdentifyHost(r))
-		a.wse.ReplyError(w, http.StatusNotFound)
-		return
-	}
-
-	r.Method = "WS" // for route lookup
-	route, pathParams, _ := domain.Lookup(r)
-	if route == nil {
-		a.wse.Log().Errorf("WS: route not found: %s", r.URL.Path)
-		a.wse.ReplyError(w, http.StatusNotFound)
-		return
-	}
-
-	ctx, err := a.wse.Connect(w, r, route, pathParams)
-	if err != nil {
-		if err == ws.ErrWebSocketNotFound {
-			a.wse.Log().Errorf("WS: route not found: %s", r.URL.Path)
-			a.wse.ReplyError(w, http.StatusNotFound)
-		}
-		return
-	}
-
-	a.wse.CallAction(ctx)
 }

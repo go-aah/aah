@@ -26,13 +26,18 @@ type MiddlewareFunc func(ctx *Context, m *Middleware)
 // Package methods
 //______________________________________________________________________________
 
-// ToMiddleware method expands the possibilities. It helps Golang community to
-// convert the third-party or your own net/http middleware into `aah.MiddlewareFunc`
+// ToMiddleware method expands the possibilities. It helps aah users to
+// register the third-party or your own net/http middleware into `aah.MiddlewareFunc`.
 //
-// You can register below handler types:
-// 1) aah.ToMiddleware(h http.Handler)
-// 2) aah.ToMiddleware(h http.HandlerFunc)
-// 3) aah.ToMiddleware(func(w http.ResponseWriter, r *http.Request))
+// It is highly recommened refactored to `aah.MiddlewareFunc`.
+//
+//    You can register below handler types:
+//
+//      1) aah.ToMiddleware(h http.Handler)
+//
+//      2) aah.ToMiddleware(h http.HandlerFunc)
+//
+//      3) aah.ToMiddleware(func(w http.ResponseWriter, r *http.Request))
 func ToMiddleware(handler interface{}) MiddlewareFunc {
 	switch handler.(type) {
 	case MiddlewareFunc:
@@ -78,13 +83,13 @@ func (mw *Middleware) Next(ctx *Context) {
 //______________________________________________________________________________
 
 // Middlewares method adds given middleware into middleware stack
-func (e *httpEngine) Middlewares(middlewares ...MiddlewareFunc) {
+func (e *HTTPEngine) Middlewares(middlewares ...MiddlewareFunc) {
 	e.mwStack = append(e.mwStack, middlewares...)
 
 	e.invalidateMwChain()
 }
 
-func (e *httpEngine) invalidateMwChain() {
+func (e *HTTPEngine) invalidateMwChain() {
 	e.mwChain = nil
 	cnt := len(e.mwStack)
 	e.mwChain = make([]*Middleware, cnt)

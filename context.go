@@ -48,7 +48,7 @@ type Context struct {
 	Res ahttp.ResponseWriter
 
 	a          *app
-	e          *httpEngine
+	e          *HTTPEngine
 	controller *ainsp.Target
 	action     *ainsp.Method
 	actionrv   reflect.Value
@@ -148,12 +148,12 @@ func (ctx *Context) Session() *session.Session {
 // next middleware, next interceptor or action based on context it being used.
 // Contexts:
 //    1) If it's called in the middleware, then middleware chain stops;
-// framework starts processing response.
+// 	framework starts processing response.
 //    2) If it's called in Before interceptor then Before<Action> interceptor,
-// mapped <Action>, After<Action> interceptor and After interceptor will not
-// execute; framework starts processing response.
+// 	mapped <Action>, After<Action> interceptor and After interceptor will not
+// 	execute; framework starts processing response.
 //    3) If it's called in Mapped <Action> then After<Action> interceptor and
-// After interceptor will not execute; framework starts processing response.
+// 	After interceptor will not execute; framework starts processing response.
 func (ctx *Context) Abort() {
 	ctx.abort = true
 }
@@ -169,7 +169,7 @@ func (ctx *Context) IsStaticRoute() bool {
 // SetURL method is to set the request URL to change the behaviour of request
 // routing. Ideal for URL rewrting. URL can be relative or absolute URL.
 //
-// Note: This method only takes effect on `OnRequest` server event.
+// Note: This method only takes effect on `OnRequest` HTTP server event.
 func (ctx *Context) SetURL(pathURL string) {
 	if !ctx.decorated {
 		return
@@ -199,7 +199,7 @@ func (ctx *Context) SetURL(pathURL string) {
 // SetMethod method is to set the request `Method` to change the behaviour
 // of request routing. Ideal for URL rewrting.
 //
-// Note: This method only takes effect on `OnRequest` server event.
+// Note: This method only takes effect on `OnRequest` HTTP server event.
 func (ctx *Context) SetMethod(method string) {
 	if !ctx.decorated {
 		return

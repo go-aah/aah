@@ -132,7 +132,7 @@ func (r *Reply) ServiceUnavailable() *Reply {
 // Content-Type(s).
 //
 // By default aah framework try to determine response 'Content-Type' from
-// 'ahttp.Request.AcceptContentType'.
+// 'ahttp.Request.AcceptContentType()'.
 func (r *Reply) ContentType(contentType string) *Reply {
 	if ess.IsStrEmpty(r.ContType) {
 		r.ContType = strings.ToLower(contentType)
@@ -148,11 +148,11 @@ func (r *Reply) JSON(data interface{}) *Reply {
 	return r
 }
 
-// SecureJSON method renders given data as Secure JSON into response.
+// JSONSecure method renders given data as Secure JSON into response.
 // and it sets HTTP 'Content-Type' as 'application/json; charset=utf-8'.
 //
 // See config `render.secure_json.prefix`.
-func (r *Reply) SecureJSON(data interface{}) *Reply {
+func (r *Reply) JSONSecure(data interface{}) *Reply {
 	r.ContentType(ahttp.ContentTypeJSON.String())
 	r.Render(&secureJSONRender{Data: data, Prefix: r.ctx.a.secureJSONPrefix})
 	return r
@@ -188,13 +188,20 @@ func (r *Reply) Binary(b []byte) *Reply {
 	return r.Readfrom(bytes.NewReader(b))
 }
 
-// Readfrom method reads the data from given reader and writes into response.
+// FromReader method reads the data from given reader and writes into response.
 // It auto-detects the content type of the file if `Content-Type` is not set.
 //
 // Note: Method will close the reader after serving if it's satisfies the `io.Closer`.
-func (r *Reply) Readfrom(reader io.Reader) *Reply {
+func (r *Reply) FromReader(reader io.Reader) *Reply {
 	r.Render(&binaryRender{Reader: reader})
 	return r
+}
+
+// Readfrom method DEPRECATED to be removed `v1.0.0` release.
+// Use `Reply().FromReader` instead.
+func (r *Reply) Readfrom(reader io.Reader) *Reply {
+	r.ctx.a.showDeprecatedMsg("Method 'Readfrom', use 'Reply().FromReader' instead.")
+	return r.FromReader(reader)
 }
 
 // File method send the given as file to client. It auto-detects the content type
@@ -220,7 +227,7 @@ func (r *Reply) FileDownload(file, targetName string) *Reply {
 
 // FileInline method send the given as file to client to display.
 // For e.g.: display within the browser. It sets the `Content-Disposition` as
-//  `inline` with given target name and auto-detects the content type of
+// `inline` with given target name and auto-detects the content type of
 // the file if `Content-Type` is not set.
 func (r *Reply) FileInline(file, targetName string) *Reply {
 	r.Header(ahttp.HeaderContentDisposition, "inline; filename="+targetName)
@@ -229,21 +236,26 @@ func (r *Reply) FileInline(file, targetName string) *Reply {
 
 // HTML method renders given data with auto mapped template name and layout
 // by framework. Also it sets HTTP 'Content-Type' as 'text/html; charset=utf-8'.
-// By default aah framework renders the template based on
+//
+// aah renders the view template based on -
+//
 // 1) path 'Namespace/Sub-package' of Controller,
+//
 // 2) path 'Controller.Action',
+//
 // 3) view extension 'view.ext' and
+//
 // 4) case sensitive 'view.case_sensitive' from aah.conf
+//
 // 5) default layout is 'master.html'
-//    E.g.:
+//
+//    For e.g.:
 //      Namespace/Sub-package: frontend
 //      Controller: App
 //      Action: Login
 //      view.ext: html
 //
-//      template => /views/pages/frontend/app/login.html
-//               => /views/pages/frontend/App/Login.html
-//
+//      Outcome view template path => /views/pages/frontend/app/login.html
 func (r *Reply) HTML(data Data) *Reply {
 	return r.HTMLlf("", "", data)
 }
@@ -281,16 +293,14 @@ func (r *Reply) RedirectWithStatus(redirectURL string, code int) *Reply {
 	return r
 }
 
-// RedirectSts method redirects to given redirect URL and status code.
-//
-// DEPRECATED: use `RedirectWithStatus` instead.
+// RedirectSts method DEPRECATED use `Reply().RedirectWithStatus` instead.
 func (r *Reply) RedirectSts(redirectURL string, code int) *Reply {
-	r.ctx.Log().Warnf("Method: RedirectSts is deprecated, use 'RedirectWithStatus' instead. Planned to be removed in v1.0 release")
+	r.ctx.a.showDeprecatedMsg("Method 'RedirectSts', use 'Reply().RedirectWithStatus' instead.")
 	r.RedirectWithStatus(redirectURL, code)
 	return r
 }
 
-// Error method is used send an error reply, which is handled by error handling
+// Error method is used send an error reply, which is handled by aah error handling
 // mechanism.
 //
 // More Info: https://docs.aahframework.org/error-handling.html
@@ -333,7 +343,7 @@ func (r *Reply) Header(key, value string) *Reply {
 
 // HeaderAppend method appends the given header and value for the response.
 //
-// Note: It does not overwrite existing header, it just appends to it.
+// Note: It just appends to it. It does not overwrite existing header.
 func (r *Reply) HeaderAppend(key, value string) *Reply {
 	if key == ahttp.HeaderContentType {
 		return r.ContentType(value)
@@ -346,7 +356,8 @@ func (r *Reply) HeaderAppend(key, value string) *Reply {
 // Done method is used to indicate response has already been written using
 // `aah.Context.Res` so no further action is needed from framework.
 //
-// Note: Framework doesn't intervene with response if this method called.
+// Note: Framework doesn't intervene with response if this method called
+// by aah user.
 func (r *Reply) Done() *Reply {
 	r.done = true
 	return r
@@ -377,10 +388,11 @@ func (r *Reply) IsContentTypeSet() bool {
 }
 
 // Body method returns the response body buffer.
-// It might be nil if the -
-//    1) Response is written successfully on the wire
-//    2) Response is not yet rendered
-//    3) Static files, since response is written via `http.ServeContent`
+//
+//    It might be nil if the -
+//      1) Response was written successfully on the wire
+//      2) Response is not yet rendered
+//      3) Static files, since response is written via `http.ServeContent`
 func (r *Reply) Body() *bytes.Buffer {
 	return r.body
 }

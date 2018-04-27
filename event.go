@@ -21,6 +21,10 @@ const (
 	// EventOnShutdown event is fired when server recevies an interrupt or kill command.
 	EventOnShutdown = "OnShutdown"
 
+	//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+	// HTTP Engine events
+	//______________________________________________________________________________
+
 	// EventOnRequest event is fired when server recevies an incoming request.
 	EventOnRequest = "OnRequest"
 
@@ -31,12 +35,17 @@ const (
 	// Refer `aah.Reply.Done()` godoc for more info.
 	EventOnPreReply = "OnPreReply"
 
-	// EventOnAfterReply event is fired when before server writes the reply on the wire.
+	// EventOnPostReply event is fired when before server writes the reply on the wire.
 	// Except when
 	//   1) `Reply().Done()`,
 	//   2) `Reply().Redirect(...)` is called.
 	// Refer `aah.Reply.Done()` godoc for more info.
-	EventOnAfterReply = "OnAfterReply"
+	EventOnPostReply = "OnPostReply"
+
+	// EventOnAfterReply DEPRECATED use EventOnPostReply instead.
+	//
+	// Note: DEPRECATED elements to be removed in `v1.0.0` release.
+	EventOnAfterReply = EventOnPostReply
 
 	// EventOnPreAuth event is fired before server Authenticates & Authorizes an incoming request.
 	EventOnPreAuth = "OnPreAuth"
@@ -94,26 +103,6 @@ func (a *app) OnShutdown(ecb EventCallbackFunc, priority ...int) {
 		CallOnce: true,
 		priority: parsePriority(priority...),
 	})
-}
-
-func (a *app) OnRequest(sef EventCallbackFunc) {
-	a.he.OnRequest(sef)
-}
-
-func (a *app) OnPreReply(sef EventCallbackFunc) {
-	a.he.OnPreReply(sef)
-}
-
-func (a *app) OnAfterReply(sef EventCallbackFunc) {
-	a.he.OnAfterReply(sef)
-}
-
-func (a *app) OnPreAuth(sef EventCallbackFunc) {
-	a.he.OnPreAuth(sef)
-}
-
-func (a *app) OnPostAuth(sef EventCallbackFunc) {
-	a.he.OnPostAuth(sef)
 }
 
 func (a *app) PublishEvent(eventName string, data interface{}) {

@@ -14,7 +14,7 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
-func TestEngineTestRequests(t *testing.T) {
+func TestHTTPEngineTestRequests(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
 	ts, err := newTestServer(t, importPath)
 	assert.Nil(t, err)
@@ -49,30 +49,31 @@ func TestEngineTestRequests(t *testing.T) {
 	}
 
 	// Adding Server extension points
-	ts.app.OnRequest(func(e *Event) {
+	he := ts.app.HTTPEngine()
+	he.OnRequest(func(e *Event) {
 		t.Log("Application OnRequest extension point")
 	})
-	ts.app.OnRequest(testOnRequest)
+	he.OnRequest(testOnRequest)
 
-	ts.app.OnPreReply(func(e *Event) {
+	he.OnPreReply(func(e *Event) {
 		t.Log("Application OnPreReply extension point")
 	})
-	ts.app.OnPreReply(testOnPreReply)
+	he.OnPreReply(testOnPreReply)
 
-	ts.app.OnAfterReply(func(e *Event) {
+	he.OnAfterReply(func(e *Event) {
 		t.Log("Application OnAfterReply extension point")
 	})
-	ts.app.OnAfterReply(testOnAfterReply)
+	he.OnAfterReply(testOnAfterReply)
 
-	ts.app.OnPreAuth(func(e *Event) {
+	he.OnPreAuth(func(e *Event) {
 		t.Log("Application OnPreAuth extension point")
 	})
-	ts.app.OnPreAuth(testOnPreAuth)
+	he.OnPreAuth(testOnPreAuth)
 
-	ts.app.OnPostAuth(func(e *Event) {
+	he.OnPostAuth(func(e *Event) {
 		t.Log("Application OnPostAuth extension point")
 	})
-	ts.app.OnPostAuth(testOnPostAuth)
+	he.OnPostAuth(testOnPostAuth)
 
 	ts.app.errorMgr.SetHandler(func(ctx *Context, err *Error) bool {
 		ctx.Log().Infof("Centrallized error handler called : %s", err)

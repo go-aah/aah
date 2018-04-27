@@ -43,7 +43,7 @@ func AddSessionStore(name string, store session.Storer) error {
 // AddPasswordAlgorithm method adds given password algorithm to encoders list.
 // Implementation have to implement interface `PasswordEncoder`.
 //
-/// Then you can use it `security.auth_schemes.*`.
+// Then you can use it `security.auth_schemes.*`.
 func AddPasswordAlgorithm(name string, encoder acrypto.PasswordEncoder) error {
 	return acrypto.AddPasswordAlgorithm(name, encoder)
 }

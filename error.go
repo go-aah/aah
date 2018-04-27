@@ -84,8 +84,8 @@ var defaultErrorHTMLTemplate = template.Must(template.New("error_template").Pars
 //
 //  - Return `true`, if you have handled your errors, aah just writes the reply on the wire.
 //
-//  - Return `false`, you may or may not handled the error, aah would propagate the error further to default
-// error handler.
+//  - Return `false`, you may or may not handled the error, aah would propagate
+// 	the error further to default error handler.
 type ErrorHandlerFunc func(ctx *Context, err *Error) bool
 
 // ErrorHandler is interface for implement controller level error handling
@@ -95,7 +95,7 @@ type ErrorHandler interface {
 	//  - Return `true`, if you have handled your errors, aah just writes the reply on the wire.
 	//
 	//  - Return `false`, aah would propagate the error further to centralized
-	// error handler, if not handled and then finally default error handler would take place.
+	// 	  error handler, if not handled and then finally default error handler would take place.
 	HandleError(err *Error) bool
 }
 
@@ -107,7 +107,6 @@ func (a *app) initError() error {
 	a.errorMgr = &errorManager{
 		a: a,
 	}
-
 	return nil
 }
 

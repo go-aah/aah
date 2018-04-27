@@ -457,7 +457,7 @@ func (s *testSiteController) JSONP(callback string) {
 }
 
 func (s *testSiteController) SecureJSON() {
-	s.Reply().SecureJSON(sample{
+	s.Reply().JSONSecure(sample{
 		Username:    "myuser_name",
 		ProductName: "JSONP product",
 		ProductID:   190398398,

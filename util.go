@@ -140,7 +140,7 @@ func detectFileContentType(file string, content io.ReadSeeker) (string, error) {
 		// read a chunk to decide between utf-8 text and binary
 		// only 512 bytes expected by `http.DetectContentType`
 		var buf [512]byte
-		n, _ := io.ReadFull(content, buf[:])
+		n, _ := io.ReadFull(content, buf[:]) // #nosec
 		ctype = http.DetectContentType(buf[:n])
 
 		// rewind to output whole file

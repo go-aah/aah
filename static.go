@@ -118,7 +118,7 @@ func (s *staticManager) Serve(ctx *Context) error {
 		http.ServeContent(ctx.Res, ctx.Req.Unwrap(), path.Base(filePath), fi.ModTime(), f)
 
 		// 'OnAfterReply' server extension point
-		s.a.he.publishOnAfterReplyEvent(ctx)
+		s.a.he.publishOnPostReplyEvent(ctx)
 
 		// Send data to access log channel
 		if s.a.accessLogEnabled && s.a.staticAccessLogEnabled {
@@ -142,7 +142,7 @@ func (s *staticManager) Serve(ctx *Context) error {
 		s.listDirectory(ctx.Res, ctx.Req.Unwrap(), f)
 
 		// 'OnAfterReply' server extension point
-		s.a.he.publishOnAfterReplyEvent(ctx)
+		s.a.he.publishOnPostReplyEvent(ctx)
 
 		// Send data to access log channel
 		if s.a.accessLogEnabled && s.a.staticAccessLogEnabled {

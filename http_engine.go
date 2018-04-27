@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"time"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/ainsp.v0"
@@ -48,8 +49,8 @@ type (
 // HTTP Engine
 //______________________________________________________________________________
 
-// HTTP Engine for aah framework
-type httpEngine struct {
+// HTTPEngine holds the implementation HTTP request, response, security, etc.
+type HTTPEngine struct {
 	a        *app
 	ctxPool  *sync.Pool
 	mwStack  []MiddlewareFunc
@@ -57,14 +58,53 @@ type httpEngine struct {
 	registry *ainsp.TargetRegistry
 
 	// http engine events/extensions
-	onRequestFunc    EventCallbackFunc
-	onPreReplyFunc   EventCallbackFunc
-	onAfterReplyFunc EventCallbackFunc
-	onPreAuthFunc    EventCallbackFunc
-	onPostAuthFunc   EventCallbackFunc
+	onRequestFunc   EventCallbackFunc
+	onPreReplyFunc  EventCallbackFunc
+	onPostReplyFunc EventCallbackFunc
+	onPreAuthFunc   EventCallbackFunc
+	onPostAuthFunc  EventCallbackFunc
 }
 
-func (e *httpEngine) Log() log.Loggerer {
+// Handle method is HTTP handler for aah application.
+func (e *HTTPEngine) Handle(w http.ResponseWriter, r *http.Request) {
+	ctx := e.ctxPool.Get().(*Context)
+	ctx.Req, ctx.Res = ahttp.AcquireRequest(r), ahttp.AcquireResponseWriter(w)
+	ctx.Set(reqStartTimeKey, time.Now())
+	defer e.releaseContext(ctx)
+
+	// Record access log
+	if e.a.accessLogEnabled {
+		defer e.a.accessLog.Log(ctx)
+	}
+
+	// Recovery handling
+	defer e.handleRecovery(ctx)
+
+	if e.a.requestIDEnabled {
+		ctx.setRequestID()
+	}
+
+	// 'OnRequest' HTTP engine event
+	e.publishOnRequestEvent(ctx)
+
+	// Middlewares, interceptors, targeted controller
+	if len(e.mwChain) == 0 {
+		ctx.Log().Error("'init.go' file introduced in release v0.10; please check your 'app-base-dir/app' " +
+			"and then add to your version control")
+		ctx.Reply().Error(&Error{
+			Reason:  ErrGeneric,
+			Code:    http.StatusInternalServerError,
+			Message: http.StatusText(http.StatusInternalServerError),
+		})
+	} else {
+		e.mwChain[0].Next(ctx)
+	}
+
+	e.writeReply(ctx)
+}
+
+// Log method returns HTTP engine logger.
+func (e *HTTPEngine) Log() log.Loggerer {
 	return e.a.logger
 }
 
@@ -72,7 +112,15 @@ func (e *httpEngine) Log() log.Loggerer {
 // HTTP Engine - Server Extensions
 //______________________________________________________________________________
 
-func (e *httpEngine) OnRequest(sef EventCallbackFunc) {
+// OnRequest method is to subscribe to aah HTTP engine `OnRequest` extension point.
+// `OnRequest` called for every incoming HTTP request.
+//
+// The `aah.Context` object passed to the extension functions is decorated with
+// the `ctx.SetURL()` and `ctx.SetMethod()` methods. Calls to these methods will
+// impact how the request is routed and can be used for rewrite rules.
+//
+// Note: Route is not yet populated/evaluated at this point.
+func (e *HTTPEngine) OnRequest(sef EventCallbackFunc) {
 	if e.onRequestFunc != nil {
 		e.Log().Warnf("Changing 'OnRequest' server extension from '%s' to '%s'",
 			funcName(e.onRequestFunc), funcName(sef))
@@ -80,7 +128,14 @@ func (e *httpEngine) OnRequest(sef EventCallbackFunc) {
 	e.onRequestFunc = sef
 }
 
-func (e *httpEngine) OnPreReply(sef EventCallbackFunc) {
+// OnPreReply method is to subscribe to aah HTTP engine `OnPreReply` extension point.
+// `OnPreReply` called for every reply from aah server.
+//
+// 	Except when
+//  		1) `Reply().Done()`,
+//  		2) `Reply().Redirect(...)` is called.
+// Refer `aah.Reply().Done()` godoc for more info.
+func (e *HTTPEngine) OnPreReply(sef EventCallbackFunc) {
 	if e.onPreReplyFunc != nil {
 		e.Log().Warnf("Changing 'OnPreReply' server extension from '%s' to '%s'",
 			funcName(e.onPreReplyFunc), funcName(sef))
@@ -88,15 +143,31 @@ func (e *httpEngine) OnPreReply(sef EventCallbackFunc) {
 	e.onPreReplyFunc = sef
 }
 
-func (e *httpEngine) OnAfterReply(sef EventCallbackFunc) {
-	if e.onAfterReplyFunc != nil {
-		e.Log().Warnf("Changing 'OnAfterReply' server extension from '%s' to '%s'",
-			funcName(e.onAfterReplyFunc), funcName(sef))
+// OnPostReply method is to subscribe to aah HTTP engine `OnPostReply` extension
+// point. `OnPostReply` called for every reply from aah server.
+//
+// 	Except when
+//  		1) `Reply().Done()`,
+//  		2) `Reply().Redirect(...)` is called.
+// Refer `aah.Reply().Done()` godoc for more info.
+func (e *HTTPEngine) OnPostReply(sef EventCallbackFunc) {
+	if e.onPostReplyFunc != nil {
+		e.Log().Warnf("Changing 'OnPostReply' server extension from '%s' to '%s'",
+			funcName(e.onPostReplyFunc), funcName(sef))
 	}
-	e.onAfterReplyFunc = sef
+	e.onPostReplyFunc = sef
 }
 
-func (e *httpEngine) OnPreAuth(sef EventCallbackFunc) {
+// OnAfterReply method  DEPRECATED use 'OnPostReply' instead.
+func (e *HTTPEngine) OnAfterReply(sef EventCallbackFunc) {
+	e.a.showDeprecatedMsg("Method 'OnAfterReply', use 'OnPostReply' instead.")
+	e.OnPostReply(sef)
+}
+
+// OnPreAuth method is to subscribe to aah application `OnPreAuth` event.
+// `OnPreAuth` event pubished right before the aah server authenticates &
+// authorizes an incoming request.
+func (e *HTTPEngine) OnPreAuth(sef EventCallbackFunc) {
 	if e.onPreAuthFunc != nil {
 		e.Log().Warnf("Changing 'OnPreAuth' server extension from '%s' to '%s'",
 			funcName(e.onPreAuthFunc), funcName(sef))
@@ -104,7 +175,10 @@ func (e *httpEngine) OnPreAuth(sef EventCallbackFunc) {
 	e.onPreAuthFunc = sef
 }
 
-func (e *httpEngine) OnPostAuth(sef EventCallbackFunc) {
+// OnPostAuth method is to subscribe to aah application `OnPreAuth` event.
+// `OnPostAuth` event pubished right after the aah server authenticates &
+// authorizes an incoming request.
+func (e *HTTPEngine) OnPostAuth(sef EventCallbackFunc) {
 	if e.onPostAuthFunc != nil {
 		e.Log().Warnf("Changing 'OnPostAuth' server extension from '%s' to '%s'",
 			funcName(e.onPostAuthFunc), funcName(sef))
@@ -116,7 +190,7 @@ func (e *httpEngine) OnPostAuth(sef EventCallbackFunc) {
 // HTTP Engine - Server Extension Publish
 //______________________________________________________________________________
 
-func (e *httpEngine) publishOnRequestEvent(ctx *Context) {
+func (e *HTTPEngine) publishOnRequestEvent(ctx *Context) {
 	if e.onRequestFunc != nil {
 		ctx.decorated = true
 		e.onRequestFunc(&Event{Name: EventOnRequest, Data: ctx})
@@ -124,25 +198,25 @@ func (e *httpEngine) publishOnRequestEvent(ctx *Context) {
 	}
 }
 
-func (e *httpEngine) publishOnPreReplyEvent(ctx *Context) {
+func (e *HTTPEngine) publishOnPreReplyEvent(ctx *Context) {
 	if e.onPreReplyFunc != nil {
 		e.onPreReplyFunc(&Event{Name: EventOnPreReply, Data: ctx})
 	}
 }
 
-func (e *httpEngine) publishOnAfterReplyEvent(ctx *Context) {
-	if e.onAfterReplyFunc != nil {
-		e.onAfterReplyFunc(&Event{Name: EventOnAfterReply, Data: ctx})
+func (e *HTTPEngine) publishOnPostReplyEvent(ctx *Context) {
+	if e.onPostReplyFunc != nil {
+		e.onPostReplyFunc(&Event{Name: EventOnPostReply, Data: ctx})
 	}
 }
 
-func (e *httpEngine) publishOnPreAuthEvent(ctx *Context) {
+func (e *HTTPEngine) publishOnPreAuthEvent(ctx *Context) {
 	if e.onPreAuthFunc != nil {
 		e.onPreAuthFunc(&Event{Name: EventOnPreAuth, Data: ctx})
 	}
 }
 
-func (e *httpEngine) publishOnPostAuthEvent(ctx *Context) {
+func (e *HTTPEngine) publishOnPostAuthEvent(ctx *Context) {
 	if e.onPostAuthFunc != nil {
 		e.onPostAuthFunc(&Event{Name: EventOnPostAuth, Data: ctx})
 	}
@@ -152,13 +226,13 @@ func (e *httpEngine) publishOnPostAuthEvent(ctx *Context) {
 // Engine Unexported methods
 //______________________________________________________________________________
 
-func (e *httpEngine) newContext() *Context {
+func (e *HTTPEngine) newContext() *Context {
 	return &Context{a: e.a, e: e}
 }
 
 // handleRecovery method handles application panics and recovers from it.
 // Panic gets translated into HTTP Internal Server Error (Status 500).
-func (e *httpEngine) handleRecovery(ctx *Context) {
+func (e *HTTPEngine) handleRecovery(ctx *Context) {
 	if r := recover(); r != nil {
 		ctx.Log().Errorf("Internal Server Error on %s", ctx.Req.Path)
 
@@ -186,7 +260,7 @@ func (e *httpEngine) handleRecovery(ctx *Context) {
 }
 
 // writeReply method writes the response on the wire based on `Reply` instance.
-func (e *httpEngine) writeReply(ctx *Context) {
+func (e *HTTPEngine) writeReply(ctx *Context) {
 	re := ctx.Reply()
 	if re.err != nil {
 		e.a.errorMgr.Handle(ctx)
@@ -199,7 +273,7 @@ func (e *httpEngine) writeReply(ctx *Context) {
 		return
 	}
 
-	// 'OnPreReply' server extension point
+	// 'OnPreReply' HTTP event
 	e.publishOnPreReplyEvent(ctx)
 
 	// HTTP headers
@@ -230,8 +304,8 @@ func (e *httpEngine) writeReply(ctx *Context) {
 		ctx.Res.WriteHeader(re.Code)
 	}
 
-	// 'OnAfterReply' server extension point
-	e.publishOnAfterReplyEvent(ctx)
+	// 'OnPostReply' HTTP event
+	e.publishOnPostReplyEvent(ctx)
 
 	// Dump request and response
 	if e.a.dumpLogEnabled {
@@ -239,7 +313,7 @@ func (e *httpEngine) writeReply(ctx *Context) {
 	}
 }
 
-func (e *httpEngine) writeOnWire(ctx *Context) {
+func (e *HTTPEngine) writeOnWire(ctx *Context) {
 	re := ctx.Reply()
 	if _, ok := re.Rdr.(*binaryRender); ok {
 		e.writeBinary(ctx)
@@ -291,7 +365,7 @@ func (e *httpEngine) writeOnWire(ctx *Context) {
 	}
 }
 
-func (e *httpEngine) writeBinary(ctx *Context) {
+func (e *HTTPEngine) writeBinary(ctx *Context) {
 	re := ctx.Reply()
 
 	// Check response qualify for Gzip
@@ -310,11 +384,11 @@ func (e *httpEngine) writeBinary(ctx *Context) {
 	}
 }
 
-func (e *httpEngine) minifierExists() bool {
+func (e *HTTPEngine) minifierExists() bool {
 	return e.a.viewMgr != nil && e.a.viewMgr.minifier != nil
 }
 
-func (e *httpEngine) releaseContext(ctx *Context) {
+func (e *HTTPEngine) releaseContext(ctx *Context) {
 	ahttp.ReleaseResponseWriter(ctx.Res)
 	ahttp.ReleaseRequest(ctx.Req)
 	security.ReleaseSubject(ctx.subject)

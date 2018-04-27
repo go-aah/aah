@@ -154,14 +154,10 @@ func AppI18nLocales() []string {
 	return defaultApp.I18n().Locales()
 }
 
-// AddServerTLSConfig method can be used for custom TLS config for aah server.
-//
-// DEPRECATED: Use method `aah.SetTLSConfig` instead. Planned to be
-// removed in `v1.0.0` release.
+// AddServerTLSConfig DEPRECATED use method `aah.SetTLSConfig` instead.
+// Planned to be removed in `v1.0.0` release.
 func AddServerTLSConfig(tlsCfg *tls.Config) {
-	// DEPRECATED, planned to be removed in v1.0
-	defaultApp.Log().Warn("DEPRECATED: Method 'AddServerTLSConfig' deprecated in v0.9, use method 'SetTLSConfig' instead. Deprecated method will not break your functionality, its good to update to new method.")
-
+	defaultApp.showDeprecatedMsg("Method 'AddServerTLSConfig', use method 'aah.SetTLSConfig' instead")
 	SetTLSConfig(tlsCfg)
 }
 
@@ -173,11 +169,6 @@ func AddServerTLSConfig(tlsCfg *tls.Config) {
 func SetTLSConfig(tlsCfg *tls.Config) {
 	defaultApp.SetTLSConfig(tlsCfg)
 }
-
-// AppIsWebSocketEnabled method returns true if WebSocket enabled otherwise false.
-// func AppIsWebSocketEnabled() bool {
-// 	return defaultApp.IsWebSocketEnabled()
-// }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // App module instance methods
@@ -215,61 +206,26 @@ func AppEventStore() *EventStore {
 	return defaultApp.EventStore()
 }
 
+// AppHTTPEngine method returns aah HTTP engine.
+func AppHTTPEngine() *HTTPEngine {
+	return defaultApp.HTTPEngine()
+}
+
+// AppWSEngine method returns aah WebSocket engine.
+//
+// Note: It could be nil if WebSocket is not enabled.
+func AppWSEngine() *ws.Engine {
+	return defaultApp.WSEngine()
+}
+
 // AddController method adds given controller into controller registory.
 func AddController(c interface{}, methods []*ainsp.Method) {
 	defaultApp.AddController(c, methods)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// App WebSocket methods
-//______________________________________________________________________________
-
 // AddWebSocket method adds given WebSocket into WebSocket registry.
 func AddWebSocket(w interface{}, methods []*ainsp.Method) {
 	defaultApp.AddWebSocket(w, methods)
-}
-
-// OnWSPreConnect method sets WebSocket `OnPreConnect` event callback into
-// WebSocket engine.
-//
-// Event published before each WebSocket connection been established.
-func OnWSPreConnect(ecf ws.EventCallbackFunc) {
-	defaultApp.OnWSPreConnect(ecf)
-}
-
-// OnWSPostConnect method sets WebSocket `OnPostConnect` event callback into
-// WebSocket engine.
-//
-// Event published after each WebSocket connection successfully established.
-func OnWSPostConnect(ecf ws.EventCallbackFunc) {
-	defaultApp.OnWSPostConnect(ecf)
-}
-
-// OnWSPostDisconnect method sets WebSocket `OnPostDisconnect` event callback into
-// WebSocket engine.
-//
-// Event published after each WebSocket connection is disconncted from aah server
-// such as client disconnct, connection interrupted, etc.
-func OnWSPostDisconnect(ecf ws.EventCallbackFunc) {
-	defaultApp.OnWSPostDisconnect(ecf)
-}
-
-// OnWSError method sets WebSocket `OnError` event callback into
-// WebSocket engine.
-//
-// Event published for mismatch origin, action parameter parse error,
-// authentication failure, websocket initial connection failure,
-// websocket not found.
-func OnWSError(ecf ws.EventCallbackFunc) {
-	defaultApp.OnWSError(ecf)
-}
-
-// SetWSAuthCallback method sets the WebSocket authentication callback. It gets
-// called for every WebSocket connection.
-//
-// Authentication callback function should return true for success otherwise false.
-func SetWSAuthCallback(ac ws.AuthCallbackFunc) {
-	defaultApp.SetWSAuthCallback(ac)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -356,54 +312,6 @@ func OnShutdown(ecb EventCallbackFunc, priority ...int) {
 	defaultApp.OnShutdown(ecb, priority...)
 }
 
-// OnRequest method is to subscribe to aah server `OnRequest` extension point.
-// `OnRequest` called for every incoming request.
-//
-// The `aah.Context` object passed to the extension functions is decorated with
-// the `ctx.SetURL()` and `ctx.SetMethod()` methods. Calls to these methods will
-// impact how the request is routed and can be used for rewrite rules.
-//
-// Route is not yet populated/evaluated at this point.
-func OnRequest(sef EventCallbackFunc) {
-	defaultApp.OnRequest(sef)
-}
-
-// OnPreReply method is to subscribe to aah server `OnPreReply` extension point.
-// `OnPreReply` called for every reply from aah server.
-//
-// Except when
-//   1) `Reply().Done()`,
-//   2) `Reply().Redirect(...)` is called.
-// Refer `aah.Reply.Done()` godoc for more info.
-func OnPreReply(sef EventCallbackFunc) {
-	defaultApp.OnPreReply(sef)
-}
-
-// OnAfterReply method is to subscribe to aah server `OnAfterReply` extension
-// point. `OnAfterReply` called for every reply from aah server.
-//
-// Except when
-//   1) `Reply().Done()`,
-//   2) `Reply().Redirect(...)` is called.
-// Refer `aah.Reply.Done()` godoc for more info.
-func OnAfterReply(sef EventCallbackFunc) {
-	defaultApp.OnAfterReply(sef)
-}
-
-// OnPreAuth method is to subscribe to aah application `OnPreAuth` event.
-// `OnPreAuth` event pubished right before the aah server is authenticates &
-// authorizes an incoming request.
-func OnPreAuth(sef EventCallbackFunc) {
-	defaultApp.OnPreAuth(sef)
-}
-
-// OnPostAuth method is to subscribe to aah application `OnPreAuth` event.
-// `OnPostAuth` event pubished right after the aah server is authenticates &
-// authorizes an incoming request.
-func OnPostAuth(sef EventCallbackFunc) {
-	defaultApp.OnPostAuth(sef)
-}
-
 // PublishEvent method publishes events to subscribed callbacks asynchronously.
 // It means each subscribed callback executed via goroutine.
 func PublishEvent(eventName string, data interface{}) {
@@ -427,12 +335,10 @@ func SubscribeEventFunc(eventName string, ecf EventCallbackFunc) {
 	defaultApp.SubscribeEventFunc(eventName, ecf)
 }
 
-// SubscribeEventf method is to subscribe to new or existing event
-// by `EventCallbackFunc`.
-//
-// DEPRECATED: use `SubscribeEventFunc` instead. Planned to be removed in
+// SubscribeEventf DEPRECATED use `aah.SubscribeEventFunc` instead. Planned to be removed in
 // `v1.0.0` release.
 func SubscribeEventf(eventName string, ecf EventCallbackFunc) {
+	defaultApp.showDeprecatedMsg("Method 'SubscribeEventf', use `aah.SubscribeEventFunc` instead")
 	defaultApp.SubscribeEventf(eventName, ecf)
 }
 
@@ -448,11 +354,9 @@ func UnsubscribeEventFunc(eventName string, ecf EventCallbackFunc) {
 	defaultApp.UnsubscribeEventFunc(eventName, ecf)
 }
 
-// UnsubscribeEventf method is to unsubscribe by event name and
-// `EventCallbackFunc` from app event store.
-//
-// DEPRECATED: use `UnsubscribeEventFunc` instead. Planned to be removed in
-// `v1.0.0` release.
+// UnsubscribeEventf method DEPRECATED use `aah.UnsubscribeEventFunc` instead.
+// Planned to be removed in `v1.0.0` release.
 func UnsubscribeEventf(eventName string, ecf EventCallbackFunc) {
+	defaultApp.showDeprecatedMsg("Method 'UnsubscribeEventf', use `aah.UnsubscribeEventFunc` instead")
 	defaultApp.UnsubscribeEventf(eventName, ecf)
 }
