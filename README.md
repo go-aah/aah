@@ -1,17 +1,16 @@
-# aah Go web framework
-[![Build Status](https://travis-ci.org/go-aah/aah.svg?branch=master)](https://travis-ci.org/go-aah/aah) [![codecov](https://codecov.io/gh/go-aah/aah/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/aah/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/aah.v0)](https://goreportcard.com/report/aahframework.org/aah.v0)
-[![Powered by Go](https://img.shields.io/badge/powered_by-go-blue.svg)](https://golang.org)
-[![Version](https://img.shields.io/badge/version-0.10-blue.svg)](https://github.com/go-aah/aah/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/aah.v0?status.svg)](https://godoc.org/aahframework.org/aah.v0)
-[![License](https://img.shields.io/github/license/go-aah/aah.svg)](LICENSE) [![Twitter](https://img.shields.io/badge/twitter-@aahframework-55acee.svg)](https://twitter.com/aahframework)
+<p align="center">
+  <img src="https://cdn.aahframework.org/assets/img/aah-logo-64x64.png" />
+  <p align="center">A secure, flexible, rapid Go web framework</p>
+  <p align="center">Visit aah's official website https://aahframework.org to learn more</p>
+</p>
+<p align="center">
+  <p align="center"><a href="https://travis-ci.org/go-aah/aah"><img src="https://travis-ci.org/go-aah/aah.svg?branch=master" alt="Build Status"></a> <a href="https://codecov.io/gh/go-aah/aah/branch/master"><img src="https://codecov.io/gh/go-aah/aah/branch/master/graph/badge.svg" alt="Code Coverage"></a> <a href="https://goreportcard.com/report/aahframework.org/aah.v0"><img src="https://goreportcard.com/badge/aahframework.org/aah.v0" alt="Go Report Card"></a> <a href="https://github.com/go-aah/aah/releases/latest"><img src="https://img.shields.io/badge/version-0.10.1-blue.svg" alt="Release Version"></a> <a href="https://godoc.org/aahframework.org/aah.v0"><img src="https://godoc.org/aahframework.org/aah.v0?status.svg" alt="Release Version"></a> <a href="https://twitter.com/aahframework"><img src="https://img.shields.io/badge/twitter-@aahframework-55acee.svg" alt="Twitter @aahframework"></a></p>
+</p>
 
-***[v0.10](https://github.com/go-aah/aah/releases/latest) released and tagged on Mar 28, 2018***
+### News
 
-aah - A secure, flexible, rapid Go web framework.
+<p>- <a href="https://github.com/go-aah/aah/releases/latest">v0.10.1</a> released and tagged on Apr 24, 2018</p>
 
-Requires `go1.8` and above.
-
-Visit official website https://aahframework.org to learn more.
-
-## Stargazers over time
+### Stargazers over time
 
 [![Stargazers over time](https://starcharts.herokuapp.com/go-aah/aah.svg)](https://starcharts.herokuapp.com/go-aah/aah)
