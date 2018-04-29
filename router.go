@@ -493,7 +493,7 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 
 		// CORS
 		var cors *CORS
-		if routeInfo.CORSEnabled {
+		if routeInfo.CORSEnabled && routeMethod != methodWebSocket {
 			if corsCfg, found := cfg.GetSubConfig(routeName + ".cors"); found {
 				if corsCfg.BoolDefault("enable", true) {
 					cors = processCORSSection(corsCfg, routeInfo.CORS)
@@ -501,6 +501,13 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 			} else {
 				cors = routeInfo.CORS
 			}
+		}
+
+		// 'anti_csrf_check', 'cors' and 'max_body_size' not applicable for WebSocket
+		if routeMethod == methodWebSocket {
+			routeAntiCSRFCheck = false
+			cors = nil
+			routeMaxBodySize = 0
 		}
 
 		if notToSkip {
