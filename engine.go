@@ -22,20 +22,25 @@ import (
 )
 
 const (
-	// EventOnPreConnect event published right before the aah tries establish a
-	// WebSocket connection with client.
+	// EventOnPreConnect event published before connection gets upgraded to WebSocket.
+	// It provides a control of accepting incoming request or reject it
+	// using ctx.Abort(errorCode).
 	EventOnPreConnect = "OnPreConnect"
 
 	// EventOnPostConnect event published right after the successful WebSocket
-	// connection have been established with aah server.
+	// connection which is established with the aah server.
 	EventOnPostConnect = "OnPostConnect"
 
-	// EventOnPostDisconnect event published when client disconnects either
-	// gracefully, gone, network connection error, etc.
+	// EventOnPostDisconnect event published right after the WebSocket client
+	// got disconnected. It could have occurred due to graceful disconnect,
+	// network related error, etc.
 	EventOnPostDisconnect = "OnPostDisconnect"
 
-	// EventOnError event published when any errors, auth error, failures while
-	// establishing WebSocket connection, etc.
+	// EventOnError event published whenever error occurs in the lifecycle
+	// such as Origin Check failed, WebSocket/WebSocket Action not found,
+	// WebSocket Action parameter parse error, and WebSocket upgrade fails.
+	//
+	//`ctx.ErrorReason()` method can be called to know the reason for the error.
 	EventOnError = "OnError"
 )
 
@@ -57,8 +62,7 @@ type EventCallbackFunc func(eventName string, ctx *Context)
 // Engine type and its methods
 //______________________________________________________________________________
 
-// Engine struct holds the implementation of managing WebSocket for aah
-// framework.
+// Engine struct holds the implementation of WebSocket for aah framework.
 type Engine struct {
 	checkOrigin      bool
 	originWhitelist  []*url.URL
@@ -96,8 +100,8 @@ func (e *Engine) OnPostConnect(ecf EventCallbackFunc) {
 // OnPostDisconnect method sets WebSocket `OnPostDisconnect` event callback into
 // WebSocket engine.
 //
-// Event published after each WebSocket connection is disconncted from aah server
-// such as client disconnct, connection interrupted, etc.
+// Event published after each WebSocket connection is disconncted from the aah
+// server.
 func (e *Engine) OnPostDisconnect(ecf EventCallbackFunc) {
 	e.onPostDisconnect = ecf
 }
