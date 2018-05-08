@@ -391,12 +391,12 @@ func (a *app) initPath() (err error) {
 	goSrcDir = filepath.Join(goPath, "src")
 	a.baseDir = filepath.Join(goSrcDir, filepath.FromSlash(a.ImportPath()))
 	if a.isPackaged {
-		wd, er := os.Getwd()
-		if err != nil {
+		ep, er := os.Executable()
+		if er != nil {
 			err = er
 			return
 		}
-		a.baseDir = wd
+		a.baseDir = filepath.Clean(filepath.Dir(filepath.Dir(ep)))
 	}
 
 	if !ess.IsFileExists(a.BaseDir()) {
