@@ -2,6 +2,13 @@
 // aahframework.org/vfs source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
+// Package vfs provides Virtual FileSystem (VFS) capability. Typically it reflects
+// OS FileSystem behavior in-memory.
+//
+// aah vfs is Read-Only, even though vfs design nature could support Write
+// operations. I have limited it.
+//
+// The methods should behave the same as those on an *os.File for Read-Only.
 package vfs
 
 import (
