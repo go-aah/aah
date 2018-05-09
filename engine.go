@@ -122,9 +122,9 @@ func (e *Engine) OnError(ecf EventCallbackFunc) {
 // Along with Check Origin, aah WebSocket events such as `OnPreConnect`,
 // `OnPostConnect`, `OnPostDisconnect` and `OnError`.
 func (e *Engine) Handle(w http.ResponseWriter, r *http.Request) {
-	domain := e.router.Lookup(ahttp.IdentifyHost(r))
+	domain := e.router.Lookup(ahttp.Host(r))
 	if domain == nil {
-		e.Log().Errorf("WS: domain not found: %s", ahttp.IdentifyHost(r))
+		e.Log().Errorf("WS: domain not found: %s", ahttp.Host(r))
 		e.replyError(w, http.StatusNotFound)
 		return
 	}
@@ -232,7 +232,7 @@ func (e *Engine) newContext(r *http.Request, route *router.Route, pathParams aht
 		route:  route,
 		Req: &Request{
 			ID:          ess.NewGUID(),
-			Host:        ahttp.IdentifyHost(r),
+			Host:        ahttp.Host(r),
 			Path:        r.URL.Path,
 			Header:      r.Header,
 			pathParams:  pathParams,

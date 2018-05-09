@@ -46,7 +46,7 @@ func TestEngineWSClient(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(ahttp.HeaderOrigin) == "" {
-			r.Header.Set(ahttp.HeaderOrigin, fmt.Sprintf("http://%s", ahttp.IdentifyHost(r)))
+			r.Header.Set(ahttp.HeaderOrigin, fmt.Sprintf("http://%s", ahttp.Host(r)))
 		}
 		wse.Handle(w, r)
 	}))
