@@ -1,0 +1,12 @@
+{{ define "title" -}}
+<title>{{ i18n . "label.pages.app.index.title" }}</title>
+{{- end }}
+
+{{ define "body" -}}
+  <div class="container">
+    <div class="row text-center welcome-msg">
+        <img src="/static/img/aah-framework-logo.png" alt="aah framework logo"/>
+        <h1>{{ .Greet.Message }}</h1>
+    </div>
+  </div>
+{{- end }}
