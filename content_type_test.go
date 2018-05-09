@@ -6,6 +6,7 @@ package ahttp
 
 import (
 	"net/url"
+	"runtime"
 	"testing"
 
 	"aahframework.org/essentials.v0"
@@ -41,8 +42,11 @@ func TestHTTPNegotiateContentType(t *testing.T) {
 	req := createRawHTTPRequest(HeaderAccept, "application/json")
 	req.URL, _ = url.Parse("http://localhost:8080/testpath.json")
 	contentType = NegotiateContentType(req)
-	assert.True(t, contentType.IsEqual("application/json"))
-	assert.Equal(t, ".json", contentType.Exts[0])
+	if runtime.GOOS != "windows" { // due to mime types not exists
+		assert.NotNil(t, contentType)
+		assert.True(t, contentType.IsEqual("application/json"))
+		assert.Equal(t, ".json", contentType.Exts[0])
+	}
 
 	req = createRawHTTPRequest(HeaderAccept, "application/json")
 	req.URL, _ = url.Parse("http://localhost:8080/testpath.html")

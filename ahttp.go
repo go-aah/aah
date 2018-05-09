@@ -96,24 +96,35 @@ func WrapGzipWriter(w io.Writer) ResponseWriter {
 	return gr
 }
 
-// IdentifyScheme method is to identify value of protocol value. It's is derived
+// Scheme method is to identify value of protocol value. It's is derived
 // one, Go language doesn't provide directly.
-//  - `X-Forwarded-Proto` is not empty return value as is
-//  - `http.Request.TLS` is not nil value is `https`
-//  - `http.Request.TLS` is nil value is `http`
-func IdentifyScheme(r *http.Request) string {
-	scheme := r.Header.Get("X-Forwarded-Proto")
-	if scheme == "" {
-		if r.TLS == nil {
-			return "http"
-		}
+//  - `X-Forwarded-Proto` is not empty, returns as-is
+//  - `X-Forwarded-Protocol` is not empty, returns as-is
+//  - `http.Request.TLS` is not nil or `X-Forwarded-Ssl == on` returns `https`
+//  - `X-Url-Scheme` is not empty, returns as-is
+//  - returns `http`
+func Scheme(r *http.Request) string {
+	if scheme := r.Header.Get(HeaderXForwardedProto); scheme != "" {
+		return scheme
+	}
+
+	if scheme := r.Header.Get(HeaderXForwardedProtocol); scheme != "" {
+		return scheme
+	}
+
+	if r.TLS != nil || r.Header.Get(HeaderXForwardedSsl) == "on" {
 		return "https"
 	}
-	return scheme
+
+	if scheme := r.Header.Get(HeaderXUrlScheme); scheme != "" {
+		return scheme
+	}
+
+	return "http"
 }
 
-// IdentifyHost method is to correct Hosyt source value from HTTP request.
-func IdentifyHost(r *http.Request) string {
+// Host method is to correct Hosyt source value from HTTP request.
+func Host(r *http.Request) string {
 	if r.URL.Host == "" {
 		return r.Host
 	}

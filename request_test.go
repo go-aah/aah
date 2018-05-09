@@ -158,7 +158,7 @@ func TestHTTPRequestParams(t *testing.T) {
 	f, fh, err := aahReq3.FormFile("testfile.txt")
 	assert.Nil(t, f)
 	assert.Equal(t, "testfile.txt", fh.Filename)
-	assert.Equal(t, "open : no such file or directory", err.Error())
+	assert.True(t, strings.HasPrefix(err.Error(), "open :"))
 	ReleaseRequest(aahReq3)
 }
 
@@ -185,20 +185,25 @@ func TestHTTPRequestCookies(t *testing.T) {
 
 func TestRequestSchemeDerived(t *testing.T) {
 	req := httptest.NewRequest("GET", "http://127.0.0.1:8080/welcome.html", nil)
-	scheme1 := IdentifyScheme(req)
-	assert.Equal(t, "http", scheme1)
+	assert.Equal(t, "http", Scheme(req))
+
+	req.Header.Set(HeaderXUrlScheme, "http")
+	assert.Equal(t, "http", Scheme(req))
+
+	req.Header.Set(HeaderXForwardedSsl, "on")
+	assert.Equal(t, "https", Scheme(req))
 
 	req.TLS = &tls.ConnectionState{}
-	scheme2 := IdentifyScheme(req)
-	assert.Equal(t, "https", scheme2)
+	assert.Equal(t, "https", Scheme(req))
+
+	req.Header.Set(HeaderXForwardedProtocol, "https")
+	assert.Equal(t, "https", Scheme(req))
 
 	req.Header.Set(HeaderXForwardedProto, "https")
-	scheme3 := IdentifyScheme(req)
-	assert.Equal(t, "https", scheme3)
+	assert.Equal(t, "https", Scheme(req))
 
 	req.Header.Set(HeaderXForwardedProto, "http")
-	scheme4 := IdentifyScheme(req)
-	assert.Equal(t, "http", scheme4)
+	assert.Equal(t, "http", Scheme(req))
 }
 
 func TestRequestSaveFile(t *testing.T) {
@@ -298,7 +303,7 @@ func TestRequestSaveFileForExistingFile(t *testing.T) {
 
 	size, err := saveFile(&buf, "testdata/file1.txt")
 	assert.NotNil(t, err)
-	assert.Equal(t, "ahttp: open testdata/file1.txt: file exists", err.Error())
+	assert.True(t, strings.HasPrefix(err.Error(), "ahttp: open testdata/file1.txt:"))
 	assert.Equal(t, int64(0), size)
 }
 

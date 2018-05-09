@@ -33,8 +33,8 @@ var requestPool = &sync.Pool{New: func() interface{} { return &Request{} }}
 // ParseRequest method populates the given aah framework `ahttp.Request`
 // instance from Go HTTP request.
 func ParseRequest(r *http.Request, req *Request) *Request {
-	req.Scheme = IdentifyScheme(r)
-	req.Host = IdentifyHost(r)
+	req.Scheme = Scheme(r)
+	req.Host = Host(r)
 	req.Proto = r.Proto
 	req.Method = r.Method
 	req.Path = r.URL.Path
