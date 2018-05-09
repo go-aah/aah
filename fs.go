@@ -6,17 +6,18 @@ package vfs
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 )
 
-var (
-	_ FileSystem = (*VFS)(nil)
+var _ FileSystem = (*VFS)(nil)
 
-	// ErrNotExists = errors.New("file or directory does not exist")
+// VFS errors
+var (
+	ErrMountExists    = errors.New("mount already exists")
+	ErrMountNotExists = errors.New("mount does not exist")
 )
 
 // VFS represents Virtual File System (VFS), it operates in-memory.
@@ -83,6 +84,21 @@ func (v *VFS) ReadDir(dirname string) ([]os.FileInfo, error) {
 // VFS methods
 //______________________________________________________________________________
 
+// Walk method behaviour is same as `filepath.Walk`.
+func (v *VFS) Walk(root string, walkFn filepath.WalkFunc) error {
+	info, err := v.Lstat(root)
+	if err == nil {
+		err = walk(v, root, info, walkFn)
+	} else {
+		err = walkFn(root, nil, err)
+	}
+
+	if err == filepath.SkipDir {
+		return nil
+	}
+	return err
+}
+
 // FindMount method finds the mounted virtual directory by mount path.
 // if found then returns `Mount` instance otherwise nil and error.
 //
@@ -95,7 +111,7 @@ func (v *VFS) FindMount(name string) (*Mount, error) {
 			return m, nil
 		}
 	}
-	return nil, &os.PathError{Op: "read", Path: name, Err: fmt.Errorf("mount not exist")}
+	return nil, &os.PathError{Op: "read", Path: name, Err: ErrMountNotExists}
 }
 
 // AddMount method used to mount physical directory as a virtual mounted directory.
@@ -128,7 +144,7 @@ func (v *VFS) AddMount(mountPath, physicalPath string) error {
 	}
 
 	if _, found := v.mounts[mp]; found {
-		return &os.PathError{Op: "addmount", Path: mp, Err: errors.New("already exists")}
+		return &os.PathError{Op: "addmount", Path: mp, Err: ErrMountExists}
 	}
 
 	v.mounts[mp] = &Mount{

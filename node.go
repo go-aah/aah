@@ -154,11 +154,6 @@ type gzipData struct {
 	spos int64
 }
 
-// aah vfs exposes transparent interaction for caller regardless of data bytes
-// be it regular or gzip.
-//
-// Imitating `Read` same as `os.File.Read` for Gzip data; logic is from
-// https://github.com/shurcooL/vfsgen
 func (g *gzipData) Read(b []byte) (int, error) {
 	if g.rpos > g.spos { // to the beginning
 		if err := g.r.Reset(bytes.NewReader(g.n.data)); err != nil {
@@ -181,11 +176,6 @@ func (g *gzipData) Read(b []byte) (int, error) {
 	return size, err
 }
 
-// aah vfs exposes transparent interaction for caller regardless of data bytes
-// be it regular or gzip.
-//
-// Imitating `Seek` same as `os.File.Seek` for Gzip data; logic is from
-// https://github.com/shurcooL/vfsgen
 func (g *gzipData) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
 	case io.SeekStart:

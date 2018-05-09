@@ -118,30 +118,12 @@ func (m *Mount) Name() string {
 
 // AddDir method is to add directory node into VFS from mounted source directory.
 func (m *Mount) AddDir(mountPath string, fi os.FileInfo) error {
-	n, err := m.tree.findNode(m.cleanDir(mountPath))
-	switch {
-	case err != nil:
-		return err
-	case n == nil:
-		return nil
-	}
-
-	n.addChild(newNode(mountPath, fi))
-	return nil
+	return m.addNode(mountPath, fi, nil)
 }
 
 // AddFile method is to add file node into VFS from mounted source directory.
 func (m *Mount) AddFile(mountPath string, fi os.FileInfo, data []byte) error {
-	n, err := m.tree.findNode(m.cleanDir(mountPath))
-	if err != nil {
-		return err
-	}
-
-	f := newNode(mountPath, fi)
-	f.data = data
-	n.addChild(f)
-
-	return nil
+	return m.addNode(mountPath, fi, data)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -176,4 +158,23 @@ func (m Mount) openPhysical(name string) (File, error) {
 
 func (m Mount) namePhysical(name string) string {
 	return filepath.Clean(filepath.FromSlash(filepath.Join(m.proot, name[len(m.vroot):])))
+}
+
+func (m *Mount) addNode(mountPath string, fi os.FileInfo, data []byte) error {
+	t, err := m.tree.findNode(m.cleanDir(mountPath))
+	switch {
+	case err != nil:
+		return err
+	case t == nil:
+		return nil
+	}
+
+	n := newNode(mountPath, fi)
+	if data != nil {
+		n.data = data
+	}
+	t.addChild(n)
+
+	return nil
+
 }

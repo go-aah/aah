@@ -9,6 +9,9 @@ import (
 	"compress/gzip"
 	"fmt"
 	"os"
+	"path"
+	"path/filepath"
+	"sort"
 	"unicode/utf8"
 )
 
@@ -59,8 +62,64 @@ func newFile(n *node) *file {
 	return f
 }
 
-// https://github.com/golang/tools/blob/master/godoc/static/gen.go
+// readDirNames reads the directory named by dirname and returns
+// a sorted list of directory entries.
+func readDirNames(fs FileSystem, dirname string) ([]string, error) {
+	f, err := fs.Open(dirname)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	names, err := f.Readdirnames(-1)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Strings(names)
+	return names, nil
+}
+
+// walk recursively descends path.
+func walk(fs FileSystem, fpath string, info os.FileInfo, walkFn filepath.WalkFunc) error {
+	err := walkFn(fpath, info, nil)
+	if err != nil {
+		if info.IsDir() && err == filepath.SkipDir {
+			return nil
+		}
+		return err
+	}
+
+	if !info.IsDir() {
+		return nil
+	}
+
+	names, err := readDirNames(fs, fpath)
+	if err != nil {
+		return walkFn(fpath, info, err)
+	}
+
+	for _, name := range names {
+		filename := path.Join(fpath, name)
+		fi, err := fs.Lstat(filename)
+		if err != nil {
+			if err := walkFn(filename, fi, err); err != nil && err != filepath.SkipDir {
+				return err
+			}
+		} else {
+			err = walk(fs, filename, fi, walkFn)
+			if err != nil {
+				if !fi.IsDir() || err != filepath.SkipDir {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // sanitize prepares a valid UTF-8 string as a raw string constant.
+// https://github.com/golang/tools/blob/master/godoc/static/gen.go
 func sanitize(b []byte) []byte {
 	// Replace ` with `+"`"+`
 	b = bytes.Replace(b, []byte("`"), []byte("`+\"`\"+`"), -1)
