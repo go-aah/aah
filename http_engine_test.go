@@ -6,11 +6,13 @@ package aah
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"aahframework.org/ahttp.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/test.v0/assert"
 )
 
@@ -205,6 +207,122 @@ func TestHTTPEngineTestRequests(t *testing.T) {
 	assert.Equal(t, "GET, OPTIONS", resp.Header.Get(ahttp.HeaderAllow))
 	assert.Equal(t, "text/html; charset=utf-8", resp.Header.Get(ahttp.HeaderContentType))
 	assert.True(t, strings.Contains(responseBody(resp), "405 Method Not Allowed"))
+}
+
+func TestServerRedirect(t *testing.T) {
+	a := newApp()
+
+	a.cfg, _ = config.ParseString("")
+	a.he.doRedirect(nil, nil)
+
+	// www redirect
+	t.Log("www redirect")
+	a.cfg, _ = config.ParseString(`
+		server {
+			redirect {
+				enable = true
+				to = "www"
+				code = 307
+			}
+		}
+	`)
+
+	type redirectTestCase struct {
+		label       string
+		fromUrl     string
+		didItHappen bool
+		status      int
+		location    string
+	}
+
+	runtestcase := func(testcases []redirectTestCase) {
+		for _, tc := range testcases {
+			t.Run(tc.label, func(t *testing.T) {
+				w := httptest.NewRecorder()
+				r := httptest.NewRequest(ahttp.MethodGet, tc.fromUrl, nil)
+				didItHappen := a.he.doRedirect(w, r)
+				assert.Equal(t, tc.didItHappen, didItHappen)
+				assert.Equal(t, tc.status, w.Code)
+				assert.Equal(t, tc.location, w.Header().Get(ahttp.HeaderLocation))
+			})
+		}
+	}
+
+	testcases := []redirectTestCase{
+		{
+			label:       "www domain",
+			fromUrl:     "http://aahframework.org/home.html?rt=login",
+			didItHappen: true,
+			status:      http.StatusTemporaryRedirect,
+			location:    "http://www.aahframework.org/home.html?rt=login",
+		},
+		{
+			label:       "www subdomain",
+			fromUrl:     "http://docs.aahframework.org",
+			didItHappen: true,
+			status:      http.StatusTemporaryRedirect,
+			location:    "http://www.docs.aahframework.org/",
+		},
+		{
+			label:       "www domain already correct",
+			fromUrl:     "http://www.aahframework.org",
+			didItHappen: false,
+			status:      http.StatusOK,
+			location:    "",
+		},
+		{
+			label:       "www subdomain already correct",
+			fromUrl:     "http://www.docs.aahframework.org",
+			didItHappen: false,
+			status:      http.StatusOK,
+			location:    "",
+		},
+	}
+
+	runtestcase(testcases)
+
+	// www redirect
+	t.Log("non-www redirect")
+	a.cfg, _ = config.ParseString(`
+		server {
+			redirect {
+				enable = true
+			}
+		}
+	`)
+
+	testcases = []redirectTestCase{
+		{
+			label:       "non-www domain",
+			fromUrl:     "http://www.aahframework.org/home.html?rt=login",
+			didItHappen: true,
+			status:      http.StatusMovedPermanently,
+			location:    "http://aahframework.org/home.html?rt=login",
+		},
+		{
+			label:       "non-www subdomain",
+			fromUrl:     "http://www.docs.aahframework.org",
+			didItHappen: true,
+			status:      http.StatusMovedPermanently,
+			location:    "http://docs.aahframework.org/",
+		},
+		{
+			label:       "non-www domain already correct",
+			fromUrl:     "http://aahframework.org",
+			didItHappen: false,
+			status:      http.StatusOK,
+			location:    "",
+		},
+		{
+			label:       "non-www subdomain already correct",
+			fromUrl:     "http://docs.aahframework.org",
+			didItHappen: false,
+			status:      http.StatusOK,
+			location:    "",
+		},
+	}
+
+	runtestcase(testcases)
 }
 
 func newContext(w http.ResponseWriter, r *http.Request) *Context {

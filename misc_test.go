@@ -67,7 +67,7 @@ func TestAccessLogInitAbsPath(t *testing.T) {
     access_log {
       file = "%s"
     }
-  }`, logPath))
+  }`, filepath.ToSlash(logPath)))
 	a.cfg = cfg
 
 	err := a.initAccessLog()

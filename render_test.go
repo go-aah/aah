@@ -7,7 +7,6 @@ package aah
 import (
 	"bytes"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -83,10 +82,10 @@ func TestRenderFileNotExistsAndDir(t *testing.T) {
 	assert.True(t, ess.IsStrEmpty(buf.String()))
 
 	// File not exists
-	file2 := binaryRender{Path: filepath.Join(testdataBaseDir(), "file-not-exists.txt")[1:]}
+	file2 := binaryRender{Path: "file-not-exists.txt"}
 	err = file2.Render(buf)
 	assert.NotNil(t, err)
-	assert.True(t, strings.Contains(err.Error(), "file-not-exists.txt: no such file or directory"))
+	assert.True(t, strings.Contains(err.Error(), "open file-not-exists.txt:"))
 	assert.True(t, ess.IsStrEmpty(buf.String()))
 }
 

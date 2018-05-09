@@ -577,9 +577,14 @@ func (a *app) aahRecover() {
 // ServeHTTP method implementation of http.Handler interface.
 func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer a.aahRecover()
+	if a.he.doRedirect(w, r) {
+		return
+	}
+
 	if isWebSocket(r) {
 		a.wse.Handle(w, r)
-	} else {
-		a.he.Handle(w, r)
+		return
 	}
+
+	a.he.Handle(w, r)
 }
