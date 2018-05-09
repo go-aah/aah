@@ -22,31 +22,6 @@ type Program struct {
 	RegisteredActions map[string]map[string]uint8
 }
 
-// Process method processes all packages in the program for `Type`,
-// `Embedded Type`, `Method`, etc.
-func (prg *Program) Process() {
-	for _, pkgInfo := range prg.Packages {
-		pkgInfo.Types = map[string]*typeInfo{}
-
-		// Each source file
-		for name, file := range pkgInfo.Pkg.Files {
-			pkgInfo.Files = append(pkgInfo.Files, filepath.Base(name))
-			fileImports := make(map[string]string)
-
-			for _, decl := range file.Decls {
-				// Processing imports
-				pkgInfo.processImports(decl, fileImports)
-
-				// Processing types
-				pkgInfo.processTypes(decl, fileImports)
-
-				// Processing methods
-				processMethods(pkgInfo, prg.RegisteredActions, decl, fileImports)
-			}
-		}
-	}
-}
-
 // FindTypeByEmbeddedType method returns all the typeInfo that has directly or
 // indirectly embedded by given type name. Type name must be fully qualified
 // type name. E.g.: aahframework.org/aah.Controller
@@ -103,6 +78,31 @@ func (prg *Program) CreateImportPaths(types []*typeInfo, importPaths map[string]
 	}
 
 	return importPaths
+}
+
+// Process method processes all packages in the program for `Type`,
+// `Embedded Type`, `Method`, etc.
+func (prg *Program) process() {
+	for _, pkgInfo := range prg.Packages {
+		pkgInfo.Types = map[string]*typeInfo{}
+
+		// Each source file
+		for name, file := range pkgInfo.Pkg.Files {
+			pkgInfo.Files = append(pkgInfo.Files, filepath.Base(name))
+			fileImports := make(map[string]string)
+
+			for _, decl := range file.Decls {
+				// Processing imports
+				pkgInfo.processImports(decl, fileImports)
+
+				// Processing types
+				pkgInfo.processTypes(decl, fileImports)
+
+				// Processing methods
+				processMethods(pkgInfo, prg.RegisteredActions, decl, fileImports)
+			}
+		}
+	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

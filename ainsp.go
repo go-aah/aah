@@ -134,6 +134,10 @@ func Inspect(path string, excludes ess.Excludes, registeredActions map[string]ma
 		errs = append(errs, err)
 	}
 
+	if len(errs) == 0 {
+		prg.process()
+	}
+
 	return prg, errs
 }
 

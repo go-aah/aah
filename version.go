@@ -5,4 +5,4 @@
 package ainsp
 
 // Version no. of Go AST library for aah framework
-const Version = "0.1.0"
+const Version = "0.1.1"
