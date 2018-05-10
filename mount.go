@@ -21,6 +21,10 @@ var _ FileSystem = (*Mount)(nil)
 // RFC 1952 section 2.3 and 2.3.1
 var gzipMemberHeader = []byte("\x1F\x8B\x08")
 
+// MTU size
+// https://en.wikipedia.org/wiki/Maximum_transmission_unit
+var mtuSize = 1400
+
 // Mount struct represents mount of single physical directory into virtual directory.
 //
 // Mount implements `vfs.FileSystem`, its a combination of package `os` and `ioutil`

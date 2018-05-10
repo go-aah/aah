@@ -20,8 +20,8 @@ var (
 	ErrMountNotExists = errors.New("mount does not exist")
 )
 
-// VFS represents Virtual File System (VFS), it operates in-memory.
-// if file/directory doesn't exists on in-memory then it tries physical file system.
+// VFS represents Virtual FileSystem (VFS), it operates in-memory.
+// if file/directory doesn't exists on in-memory then it tries physical filesystem.
 //
 // VFS implements `vfs.FileSystem`, its a combination of package `os` and `ioutil`
 // focused on Read-Only operations.
@@ -86,9 +86,20 @@ func (v *VFS) ReadDir(dirname string) ([]os.FileInfo, error) {
 
 // Walk method behaviour is same as `filepath.Walk`.
 func (v *VFS) Walk(root string, walkFn filepath.WalkFunc) error {
-	info, err := v.Lstat(root)
+	m, err := v.FindMount(root)
+	if err != nil {
+		return err
+	}
+
+	if len(m.tree.childs) == 0 {
+		// virutal is empty, move on with physical filesystem
+		proot := filepath.Join(m.proot, strings.TrimPrefix(root, m.vroot))
+		return filepath.Walk(proot, walkFn)
+	}
+
+	info, err := m.Lstat(root)
 	if err == nil {
-		err = walk(v, root, info, walkFn)
+		err = walk(m, root, info, walkFn)
 	} else {
 		err = walkFn(root, nil, err)
 	}
@@ -107,7 +118,7 @@ func (v *VFS) Walk(root string, walkFn filepath.WalkFunc) error {
 func (v *VFS) FindMount(name string) (*Mount, error) {
 	name = path.Clean(name)
 	for _, m := range v.mounts {
-		if m.vroot == name || strings.HasPrefix(name, m.tree.name+"/") {
+		if m.vroot == name || strings.HasPrefix(name, m.tree.NodeInfo.Path+"/") {
 			return m, nil
 		}
 	}

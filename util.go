@@ -7,31 +7,12 @@ package vfs
 import (
 	"bytes"
 	"compress/gzip"
-	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
-	"unicode/utf8"
 )
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//______________________________________________________________________________
-
-// Bytes2QuotedStr method converts byte slice into string take care of
-// valid UTF-8 string preparation.
-func Bytes2QuotedStr(b []byte) string {
-	if len(b) == 0 {
-		return ""
-	}
-
-	if utf8.Valid(b) {
-		b = sanitize(b)
-	}
-
-	return fmt.Sprintf("%+q", b)
-}
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package unexported methods
@@ -39,11 +20,18 @@ func Bytes2QuotedStr(b []byte) string {
 
 func newNode(name string, fi os.FileInfo) *node {
 	return &node{
-		dir:        fi.IsDir(),
-		name:       name,
-		modTime:    fi.ModTime(),
+		NodeInfo:   newNodeInfo(name, fi),
 		childInfos: make([]os.FileInfo, 0),
 		childs:     make(map[string]*node),
+	}
+}
+
+func newNodeInfo(name string, fi os.FileInfo) *NodeInfo {
+	return &NodeInfo{
+		Path:     name,
+		Dir:      fi.IsDir(),
+		DataSize: fi.Size(),
+		Time:     fi.ModTime(),
 	}
 }
 
@@ -60,6 +48,40 @@ func newFile(n *node) *file {
 	}
 
 	return f
+}
+
+func convertFile(buf *bytes.Buffer, r io.ReadSeeker, fi os.FileInfo) error {
+	restorePoint := buf.Len()
+	w := &stringWriter{w: buf}
+
+	// if its already less then MTU size, gzip not required
+	if fi.Size() <= int64(mtuSize) {
+		_, err := io.Copy(w, r)
+		return err
+	}
+
+	gw := gzip.NewWriter(w)
+	gsize, err := io.Copy(gw, r)
+	if err != nil {
+		return err
+	}
+
+	if err = gw.Close(); err != nil {
+		return err
+	}
+
+	if gsize >= fi.Size() {
+		if _, err = r.Seek(0, io.SeekStart); err != nil {
+			return err
+		}
+
+		buf.Truncate(restorePoint)
+		if _, err = io.Copy(w, r); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // readDirNames reads the directory named by dirname and returns
@@ -118,17 +140,22 @@ func walk(fs FileSystem, fpath string, info os.FileInfo, walkFn filepath.WalkFun
 	return nil
 }
 
-// sanitize prepares a valid UTF-8 string as a raw string constant.
-// https://github.com/golang/tools/blob/master/godoc/static/gen.go
-func sanitize(b []byte) []byte {
-	// Replace ` with `+"`"+`
-	b = bytes.Replace(b, []byte("`"), []byte("`+\"`\"+`"), -1)
+const lowerHex = "0123456789abcdef"
 
-	// Replace BOM with `+"\xEF\xBB\xBF"+`
-	// (A BOM is valid UTF-8 but not permitted in Go source files.
-	// I wouldn't bother handling this, but for some insane reason
-	// jquery.js has a BOM somewhere in the middle.)
-	return bytes.Replace(b, []byte("\xEF\xBB\xBF"), []byte("`+\"\\xEF\\xBB\\xBF\"+`"), -1)
+type stringWriter struct {
+	w io.Writer
+}
+
+func (s *stringWriter) Write(p []byte) (n int, err error) {
+	buf := []byte(`\x00`)
+	for _, b := range p {
+		buf[2], buf[3] = lowerHex[b/16], lowerHex[b%16]
+		if _, err = s.w.Write(buf); err != nil {
+			return
+		}
+		n++
+	}
+	return
 }
 
 // byName implements sort.Interface

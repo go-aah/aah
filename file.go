@@ -37,7 +37,7 @@ func (f *file) Seek(offset int64, whence int) (int64, error) {
 
 func (f *file) Readdir(count int) ([]os.FileInfo, error) {
 	if !f.IsDir() {
-		return []os.FileInfo{}, &os.PathError{Op: "read", Path: f.node.name, Err: errors.New("vfs: cannot find the specified path")}
+		return []os.FileInfo{}, &os.PathError{Op: "read", Path: f.NodeInfo.Path, Err: errors.New("vfs: cannot find the specified path")}
 	}
 
 	if f.pos >= len(f.node.childInfos) && count > 0 {
@@ -82,5 +82,5 @@ func (f *file) Close() error {
 // String method Stringer interface.
 func (f file) String() string {
 	return fmt.Sprintf(`file(name=%s dir=%v gzip=%v)`,
-		f.node.name, f.IsDir(), f.IsGzip())
+		f.Name(), f.IsDir(), f.IsGzip())
 }

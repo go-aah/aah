@@ -16,7 +16,50 @@ import (
 	"time"
 )
 
+var _ os.FileInfo = (*NodeInfo)(nil)
 var _ os.FileInfo = (*node)(nil)
+
+// NodeInfo is used to collect `os.FileInfo` values during binary generation.
+type NodeInfo struct {
+	Dir      bool
+	DataSize int64
+	Path     string
+	Time     time.Time
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// os.FileInfo interface
+//______________________________________________________________________________
+
+func (n NodeInfo) Name() string {
+	return path.Base(n.Path)
+}
+
+func (n NodeInfo) Size() int64 {
+	if n.IsDir() {
+		return 0
+	}
+	return n.DataSize
+}
+
+func (n NodeInfo) Mode() os.FileMode {
+	if n.IsDir() {
+		return 0755 | os.ModeDir // drwxr-xr-x
+	}
+	return 0444 // -r--r--r--
+}
+
+func (n NodeInfo) ModTime() time.Time {
+	return n.Time
+}
+
+func (n NodeInfo) IsDir() bool {
+	return n.Dir
+}
+
+func (n NodeInfo) Sys() interface{} {
+	return nil
+}
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Node and its methods
@@ -26,52 +69,15 @@ var _ os.FileInfo = (*node)(nil)
 //
 // Implements interfaces `os.FileInfo` and `vfs.Gziper`.
 type node struct {
-	dir        bool
-	size       int64
-	name       string
-	modTime    time.Time
+	*NodeInfo
 	data       []byte
 	childInfos []os.FileInfo
 	childs     map[string]*node
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// os.FileInfo interface
-//______________________________________________________________________________
-
-func (n node) Name() string {
-	return path.Base(n.name)
-}
-
-func (n node) Size() int64 {
-	if n.IsDir() {
-		return 0
-	}
-	return n.size
-}
-
-func (n node) Mode() os.FileMode {
-	if n.IsDir() {
-		return 0755 | os.ModeDir // drwxr-xr-x
-	}
-	return 0444 // -r--r--r--
-}
-
-func (n node) ModTime() time.Time {
-	return n.modTime
-}
-
-func (n node) IsDir() bool {
-	return n.dir
-}
-
-func (n node) Sys() interface{} {
-	return nil
-}
-
 // String method Stringer interface.
 func (n node) String() string {
-	return fmt.Sprintf(`node(name=%s dir=%v gzip=%v)`, n.name, n.IsDir(), n.IsGzip())
+	return fmt.Sprintf(`node(name=%s dir=%v gzip=%v)`, n.Name(), n.IsDir(), n.IsGzip())
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -183,7 +189,7 @@ func (g *gzipData) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekCurrent:
 		g.spos += offset
 	case io.SeekEnd:
-		g.spos = g.n.size + offset
+		g.spos = g.n.Size() + offset
 	default:
 		return 0, fmt.Errorf("invalid whence: %v", whence)
 	}
