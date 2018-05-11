@@ -17,14 +17,6 @@ import (
 
 var _ FileSystem = (*Mount)(nil)
 
-// Gzip Member header
-// RFC 1952 section 2.3 and 2.3.1
-var gzipMemberHeader = []byte("\x1F\x8B\x08")
-
-// MTU size
-// https://en.wikipedia.org/wiki/Maximum_transmission_unit
-var mtuSize = 1400
-
 // Mount struct represents mount of single physical directory into virtual directory.
 //
 // Mount implements `vfs.FileSystem`, its a combination of package `os` and `ioutil`
@@ -121,13 +113,13 @@ func (m *Mount) Name() string {
 }
 
 // AddDir method is to add directory node into VFS from mounted source directory.
-func (m *Mount) AddDir(mountPath string, fi os.FileInfo) error {
-	return m.addNode(mountPath, fi, nil)
+func (m *Mount) AddDir(fi os.FileInfo) error {
+	return m.addNode(fi, nil)
 }
 
 // AddFile method is to add file node into VFS from mounted source directory.
-func (m *Mount) AddFile(mountPath string, fi os.FileInfo, data []byte) error {
-	return m.addNode(mountPath, fi, data)
+func (m *Mount) AddFile(fi os.FileInfo, data []byte) error {
+	return m.addNode(fi, data)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -164,7 +156,8 @@ func (m Mount) namePhysical(name string) string {
 	return filepath.Clean(filepath.FromSlash(filepath.Join(m.proot, name[len(m.vroot):])))
 }
 
-func (m *Mount) addNode(mountPath string, fi os.FileInfo, data []byte) error {
+func (m *Mount) addNode(fi os.FileInfo, data []byte) error {
+	mountPath := fi.(*NodeInfo).Path
 	t, err := m.tree.findNode(m.cleanDir(mountPath))
 	switch {
 	case err != nil:

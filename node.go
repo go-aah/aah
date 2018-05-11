@@ -19,6 +19,10 @@ import (
 var _ os.FileInfo = (*NodeInfo)(nil)
 var _ os.FileInfo = (*node)(nil)
 
+// Gzip Member header
+// RFC 1952 section 2.3 and 2.3.1
+var gzipMemberHeader = []byte("\x1F\x8B\x08")
+
 // NodeInfo is used to collect `os.FileInfo` values during binary generation.
 type NodeInfo struct {
 	Dir      bool
@@ -31,10 +35,13 @@ type NodeInfo struct {
 // os.FileInfo interface
 //______________________________________________________________________________
 
+// Name method returns base name of the file/directory.
 func (n NodeInfo) Name() string {
 	return path.Base(n.Path)
 }
 
+// Size method returns length in bytes for regular files;
+// system-dependent for others
 func (n NodeInfo) Size() int64 {
 	if n.IsDir() {
 		return 0
@@ -42,6 +49,7 @@ func (n NodeInfo) Size() int64 {
 	return n.DataSize
 }
 
+// Mode method returns file mode bits.
 func (n NodeInfo) Mode() os.FileMode {
 	if n.IsDir() {
 		return 0755 | os.ModeDir // drwxr-xr-x
@@ -49,14 +57,17 @@ func (n NodeInfo) Mode() os.FileMode {
 	return 0444 // -r--r--r--
 }
 
+// ModTime method returns modification time.
 func (n NodeInfo) ModTime() time.Time {
 	return n.Time
 }
 
+// IsDir method returns whether node is dierctory or not.
 func (n NodeInfo) IsDir() bool {
 	return n.Dir
 }
 
+// Sys method returns nil.
 func (n NodeInfo) Sys() interface{} {
 	return nil
 }
