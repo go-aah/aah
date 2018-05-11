@@ -27,6 +27,8 @@ type FileSystem interface {
 	Stat(name string) (os.FileInfo, error)
 	ReadFile(filename string) ([]byte, error)
 	ReadDir(dirname string) ([]os.FileInfo, error)
+	Glob(pattern string) ([]string, error)
+	IsExists(name string) bool
 }
 
 // File interface returned by a vfs.FileSystem's Open method.

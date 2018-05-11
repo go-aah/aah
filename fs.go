@@ -80,6 +80,22 @@ func (v *VFS) ReadDir(dirname string) ([]os.FileInfo, error) {
 	return m.ReadDir(dirname)
 }
 
+// Glob method somewhat similar to `filepath.Glob`, since aah vfs does pattern
+// match only on `filepath.Base` value.
+func (v *VFS) Glob(pattern string) ([]string, error) {
+	m, err := v.FindMount(pattern)
+	if err != nil {
+		return nil, err
+	}
+	return m.Glob(pattern)
+}
+
+// IsExists method is helper to find existence.
+func (v *VFS) IsExists(name string) bool {
+	_, err := v.Lstat(name)
+	return err == nil
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // VFS methods
 //______________________________________________________________________________
@@ -94,7 +110,9 @@ func (v *VFS) Walk(root string, walkFn filepath.WalkFunc) error {
 	if len(m.tree.childs) == 0 {
 		// virutal is empty, move on with physical filesystem
 		proot := filepath.Join(m.proot, strings.TrimPrefix(root, m.vroot))
-		return filepath.Walk(proot, walkFn)
+		return filepath.Walk(proot, func(fpath string, fi os.FileInfo, err error) error {
+			return walkFn(m.toVirtualPath(fpath), fi, err)
+		})
 	}
 
 	info, err := m.Lstat(root)
@@ -108,6 +126,30 @@ func (v *VFS) Walk(root string, walkFn filepath.WalkFunc) error {
 		return nil
 	}
 	return err
+}
+
+// Dirs method returns directories path recursively for given root path.
+func (v *VFS) Dirs(root string) ([]string, error) {
+	var dirs []string
+	err := v.Walk(root, func(fpath string, fi os.FileInfo, err error) error {
+		if fi.IsDir() {
+			dirs = append(dirs, fpath)
+		}
+		return nil
+	})
+	return dirs, err
+}
+
+// File method returns directories path recursively for given root path.
+func (v *VFS) Files(root string) ([]string, error) {
+	var files []string
+	err := v.Walk(root, func(fpath string, fi os.FileInfo, err error) error {
+		if !fi.IsDir() {
+			files = append(files, fpath)
+		}
+		return nil
+	})
+	return files, err
 }
 
 // FindMount method finds the mounted virtual directory by mount path.

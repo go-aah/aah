@@ -171,6 +171,8 @@ type gzipData struct {
 	spos int64
 }
 
+// Imitate regular read in gzip reader
+// https://github.com/shurcooL/vfsgen/blob/master/generator.go
 func (g *gzipData) Read(b []byte) (int, error) {
 	if g.rpos > g.spos { // to the beginning
 		if err := g.r.Reset(bytes.NewReader(g.n.data)); err != nil {
@@ -193,6 +195,8 @@ func (g *gzipData) Read(b []byte) (int, error) {
 	return size, err
 }
 
+// Imitate regular seek in gzip reader
+// https://github.com/shurcooL/vfsgen/blob/master/generator.go
 func (g *gzipData) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
 	case io.SeekStart:

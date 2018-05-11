@@ -44,7 +44,7 @@ func (m Mount) Open(name string) (File, error) {
 func (m Mount) Lstat(name string) (os.FileInfo, error) {
 	f, err := m.open(name)
 	if os.IsNotExist(err) {
-		return os.Lstat(m.namePhysical(name))
+		return os.Lstat(m.toPhysicalPath(name))
 	}
 	return f, err
 }
@@ -53,7 +53,7 @@ func (m Mount) Lstat(name string) (os.FileInfo, error) {
 func (m Mount) Stat(name string) (os.FileInfo, error) {
 	f, err := m.open(name)
 	if os.IsNotExist(err) {
-		return os.Stat(m.namePhysical(name))
+		return os.Stat(m.toPhysicalPath(name))
 	}
 	return f, err
 }
@@ -85,7 +85,7 @@ func (m Mount) ReadFile(name string) ([]byte, error) {
 func (m Mount) ReadDir(dirname string) ([]os.FileInfo, error) {
 	f, err := m.open(dirname)
 	if os.IsNotExist(err) {
-		return ioutil.ReadDir(m.namePhysical(dirname))
+		return ioutil.ReadDir(m.toPhysicalPath(dirname))
 	}
 
 	if !f.IsDir() {
@@ -96,6 +96,42 @@ func (m Mount) ReadDir(dirname string) ([]os.FileInfo, error) {
 	sort.Sort(byName(list))
 
 	return list, nil
+}
+
+// Glob method somewhat similar to `filepath.Glob`, since aah vfs does pattern
+// match only on `filepath.Base` value.
+func (m Mount) Glob(pattern string) ([]string, error) {
+	var matches []string
+	f, err := m.open(pattern)
+	if os.IsNotExist(err) {
+		flist, err := filepath.Glob(m.toPhysicalPath(pattern))
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range flist {
+			matches = append(matches, m.toVirtualPath(p))
+		}
+		return matches, nil
+	}
+
+	base := path.Base(pattern)
+	for _, c := range f.childs {
+		match, err := filepath.Match(base, c.Name())
+		if err != nil {
+			return nil, err
+		}
+		if match {
+			matches = append(matches, c.Path)
+		}
+	}
+
+	return matches, nil
+}
+
+// IsExists method is helper to find existence.
+func (m Mount) IsExists(name string) bool {
+	_, err := m.Lstat(name)
+	return err == nil
 }
 
 // String method Stringer interface.
@@ -145,15 +181,19 @@ func (m Mount) open(name string) (*file, error) {
 }
 
 func (m Mount) openPhysical(name string) (File, error) {
-	pname := m.namePhysical(name)
+	pname := m.toPhysicalPath(name)
 	if _, err := os.Lstat(pname); os.IsNotExist(err) {
 		return nil, err
 	}
 	return os.Open(pname)
 }
 
-func (m Mount) namePhysical(name string) string {
+func (m Mount) toPhysicalPath(name string) string {
 	return filepath.Clean(filepath.FromSlash(filepath.Join(m.proot, name[len(m.vroot):])))
+}
+
+func (m *Mount) toVirtualPath(name string) string {
+	return filepath.Clean(filepath.ToSlash(filepath.Join(m.vroot, name[len(m.proot):])))
 }
 
 func (m *Mount) addNode(fi os.FileInfo, data []byte) error {

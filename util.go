@@ -7,11 +7,107 @@ package vfs
 import (
 	"bytes"
 	"compress/gzip"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
 )
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Package methods for proxy to OS calls.
+//______________________________________________________________________________
+
+// Open method calls `os.Open` if fs == nil otherwise VFS.
+//
+// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// repetition code in consumimg libraries of aah.
+func Open(fs *VFS, name string) (File, error) {
+	if fs == nil {
+		return os.Open(name)
+	}
+	return fs.Open(name)
+}
+
+// Lstat method calls `os.Lstat` if fs == nil otherwise VFS.
+//
+// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// repetition code in consumimg libraries of aah.
+func Lstat(fs *VFS, name string) (os.FileInfo, error) {
+	if fs == nil {
+		return os.Lstat(name)
+	}
+	return fs.Lstat(name)
+}
+
+// Stat method calls `os.Stat` if fs == nil otherwise VFS.
+//
+// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// repetition code in consumimg libraries of aah.
+func Stat(fs *VFS, name string) (os.FileInfo, error) {
+	if fs == nil {
+		return os.Stat(name)
+	}
+	return fs.Stat(name)
+}
+
+// ReadFile method calls `ioutil.ReadFile` if fs == nil otherwise VFS.
+//
+// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// repetition code in consumimg libraries of aah.
+func ReadFile(fs *VFS, filename string) ([]byte, error) {
+	if fs == nil {
+		return ioutil.ReadFile(filename)
+	}
+	return fs.ReadFile(filename)
+}
+
+// ReadDir method calls `ioutil.ReadDir` if fs == nil otherwise VFS.
+//
+// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// repetition code in consumimg libraries of aah.
+func ReadDir(fs *VFS, dirname string) ([]os.FileInfo, error) {
+	if fs == nil {
+		return ioutil.ReadDir(dirname)
+	}
+	return fs.ReadDir(dirname)
+}
+
+// Glob method calls `filepath.Glob` if fs == nil otherwise VFS.
+//
+// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// repetition code in consumimg libraries of aah.
+func Glob(fs *VFS, pattern string) ([]string, error) {
+	if fs == nil {
+		return filepath.Glob(pattern)
+	}
+	return fs.Glob(pattern)
+}
+
+// IsExists method is helper to find existence.
+//
+// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// repetition code in consumimg libraries of aah.
+func IsExists(fs *VFS, name string) bool {
+	var err error
+	if fs == nil {
+		_, err = os.Lstat(name)
+	} else {
+		_, err = fs.Lstat(name)
+	}
+	return err == nil
+}
+
+// Walk method calls `filepath.Walk` if fs == nil otherwise VFS.
+//
+// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// repetition code in consumimg libraries of aah.
+func Walk(fs *VFS, root string, walkFn filepath.WalkFunc) error {
+	if fs == nil {
+		return filepath.Walk(root, walkFn)
+	}
+	return fs.Walk(root, walkFn)
+}
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package unexported methods
