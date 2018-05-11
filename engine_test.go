@@ -16,6 +16,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/ainsp.v0"
 	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
 	"aahframework.org/test.v0/assert"
@@ -57,10 +58,11 @@ func TestEngineWSClient(t *testing.T) {
 
 	// test cases
 	testcases := []struct {
-		label   string
-		wsURL   string
-		opCode  gws.OpCode
-		content []byte
+		label    string
+		wsURL    string
+		opCode   gws.OpCode
+		content  []byte
+		customID bool
 	}{
 		{
 			label:   "WS Text msg test",
@@ -81,10 +83,11 @@ func TestEngineWSClient(t *testing.T) {
 			content: []byte(`{"content":"Hello JSON","value":23436723}`),
 		},
 		{
-			label:   "WS XML msg test",
-			wsURL:   fmt.Sprintf("%s/ws/xml", wsURL),
-			opCode:  gws.OpText,
-			content: []byte(`<Msg><Content>Hello JSON</Content><Value>23436723</Value></Msg>`),
+			label:    "WS XML msg test",
+			wsURL:    fmt.Sprintf("%s/ws/xml", wsURL),
+			opCode:   gws.OpText,
+			content:  []byte(`<Msg><Content>Hello JSON</Content><Value>23436723</Value></Msg>`),
+			customID: true,
 		},
 		{
 			label: "WS preconnect abort test",
@@ -106,6 +109,11 @@ func TestEngineWSClient(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.label, func(t *testing.T) {
+			if tc.customID {
+				wse.SetIDGenerator(func(ctx *Context) string {
+					return ess.RandomString(32)
+				})
+			}
 			conn, _, _, err := gws.Dial(context.Background(), tc.wsURL)
 			if err != nil {
 				switch {
@@ -221,8 +229,7 @@ func (e *testWebSocket) Binary(encoding string) {
 	ip := e.Req.ClientIP()
 	assert.True(t, ip != "")
 
-	str := fmt.Sprintf("%s", e.Req)
-	assert.True(t, str != "")
+	assert.True(t, e.Req.String() != "")
 
 	for {
 		b, err := e.ReadBinary()
@@ -243,8 +250,7 @@ func (e *testWebSocket) JSON() {
 	ip := e.Req.ClientIP()
 	assert.True(t, ip != "")
 
-	str := fmt.Sprintf("%s", e.Req)
-	assert.True(t, str != "")
+	assert.True(t, e.Req.String() != "")
 
 	type msg struct {
 		Content string `json:"content"`

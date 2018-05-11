@@ -55,6 +55,10 @@ var (
 	ErrUseOfClosedConnection = errors.New("aahws: use of closed ws connection")
 )
 
+// IDGenerator func type used to implement custom WebSocket connection ID.
+// By default aah generates GUID using MongoDB Object ID algorithm.
+type IDGenerator func(ctx *Context) string
+
 // EventCallbackFunc func type used for all WebSocket event callback.
 type EventCallbackFunc func(eventName string, ctx *Context)
 
@@ -73,6 +77,7 @@ type Engine struct {
 	onPostConnect    EventCallbackFunc
 	onPostDisconnect EventCallbackFunc
 	onError          EventCallbackFunc
+	idGenerator      IDGenerator
 	logger           log.Loggerer
 }
 
@@ -114,6 +119,12 @@ func (e *Engine) OnPostDisconnect(ecf EventCallbackFunc) {
 // websocket not found.
 func (e *Engine) OnError(ecf EventCallbackFunc) {
 	e.onError = ecf
+}
+
+// SetIDGenerator method used to set Custom ID generator func for WebSocket
+// connection.
+func (e *Engine) SetIDGenerator(g IDGenerator) {
+	e.idGenerator = g
 }
 
 // Handle method primarily does upgrades HTTP connection into WebSocket
@@ -231,7 +242,6 @@ func (e *Engine) newContext(r *http.Request, route *router.Route, pathParams aht
 		Header: make(http.Header),
 		route:  route,
 		Req: &Request{
-			ID:          ess.NewGUID(),
 			Host:        ahttp.Host(r),
 			Path:        r.URL.Path,
 			Header:      r.Header,
@@ -240,6 +250,7 @@ func (e *Engine) newContext(r *http.Request, route *router.Route, pathParams aht
 			raw:         r,
 		},
 	}
+	ctx.Req.ID = e.createID(ctx)
 	return ctx
 }
 
@@ -275,4 +286,11 @@ func (e *Engine) publishOnErrorEvent(ctx *Context) {
 	if e.onError != nil {
 		e.onError(EventOnError, ctx)
 	}
+}
+
+func (e *Engine) createID(ctx *Context) string {
+	if e.idGenerator == nil {
+		return ess.NewGUID()
+	}
+	return e.idGenerator(ctx)
 }
