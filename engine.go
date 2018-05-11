@@ -22,20 +22,25 @@ import (
 )
 
 const (
-	// EventOnPreConnect event published right before the aah tries establish a
-	// WebSocket connection with client.
+	// EventOnPreConnect event published before connection gets upgraded to WebSocket.
+	// It provides a control of accepting incoming request or reject it
+	// using ctx.Abort(errorCode).
 	EventOnPreConnect = "OnPreConnect"
 
 	// EventOnPostConnect event published right after the successful WebSocket
-	// connection have been established with aah server.
+	// connection which is established with the aah server.
 	EventOnPostConnect = "OnPostConnect"
 
-	// EventOnPostDisconnect event published when client disconnects either
-	// gracefully, gone, network connection error, etc.
+	// EventOnPostDisconnect event published right after the WebSocket client
+	// got disconnected. It could have occurred due to graceful disconnect,
+	// network related error, etc.
 	EventOnPostDisconnect = "OnPostDisconnect"
 
-	// EventOnError event published when any errors, auth error, failures while
-	// establishing WebSocket connection, etc.
+	// EventOnError event published whenever error occurs in the lifecycle
+	// such as Origin Check failed, WebSocket/WebSocket Action not found,
+	// WebSocket Action parameter parse error, and WebSocket upgrade fails.
+	//
+	//`ctx.ErrorReason()` method can be called to know the reason for the error.
 	EventOnError = "OnError"
 )
 
@@ -50,6 +55,10 @@ var (
 	ErrUseOfClosedConnection = errors.New("aahws: use of closed ws connection")
 )
 
+// IDGenerator func type used to implement custom WebSocket connection ID.
+// By default aah generates GUID using MongoDB Object ID algorithm.
+type IDGenerator func(ctx *Context) string
+
 // EventCallbackFunc func type used for all WebSocket event callback.
 type EventCallbackFunc func(eventName string, ctx *Context)
 
@@ -57,8 +66,7 @@ type EventCallbackFunc func(eventName string, ctx *Context)
 // Engine type and its methods
 //______________________________________________________________________________
 
-// Engine struct holds the implementation of managing WebSocket for aah
-// framework.
+// Engine struct holds the implementation of WebSocket for aah framework.
 type Engine struct {
 	checkOrigin      bool
 	originWhitelist  []*url.URL
@@ -69,6 +77,7 @@ type Engine struct {
 	onPostConnect    EventCallbackFunc
 	onPostDisconnect EventCallbackFunc
 	onError          EventCallbackFunc
+	idGenerator      IDGenerator
 	logger           log.Loggerer
 }
 
@@ -96,8 +105,8 @@ func (e *Engine) OnPostConnect(ecf EventCallbackFunc) {
 // OnPostDisconnect method sets WebSocket `OnPostDisconnect` event callback into
 // WebSocket engine.
 //
-// Event published after each WebSocket connection is disconncted from aah server
-// such as client disconnct, connection interrupted, etc.
+// Event published after each WebSocket connection is disconncted from the aah
+// server.
 func (e *Engine) OnPostDisconnect(ecf EventCallbackFunc) {
 	e.onPostDisconnect = ecf
 }
@@ -112,15 +121,21 @@ func (e *Engine) OnError(ecf EventCallbackFunc) {
 	e.onError = ecf
 }
 
+// SetIDGenerator method used to set Custom ID generator func for WebSocket
+// connection.
+func (e *Engine) SetIDGenerator(g IDGenerator) {
+	e.idGenerator = g
+}
+
 // Handle method primarily does upgrades HTTP connection into WebSocket
 // connection.
 //
 // Along with Check Origin, aah WebSocket events such as `OnPreConnect`,
 // `OnPostConnect`, `OnPostDisconnect` and `OnError`.
 func (e *Engine) Handle(w http.ResponseWriter, r *http.Request) {
-	domain := e.router.Lookup(ahttp.IdentifyHost(r))
+	domain := e.router.Lookup(ahttp.Host(r))
 	if domain == nil {
-		e.Log().Errorf("WS: domain not found: %s", ahttp.IdentifyHost(r))
+		e.Log().Errorf("WS: domain not found: %s", ahttp.Host(r))
 		e.replyError(w, http.StatusNotFound)
 		return
 	}
@@ -227,8 +242,7 @@ func (e *Engine) newContext(r *http.Request, route *router.Route, pathParams aht
 		Header: make(http.Header),
 		route:  route,
 		Req: &Request{
-			ID:          ess.NewGUID(),
-			Host:        ahttp.IdentifyHost(r),
+			Host:        ahttp.Host(r),
 			Path:        r.URL.Path,
 			Header:      r.Header,
 			pathParams:  pathParams,
@@ -236,6 +250,7 @@ func (e *Engine) newContext(r *http.Request, route *router.Route, pathParams aht
 			raw:         r,
 		},
 	}
+	ctx.Req.ID = e.createID(ctx)
 	return ctx
 }
 
@@ -271,4 +286,11 @@ func (e *Engine) publishOnErrorEvent(ctx *Context) {
 	if e.onError != nil {
 		e.onError(EventOnError, ctx)
 	}
+}
+
+func (e *Engine) createID(ctx *Context) string {
+	if e.idGenerator == nil {
+		return ess.NewGUID()
+	}
+	return e.idGenerator(ctx)
 }
