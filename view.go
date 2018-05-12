@@ -54,8 +54,8 @@ func (a *app) SetMinifier(fn MinifierFunc) {
 //______________________________________________________________________________
 
 func (a *app) initView() error {
-	viewsDir := filepath.Join(a.BaseDir(), "views")
-	if !ess.IsFileExists(viewsDir) {
+	viewsDir := "/app/views"
+	if !a.VFS().IsExists(viewsDir) {
 		// view directory not exists, scenario could be only API application
 		return nil
 	}
@@ -98,7 +98,7 @@ func (a *app) initView() error {
 		"anitcsrftoken":   viewMgr.tmplAntiCSRFToken,
 	})
 
-	if err := viewEngine.Init(a.Config(), viewsDir); err != nil {
+	if err := viewEngine.Init(a.VFS(), a.Config(), viewsDir); err != nil {
 		return err
 	}
 

@@ -47,7 +47,7 @@ func (a *app) Start() {
 
 	a.Log().Infof("App Session Mode: %s", sessionMode)
 
-	if a.appType == "web" || a.viewMgr != nil {
+	if a.Type() == "web" || a.viewMgr != nil {
 		a.Log().Infof("App Anti-CSRF Protection Enabled: %t", a.SecurityManager().AntiCSRF.Enabled)
 	}
 

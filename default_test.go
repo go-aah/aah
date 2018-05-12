@@ -62,6 +62,7 @@ func TestDefaultApp(t *testing.T) {
 	assert.NotNil(t, AppViewEngine())
 	assert.NotNil(t, AppSecurityManager())
 	assert.NotNil(t, AppSessionManager())
+	assert.NotNil(t, AppVFS())
 
 	// Default App Start and Shutdown
 	t.Log("Default App Start and Shutdown")

@@ -15,6 +15,7 @@ import (
 	"aahframework.org/router.v0"
 	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/session"
+	"aahframework.org/vfs.v0"
 	"aahframework.org/view.v0"
 	"aahframework.org/ws.v0"
 )
@@ -216,6 +217,11 @@ func AppHTTPEngine() *HTTPEngine {
 // Note: It could be nil if WebSocket is not enabled.
 func AppWSEngine() *ws.Engine {
 	return defaultApp.WSEngine()
+}
+
+// AppVFS method returns aah Virtual FileSystem instance.
+func AppVFS() *vfs.VFS {
+	return defaultApp.VFS()
 }
 
 // AddController method adds given controller into controller registory.

@@ -10,7 +10,6 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
@@ -45,12 +44,10 @@ func (a *app) Router() *router.Router {
 //______________________________________________________________________________
 
 func (a *app) initRouter() error {
-	routesPath := filepath.Join(a.configDir(), "routes.conf")
-	rtr := router.New(routesPath, a.Config())
+	rtr := router.NewWithVFS(a.VFS(), "/app/config/routes.conf", a.Config())
 	if err := rtr.Load(); err != nil {
 		return fmt.Errorf("routes.conf: %s", err)
 	}
-
 	a.router = rtr
 	return nil
 }

@@ -28,6 +28,7 @@ import (
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
 	"aahframework.org/security.v0"
+	"aahframework.org/vfs.v0"
 	"aahframework.org/ws.v0"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -57,7 +58,8 @@ type BuildInfo struct {
 
 func newApp() *app {
 	aahApp := &app{
-		mu: new(sync.Mutex),
+		vfs: new(vfs.VFS),
+		mu:  new(sync.Mutex),
 	}
 
 	aahApp.he = &HTTPEngine{
@@ -97,7 +99,6 @@ type app struct {
 	multipartMaxMemory     int64
 	maxBodyBytes           int64
 	name                   string
-	appType                string
 	importPath             string
 	baseDir                string
 	envProfile             string
@@ -114,6 +115,7 @@ type app struct {
 	defaultContentType     *ahttp.ContentType
 
 	cfg            *config.Config
+	vfs            *vfs.VFS
 	tlsCfg         *tls.Config
 	he             *HTTPEngine
 	wse            *ws.Engine
@@ -349,13 +351,17 @@ func (a *app) WSEngine() *ws.Engine {
 	return a.wse
 }
 
+func (a *app) VFS() *vfs.VFS {
+	return a.vfs
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // app Unexported methods
 //______________________________________________________________________________
-
-func (a *app) configDir() string {
-	return filepath.Join(a.BaseDir(), "config")
-}
+//
+// func (a *app) configDir() string {
+// 	return filepath.Join(a.BaseDir(), "config")
+// }
 
 func (a *app) logsDir() string {
 	return filepath.Join(a.BaseDir(), "logs")
@@ -384,13 +390,17 @@ func (a *app) initPath() (err error) {
 
 		a.baseDir = a.ImportPath()
 		a.physicalPathMode = true
+
+		// Mount appilcation physical directory as virtual mount point
+		// <app-base-dir>/** accessible via /app/** regardless of OS platform.
+		err = a.VFS().AddMount("/app", a.BaseDir())
 		return
 	}
 
 	// import path mode
 	goSrcDir = filepath.Join(goPath, "src")
 	a.baseDir = filepath.Join(goSrcDir, filepath.FromSlash(a.ImportPath()))
-	if a.isPackaged {
+	if a.IsPackaged() {
 		ep, er := os.Executable()
 		if er != nil {
 			err = er
@@ -401,15 +411,18 @@ func (a *app) initPath() (err error) {
 
 	if !ess.IsFileExists(a.BaseDir()) {
 		err = fmt.Errorf("import path does not exists: %s", a.ImportPath())
+		return
 	}
 
+	// Mount appilcation physical directory as virtual mount point
+	// <app-base-dir>/** accessible via /app/** regardless of OS platform.
+	err = a.VFS().AddMount("/app", a.BaseDir())
 	return
 }
 
 func (a *app) initConfigValues() (err error) {
 	cfg := a.Config()
 	a.name = cfg.StringDefault("name", filepath.Base(a.BaseDir()))
-	a.appType = strings.ToLower(cfg.StringDefault("type", ""))
 
 	a.envProfile = cfg.StringDefault("env.active", defaultEnvProfile)
 	if err = a.SetProfile(a.Profile()); err != nil {
@@ -447,7 +460,7 @@ func (a *app) initConfigValues() (err error) {
 		return err
 	}
 
-	if a.appType != "websocket" {
+	if a.Type() != "websocket" {
 		maxBodySizeStr := cfg.StringDefault("request.max_body_size", "5mb")
 		if a.maxBodyBytes, err = ess.StrToBytes(maxBodySizeStr); err != nil {
 			return errors.New("'request.max_body_size' value is not a valid size unit")
