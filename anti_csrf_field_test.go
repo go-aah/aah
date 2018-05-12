@@ -15,7 +15,7 @@ import (
 
 func TestAntiCSRFFieldNoFormTag(t *testing.T) {
 	acsrf := NewAntiCSRFField("go", "{{", "}}")
-	fpath := filepath.Join(getTestdataPath(), "anti-csrf-field", "testhtml-noform.html")
+	fpath := filepath.Join(testdataBaseDir(), "anti-csrf-field", "testhtml-noform.html")
 
 	files := acsrf.InsertOnFiles(fpath)
 	bytes, err := ioutil.ReadFile(files[0])
@@ -25,7 +25,7 @@ func TestAntiCSRFFieldNoFormTag(t *testing.T) {
 
 func TestAntiCSRFFieldFormTag(t *testing.T) {
 	acsrf := NewAntiCSRFField("go", "%%", "%%")
-	fpath := filepath.Join(getTestdataPath(), "anti-csrf-field", "testhtml-form.html")
+	fpath := filepath.Join(testdataBaseDir(), "anti-csrf-field", "testhtml-form.html")
 
 	files := acsrf.InsertOnFiles(fpath)
 	bytes, err := ioutil.ReadFile(files[0])
@@ -35,7 +35,7 @@ func TestAntiCSRFFieldFormTag(t *testing.T) {
 
 func TestAntiCSRFFieldFormTagDelim(t *testing.T) {
 	acsrf := NewAntiCSRFField("go", "[[", "]]")
-	fpath := filepath.Join(getTestdataPath(), "anti-csrf-field", "not-exists.html")
+	fpath := filepath.Join(testdataBaseDir(), "anti-csrf-field", "not-exists.html")
 
 	files := acsrf.InsertOnFiles(fpath)
 	assert.NotNil(t, files)

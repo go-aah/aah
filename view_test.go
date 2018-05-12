@@ -6,12 +6,17 @@ package view
 
 import (
 	"html/template"
+	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"aahframework.org/config.v0"
+	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
+	"aahframework.org/vfs.v0"
 )
 
 func TestViewAddTemplateFunc(t *testing.T) {
@@ -61,7 +66,23 @@ func TestViewTemplates(t *testing.T) {
 	assert.False(t, tmpls.IsExists("not-exixts"))
 }
 
-func getTestdataPath() string {
+func testdataBaseDir() string {
 	wd, _ := os.Getwd()
 	return filepath.Join(wd, "testdata")
+}
+
+func newVFS() *vfs.VFS {
+	fs := new(vfs.VFS)
+	fs.AddMount("/testdata", testdataBaseDir())
+	return fs
+}
+
+func join(s ...string) string {
+	return "/" + path.Join(s...)
+}
+
+func newLog() log.Loggerer {
+	l, _ := log.New(config.NewEmpty())
+	l.SetWriter(ioutil.Discard)
+	return l
 }

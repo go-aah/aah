@@ -16,6 +16,9 @@ go:
 
 go_import_path: aahframework.org/view.v0
 
+before_install:
+  - bash <(curl -s https://aahframework.org/base-before-install) "vfs forge config essentials log"
+
 install:
   - go get -t -v ./...
 

@@ -7,31 +7,40 @@ package view
 import (
 	"fmt"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
+	"aahframework.org/vfs.v0"
 )
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // type AntiCSRFField and methods
-//________________________________________
+//______________________________________________________________________________
 
 // AntiCSRFField is used to insert Anti-CSRF HTML field dynamically
 // while parsing templates on view engine.
 type AntiCSRFField struct {
 	engineName string
 	field      string
-	inserter   *strings.Replacer
 	leftDelim  string
 	rightDelim string
+	inserter   *strings.Replacer
+	vfs        *vfs.VFS
 }
 
 // NewAntiCSRFField method creates new instance of Anti-CSRF HTML field
 // parser.
 func NewAntiCSRFField(engineName, leftDelim, rightDelim string) *AntiCSRFField {
-	csft := &AntiCSRFField{engineName: engineName, leftDelim: leftDelim, rightDelim: rightDelim}
+	return NewAntiCSRFFieldWithVFS(nil, engineName, leftDelim, rightDelim)
+}
+
+// NewAntiCSRFFieldWithVFS method creates new instance of Anti-CSRF HTML field
+// parser with given VFS instance.
+func NewAntiCSRFFieldWithVFS(fs *vfs.VFS, engineName, leftDelim, rightDelim string) *AntiCSRFField {
+	csft := &AntiCSRFField{vfs: fs, engineName: engineName, leftDelim: leftDelim, rightDelim: rightDelim}
 
 	csft.field = fmt.Sprintf(`	<input type="hidden" name="anti_csrf_token" value="%s anitcsrftoken . %s">
      	</form>`, csft.leftDelim, csft.rightDelim)
@@ -63,7 +72,7 @@ func (ft *AntiCSRFField) InsertOnFiles(files ...string) []string {
 func (ft *AntiCSRFField) InsertOnFile(file string) (string, error) {
 	tmpDir, _ := ioutil.TempDir("", ft.engineName+"_anti_csrf")
 
-	fileBytes, err := ioutil.ReadFile(file)
+	fileBytes, err := vfs.ReadFile(ft.vfs, file)
 	if err != nil {
 		return "", err
 	}
@@ -71,21 +80,17 @@ func (ft *AntiCSRFField) InsertOnFile(file string) (string, error) {
 	fileStr := string(fileBytes)
 	f := StripPathPrefixAt(file, "views")
 	fpath := filepath.Join(tmpDir, f)
-	if strings.Contains(fileStr, "</form>") {
-		log.Tracef("Inserting Anti-CSRF field for file: %s", filepath.Join("views", f))
-		fileStr = ft.InsertOnString(fileStr)
-		if err = ess.MkDirAll(filepath.Dir(fpath), 0755); err != nil {
-			return "", err
-		}
-
-		if err = ioutil.WriteFile(fpath, []byte(fileStr), 0755); err != nil {
-			return "", err
-		}
-
-		return fpath, nil
+	log.Tracef("Inserting Anti-CSRF field for file: %s", path.Join("views", f))
+	fileStr = ft.InsertOnString(fileStr)
+	if err = ess.MkDirAll(filepath.Dir(fpath), 0755); err != nil {
+		return "", err
 	}
 
-	return file, nil
+	if err = ioutil.WriteFile(fpath, []byte(fileStr), 0755); err != nil {
+		return "", err
+	}
+
+	return fpath, nil
 }
 
 // InsertOnString method inserts the Anti-CSRF HTML field on
