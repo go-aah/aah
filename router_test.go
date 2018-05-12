@@ -16,6 +16,7 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/test.v0/assert"
+	"aahframework.org/vfs.v0"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -402,10 +403,7 @@ func TestRouterConfigNotExists(t *testing.T) {
 }
 
 func TestRouterNamespaceConfig(t *testing.T) {
-	wd, _ := os.Getwd()
-	appCfg, _ := config.ParseString("")
-	router := New(filepath.Join(wd, "testdata", "routes-namespace.conf"), appCfg)
-	err := router.Load()
+	router, err := createRouter("routes-namespace.conf")
 	assert.FailNowOnError(t, err, "")
 
 	routes := router.Domains["localhost:8080"].routes
@@ -418,18 +416,14 @@ func TestRouterNamespaceConfig(t *testing.T) {
 	assert.Equal(t, "GET", routes["disable_user"].Method)
 	assert.Equal(t, "form", routes["disable_user"].Auth)
 
-	router = New(filepath.Join(wd, "testdata", "routes-namespace-action-error.conf"), appCfg)
-	err = router.Load()
+	// Error
+	_, err = createRouter("routes-namespace-action-error.conf")
 	assert.NotNil(t, err)
 	assert.Equal(t, "'list_users.action' key is missing, it seems to be multiple HTTP methods", err.Error())
 }
 
 func TestRouterNamespaceSimplifiedConfig(t *testing.T) {
-
-	wd, _ := os.Getwd()
-	appCfg, _ := config.ParseString("")
-	router := New(filepath.Join(wd, "testdata", "routes-simplified.conf"), appCfg)
-	err := router.Load()
+	router, err := createRouter("routes-simplified.conf")
 	assert.FailNowOnError(t, err, "")
 
 	routes := router.Domains["localhost:8080"].routes
@@ -450,11 +444,7 @@ func TestRouterNamespaceSimplifiedConfig(t *testing.T) {
 }
 
 func TestRouterNamespaceSimplified2Config(t *testing.T) {
-
-	wd, _ := os.Getwd()
-	appCfg, _ := config.ParseString("")
-	router := New(filepath.Join(wd, "testdata", "routes-simplified-2.conf"), appCfg)
-	err := router.Load()
+	router, err := createRouter("routes-simplified-2.conf")
 	assert.FailNowOnError(t, err, "")
 
 	routes := router.Domains["localhost:8080"].routes
@@ -474,18 +464,13 @@ func TestRouterNamespaceSimplified2Config(t *testing.T) {
 	assert.Equal(t, "gt=1,lt=10", rule)
 
 	// Error
-	router = New(filepath.Join(wd, "testdata", "routes-simplified-2-error.conf"), appCfg)
-	err = router.Load()
+	_, err = createRouter("routes-simplified-2-error.conf")
 	assert.NotNil(t, err)
 	assert.Equal(t, "'routes.path' has invalid validation rule '/v1/users/:id  gt=1,lt=10]'", err.Error())
 }
 
 func TestRouterStaticSectionBaseDirForFilePaths(t *testing.T) {
-
-	wd, _ := os.Getwd()
-	appCfg, _ := config.ParseString("")
-	router := New(filepath.Join(wd, "testdata", "routes-static.conf"), appCfg)
-	err := router.Load()
+	router, err := createRouter("routes-static.conf")
 	assert.FailNowOnError(t, err, "")
 
 	// Assertion
@@ -506,17 +491,13 @@ func TestRouterStaticSectionBaseDirForFilePaths(t *testing.T) {
 	assert.Equal(t, "robots.txt", robotTxtRoute.File)
 
 	// ERROR missing values
-	router = New(filepath.Join(wd, "testdata", "routes-static-base-dir-missing.conf"), appCfg)
-	err = router.Load()
+	_, err = createRouter("routes-static-base-dir-missing.conf")
 	assert.NotNil(t, err)
 	assert.Equal(t, "'static.favicon.base_dir' value is missing", err.Error())
 }
 
 func TestRouterWebSocketConfig(t *testing.T) {
-	wd, _ := os.Getwd()
-	appCfg, _ := config.ParseString("")
-	router := New(filepath.Join(wd, "testdata", "routes-websocket.conf"), appCfg)
-	err := router.Load()
+	router, err := createRouter("routes-websocket.conf")
 	assert.FailNowOnError(t, err, "")
 
 	routes := router.Domains["localhost:8080"].routes
@@ -538,8 +519,9 @@ func TestRouterWebSocketConfig(t *testing.T) {
 }
 
 func createRouter(filename string) (*Router, error) {
+	fs := new(vfs.VFS)
+	fs.AddMount("/app/config", testdataBaseDir())
 
-	wd, _ := os.Getwd()
 	appCfg, _ := config.ParseString(`routes {
 			localhost {
 				host = "localhost"
@@ -547,8 +529,10 @@ func createRouter(filename string) (*Router, error) {
 			}
 		}`)
 
-	router := New(filepath.Join(wd, "testdata", filename), appCfg)
+	router := New("/app/config/"+filename, appCfg)
+	router.vfs = fs
 	err := router.Load()
+
 	return router, err
 }
 
@@ -562,4 +546,12 @@ func createHTTPRequest(host, path string) *http.Request {
 	}
 
 	return req
+}
+
+func testdataBaseDir() string {
+	wd, _ := os.Getwd()
+	if idx := strings.Index(wd, "testdata"); idx > 0 {
+		wd = wd[:idx]
+	}
+	return filepath.Join(wd, "testdata")
 }

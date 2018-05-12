@@ -37,9 +37,9 @@ var (
 	defaultAllowMethods = []string{ahttp.MethodGet, ahttp.MethodHead, ahttp.MethodPost}
 )
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // CORS
-//___________________________________
+//______________________________________________________________________________
 
 // CORS struct holds Cross-Origin Resource Sharing (CORS) configuration
 // values and verification methods for the route.
@@ -185,9 +185,9 @@ func (c CORS) String() string {
 	return buf.String()
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported CORS methods
-//___________________________________
+//______________________________________________________________________________
 
 func (c *CORS) addHeaders(dst []string, src []string) []string {
 	for _, h := range src {

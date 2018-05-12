@@ -20,6 +20,7 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
+	"aahframework.org/vfs.v0"
 )
 
 const (
@@ -46,13 +47,19 @@ var (
 	ErrNoDomainRoutesConfigFound = errors.New("router: no domain routes config found")
 )
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
-//___________________________________
+//______________________________________________________________________________
 
 // New method returns the Router instance.
 func New(configPath string, appCfg *config.Config) *Router {
+	return NewWithVFS(nil, configPath, appCfg)
+}
+
+// NewWithVFS method creates router instance with given VFS instance.
+func NewWithVFS(fs *vfs.VFS, configPath string, appCfg *config.Config) *Router {
 	return &Router{
+		vfs:        fs,
 		configPath: configPath,
 		appCfg:     appCfg,
 	}
@@ -69,18 +76,20 @@ func IsDefaultAction(action string) bool {
 	return false
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Router
-//___________________________________
+//______________________________________________________________________________
 
 // Router is used to register all application routes and finds the appropriate
 // route information for incoming request path.
 type Router struct {
-	Domains      map[string]*Domain
+	Domains map[string]*Domain
+
+	configPath   string
+	addresses    []string
 	rootDomain   *Domain
 	singleDomain *Domain
-	addresses    []string
-	configPath   string
+	vfs          *vfs.VFS
 	config       *config.Config
 	appCfg       *config.Config
 }
@@ -88,11 +97,11 @@ type Router struct {
 // Load method loads a configuration from given file e.g. `routes.conf` and
 // applies env profile override values if available.
 func (r *Router) Load() (err error) {
-	if !ess.IsFileExists(r.configPath) {
+	if !r.vfs.IsExists(r.configPath) {
 		return fmt.Errorf("router: configuration does not exists: %v", r.configPath)
 	}
 
-	r.config, err = config.LoadFile(r.configPath)
+	r.config, err = config.VFSLoadFile(r.vfs, r.configPath)
 	if err != nil {
 		return err
 	}
@@ -184,9 +193,9 @@ func (r *Router) RegisteredWSActions() map[string]map[string]uint8 {
 	return methods
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Router unexpoted methods
-//___________________________________
+//______________________________________________________________________________
 
 func (r *Router) processRoutesConfig() (err error) {
 	domains := r.config.KeysByPath("domains")
@@ -353,9 +362,9 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 	return nil
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Route
-//___________________________________
+//______________________________________________________________________________
 
 // Route holds the single route details.
 type Route struct {
@@ -404,9 +413,9 @@ func (r *Route) ValidationRule(name string) (string, bool) {
 	return rules, found
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
-//___________________________________
+//______________________________________________________________________________
 
 func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes []*Route, err error) {
 	for _, routeName := range cfg.Keys() {
