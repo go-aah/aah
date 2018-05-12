@@ -10,11 +10,14 @@ branches:
     - /^v[0-9.]+$/
 
 go:
-  - 1.9
-  - "1.10"
+  - 1.9.x
+  - 1.x
   - tip
 
 go_import_path: aahframework.org/i18n.v0
+
+before_install:
+  - bash <(curl -s https://aahframework.org/base-before-install) "essentials vfs forge config ahttp log"
 
 install:
   - go get -t -v ./...

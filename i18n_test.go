@@ -16,9 +16,10 @@ import (
 
 func TestLoadMessage(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New()
+	store := newI18n()
 
-	_ = store.Load(filepath.Join(wd, "testdata"))
+	err := store.Load(filepath.Join(wd, "testdata"))
+	assert.Nil(t, err)
 	_ = store.Load(filepath.Join(wd, "testdata", "english", "messages.en"))
 	_ = store.Load(filepath.Join(wd, "testdata", "english", "message-not-exists.en"))
 
@@ -34,7 +35,7 @@ func TestLoadMessage(t *testing.T) {
 
 func TestMsgRetrive_enUS(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New()
+	store := newI18n()
 
 	_ = store.Load(filepath.Join(wd, "testdata"))
 
@@ -52,7 +53,7 @@ func TestMsgRetrive_enUS(t *testing.T) {
 
 func TestMsgRetrive_enGB(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New()
+	store := newI18n()
 
 	_ = store.Load(filepath.Join(wd, "testdata"))
 	store.DefaultLocale = "en"
@@ -74,7 +75,7 @@ func TestMsgRetrive_enGB(t *testing.T) {
 
 func TestMsgRetrive_en(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New()
+	store := newI18n()
 
 	_ = store.Load(filepath.Join(wd, "testdata"))
 	store.DefaultLocale = "en"
@@ -99,7 +100,7 @@ func TestMsgRetrive_en(t *testing.T) {
 
 func TestMsgRetrive_frCA(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New()
+	store := newI18n()
 
 	_ = store.Load(filepath.Join(wd, "testdata"))
 
@@ -117,7 +118,7 @@ func TestMsgRetrive_frCA(t *testing.T) {
 
 func TestMsgRetrive_fr(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New()
+	store := newI18n()
 
 	_ = store.Load(filepath.Join(wd, "testdata"))
 
@@ -132,7 +133,7 @@ func TestMsgRetrive_fr(t *testing.T) {
 
 func TestMsgRetrive_it(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New()
+	store := newI18n()
 
 	_ = store.Load(filepath.Join(wd, "testdata"))
 
@@ -147,7 +148,7 @@ func TestMsgRetrive_it(t *testing.T) {
 
 func TestMsgRetriveNotFoundLocale(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New()
+	store := newI18n()
 
 	_ = store.Load(filepath.Join(wd, "testdata"))
 
@@ -155,4 +156,8 @@ func TestMsgRetriveNotFoundLocale(t *testing.T) {
 
 	notFoundStore := store.Lookup(&locale, "store.not.exists")
 	assert.Equal(t, "", notFoundStore)
+}
+
+func newI18n() *I18n {
+	return New()
 }
