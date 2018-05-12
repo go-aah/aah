@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/config source code and usage is governed by a MIT style
+// aahframework.org/config source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 // Package config is nice and handy layer built around `forge` config syntax;
@@ -14,17 +14,25 @@ import (
 	"fmt"
 	"strings"
 
-	"aahframework.org/essentials.v0"
 	"aahframework.org/forge.v0"
+	"aahframework.org/vfs.v0"
 )
 
 var errKeyNotFound = errors.New("config: not found")
 
-// NewEmptyConfig method returns aah empty config instance.
-func NewEmptyConfig() *Config {
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Package methods
+//______________________________________________________________________________
+
+// NewEmpty method returns aah empty config instance.
+func NewEmpty() *Config {
 	cfg, _ := ParseString("")
 	return cfg
 }
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Config type and methods
+//______________________________________________________________________________
 
 // Config handles the configuration values and enables environment profile's,
 // merge, etc. Also it provide nice and handly methods for accessing config values.
@@ -63,6 +71,9 @@ func (c *Config) HasProfile(profile string) bool {
 
 // IsProfileEnabled returns true of profile enabled otherwise false
 func (c *Config) IsProfileEnabled() bool {
+	if c == nil {
+		return false
+	}
 	return len(c.profile) > 0
 }
 
@@ -206,9 +217,9 @@ func (c *Config) Get(key string) (interface{}, bool) {
 	return c.get(key)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // List methods
-//___________________________________
+//______________________________________________________________________________
 
 // StringList method returns the string slice value for the given key.
 // 		Eaxmple:-
@@ -303,9 +314,9 @@ func (c *Config) Int64List(key string) ([]int64, bool) {
 	return values, true
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Setter methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Config Setter methods
+//______________________________________________________________________________
 
 // SetString sets the given value string for config key
 // First it tries to get value within enabled profile
@@ -380,36 +391,33 @@ func (c *Config) ToJSON() string {
 	return "{}"
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Configuration loading methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Config load/parse methods
+//______________________________________________________________________________
 
-// LoadFile loads the configuration given config file
+// LoadFile loads the configuration from given config file.
 func LoadFile(file string) (*Config, error) {
-	if !ess.IsFileExists(file) {
-		return nil, fmt.Errorf("configuration does not exists: %v", file)
-	}
-
-	setting, err := forge.ParseFile(file)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Config{
-		cfg: setting,
-	}, nil
+	return VFSLoadFile(nil, file)
 }
 
-// LoadFiles loads the configuration given config files and
-// does merging of configuration in the order they are given
+// VFSLoadFile loads the configuration from given vfs and config file.
+func VFSLoadFile(fs *vfs.VFS, file string) (*Config, error) {
+	setting, err := loadFile(fs, file)
+	return &Config{cfg: setting}, err
+}
+
+// LoadFiles loads the configuration from given config files.
+// It does merging of configuration in the order they are given.
 func LoadFiles(files ...string) (*Config, error) {
+	return VFSLoadFiles(nil, files...)
+}
+
+// VFSLoadFiles loads the configuration from given config vfs and files.
+// It does merging of configuration in the order they are given.
+func VFSLoadFiles(fs *vfs.VFS, files ...string) (*Config, error) {
 	settings := forge.NewSection()
 	for _, file := range files {
-		if !ess.IsFileExists(file) {
-			return nil, fmt.Errorf("configuration does not exists: %v", file)
-		}
-
-		setting, err := forge.ParseFile(file)
+		setting, err := loadFile(fs, file)
 		if err != nil {
 			return nil, err
 		}
@@ -419,9 +427,7 @@ func LoadFiles(files ...string) (*Config, error) {
 		}
 	}
 
-	return &Config{
-		cfg: settings,
-	}, nil
+	return &Config{cfg: settings}, nil
 }
 
 // ParseString parses the configuration values from string
@@ -430,15 +436,19 @@ func ParseString(cfg string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return &Config{
-		cfg: setting,
-	}, nil
+	return &Config{cfg: setting}, nil
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Config unexported methods
+//______________________________________________________________________________
+
+func loadFile(fs *vfs.VFS, file string) (*forge.Section, error) {
+	if _, err := vfs.Stat(fs, file); err != nil {
+		return nil, fmt.Errorf("configuration does not exists: %v", file)
+	}
+	return forge.VFSParseFile(fs, file)
+}
 
 func (c *Config) prepareKey(key string) string {
 	if c.IsProfileEnabled() {
@@ -475,6 +485,10 @@ func (c *Config) getListValue(key string) (*forge.List, bool) {
 }
 
 func (c *Config) getraw(key string) (forge.Value, bool) {
+	if c == nil || c.cfg == nil {
+		return nil, false
+	}
+
 	v, err := c.cfg.Resolve(key)
 	if err != nil {
 		return nil, false // not found

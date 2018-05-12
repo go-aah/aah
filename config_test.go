@@ -16,7 +16,7 @@ import (
 )
 
 func TestKeysAndKeysByPath(t *testing.T) {
-	cfg := initFile(t, join(getTestdataPath(), "test.cfg"))
+	cfg := initFile(t, join(testdataBaseDir(), "test.cfg"))
 	keys := cfg.Keys()
 	assert.True(t, ess.IsSliceContainsString(keys, "prod"))
 	assert.True(t, ess.IsSliceContainsString(keys, "dev"))
@@ -37,7 +37,7 @@ func TestKeysAndKeysByPath(t *testing.T) {
 }
 
 func TestGetSubConfig(t *testing.T) {
-	cfg := initFile(t, join(getTestdataPath(), "test.cfg"))
+	cfg := initFile(t, join(testdataBaseDir(), "test.cfg"))
 
 	prod, found1 := cfg.GetSubConfig("prod")
 	assert.NotNil(t, prod)
@@ -64,7 +64,7 @@ func TestGetSubConfig(t *testing.T) {
 }
 
 func TestIsExists(t *testing.T) {
-	cfg := initFile(t, join(getTestdataPath(), "test.cfg"))
+	cfg := initFile(t, join(testdataBaseDir(), "test.cfg"))
 	found := cfg.IsExists("prod.string")
 	assert.True(t, found)
 
@@ -77,7 +77,7 @@ func TestIsExists(t *testing.T) {
 }
 
 func TestStringValues(t *testing.T) {
-	cfg := initFile(t, join(getTestdataPath(), "test.cfg"))
+	cfg := initFile(t, join(testdataBaseDir(), "test.cfg"))
 
 	v1, _ := cfg.String("string")
 	assert.Equal(t, "a string", v1)
@@ -100,7 +100,7 @@ func TestStringValues(t *testing.T) {
 }
 
 func TestIntValues(t *testing.T) {
-	bytes, _ := ioutil.ReadFile(join(getTestdataPath(), "test.cfg"))
+	bytes, _ := ioutil.ReadFile(join(testdataBaseDir(), "test.cfg"))
 	cfg := initString(t, string(bytes))
 
 	v1, _ := cfg.Int("int")
@@ -136,7 +136,7 @@ func TestIntValues(t *testing.T) {
 }
 
 func TestFloatValues(t *testing.T) {
-	cfg := initFile(t, join(getTestdataPath(), "test.cfg"))
+	cfg := initFile(t, join(testdataBaseDir(), "test.cfg"))
 
 	v1, _ := cfg.Float32("float32")
 	assert.Equal(t, float32(32.2), v1)
@@ -180,7 +180,7 @@ func TestFloatValues(t *testing.T) {
 }
 
 func TestBoolValues(t *testing.T) {
-	bytes, _ := ioutil.ReadFile(join(getTestdataPath(), "test.cfg"))
+	bytes, _ := ioutil.ReadFile(join(testdataBaseDir(), "test.cfg"))
 	cfg := initString(t, string(bytes))
 
 	v1, _ := cfg.Bool("truevalue")
@@ -263,7 +263,7 @@ func TestIntAndInt64List(t *testing.T) {
 }
 
 func TestProfile(t *testing.T) {
-	cfg := initFile(t, join(getTestdataPath(), "test.cfg"))
+	cfg := initFile(t, join(testdataBaseDir(), "test.cfg"))
 
 	t.Log(cfg.cfg.Keys())
 
@@ -276,9 +276,7 @@ func TestProfile(t *testing.T) {
 }
 
 func TestConfigLoadNotExists(t *testing.T) {
-	testdataPath := getTestdataPath()
-
-	_, err := LoadFile(join(testdataPath, "not_exists.cfg"))
+	_, err := LoadFile(join(testdataBaseDir(), "not_exists.cfg"))
 	assert.True(t, strings.HasPrefix(err.Error(), "configuration does not exists:"))
 
 	_, err = ParseString(`
@@ -336,7 +334,7 @@ prod {
 }
 
 func TestLoadFiles(t *testing.T) {
-	testdataPath := getTestdataPath()
+	testdataPath := testdataBaseDir()
 
 	cfg, err := LoadFiles(
 		join(testdataPath, "test-1.cfg"),
@@ -371,7 +369,7 @@ func TestLoadFiles(t *testing.T) {
 }
 
 func TestNestedKeyWithProfile(t *testing.T) {
-	testdataPath := getTestdataPath()
+	testdataPath := testdataBaseDir()
 
 	cfg, err := LoadFiles(join(testdataPath, "test-4.cfg"))
 	assert.FailNowOnError(t, err, "loading failed")
@@ -399,7 +397,7 @@ func TestNestedKeyWithProfile(t *testing.T) {
 }
 
 func TestConfigSetValues(t *testing.T) {
-	testdataPath := getTestdataPath()
+	testdataPath := testdataBaseDir()
 	cfg, err := LoadFiles(join(testdataPath, "test-4.cfg"))
 	assert.FailNowOnError(t, err, "loading failed")
 
@@ -429,7 +427,6 @@ func initString(t *testing.T, configStr string) *Config {
 func initFile(t *testing.T, file string) *Config {
 	cfg, err := LoadFile(file)
 	assert.FailNowOnError(t, err, "")
-
 	return cfg
 }
 
@@ -438,7 +435,7 @@ func setProfileForTest(t *testing.T, cfg *Config, profile string) {
 	assert.FailNowOnError(t, err, "")
 }
 
-func getTestdataPath() string {
+func testdataBaseDir() string {
 	wd, _ := os.Getwd()
 	return filepath.Join(wd, "testdata")
 }
