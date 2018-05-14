@@ -22,8 +22,8 @@ var _ FileSystem = (*Mount)(nil)
 // Mount implements `vfs.FileSystem`, its a combination of package `os` and `ioutil`
 // focused on Read-Only operations.
 type Mount struct {
-	vroot string
-	proot string
+	Vroot string
+	Proot string
 	tree  *node
 }
 
@@ -102,7 +102,7 @@ func (m Mount) ReadDir(dirname string) ([]os.FileInfo, error) {
 // match only on `filepath.Base` value.
 func (m Mount) Glob(pattern string) ([]string, error) {
 	var matches []string
-	f, err := m.open(pattern)
+	f, err := m.open(path.Dir(pattern))
 	if os.IsNotExist(err) {
 		flist, err := filepath.Glob(m.toPhysicalPath(pattern))
 		if err != nil {
@@ -124,7 +124,6 @@ func (m Mount) Glob(pattern string) ([]string, error) {
 			matches = append(matches, c.Path)
 		}
 	}
-
 	return matches, nil
 }
 
@@ -136,7 +135,7 @@ func (m Mount) IsExists(name string) bool {
 
 // String method Stringer interface.
 func (m Mount) String() string {
-	return fmt.Sprintf("mount(%s => %s)", m.vroot, m.proot)
+	return fmt.Sprintf("mount(%s => %s)", m.Vroot, m.Proot)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -145,7 +144,7 @@ func (m Mount) String() string {
 
 // Name method returns mounted path.
 func (m *Mount) Name() string {
-	return m.vroot
+	return m.Vroot
 }
 
 // AddDir method is to add directory node into VFS from mounted source directory.
@@ -163,7 +162,7 @@ func (m *Mount) AddFile(fi os.FileInfo, data []byte) error {
 //______________________________________________________________________________
 
 func (m Mount) cleanDir(p string) string {
-	dp := strings.TrimPrefix(p, m.vroot)
+	dp := strings.TrimPrefix(p, m.Vroot)
 	return path.Dir(dp)
 }
 
@@ -172,12 +171,11 @@ func (m Mount) open(name string) (*file, error) {
 		return nil, os.ErrInvalid
 	}
 
-	name = path.Clean(name)
-	if m.vroot == name { // extact match, root dir
+	if m.Vroot == name { // extact match, root dir
 		return newFile(m.tree), nil
 	}
 
-	return m.tree.find(strings.TrimPrefix(name, m.vroot))
+	return m.tree.find(strings.TrimPrefix(name, m.Vroot))
 }
 
 func (m Mount) openPhysical(name string) (File, error) {
@@ -189,11 +187,19 @@ func (m Mount) openPhysical(name string) (File, error) {
 }
 
 func (m Mount) toPhysicalPath(name string) string {
-	return filepath.Clean(filepath.FromSlash(filepath.Join(m.proot, name[len(m.vroot):])))
+	if strings.HasPrefix(name, m.Proot) {
+		return name
+	}
+	return filepath.Clean(filepath.FromSlash(
+		filepath.Join(m.Proot, strings.TrimPrefix(name, m.Vroot))))
 }
 
 func (m *Mount) toVirtualPath(name string) string {
-	return filepath.Clean(filepath.ToSlash(filepath.Join(m.vroot, name[len(m.proot):])))
+	if strings.HasPrefix(name, m.Vroot) {
+		return name
+	}
+	return path.Clean(filepath.ToSlash(
+		filepath.Join(m.Vroot, strings.TrimPrefix(name, m.Proot))))
 }
 
 func (m *Mount) addNode(fi os.FileInfo, data []byte) error {
@@ -214,4 +220,14 @@ func (m *Mount) addNode(fi os.FileInfo, data []byte) error {
 
 	return nil
 
+}
+
+func (m *Mount) match(name string) bool {
+	return m.Vroot == name ||
+		strings.HasPrefix(name, m.tree.Path+"/") ||
+		strings.HasPrefix(name, m.Proot)
+}
+
+func (m *Mount) isTreeEmpty() bool {
+	return len(m.tree.childs) == 0
 }
