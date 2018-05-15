@@ -25,7 +25,7 @@ var (
 		LevelError: []byte("\033[0;31m"), // red
 		LevelWarn:  []byte("\033[0;33m"), // yellow
 		LevelInfo:  []byte("\033[0;37m"), // white
-		LevelDebug: []byte("\033[0;34m"), // blue
+		LevelDebug: []byte("\033[0;36m"), // cyan
 		LevelTrace: []byte("\033[0;35m"), // magenta (purple)
 	}
 
