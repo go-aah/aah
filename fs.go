@@ -9,14 +9,16 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 )
 
 var _ FileSystem = (*VFS)(nil)
 
 // VFS errors
 var (
-	ErrMountExists    = errors.New("mount already exists")
-	ErrMountNotExists = errors.New("mount does not exist")
+	ErrMountExists    = errors.New("vfs: mount already exists")
+	ErrMountNotExists = errors.New("vfs: mount does not exist")
+	ErrNotAbsolutPath = errors.New("vfs: not a absolute path")
 )
 
 // VFS represents Virtual FileSystem (VFS), it operates in-memory.
@@ -27,7 +29,8 @@ var (
 //
 // Single point of access for all mounted virtual directories in aah application.
 type VFS struct {
-	mounts map[string]*Mount
+	embeddedMode bool
+	mounts       map[string]*Mount
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -98,6 +101,16 @@ func (v *VFS) IsExists(name string) bool {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // VFS methods
 //______________________________________________________________________________
+
+// IsEmbeddedMode method returns true if its a single binary otherwise false.
+func (v *VFS) IsEmbeddedMode() bool {
+	return v.embeddedMode
+}
+
+// SetEmbeddedMode method set the VFS into Embedded Mode. It means single binary.
+func (v *VFS) SetEmbeddedMode() {
+	v.embeddedMode = true
+}
 
 // Walk method behaviour is same as `filepath.Walk`.
 func (v *VFS) Walk(root string, walkFn filepath.WalkFunc) error {
@@ -170,20 +183,22 @@ func (v *VFS) FindMount(name string) (*Mount, error) {
 // AddMount method used to mount physical directory as a virtual mounted directory.
 //
 // Basically aah scans and application source files and builds each file from
-// mounted source dierctory into binary for single binary build.
+// mounted source directory into binary for single binary build.
 func (v *VFS) AddMount(mountPath, physicalPath string) error {
-	pp, err := filepath.Abs(filepath.Clean(physicalPath))
-	if err != nil {
-		return err
+	pp := filepath.Clean(physicalPath)
+	if !filepath.IsAbs(physicalPath) {
+		return ErrNotAbsolutPath
 	}
 
-	fi, err := os.Lstat(pp)
-	if err != nil {
-		return err
-	}
+	if !v.embeddedMode {
+		fi, err := os.Lstat(pp)
+		if err != nil {
+			return err
+		}
 
-	if !fi.IsDir() {
-		return &os.PathError{Op: "addmount", Path: pp, Err: errors.New("is a file")}
+		if !fi.IsDir() {
+			return &os.PathError{Op: "addmount", Path: pp, Err: errors.New("is a file")}
+		}
 	}
 
 	mp := filepath.ToSlash(path.Clean(mountPath))
@@ -203,7 +218,7 @@ func (v *VFS) AddMount(mountPath, physicalPath string) error {
 	v.mounts[mp] = &Mount{
 		Vroot: mp,
 		Proot: pp,
-		tree:  newNode(mp, fi),
+		tree:  newNode(mp, &NodeInfo{Dir: true, Time: time.Now().UTC()}),
 	}
 
 	return nil
