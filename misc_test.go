@@ -91,10 +91,7 @@ func TestErrorCallControllerHandler(t *testing.T) {
 		target:     &testErrorController1{},
 	}
 
-	cfg, err := config.ParseString("")
-	assert.Nil(t, err)
-
-	l, err := log.New(cfg)
+	l, err := log.New(config.NewEmpty())
 	assert.Nil(t, err)
 	ctx.logger = l
 

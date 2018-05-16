@@ -29,7 +29,7 @@ const (
 
 func (a *app) initDumpLog() error {
 	// log file configuration
-	cfg, _ := config.ParseString("")
+	cfg := config.NewEmpty()
 	file := a.Config().StringDefault("server.dump_log.file", "")
 
 	cfg.SetString("log.receiver", "file")

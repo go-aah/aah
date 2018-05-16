@@ -59,9 +59,9 @@ func AppBaseDir() string {
 }
 
 // AppVirtualBaseDir method returns "/app". In `v0.11.0` Virtual FileSystem (VFS)
-// introduced in aah to provide single binary build package and also provides
-// seamless experience Read-Only access to application directory and its sub-tree
-// across OS platform via `aah.AppVFS()`.
+// introduced in aah to provide single binary build packaging and provides
+// seamless experience of Read-Only access to application directory and its sub-tree
+// across OS platforms via `aah.AppVFS()`.
 func AppVirtualBaseDir() string {
 	return defaultApp.VirtualBaseDir()
 }

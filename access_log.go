@@ -61,7 +61,7 @@ var (
 
 func (a *app) initAccessLog() error {
 	// log file configuration
-	cfg, _ := config.ParseString("")
+	cfg := config.NewEmpty()
 	file := a.Config().StringDefault("server.access_log.file", "")
 
 	cfg.SetString("log.receiver", "file")

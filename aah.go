@@ -390,7 +390,7 @@ func (a *app) initPath() (err error) {
 	defer func() {
 		er := a.VFS().AddMount(a.VirtualBaseDir(), a.BaseDir())
 		if er != nil && er.(*os.PathError).Err == vfs.ErrMountExists {
-			// Update app-base-dir to infered base directory
+			// Update app-base-dir to inferred base directory
 			if m, er := a.VFS().FindMount(a.VirtualBaseDir()); er == nil {
 				m.Proot = a.BaseDir()
 			}
