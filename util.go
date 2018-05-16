@@ -122,11 +122,11 @@ func parseCacheBustPart(name, part string) string {
 	return name
 }
 
-// checkGzipRequired method return for static which requires gzip response.
-func checkGzipRequired(file string) bool {
+// gzipRequired method return for static which requires gzip response.
+func gzipRequired(file string) bool {
 	switch filepath.Ext(file) {
-	case ".css", ".js", ".html", ".htm", ".json", ".xml",
-		".txt", ".csv", ".ttf", ".otf", ".eot":
+	case ".css", ".js", ".html", ".htm", ".json", ".svg",
+		".ttf", ".otf", ".xml", ".txt", ".csv":
 		return true
 	default:
 		return false
@@ -205,4 +205,11 @@ func wrapGzipWriter(res ahttp.ResponseWriter) ahttp.ResponseWriter {
 func isWebSocket(r *http.Request) bool {
 	return strings.ToLower(r.Header.Get(ahttp.HeaderUpgrade)) == "websocket" &&
 		strings.Contains(strings.ToLower(r.Header.Get(ahttp.HeaderConnection)), "upgrade")
+}
+
+func inferRedirectMode(redirectTo string) string {
+	if redirectTo == www {
+		return nonwww + " ==> " + www
+	}
+	return www + " ==> " + nonwww
 }

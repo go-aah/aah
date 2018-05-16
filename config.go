@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path"
 	"syscall"
 
 	"aahframework.org/config.v0"
@@ -26,7 +27,7 @@ func (a *app) Config() *config.Config {
 //______________________________________________________________________________
 
 func (a *app) initConfig() error {
-	cfg, err := config.VFSLoadFile(a.VFS(), "/app/config/aah.conf")
+	cfg, err := config.VFSLoadFile(a.VFS(), path.Join(a.VirtualBaseDir(), "config", "aah.conf"))
 	if err != nil {
 		return fmt.Errorf("aah.conf: %s", err)
 	}

@@ -5,6 +5,8 @@
 package aah
 
 import (
+	"path"
+
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/i18n.v0"
 )
@@ -30,7 +32,7 @@ func (a *app) DefaultI18nLang() string {
 //______________________________________________________________________________
 
 func (a *app) initI18n() error {
-	i18nPath := "/app/i18n"
+	i18nPath := path.Join(a.VirtualBaseDir(), "i18n")
 	if !a.VFS().IsExists(i18nPath) {
 		// i18n directory not exists, scenario could be only API application
 		return nil

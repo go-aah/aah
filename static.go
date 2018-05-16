@@ -5,9 +5,11 @@
 package aah
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +20,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/vfs.v0"
 )
 
 var (
@@ -68,12 +71,7 @@ func (s *staticManager) Serve(ctx *Context) error {
 
 	// Determine route is file or directory as per user defined
 	// static route config (refer to https://docs.aahframework.org/static-files.html#section-static).
-	//   httpDir -> value is from routes config
-	//   filePath -> value is from request
-	httpDir, filePath := s.httpDirAndFilePath(ctx)
-	ctx.Log().Tracef("Path: %s, Dir: %s", filePath, httpDir)
-
-	f, err := httpDir.Open(filePath)
+	f, err := s.open(ctx)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return errFileNotFound
@@ -89,9 +87,16 @@ func (s *staticManager) Serve(ctx *Context) error {
 		return nil
 	}
 
-	if s.a.gzipEnabled && ctx.Req.IsGzipAccepted &&
-		fi.Size() > defaultGzipMinSize && checkGzipRequired(filePath) {
-		ctx.Res = wrapGzipWriter(ctx.Res)
+	gf, ok := f.(vfs.Gziper)
+	var fr io.ReadSeeker = f
+	if s.a.gzipEnabled && ctx.Req.IsGzipAccepted {
+		if ok && gf.IsGzip() {
+			ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
+			ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
+			fr = bytes.NewReader(gf.RawBytes())
+		} else if fi.Size() > defaultGzipMinSize && gzipRequired(fi.Name()) {
+			ctx.Res = wrapGzipWriter(ctx.Res)
+		}
 	}
 
 	// write headers
@@ -100,7 +105,7 @@ func (s *staticManager) Serve(ctx *Context) error {
 	// Serve file
 	if fi.Mode().IsRegular() {
 		// `Cache-Control` header based on `cache.static.*`
-		if contentType, err := detectFileContentType(filePath, f); err == nil {
+		if contentType, err := detectFileContentType(fi.Name(), fr); err == nil {
 			ctx.Res.Header().Set(ahttp.HeaderContentType, contentType)
 
 			// apply cache header if environment profile is `prod`
@@ -115,7 +120,7 @@ func (s *staticManager) Serve(ctx *Context) error {
 		// 'OnPreReply' server extension point
 		s.a.he.publishOnPreReplyEvent(ctx)
 
-		http.ServeContent(ctx.Res, ctx.Req.Unwrap(), path.Base(filePath), fi.ModTime(), f)
+		http.ServeContent(ctx.Res, ctx.Req.Unwrap(), path.Base(fi.Name()), fi.ModTime(), fr)
 
 		// 'OnAfterReply' server extension point
 		s.a.he.publishOnPostReplyEvent(ctx)
@@ -159,18 +164,18 @@ func (s *staticManager) Serve(ctx *Context) error {
 	return nil
 }
 
-// httpDirAndFilePath method returns the `http.Dir` and requested file path.
-//
-// Note: `ctx.route.*` values come from application routes configuration.
-func (s *staticManager) httpDirAndFilePath(ctx *Context) (http.Dir, string) {
-	dirpath := filepath.Join(s.a.BaseDir(), ctx.route.Dir)
+func (s *staticManager) open(ctx *Context) (vfs.File, error) {
+	var filePath string
 	if ctx.route.IsFile() { // this is configured value from routes.conf
-		return http.Dir(dirpath),
-			parseCacheBustPart(ctx.route.File, s.a.BuildInfo().Version)
+		filePath = parseCacheBustPart(ctx.route.File, s.a.BuildInfo().Version)
+	} else {
+		filePath = parseCacheBustPart(ctx.Req.PathValue("filepath"), s.a.BuildInfo().Version)
 	}
 
-	return http.Dir(dirpath),
-		parseCacheBustPart(ctx.Req.PathValue("filepath"), s.a.BuildInfo().Version)
+	resource := filepath.ToSlash(path.Join(s.a.VirtualBaseDir(), ctx.route.Dir, filePath))
+	ctx.Log().Tracef("Static resource: %s", resource)
+
+	return s.a.VFS().Open(resource)
 }
 
 func (s *staticManager) cacheHeader(contentType string) string {

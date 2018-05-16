@@ -198,7 +198,7 @@ func TestAppMisc(t *testing.T) {
 	t.Log("simualate CLI call")
 	a.SetBuildInfo(nil)
 	err = a.Init(importPath)
-	assert.Equal(t, "addmount /app: mount already exists", err.Error())
+	assert.Nil(t, err)
 
 	// SSL
 	t.Log("SSL")
@@ -214,7 +214,7 @@ func TestAppMisc(t *testing.T) {
 	t.Log("simulate import path")
 	a.importPath = "github.com/jeevatkm/noapp"
 	err = a.initPath()
-	assert.Equal(t, "addmount /app: mount already exists", err.Error())
+	assert.Nil(t, err)
 }
 
 func fireRequest(t *testing.T, req *http.Request) *testResult {
@@ -250,6 +250,9 @@ func newTestServer(t *testing.T, importPath string) (*testServer, error) {
 		Date:       time.Now().Format(time.RFC3339),
 		Version:    "1.0.0",
 	})
+
+	err := ts.app.VFS().AddMount(ts.app.VirtualBaseDir(), importPath)
+	assert.FailOnError(t, err, "not expecting any error")
 
 	if err := ts.app.Init(importPath); err != nil {
 		return nil, err

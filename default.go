@@ -50,12 +50,20 @@ func AppProfile() string {
 	return defaultApp.Profile()
 }
 
-// AppBaseDir method returns the application base or binary current directory
+// AppBaseDir method returns the application base or binary's base directory
 // 	For e.g.:
 // 		$GOPATH/src/github.com/user/myproject
 // 		<app/binary/path/base/directory>
 func AppBaseDir() string {
 	return defaultApp.BaseDir()
+}
+
+// AppVirtualBaseDir method returns "/app". In `v0.11.0` Virtual FileSystem (VFS)
+// introduced in aah to provide single binary build package and also provides
+// seamless experience Read-Only access to application directory and its sub-tree
+// across OS platform via `aah.AppVFS()`.
+func AppVirtualBaseDir() string {
+	return defaultApp.VirtualBaseDir()
 }
 
 // AppImportPath method returns the application Go import path.
@@ -116,8 +124,23 @@ func SetAppBuildInfo(bi *BuildInfo) {
 }
 
 // SetAppPackaged method sets the info of binary is packaged or not.
+//
+// It is used by framework during application startup. IT'S NOT FOR AAH USER(S).
 func SetAppPackaged(pack bool) {
 	defaultApp.SetPackaged(pack)
+}
+
+// AppIsEmbeddedMode method returns true if application VFS is running embeded mode,
+// otherwise false. It means aah VFS embeds the mounted files within binary.
+func AppIsEmbeddedMode() bool {
+	return defaultApp.embeddedMode
+}
+
+// AppSetEmbeddedMode method sets the application VFS mode to embeded state.
+//
+// It is used by framework during VFS setup. IT'S NOT FOR AAH USER(S).
+func AppSetEmbeddedMode() {
+	defaultApp.SetEmbeddedMode()
 }
 
 // NewChildLogger method create a child logger from aah application default logger.
@@ -262,11 +285,6 @@ func Shutdown() {
 // error handler. If custom handler is not then default error handler takes place.
 func SetErrorHandler(handlerFunc ErrorHandlerFunc) {
 	defaultApp.errorMgr.SetHandler(handlerFunc)
-}
-
-// Middlewares method adds given middleware into middleware stack
-func Middlewares(middlewares ...MiddlewareFunc) {
-	defaultApp.he.Middlewares(middlewares...)
 }
 
 // AddLoggerHook method adds given logger into aah application default logger.

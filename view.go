@@ -7,6 +7,7 @@ package aah
 import (
 	"fmt"
 	"html/template"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -54,7 +55,7 @@ func (a *app) SetMinifier(fn MinifierFunc) {
 //______________________________________________________________________________
 
 func (a *app) initView() error {
-	viewsDir := "/app/views"
+	viewsDir := path.Join(a.VirtualBaseDir(), "views")
 	if !a.VFS().IsExists(viewsDir) {
 		// view directory not exists, scenario could be only API application
 		return nil

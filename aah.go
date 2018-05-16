@@ -84,7 +84,8 @@ func newApp() *app {
 // app struct represents aah application.
 type app struct {
 	physicalPathMode       bool
-	isPackaged             bool
+	packagedMode           bool
+	embeddedMode           bool
 	serverHeaderEnabled    bool
 	requestIDEnabled       bool
 	gzipEnabled            bool
@@ -237,6 +238,10 @@ func (a *app) BaseDir() string {
 	return a.baseDir
 }
 
+func (a *app) VirtualBaseDir() string {
+	return "/app"
+}
+
 func (a *app) ImportPath() string {
 	return a.importPath
 }
@@ -262,11 +267,20 @@ func (a *app) SetBuildInfo(bi *BuildInfo) {
 }
 
 func (a *app) IsPackaged() bool {
-	return a.isPackaged
+	return a.packagedMode
 }
 
+// TODO remove pack parameter
 func (a *app) SetPackaged(pack bool) {
-	a.isPackaged = pack
+	a.packagedMode = pack
+}
+
+func (a *app) IsEmbeddedMode() bool {
+	return a.embeddedMode
+}
+
+func (a *app) SetEmbeddedMode() {
+	a.embeddedMode = true
 }
 
 func (a *app) Profile() string {
@@ -358,10 +372,6 @@ func (a *app) VFS() *vfs.VFS {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // app Unexported methods
 //______________________________________________________________________________
-//
-// func (a *app) configDir() string {
-// 	return filepath.Join(a.BaseDir(), "config")
-// }
 
 func (a *app) logsDir() string {
 	return filepath.Join(a.BaseDir(), "logs")
@@ -377,6 +387,16 @@ func (a *app) showDeprecatedMsg(msg string, v ...interface{}) {
 }
 
 func (a *app) initPath() (err error) {
+	defer func() {
+		er := a.VFS().AddMount(a.VirtualBaseDir(), a.BaseDir())
+		if er != nil && er.(*os.PathError).Err == vfs.ErrMountExists {
+			// Update app-base-dir to infered base directory
+			if m, er := a.VFS().FindMount(a.VirtualBaseDir()); er == nil {
+				m.Proot = a.BaseDir()
+			}
+		}
+	}()
+
 	if goPath, err = ess.GoPath(); err != nil && !a.IsPackaged() {
 		return
 	}
@@ -390,10 +410,6 @@ func (a *app) initPath() (err error) {
 
 		a.baseDir = a.ImportPath()
 		a.physicalPathMode = true
-
-		// Mount appilcation physical directory as virtual mount point
-		// <app-base-dir>/** accessible via /app/** regardless of OS platform.
-		err = a.VFS().AddMount("/app", a.BaseDir())
 		return
 	}
 
@@ -406,17 +422,18 @@ func (a *app) initPath() (err error) {
 			err = er
 			return
 		}
-		a.baseDir = filepath.Clean(filepath.Dir(filepath.Dir(ep)))
+
+		if a.embeddedMode {
+			a.baseDir = filepath.Dir(ep)
+		} else {
+			a.baseDir = filepath.Dir(filepath.Dir(ep))
+		}
+		a.baseDir = filepath.Clean(a.baseDir)
 	}
 
 	if !ess.IsFileExists(a.BaseDir()) {
 		err = fmt.Errorf("import path does not exists: %s", a.ImportPath())
-		return
 	}
-
-	// Mount appilcation physical directory as virtual mount point
-	// <app-base-dir>/** accessible via /app/** regardless of OS platform.
-	err = a.VFS().AddMount("/app", a.BaseDir())
 	return
 }
 

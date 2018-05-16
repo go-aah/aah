@@ -91,8 +91,6 @@ func TestDefaultApp(t *testing.T) {
 		return true
 	})
 
-	Middlewares(ToMiddleware(thirdPartyMiddleware1))
-
 	AddLoggerHook("testhook", func(e log.Entry) {
 		t.Log("test logger hook")
 	})
