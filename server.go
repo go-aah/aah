@@ -38,6 +38,7 @@ func (a *app) Start() {
 	a.Log().Infof("App Name: %s", a.Name())
 	a.Log().Infof("App Version: %s", a.BuildInfo().Version)
 	a.Log().Infof("App Build Date: %s", a.BuildInfo().Date)
+	a.Log().Infof("App Single Binary Mode: %v", a.IsEmbeddedMode())
 	a.Log().Infof("App Profile: %s", a.Profile())
 	a.Log().Infof("App TLS/SSL Enabled: %t", a.IsSSLEnabled())
 
@@ -47,13 +48,18 @@ func (a *app) Start() {
 
 	a.Log().Infof("App Session Mode: %s", sessionMode)
 
-	if a.appType == "web" || a.viewMgr != nil {
+	if a.Type() == "web" || a.viewMgr != nil {
 		a.Log().Infof("App Anti-CSRF Protection Enabled: %t", a.SecurityManager().AntiCSRF.Enabled)
 	}
 
 	a.Log().Info("App Route Domains:")
 	for _, name := range a.Router().DomainAddresses() {
 		a.Log().Infof("      Host: %s, CORS Enabled: %t", name, a.Router().Domains[name].CORSEnabled)
+	}
+
+	redirectEnabled := a.Config().BoolDefault("server.redirect.enable", false)
+	if redirectEnabled {
+		a.Log().Infof("App Redirect(%s) Enabled: true", inferRedirectMode(a.Config().StringDefault("server.redirect.to", nonwww)))
 	}
 
 	if a.I18n() != nil {

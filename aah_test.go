@@ -251,6 +251,9 @@ func newTestServer(t *testing.T, importPath string) (*testServer, error) {
 		Version:    "1.0.0",
 	})
 
+	err := ts.app.VFS().AddMount(ts.app.VirtualBaseDir(), importPath)
+	assert.FailOnError(t, err, "not expecting any error")
+
 	if err := ts.app.Init(importPath); err != nil {
 		return nil, err
 	}
@@ -301,63 +304,39 @@ func (ts *testServer) manualInit() {
 
 	// adding controller
 	ts.app.AddController((*testSiteController)(nil), []*ainsp.Method{
-		{
-			Name:       "Index",
-			Parameters: []*ainsp.Parameter{},
-		},
-		{
-			Name:       "Text",
-			Parameters: []*ainsp.Parameter{},
-		},
+		{Name: "Index"},
+		{Name: "Text"},
 		{
 			Name: "Redirect",
 			Parameters: []*ainsp.Parameter{
-				&ainsp.Parameter{Name: "mode", Type: reflect.TypeOf((*string)(nil))},
+				{Name: "mode", Type: reflect.TypeOf((*string)(nil))},
 			},
 		},
 		{
 			Name: "FormSubmit",
 			Parameters: []*ainsp.Parameter{
-				&ainsp.Parameter{Name: "id", Type: reflect.TypeOf((*int)(nil))},
-				&ainsp.Parameter{Name: "info", Type: reflect.TypeOf((**sample)(nil))},
+				{Name: "id", Type: reflect.TypeOf((*int)(nil))},
+				{Name: "info", Type: reflect.TypeOf((**sample)(nil))},
 			},
 		},
 		{
 			Name: "CreateRecord",
 			Parameters: []*ainsp.Parameter{
-				&ainsp.Parameter{Name: "info", Type: reflect.TypeOf((**sampleJSON)(nil))},
+				{Name: "info", Type: reflect.TypeOf((**sampleJSON)(nil))},
 			},
 		},
-		{
-			Name:       "XML",
-			Parameters: []*ainsp.Parameter{},
-		},
+		{Name: "XML"},
 		{
 			Name: "JSONP",
 			Parameters: []*ainsp.Parameter{
-				&ainsp.Parameter{Name: "callback", Type: reflect.TypeOf((*string)(nil))},
+				{Name: "callback", Type: reflect.TypeOf((*string)(nil))},
 			},
 		},
-		{
-			Name:       "SecureJSON",
-			Parameters: []*ainsp.Parameter{},
-		},
-		{
-			Name:       "TriggerPanic",
-			Parameters: []*ainsp.Parameter{},
-		},
-		{
-			Name:       "BinaryBytes",
-			Parameters: []*ainsp.Parameter{},
-		},
-		{
-			Name:       "SendFile",
-			Parameters: []*ainsp.Parameter{},
-		},
-		{
-			Name:       "Cookies",
-			Parameters: []*ainsp.Parameter{},
-		},
+		{Name: "SecureJSON"},
+		{Name: "TriggerPanic"},
+		{Name: "BinaryBytes"},
+		{Name: "SendFile"},
+		{Name: "Cookies"},
 	})
 
 	// reset controller namespace and key

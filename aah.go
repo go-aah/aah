@@ -28,6 +28,7 @@ import (
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
 	"aahframework.org/security.v0"
+	"aahframework.org/vfs.v0"
 	"aahframework.org/ws.v0"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -57,7 +58,8 @@ type BuildInfo struct {
 
 func newApp() *app {
 	aahApp := &app{
-		mu: new(sync.Mutex),
+		vfs: new(vfs.VFS),
+		mu:  new(sync.Mutex),
 	}
 
 	aahApp.he = &HTTPEngine{
@@ -82,7 +84,8 @@ func newApp() *app {
 // app struct represents aah application.
 type app struct {
 	physicalPathMode       bool
-	isPackaged             bool
+	packagedMode           bool
+	embeddedMode           bool
 	serverHeaderEnabled    bool
 	requestIDEnabled       bool
 	gzipEnabled            bool
@@ -97,7 +100,6 @@ type app struct {
 	multipartMaxMemory     int64
 	maxBodyBytes           int64
 	name                   string
-	appType                string
 	importPath             string
 	baseDir                string
 	envProfile             string
@@ -114,6 +116,7 @@ type app struct {
 	defaultContentType     *ahttp.ContentType
 
 	cfg            *config.Config
+	vfs            *vfs.VFS
 	tlsCfg         *tls.Config
 	he             *HTTPEngine
 	wse            *ws.Engine
@@ -235,6 +238,10 @@ func (a *app) BaseDir() string {
 	return a.baseDir
 }
 
+func (a *app) VirtualBaseDir() string {
+	return "/app"
+}
+
 func (a *app) ImportPath() string {
 	return a.importPath
 }
@@ -260,11 +267,20 @@ func (a *app) SetBuildInfo(bi *BuildInfo) {
 }
 
 func (a *app) IsPackaged() bool {
-	return a.isPackaged
+	return a.packagedMode
 }
 
+// TODO remove pack parameter
 func (a *app) SetPackaged(pack bool) {
-	a.isPackaged = pack
+	a.packagedMode = pack
+}
+
+func (a *app) IsEmbeddedMode() bool {
+	return a.embeddedMode
+}
+
+func (a *app) SetEmbeddedMode() {
+	a.embeddedMode = true
 }
 
 func (a *app) Profile() string {
@@ -349,13 +365,13 @@ func (a *app) WSEngine() *ws.Engine {
 	return a.wse
 }
 
+func (a *app) VFS() *vfs.VFS {
+	return a.vfs
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // app Unexported methods
 //______________________________________________________________________________
-
-func (a *app) configDir() string {
-	return filepath.Join(a.BaseDir(), "config")
-}
 
 func (a *app) logsDir() string {
 	return filepath.Join(a.BaseDir(), "logs")
@@ -371,6 +387,16 @@ func (a *app) showDeprecatedMsg(msg string, v ...interface{}) {
 }
 
 func (a *app) initPath() (err error) {
+	defer func() {
+		er := a.VFS().AddMount(a.VirtualBaseDir(), a.BaseDir())
+		if er != nil && er.(*os.PathError).Err == vfs.ErrMountExists {
+			// Update app-base-dir to infered base directory
+			if m, er := a.VFS().FindMount(a.VirtualBaseDir()); er == nil {
+				m.Proot = a.BaseDir()
+			}
+		}
+	}()
+
 	if goPath, err = ess.GoPath(); err != nil && !a.IsPackaged() {
 		return
 	}
@@ -390,26 +416,30 @@ func (a *app) initPath() (err error) {
 	// import path mode
 	goSrcDir = filepath.Join(goPath, "src")
 	a.baseDir = filepath.Join(goSrcDir, filepath.FromSlash(a.ImportPath()))
-	if a.isPackaged {
+	if a.IsPackaged() {
 		ep, er := os.Executable()
 		if er != nil {
 			err = er
 			return
 		}
-		a.baseDir = filepath.Clean(filepath.Dir(filepath.Dir(ep)))
+
+		if a.embeddedMode {
+			a.baseDir = filepath.Dir(ep)
+		} else {
+			a.baseDir = filepath.Dir(filepath.Dir(ep))
+		}
+		a.baseDir = filepath.Clean(a.baseDir)
 	}
 
 	if !ess.IsFileExists(a.BaseDir()) {
 		err = fmt.Errorf("import path does not exists: %s", a.ImportPath())
 	}
-
 	return
 }
 
 func (a *app) initConfigValues() (err error) {
 	cfg := a.Config()
 	a.name = cfg.StringDefault("name", filepath.Base(a.BaseDir()))
-	a.appType = strings.ToLower(cfg.StringDefault("type", ""))
 
 	a.envProfile = cfg.StringDefault("env.active", defaultEnvProfile)
 	if err = a.SetProfile(a.Profile()); err != nil {
@@ -447,7 +477,7 @@ func (a *app) initConfigValues() (err error) {
 		return err
 	}
 
-	if a.appType != "websocket" {
+	if a.Type() != "websocket" {
 		maxBodySizeStr := cfg.StringDefault("request.max_body_size", "5mb")
 		if a.maxBodyBytes, err = ess.StrToBytes(maxBodySizeStr); err != nil {
 			return errors.New("'request.max_body_size' value is not a valid size unit")

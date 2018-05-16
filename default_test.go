@@ -62,6 +62,7 @@ func TestDefaultApp(t *testing.T) {
 	assert.NotNil(t, AppViewEngine())
 	assert.NotNil(t, AppSecurityManager())
 	assert.NotNil(t, AppSessionManager())
+	assert.NotNil(t, AppVFS())
 
 	// Default App Start and Shutdown
 	t.Log("Default App Start and Shutdown")
@@ -89,8 +90,6 @@ func TestDefaultApp(t *testing.T) {
 		t.Log("Error hanlder")
 		return true
 	})
-
-	Middlewares(ToMiddleware(thirdPartyMiddleware1))
 
 	AddLoggerHook("testhook", func(e log.Entry) {
 		t.Log("test logger hook")

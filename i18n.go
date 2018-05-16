@@ -5,10 +5,9 @@
 package aah
 
 import (
-	"path/filepath"
+	"path"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/essentials.v0"
 	"aahframework.org/i18n.v0"
 )
 
@@ -33,20 +32,19 @@ func (a *app) DefaultI18nLang() string {
 //______________________________________________________________________________
 
 func (a *app) initI18n() error {
-	i18nDir := filepath.Join(a.BaseDir(), "i18n")
-	if !ess.IsFileExists(i18nDir) {
+	i18nPath := path.Join(a.VirtualBaseDir(), "i18n")
+	if !a.VFS().IsExists(i18nPath) {
 		// i18n directory not exists, scenario could be only API application
 		return nil
 	}
 
-	ai18n := i18n.New()
+	ai18n := i18n.NewWithVFS(a.VFS())
 	ai18n.DefaultLocale = a.DefaultI18nLang()
-	if err := ai18n.Load(i18nDir); err != nil {
+	if err := ai18n.Load(i18nPath); err != nil {
 		return err
 	}
 
 	a.i18n = ai18n
-
 	return nil
 }
 
