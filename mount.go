@@ -167,8 +167,8 @@ func (m Mount) cleanDir(p string) string {
 }
 
 func (m Mount) open(name string) (*file, error) {
-	if m.tree == nil {
-		return nil, os.ErrInvalid
+	if m.isTreeEmpty() {
+		return nil, os.ErrNotExist
 	}
 
 	if m.Vroot == name { // extact match, root dir
@@ -229,5 +229,5 @@ func (m *Mount) match(name string) bool {
 }
 
 func (m *Mount) isTreeEmpty() bool {
-	return len(m.tree.childs) == 0
+	return m.tree == nil || len(m.tree.childs) == 0
 }
