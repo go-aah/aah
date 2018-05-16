@@ -85,7 +85,6 @@ func newApp() *app {
 type app struct {
 	physicalPathMode       bool
 	packagedMode           bool
-	embeddedMode           bool
 	serverHeaderEnabled    bool
 	requestIDEnabled       bool
 	gzipEnabled            bool
@@ -276,11 +275,11 @@ func (a *app) SetPackaged(pack bool) {
 }
 
 func (a *app) IsEmbeddedMode() bool {
-	return a.embeddedMode
+	return a.VFS().IsEmbeddedMode()
 }
 
 func (a *app) SetEmbeddedMode() {
-	a.embeddedMode = true
+	a.VFS().SetEmbeddedMode()
 }
 
 func (a *app) Profile() string {
@@ -423,7 +422,7 @@ func (a *app) initPath() (err error) {
 			return
 		}
 
-		if a.embeddedMode {
+		if a.IsEmbeddedMode() {
 			a.baseDir = filepath.Dir(ep)
 		} else {
 			a.baseDir = filepath.Dir(filepath.Dir(ep))

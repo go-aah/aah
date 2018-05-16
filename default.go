@@ -133,7 +133,7 @@ func SetAppPackaged(pack bool) {
 // AppIsEmbeddedMode method returns true if application VFS is running embeded mode,
 // otherwise false. It means aah VFS embeds the mounted files within binary.
 func AppIsEmbeddedMode() bool {
-	return defaultApp.embeddedMode
+	return defaultApp.IsEmbeddedMode()
 }
 
 // AppSetEmbeddedMode method sets the application VFS mode to embeded state.

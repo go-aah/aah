@@ -35,6 +35,8 @@ func (a *app) Start() {
 		sessionMode = "stateful"
 	}
 
+	a.Log().Infof("App Base Directory: %s", a.BaseDir())
+	a.Log().Infof("App Virtual Base Directory: %s", a.VirtualBaseDir())
 	a.Log().Infof("App Name: %s", a.Name())
 	a.Log().Infof("App Version: %s", a.BuildInfo().Version)
 	a.Log().Infof("App Build Date: %s", a.BuildInfo().Date)
