@@ -105,7 +105,7 @@ func (s *staticManager) Serve(ctx *Context) error {
 	// Serve file
 	if fi.Mode().IsRegular() {
 		// `Cache-Control` header based on `cache.static.*`
-		if contentType, err := detectFileContentType(fi.Name(), fr); err == nil {
+		if contentType, err := detectFileContentType(fi.Name(), f); err == nil {
 			ctx.Res.Header().Set(ahttp.HeaderContentType, contentType)
 
 			// apply cache header if environment profile is `prod`
