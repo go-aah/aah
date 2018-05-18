@@ -39,11 +39,6 @@ const (
 	defaultHTTPPort   = "8080"
 )
 
-var (
-	goPath   string
-	goSrcDir string
-)
-
 // BuildInfo holds the aah application build information; such as BinaryName,
 // Version and Date.
 type BuildInfo struct {
@@ -396,7 +391,7 @@ func (a *app) initPath() error {
 		}
 	}()
 
-	// app is packaged
+	// Application is packaged, it means built via `aah build`
 	if a.IsPackaged() {
 		ep, err := os.Executable()
 		if err != nil {
@@ -413,11 +408,11 @@ func (a *app) initPath() error {
 		return nil
 	}
 
+	// If not packaged, get the GOPATH
 	gopath, err := ess.GoPath()
 	if err != nil {
 		return err
 	}
-	goPath = gopath
 
 	// If its a physical location, we got the app base directory
 	if filepath.IsAbs(a.ImportPath()) {
@@ -431,7 +426,7 @@ func (a *app) initPath() error {
 	}
 
 	// Import path mode
-	a.baseDir = filepath.Join(goPath, "src", filepath.FromSlash(a.ImportPath()))
+	a.baseDir = filepath.Join(gopath, "src", filepath.FromSlash(a.ImportPath()))
 	if !ess.IsFileExists(a.BaseDir()) {
 		return fmt.Errorf("import path does not exists: %s", a.ImportPath())
 	}
