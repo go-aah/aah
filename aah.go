@@ -385,41 +385,22 @@ func (a *app) showDeprecatedMsg(msg string, v ...interface{}) {
 	warnf("Deprecated elements are planned to be remove in major release v1.0.0")
 }
 
-func (a *app) initPath() (err error) {
+func (a *app) initPath() error {
 	defer func() {
-		er := a.VFS().AddMount(a.VirtualBaseDir(), a.BaseDir())
-		if er != nil && er.(*os.PathError).Err == vfs.ErrMountExists {
+		err := a.VFS().AddMount(a.VirtualBaseDir(), a.BaseDir())
+		if err != nil && err.(*os.PathError).Err == vfs.ErrMountExists {
 			// Update app-base-dir to inferred base directory
-			if m, er := a.VFS().FindMount(a.VirtualBaseDir()); er == nil {
+			if m, err := a.VFS().FindMount(a.VirtualBaseDir()); err == nil {
 				m.Proot = a.BaseDir()
 			}
 		}
 	}()
 
-	if goPath, err = ess.GoPath(); err != nil && !a.IsPackaged() {
-		return
-	}
-
-	// If its a physical location, we got the app base directory
-	if filepath.IsAbs(a.ImportPath()) {
-		if !ess.IsFileExists(a.ImportPath()) {
-			err = fmt.Errorf("path does not exists: %s", a.ImportPath())
-			return
-		}
-
-		a.baseDir = a.ImportPath()
-		a.physicalPathMode = true
-		return
-	}
-
-	// import path mode
-	goSrcDir = filepath.Join(goPath, "src")
-	a.baseDir = filepath.Join(goSrcDir, filepath.FromSlash(a.ImportPath()))
+	// app is packaged
 	if a.IsPackaged() {
-		ep, er := os.Executable()
-		if er != nil {
-			err = er
-			return
+		ep, err := os.Executable()
+		if err != nil {
+			return err
 		}
 
 		if a.IsEmbeddedMode() {
@@ -427,13 +408,35 @@ func (a *app) initPath() (err error) {
 		} else {
 			a.baseDir = filepath.Dir(filepath.Dir(ep))
 		}
+
 		a.baseDir = filepath.Clean(a.baseDir)
+		return nil
 	}
 
-	if !ess.IsFileExists(a.BaseDir()) {
-		err = fmt.Errorf("import path does not exists: %s", a.ImportPath())
+	gopath, err := ess.GoPath()
+	if err != nil {
+		return err
 	}
-	return
+	goPath = gopath
+
+	// If its a physical location, we got the app base directory
+	if filepath.IsAbs(a.ImportPath()) {
+		if !ess.IsFileExists(a.ImportPath()) {
+			return fmt.Errorf("path does not exists: %s", a.ImportPath())
+		}
+
+		a.baseDir = filepath.Clean(a.ImportPath())
+		a.physicalPathMode = true
+		return nil
+	}
+
+	// Import path mode
+	a.baseDir = filepath.Join(goPath, "src", filepath.FromSlash(a.ImportPath()))
+	if !ess.IsFileExists(a.BaseDir()) {
+		return fmt.Errorf("import path does not exists: %s", a.ImportPath())
+	}
+
+	return nil
 }
 
 func (a *app) initConfigValues() (err error) {

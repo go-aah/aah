@@ -197,6 +197,7 @@ func TestAppMisc(t *testing.T) {
 	// simualate CLI call
 	t.Log("simualate CLI call")
 	a.SetBuildInfo(nil)
+	a.packagedMode = false
 	err = a.Init(importPath)
 	assert.Nil(t, err)
 
@@ -214,7 +215,7 @@ func TestAppMisc(t *testing.T) {
 	t.Log("simulate import path")
 	a.importPath = "github.com/jeevatkm/noapp"
 	err = a.initPath()
-	assert.Nil(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "import path does not exists:"))
 }
 
 func fireRequest(t *testing.T, req *http.Request) *testResult {
