@@ -20,12 +20,16 @@ import (
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
+	"aahframework.org/security.v0"
+	"aahframework.org/security.v0/scheme"
 	"aahframework.org/vfs.v0"
 )
 
 const (
-	wildcardSubdomainPrefix = "*."
-	methodWebSocket         = "WS"
+	wildcardSubdomainPrefix  = "*."
+	methodWebSocket          = "WS"
+	loginSubmitRouteName     = "aah_login_submit"
+	formAuthLoginSubmitRoute = "aahFormAuthLoginSubmit"
 )
 
 var (
@@ -47,22 +51,38 @@ var (
 	ErrNoDomainRoutesConfigFound = errors.New("router: no domain routes config found")
 )
 
+// aah application interface for minimal purpose
+type application interface {
+	Config() *config.Config
+	VFS() *vfs.VFS
+	SecurityManager() *security.Manager
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
 //______________________________________________________________________________
 
 // New method returns the Router instance.
 func New(configPath string, appCfg *config.Config) *Router {
-	return NewWithVFS(nil, configPath, appCfg)
+	return &Router{
+		configPath: configPath,
+		aCfg:       appCfg,
+	}
 }
 
-// NewWithVFS method creates router instance with given VFS instance.
-func NewWithVFS(fs *vfs.VFS, configPath string, appCfg *config.Config) *Router {
-	return &Router{
-		vfs:        fs,
-		configPath: configPath,
-		appCfg:     appCfg,
+// NewWithApp method creates router instance with aah application instance.
+func NewWithApp(app interface{}, configPath string) (*Router, error) {
+	a, ok := app.(application)
+	if !ok {
+		return nil, fmt.Errorf("router: not a valid aah application instance")
 	}
+
+	rtr := &Router{configPath: configPath, app: a}
+	if err := rtr.Load(); err != nil {
+		return nil, err
+	}
+
+	return rtr, nil
 }
 
 // IsDefaultAction method is to identify given action name is defined by
@@ -89,25 +109,25 @@ type Router struct {
 	addresses    []string
 	rootDomain   *Domain
 	singleDomain *Domain
-	vfs          *vfs.VFS
+	app          application
 	config       *config.Config
-	appCfg       *config.Config
+	aCfg         *config.Config // kept for backward purpose, to be removed in subsequent release
 }
 
 // Load method loads a configuration from given file e.g. `routes.conf` and
 // applies env profile override values if available.
 func (r *Router) Load() (err error) {
-	if !r.vfs.IsExists(r.configPath) {
+	if !r.app.VFS().IsExists(r.configPath) {
 		return fmt.Errorf("router: configuration does not exists: %v", r.configPath)
 	}
 
-	r.config, err = config.VFSLoadFile(r.vfs, r.configPath)
+	r.config, err = config.VFSLoadFile(r.app.VFS(), r.configPath)
 	if err != nil {
 		return err
 	}
 
 	// apply aah.conf env variables
-	if envRoutesValues, found := r.appCfg.GetSubConfig("routes"); found {
+	if envRoutesValues, found := r.appConfig().GetSubConfig("routes"); found {
 		log.Debug("env routes {...} values found, applying it")
 		if err = r.config.Merge(envRoutesValues); err != nil {
 			return fmt.Errorf("router: routes.conf: %s", err)
@@ -170,7 +190,8 @@ func (r *Router) RegisteredActions() map[string]map[string]uint8 {
 	methods := map[string]map[string]uint8{}
 	for _, d := range r.Domains {
 		for _, route := range d.routes {
-			if route.IsStatic || route.Method == methodWebSocket {
+			if route.IsStatic || route.Method == methodWebSocket ||
+				route.Name == loginSubmitRouteName {
 				continue
 			}
 			addRegisteredAction(methods, route)
@@ -224,7 +245,7 @@ func (r *Router) processRoutesConfig() (err error) {
 		//   2) aah.conf `server.port`
 		//   3) 8080
 		port := strings.TrimSpace(domainCfg.StringDefault("port",
-			r.appCfg.StringDefault("server.port", "8080")))
+			r.appConfig().StringDefault("server.port", "8080")))
 		if port == "80" || port == "443" {
 			port = ""
 		}
@@ -359,7 +380,32 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 			return err
 		}
 	}
+
+	// Add form login route per security.conf for configured domains
+	for _, route := range domain.routes {
+		if !ess.IsStrEmpty(route.Auth) {
+			authScheme := r.app.SecurityManager().GetAuthScheme(route.Auth)
+			if formAuth, ok := authScheme.(*scheme.FormAuth); ok {
+				_ = domain.AddRoute(&Route{
+					Name:   loginSubmitRouteName,
+					Path:   formAuth.LoginSubmitURL,
+					Method: ahttp.MethodPost,
+					Target: formAuthLoginSubmitRoute,
+					Auth:   route.Auth,
+				})
+				break
+			}
+		}
+	}
+
 	return nil
+}
+
+func (r *Router) appConfig() *config.Config {
+	if r.aCfg == nil {
+		return r.app.Config()
+	}
+	return r.aCfg
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -387,13 +433,13 @@ type Route struct {
 }
 
 type parentRouteInfo struct {
+	AntiCSRFCheck bool
+	CORSEnabled   bool
 	ParentName    string
 	PrefixPath    string
 	Target        string
 	Auth          string
-	AntiCSRFCheck bool
 	CORS          *CORS
-	CORSEnabled   bool
 }
 
 // IsDir method returns true if serving directory otherwise false.
@@ -404,6 +450,12 @@ func (r *Route) IsDir() bool {
 // IsFile method returns true if serving single file otherwise false.
 func (r *Route) IsFile() bool {
 	return !ess.IsStrEmpty(r.File)
+}
+
+// IsFormAuthLoginSubmit method returns true for form auth login submit route
+// otherwise false.
+func (r *Route) IsFormAuthLoginSubmit() bool {
+	return r.Name == loginSubmitRouteName
 }
 
 // ValidationRule methdo returns `validation rule, true` if exists for path param

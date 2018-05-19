@@ -28,7 +28,7 @@ func TestRouterCORS1(t *testing.T) {
 
 	routes := router.Domains["localhost:8080"].routes
 	assert.NotNil(t, routes)
-	assert.Equal(t, 7, len(routes))
+	assert.Equal(t, 8, len(routes))
 
 	getUserRoute := routes["get_user"]
 	assert.NotNil(t, getUserRoute.CORS)
@@ -63,7 +63,7 @@ func TestRouterCORS2(t *testing.T) {
 
 	routes := router.Domains["localhost:8080"].routes
 	assert.NotNil(t, routes)
-	assert.Equal(t, 7, len(routes))
+	assert.Equal(t, 8, len(routes))
 
 	getUserRoute := routes["get_user"]
 	assert.NotNil(t, getUserRoute.CORS)

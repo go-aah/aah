@@ -15,6 +15,8 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/security.v0"
+	"aahframework.org/security.v0/scheme"
 	"aahframework.org/test.v0/assert"
 	"aahframework.org/vfs.v0"
 )
@@ -164,77 +166,77 @@ func TestRouterStaticLoadConfiguration(t *testing.T) {
 func TestRouterErrorLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-error.conf")
-	assert.NotNil(t, router)
+	assert.Nil(t, router)
 	assert.True(t, strings.HasPrefix(err.Error(), "syntax error line"))
 }
 
 func TestRouterErrorHostLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-no-hostname.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-no-hostname.conf")
-	assert.NotNil(t, router)
+	assert.Nil(t, router)
 	assert.Equal(t, "'localhost.host' key is missing", err.Error())
 }
 
 func TestRouterErrorPathLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-path-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-path-error.conf")
-	assert.NotNil(t, router)
+	assert.Nil(t, router)
 	assert.Equal(t, "'app_index.path' key is missing", err.Error())
 }
 
 func TestRouterErrorControllerLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-controller-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-controller-error.conf")
-	assert.NotNil(t, router)
+	assert.Nil(t, router)
 	assert.Equal(t, "'app_index.controller' or 'app_index.websocket' key is missing", err.Error())
 }
 
 func TestRouterErrorStaticPathLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-static-path-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-path-error.conf")
-	assert.NotNil(t, router)
+	assert.Nil(t, router)
 	assert.Equal(t, "'static.public.path' key is missing", err.Error())
 }
 
 func TestRouterErrorStaticPathPatternLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-static-path-pattern-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-path-pattern-error.conf")
-	assert.NotNil(t, router)
+	assert.Nil(t, router)
 	assert.Equal(t, "'static.public.path' parameters can not be used with static", err.Error())
 }
 
 func TestRouterErrorStaticDirFileLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-static-dir-file-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-dir-file-error.conf")
-	assert.NotNil(t, router)
+	assert.Nil(t, router)
 	assert.Equal(t, "'static.public.dir' & 'static.public.file' key(s) cannot be used together", err.Error())
 }
 
 func TestRouterErrorStaticNoDirFileLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-static-no-dir-file-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-no-dir-file-error.conf")
-	assert.NotNil(t, router)
+	assert.Nil(t, router)
 	assert.Equal(t, "either 'static.public.dir' or 'static.public.file' key have to be present", err.Error())
 }
 
 func TestRouterErrorStaticPathBeginSlashLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-static-path-slash-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-static-path-slash-error.conf")
-	assert.NotNil(t, router)
+	assert.Nil(t, router)
 	assert.Equal(t, "'static.public.path' [static], path must begin with '/'", err.Error())
 }
 
 func TestRouterErrorRoutesPathBeginSlashLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes-path-slash-error.conf")
 	assert.NotNilf(t, err, "expected error loading '%v'", "routes-path-slash-error.conf")
-	assert.NotNil(t, router)
+	assert.Nil(t, router)
 	assert.Equal(t, "'app_index.path' [login], path must begin with '/'", err.Error())
 }
 
 func TestRouterNoDomainRoutesFound(t *testing.T) {
 	router, err := createRouter("routes-no-domains.conf")
 	assert.Equal(t, ErrNoDomainRoutesConfigFound, err)
-	assert.NotNil(t, router)
+	assert.Nil(t, router)
 }
 
 func TestRouterDomainConfig(t *testing.T) {
@@ -399,7 +401,7 @@ func TestRouterConfigNotExists(t *testing.T) {
 	router, err := createRouter("routes-not-exists.conf")
 	assert.NotNil(t, err)
 	assert.True(t, strings.HasPrefix(err.Error(), "router: configuration does not exists"))
-	assert.Nil(t, router.config)
+	assert.Nil(t, router)
 }
 
 func TestRouterNamespaceConfig(t *testing.T) {
@@ -428,7 +430,7 @@ func TestRouterNamespaceSimplifiedConfig(t *testing.T) {
 
 	routes := router.Domains["localhost:8080"].routes
 	assert.NotNil(t, routes)
-	assert.Equal(t, 2, len(routes))
+	assert.Equal(t, 3, len(routes))
 
 	// show_basket
 	assert.Equal(t, "/baskets", routes["show_basket"].Path)
@@ -449,7 +451,7 @@ func TestRouterNamespaceSimplified2Config(t *testing.T) {
 
 	routes := router.Domains["localhost:8080"].routes
 	assert.NotNil(t, routes)
-	assert.Equal(t, 7, len(routes))
+	assert.Equal(t, 8, len(routes))
 
 	for _, v := range strings.Fields("list_users delete_user get_user get_user_settings update_user update_user_settings create_user") {
 		if _, found := routes[v]; !found {
@@ -518,6 +520,27 @@ func TestRouterWebSocketConfig(t *testing.T) {
 	assert.Equal(t, "Text", routes["ws_text"].Action)
 }
 
+func TestMiscRouter(t *testing.T) {
+	r, err := NewWithApp(nil, "configPath")
+	assert.NotNil(t, err)
+	assert.Equal(t, "router: not a valid aah application instance", err.Error())
+	assert.Nil(t, r)
+
+	r = New("configPath", nil)
+	assert.NotNil(t, r)
+	assert.Nil(t, r.config)
+}
+
+type app struct {
+	cfg *config.Config
+	fs  *vfs.VFS
+	sec *security.Manager
+}
+
+func (a *app) Config() *config.Config             { return a.cfg }
+func (a *app) VFS() *vfs.VFS                      { return a.fs }
+func (a *app) SecurityManager() *security.Manager { return a.sec }
+
 func createRouter(filename string) (*Router, error) {
 	fs := new(vfs.VFS)
 	fs.AddMount("/app/config", testdataBaseDir())
@@ -529,11 +552,11 @@ func createRouter(filename string) (*Router, error) {
 			}
 		}`)
 
-	router := New("/app/config/"+filename, appCfg)
-	router.vfs = fs
-	err := router.Load()
+	sec := security.New()
+	sec.AddAuthScheme("form_auth", &scheme.FormAuth{LoginSubmitURL: "/login"})
 
-	return router, err
+	// config path in vfs, filepath.Join not required
+	return NewWithApp(&app{cfg: appCfg, fs: fs, sec: sec}, "/app/config/"+filename)
 }
 
 func createHTTPRequest(host, path string) *http.Request {
