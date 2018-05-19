@@ -109,6 +109,7 @@ func (a *app) initView() error {
 	}
 
 	a.viewMgr = viewMgr
+	a.SecurityManager().AntiCSRF.Enabled = true
 
 	return nil
 }

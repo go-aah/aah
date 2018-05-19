@@ -45,9 +45,9 @@ func (a *app) Router() *router.Router {
 //______________________________________________________________________________
 
 func (a *app) initRouter() error {
-	rtr := router.NewWithVFS(a.VFS(),
-		path.Join(a.VirtualBaseDir(), "config", "routes.conf"), a.Config())
-	if err := rtr.Load(); err != nil {
+	rtr, err := router.NewWithApp(a,
+		path.Join(a.VirtualBaseDir(), "config", "routes.conf"))
+	if err != nil {
 		return fmt.Errorf("routes.conf: %s", err)
 	}
 	a.router = rtr
@@ -117,8 +117,8 @@ func handleRoute(ctx *Context) flowResult {
 		return flowStop
 	}
 
-	// security form auth case
-	if isFormAuthLoginRoute(ctx) {
+	// security form auth login submit case
+	if ctx.route.IsFormAuthLoginSubmit() {
 		return flowCont
 	}
 

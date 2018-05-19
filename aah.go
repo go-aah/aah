@@ -150,6 +150,9 @@ func (a *app) Init(importPath string) error {
 		if err = a.initConfigValues(); err != nil {
 			return err
 		}
+		if err = a.initSecurity(); err != nil {
+			return err
+		}
 		if err = a.initRouter(); err != nil {
 			return err
 		}
@@ -174,6 +177,9 @@ func (a *app) Init(importPath string) error {
 		if err = a.initI18n(); err != nil {
 			return err
 		}
+		if err = a.initSecurity(); err != nil {
+			return err
+		}
 		if err = a.initRouter(); err != nil {
 			return err
 		}
@@ -181,9 +187,6 @@ func (a *app) Init(importPath string) error {
 			return err
 		}
 		if err = a.initView(); err != nil {
-			return err
-		}
-		if err = a.initSecurity(); err != nil {
 			return err
 		}
 		if err = a.initStatic(); err != nil {

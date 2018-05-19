@@ -71,7 +71,6 @@ func (a *app) initSecurity() error {
 		return err
 	}
 
-	asecmgr.AntiCSRF.Enabled = (a.ViewEngine() != nil)
 	a.securityMgr = asecmgr
 	return nil
 }
@@ -344,14 +343,6 @@ func writeAntiCSRFCookie(ctx *Context, secret []byte) {
 	if err := ctx.a.SecurityManager().AntiCSRF.SetCookie(ctx.Res, secret); err != nil {
 		ctx.Log().Error("Unable to write Anti-CSRF cookie")
 	}
-}
-
-func isFormAuthLoginRoute(ctx *Context) bool {
-	authScheme := ctx.a.SecurityManager().GetAuthScheme(ctx.route.Auth)
-	if authScheme != nil && authScheme.Scheme() == "form" {
-		return authScheme.(*scheme.FormAuth).LoginSubmitURL == ctx.route.Path
-	}
-	return false
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
