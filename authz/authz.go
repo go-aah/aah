@@ -20,7 +20,7 @@ var (
 // (aka 'application user') access control information.
 type Authorizer interface {
 	// Init method gets called by framework during an application start.
-	Init(cfg *config.Config) error
+	Init(appCfg *config.Config) error
 
 	// GetAuthorizationInfo method gets called after authentication is successful
 	// to get Subject's aka User access control information such as roles and permissions.

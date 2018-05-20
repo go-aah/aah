@@ -27,7 +27,7 @@ var (
 // authentication information during authentication process.
 type Authenticator interface {
 	// Init method gets called by framework during an application start.
-	Init(cfg *config.Config) error
+	Init(appCfg *config.Config) error
 
 	// GetAuthenticationInfo method gets called when authentication happens for
 	// user provided credentials.

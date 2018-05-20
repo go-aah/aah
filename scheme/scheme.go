@@ -16,34 +16,37 @@ import (
 	"aahframework.org/security.v0/authz"
 )
 
-type (
-	// Schemer interface is implemented by aah framework's authentication scheme.
-	Schemer interface {
-		// Init method gets called by framework during an application start.
-		Init(appCfg *config.Config, keyName string) error
+// Schemer interface is used to create new Auth Scheme for aah framework.
+type Schemer interface {
+	// Init method gets called by framework during an application start.
+	//
+	// `keyName` is value of security auth scheme key. For e.g.:
+	// `security.auth_schemes.<keyname>`.
+	Init(appCfg *config.Config, keyName string) error
 
-		// Scheme method returns the auth scheme name. For e.g.: form, basic, generic, etc.
-		Scheme() string
+	// Scheme method returns the auth scheme name. For e.g.: form, basic, oauth, generic, etc.
+	Scheme() string
 
-		// SetAuthenticator method is used to set user provided Authentication implementation.
-		SetAuthenticator(authenticator authc.Authenticator) error
+	// SetAuthenticator method is used to set user provided Authentication implementation.
+	// Value from `security.auth_schemes.<keyname>.authenticator`
+	SetAuthenticator(authenticator authc.Authenticator) error
 
-		// SetAuthorizer method is used to set user provided Authorization implementation.
-		SetAuthorizer(authorizer authz.Authorizer) error
+	// SetAuthorizer method is used to set user provided Authorization implementation.
+	// Value from `security.auth_schemes.<keyname>.authorizer`
+	SetAuthorizer(authorizer authz.Authorizer) error
 
-		// DoAuthenticate method called by SecurityManager to get Subject authentication
-		// information.
-		DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error)
+	// DoAuthenticate method called by aah SecurityManager to get Subject authentication
+	// information.
+	DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error)
 
-		// DoAuthorizationInfo method called by SecurityManager to get Subject authorization
-		// information.
-		DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo
+	// DoAuthorizationInfo method called by aah SecurityManager to get
+	// Subject's authorization information only after successful authentication.
+	DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo
 
-		// ExtractAuthenticationToken method called by SecurityManager to extract identity details
-		// from the HTTP request.
-		ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken
-	}
-)
+	// ExtractAuthenticationToken method called by aah SecurityManager to
+	// extract identity details from the HTTP request.
+	ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken
+}
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
