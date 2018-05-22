@@ -117,11 +117,11 @@ type Router struct {
 // Load method loads a configuration from given file e.g. `routes.conf` and
 // applies env profile override values if available.
 func (r *Router) Load() (err error) {
-	if !r.app.VFS().IsExists(r.configPath) {
+	if !r.isExists(r.configPath) {
 		return fmt.Errorf("router: configuration does not exists: %v", r.configPath)
 	}
 
-	r.config, err = config.VFSLoadFile(r.app.VFS(), r.configPath)
+	r.config, err = r.readConfig(r.configPath)
 	if err != nil {
 		return err
 	}
@@ -217,6 +217,20 @@ func (r *Router) RegisteredWSActions() map[string]map[string]uint8 {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Router unexpoted methods
 //______________________________________________________________________________
+
+func (r *Router) isExists(name string) bool {
+	if r.app == nil {
+		return vfs.IsExists(nil, name)
+	}
+	return vfs.IsExists(r.app.VFS(), name)
+}
+
+func (r *Router) readConfig(name string) (*config.Config, error) {
+	if r.app == nil {
+		return config.LoadFile(name)
+	}
+	return config.VFSLoadFile(r.app.VFS(), r.configPath)
+}
 
 func (r *Router) processRoutesConfig() (err error) {
 	domains := r.config.KeysByPath("domains")
