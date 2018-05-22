@@ -143,18 +143,27 @@ func TestEngineWSClient(t *testing.T) {
 	}
 }
 
+type app struct {
+	cfg *config.Config
+	r   *router.Router
+	l   log.Loggerer
+}
+
+func (a *app) Config() *config.Config { return a.cfg }
+func (a *app) Router() *router.Router { return a.r }
+func (a *app) Log() log.Loggerer      { return a.l }
+
 func newEngine(t *testing.T, cfg *config.Config) *Engine {
 	l, err := log.New(cfg)
 	assert.Nil(t, err)
 
-	r := router.New(filepath.Join(testdataBaseDir(), "routes.conf"), config.NewEmptyConfig())
+	r := router.New(filepath.Join(testdataBaseDir(), "routes.conf"), config.NewEmpty())
 	err = r.Load()
 	assert.Nil(t, err)
 
-	wse, err := New(cfg, l, r)
+	wse, err := New(&app{cfg: cfg, r: r, l: l})
 	assert.Nil(t, err)
-	assert.NotNil(t, wse.logger)
-	assert.NotNil(t, wse.cfg)
+	assert.NotNil(t, wse.app)
 
 	// Adding events
 	addWebSocketEvents(t, wse)

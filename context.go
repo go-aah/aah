@@ -35,7 +35,7 @@ var (
 type Context struct {
 	Req    *Request
 	Conn   net.Conn
-	Header http.Header
+	Header http.Header // These headers are sent to WS client during Connection upgrade
 
 	e          *Engine
 	hs         gws.Handshake

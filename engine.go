@@ -62,6 +62,13 @@ type IDGenerator func(ctx *Context) string
 // EventCallbackFunc func type used for all WebSocket event callback.
 type EventCallbackFunc func(eventName string, ctx *Context)
 
+// aah application interface for minimal purpose
+type application interface {
+	Config() *config.Config
+	Router() *router.Router
+	Log() log.Loggerer
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Engine type and its methods
 //______________________________________________________________________________
@@ -70,15 +77,13 @@ type EventCallbackFunc func(eventName string, ctx *Context)
 type Engine struct {
 	checkOrigin      bool
 	originWhitelist  []*url.URL
-	cfg              *config.Config
-	router           *router.Router
+	app              application
 	registry         *ainsp.TargetRegistry
 	onPreConnect     EventCallbackFunc
 	onPostConnect    EventCallbackFunc
 	onPostDisconnect EventCallbackFunc
 	onError          EventCallbackFunc
 	idGenerator      IDGenerator
-	logger           log.Loggerer
 }
 
 // AddWebSocket method adds the given WebSocket implementation into engine.
@@ -133,7 +138,7 @@ func (e *Engine) SetIDGenerator(g IDGenerator) {
 // Along with Check Origin, aah WebSocket events such as `OnPreConnect`,
 // `OnPostConnect`, `OnPostDisconnect` and `OnError`.
 func (e *Engine) Handle(w http.ResponseWriter, r *http.Request) {
-	domain := e.router.Lookup(ahttp.Host(r))
+	domain := e.app.Router().Lookup(ahttp.Host(r))
 	if domain == nil {
 		e.Log().Errorf("WS: domain not found: %s", ahttp.Host(r))
 		e.replyError(w, http.StatusNotFound)
@@ -173,7 +178,7 @@ func (e *Engine) Handle(w http.ResponseWriter, r *http.Request) {
 
 // Log method provides logging methods at WebSocket engine.
 func (e *Engine) Log() log.Loggerer {
-	return e.logger
+	return e.app.Log()
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
