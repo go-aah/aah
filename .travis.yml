@@ -11,13 +11,13 @@ branches:
 
 go:
   - 1.9.x
-  - 1.10.x
+  - 1.x
   - tip
 
 go_import_path: aahframework.org/ws.v0
 
 before_install:
-  - bash <(curl -s https://aahframework.org/base-before-install) "ahttp config ainsp essentials valpar log router"
+  - bash <(curl -s https://aahframework.org/base-before-install) "forge ahttp config ainsp essentials valpar log router"
 
 install:
   - go get -t -v ./...
