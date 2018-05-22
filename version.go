@@ -4,5 +4,5 @@
 
 package vfs
 
-// Version no. of VFS (Virtual FileSystem) library by aah framework
-const Version = "0.1.2"
+// Version no. of Virtual FileSystem (VFS) library by aah framework.
+const Version = "0.2.0"

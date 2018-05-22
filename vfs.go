@@ -12,15 +12,13 @@
 package vfs
 
 import (
-	"io"
+	"net/http"
 	"os"
 )
 
 // FileSystem interface implements access to a collection of named files.
 // The elements in a file path are separated by slash ('/', U+002F) characters,
 // regardless of host operating system convention.
-//
-// aah vfs is Read-Only.
 type FileSystem interface {
 	Open(name string) (File, error)
 	Lstat(name string) (os.FileInfo, error)
@@ -32,24 +30,21 @@ type FileSystem interface {
 }
 
 // File interface returned by a vfs.FileSystem's Open method.
-//
-// aah vfs is Read-Only.
 type File interface {
-	ReadSeekCloser
-	Readdir(n int) ([]os.FileInfo, error)
-	Readdirnames(n int) (names []string, err error)
-	Stat() (os.FileInfo, error)
+	http.File
+	Readdirnames(n int) ([]string, error)
 }
 
-// ReadSeekCloser interface can Read, Seek, and Close.
-type ReadSeekCloser interface {
-	io.Reader
-	io.Seeker
-	io.Closer
-}
-
-// Gziper interface is to identify node data is gzipped or not.
-type Gziper interface {
-	IsGzip() bool
+// RawBytes interface is to retrieve underlying file's raw bytes.
+//
+// Note: It could be gzip or non-gzip bytes. Use interface `Gziper`
+// to identify byte classification.
+type RawBytes interface {
 	RawBytes() []byte
+}
+
+// Gziper interface is to identify whether the file's raw bytes is gzipped or not.
+type Gziper interface {
+	RawBytes
+	IsGzip() bool
 }

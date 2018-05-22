@@ -81,6 +81,6 @@ func (f *file) Close() error {
 
 // String method Stringer interface.
 func (f file) String() string {
-	return fmt.Sprintf(`file(name=%s dir=%v gzip=%v)`,
-		f.Name(), f.IsDir(), f.IsGzip())
+	return fmt.Sprintf(`file(name=%s dir=%v gzip=%v size=%v, modtime=%v)`,
+		f.Name(), f.IsDir(), f.IsGzip(), f.Size(), f.ModTime())
 }

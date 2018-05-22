@@ -88,7 +88,8 @@ type node struct {
 
 // String method Stringer interface.
 func (n node) String() string {
-	return fmt.Sprintf(`node(name=%s dir=%v gzip=%v)`, n.Name(), n.IsDir(), n.IsGzip())
+	return fmt.Sprintf(`node(name=%s dir=%v gzip=%v size=%v, modtime=%v)`,
+		n.Name(), n.IsDir(), n.IsGzip(), n.Size(), n.ModTime())
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -160,7 +161,9 @@ func (n *node) addChild(child *node) {
 // GzipData type and methods
 //______________________________________________________________________________
 
-var _ ReadSeekCloser = (*gzipData)(nil)
+var _ io.Reader = (*gzipData)(nil)
+var _ io.Seeker = (*gzipData)(nil)
+var _ io.Closer = (*gzipData)(nil)
 
 // GzipData my goal is to expose transparent behavior for regular and gzip
 // data bytes. So I have designed gzip data handing.
