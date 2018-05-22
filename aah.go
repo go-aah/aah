@@ -206,7 +206,7 @@ func (a *app) Init(importPath string) error {
 			}
 		}
 		if a.IsWebSocketEnabled() {
-			if a.wse, err = ws.New(a.cfg, a.logger, a.router); err != nil {
+			if a.wse, err = ws.New(a); err != nil {
 				return err
 			}
 		}

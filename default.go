@@ -130,19 +130,6 @@ func SetAppPackaged(pack bool) {
 	defaultApp.SetPackaged(pack)
 }
 
-// AppIsEmbeddedMode method returns true if application VFS is running embeded mode,
-// otherwise false. It means aah VFS embeds the mounted files within binary.
-func AppIsEmbeddedMode() bool {
-	return defaultApp.IsEmbeddedMode()
-}
-
-// AppSetEmbeddedMode method sets the application VFS mode to embeded state.
-//
-// It is used by framework during VFS setup. IT'S NOT FOR AAH USER(S).
-func AppSetEmbeddedMode() {
-	defaultApp.SetEmbeddedMode()
-}
-
 // NewChildLogger method create a child logger from aah application default logger.
 func NewChildLogger(fields log.Fields) log.Loggerer {
 	return defaultApp.NewChildLogger(fields)
