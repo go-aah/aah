@@ -26,6 +26,7 @@ var (
 	ErrHTTPMethodNotAllowed       = errors.New("aah: http method not allowed")
 	ErrAccessDenied               = errors.New("aah: access denied")
 	ErrAuthenticationFailed       = errors.New("aah: authentication failed")
+	ErrAuthorizationFailed        = errors.New("aah: authorization failed")
 	ErrGeneric                    = errors.New("aah: generic error")
 	ErrValidation                 = errors.New("aah: validation error")
 	ErrRenderResponse             = errors.New("aah: render response error")
@@ -129,7 +130,7 @@ func (er *errorManager) SetHandler(handlerFn ErrorHandlerFunc) {
 func (er *errorManager) Handle(ctx *Context) {
 	// GitHub #132 Call Controller error handler if exists
 	if ceh, ok := ctx.target.(ErrorHandler); ok {
-		ctx.Log().Trace("Calling controller error handler: %s.HandleError", ctx.controller.FqName)
+		ctx.Log().Tracef("Calling controller error handler: %s.HandleError", ctx.controller.FqName)
 		if ceh.HandleError(ctx.Reply().err) {
 			return
 		}

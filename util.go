@@ -17,6 +17,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/security.v0/authz"
 )
 
 func isValidTimeUnit(str string, units ...string) bool {
@@ -212,4 +213,12 @@ func inferRedirectMode(redirectTo string) string {
 		return nonwww + " ==> " + www
 	}
 	return www + " ==> " + nonwww
+}
+
+func reason2String(reasons []*authz.Reason) string {
+	var str string
+	for _, r := range reasons {
+		str += " " + r.String()
+	}
+	return str
 }

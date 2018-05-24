@@ -124,7 +124,17 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 	}
 
 	if result == flowCont {
-		m.Next(ctx)
+		if result, reasons := ctx.route.HasAccess(ctx.Subject()); result {
+			m.Next(ctx)
+		} else {
+			ctx.Log().Warnf("Authorization failed:%v", reason2String(reasons))
+			ctx.Reply().Forbidden().Error(&Error{
+				Reason:  ErrAuthorizationFailed,
+				Code:    http.StatusForbidden,
+				Message: http.StatusText(http.StatusForbidden),
+				Data:    reasons,
+			})
+		}
 	}
 }
 
