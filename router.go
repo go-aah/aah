@@ -323,9 +323,9 @@ func (r *Router) processRoutesConfig() (err error) {
 				if !ess.IsStrEmpty(dr.ParentName) {
 					parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
 				}
-				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Target: %v, Action: %v, Auth: %v, MaxBodySize: %v\nCORS: [%v]\nValidation Rules:%v\n",
+				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Target: %v, Action: %v, Auth: %v, MaxBodySize: %v\nCORS: [%v]\nValidation Rules:%v\nAuthorization Info:%v\n",
 					dr.Name, parentInfo, dr.Path, dr.Method, dr.Target, dr.Action, dr.Auth, dr.MaxBodySize,
-					dr.CORS, dr.validationRules)
+					dr.CORS, dr.validationRules, dr.authorizationInfo)
 			}
 		}
 
@@ -379,11 +379,12 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 		return nil
 	}
 
-	routes, err := parseRoutesSection(routesCfg, &parentRouteInfo{
-		Auth:          domain.DefaultAuth,
-		CORS:          domain.CORS,
-		AntiCSRFCheck: domain.AntiCSRFEnabled,
-		CORSEnabled:   domain.CORSEnabled,
+	routes, err := parseSectionRoutes(routesCfg, &parentRouteInfo{
+		Auth:              domain.DefaultAuth,
+		CORS:              domain.CORS,
+		AntiCSRFCheck:     domain.AntiCSRFEnabled,
+		CORSEnabled:       domain.CORSEnabled,
+		AuthorizationInfo: &authorizationInfo{Satisfy: "either"},
 	})
 	if err != nil {
 		return err
@@ -423,67 +424,10 @@ func (r *Router) appConfig() *config.Config {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Route
-//______________________________________________________________________________
-
-// Route holds the single route details.
-type Route struct {
-	IsAntiCSRFCheck bool
-	IsStatic        bool
-	ListDir         bool
-	MaxBodySize     int64
-	Name            string
-	Path            string
-	Method          string
-	Target          string
-	Action          string
-	ParentName      string
-	Auth            string
-	Dir             string
-	File            string
-	CORS            *CORS
-
-	validationRules map[string]string
-}
-
-type parentRouteInfo struct {
-	AntiCSRFCheck bool
-	CORSEnabled   bool
-	ParentName    string
-	PrefixPath    string
-	Target        string
-	Auth          string
-	CORS          *CORS
-}
-
-// IsDir method returns true if serving directory otherwise false.
-func (r *Route) IsDir() bool {
-	return !ess.IsStrEmpty(r.Dir) && ess.IsStrEmpty(r.File)
-}
-
-// IsFile method returns true if serving single file otherwise false.
-func (r *Route) IsFile() bool {
-	return !ess.IsStrEmpty(r.File)
-}
-
-// IsFormAuthLoginSubmit method returns true for form auth login submit route
-// otherwise false.
-func (r *Route) IsFormAuthLoginSubmit() bool {
-	return r.Name == loginSubmitRouteName
-}
-
-// ValidationRule methdo returns `validation rule, true` if exists for path param
-// otherwise `"", false`
-func (r *Route) ValidationRule(name string) (string, bool) {
-	rules, found := r.validationRules[name]
-	return rules, found
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //______________________________________________________________________________
 
-func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes []*Route, err error) {
+func parseSectionRoutes(cfg *config.Config, routeInfo *parentRouteInfo) (routes []*Route, err error) {
 	for _, routeName := range cfg.Keys() {
 		// getting 'path'
 		routePath, found := cfg.String(routeName + ".path")
@@ -566,6 +510,13 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		// getting Anti-CSRF check value, GitHub go-aah/aah#115
 		routeAntiCSRFCheck := cfg.BoolDefault(routeName+".anti_csrf_check", routeInfo.AntiCSRFCheck)
 
+		// Authorization Info
+		routeAuthorizationInfo, er := parseAuthorizationInfo(cfg, routeName, routeInfo)
+		if er != nil {
+			err = er
+			return
+		}
+
 		// CORS
 		var cors *CORS
 		if routeInfo.CORSEnabled && routeMethod != methodWebSocket {
@@ -588,31 +539,33 @@ func parseRoutesSection(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		if notToSkip {
 			for _, m := range strings.Split(routeMethod, ",") {
 				routes = append(routes, &Route{
-					Name:            routeName,
-					Path:            actualRoutePath,
-					Method:          strings.TrimSpace(m),
-					Target:          routeTarget,
-					Action:          routeAction,
-					ParentName:      routeInfo.ParentName,
-					Auth:            routeAuth,
-					MaxBodySize:     routeMaxBodySize,
-					IsAntiCSRFCheck: routeAntiCSRFCheck,
-					CORS:            cors,
-					validationRules: pathParamRules,
+					Name:              routeName,
+					Path:              actualRoutePath,
+					Method:            strings.TrimSpace(m),
+					Target:            routeTarget,
+					Action:            routeAction,
+					ParentName:        routeInfo.ParentName,
+					Auth:              routeAuth,
+					MaxBodySize:       routeMaxBodySize,
+					IsAntiCSRFCheck:   routeAntiCSRFCheck,
+					CORS:              cors,
+					validationRules:   pathParamRules,
+					authorizationInfo: routeAuthorizationInfo,
 				})
 			}
 		}
 
 		// loading child routes
 		if childRoutes, found := cfg.GetSubConfig(routeName + ".routes"); found {
-			croutes, er := parseRoutesSection(childRoutes, &parentRouteInfo{
-				ParentName:    routeName,
-				PrefixPath:    routePath,
-				Target:        routeTarget,
-				Auth:          routeAuth,
-				AntiCSRFCheck: routeAntiCSRFCheck,
-				CORS:          cors,
-				CORSEnabled:   routeInfo.CORSEnabled,
+			croutes, er := parseSectionRoutes(childRoutes, &parentRouteInfo{
+				ParentName:        routeName,
+				PrefixPath:        routePath,
+				Target:            routeTarget,
+				Auth:              routeAuth,
+				AntiCSRFCheck:     routeAntiCSRFCheck,
+				CORS:              cors,
+				CORSEnabled:       routeInfo.CORSEnabled,
+				AuthorizationInfo: routeAuthorizationInfo,
 			})
 			if er != nil {
 				err = er

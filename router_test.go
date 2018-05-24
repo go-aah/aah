@@ -264,6 +264,7 @@ func TestRouterRegisteredActions(t *testing.T) {
 
 	methods := router.RegisteredActions()
 	assert.NotNil(t, methods)
+	assert.Equal(t, 3, len(methods))
 }
 
 func TestRouterIsDefaultAction(t *testing.T) {
@@ -518,6 +519,10 @@ func TestRouterWebSocketConfig(t *testing.T) {
 	assert.Equal(t, "anonymous", routes["ws_text"].Auth)
 	assert.Equal(t, "TestWebSocket", routes["ws_text"].Target)
 	assert.Equal(t, "Text", routes["ws_text"].Action)
+
+	methods := router.RegisteredWSActions()
+	assert.NotNil(t, methods)
+	assert.Equal(t, 1, len(methods))
 }
 
 func TestMiscRouter(t *testing.T) {
