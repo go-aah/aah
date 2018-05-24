@@ -132,24 +132,21 @@ func (a *AuthorizationInfo) IsPermittedAllp(permissions ...*Permission) bool {
 	return true
 }
 
+// Roles method returns roles in the string format.
+func (a *AuthorizationInfo) Roles() string {
+	return strings.Join(a.roles, ", ")
+}
+
+// Permissions method returns permissions in the string format.
+func (a *AuthorizationInfo) Permissions() string {
+	var ps []string
+	for _, p := range a.permissions {
+		ps = append(ps, p.String())
+	}
+	return strings.Join(ps, "|")
+}
+
 // String method is stringer interface implementation.
 func (a AuthorizationInfo) String() string {
-	var str string
-	if len(a.roles) > 0 {
-		str += "Roles[" + strings.Join(a.roles, "|") + "]"
-	} else {
-		str += "Roles[]"
-	}
-
-	if len(a.permissions) > 0 {
-		var ps []string
-		for _, p := range a.permissions {
-			ps = append(ps, p.String())
-		}
-		str += " Permissions[" + strings.Join(ps, "|") + "]"
-	} else {
-		str += " Permissions[]"
-	}
-
-	return str
+	return "Roles[" + a.Roles() + "] Permissions[" + a.Permissions() + "]"
 }

@@ -6,6 +6,7 @@ package authz
 
 import (
 	"errors"
+	"fmt"
 
 	"aahframework.org/config.v0"
 	"aahframework.org/security.v0/authc"
@@ -25,6 +26,18 @@ type Authorizer interface {
 	// GetAuthorizationInfo method gets called after authentication is successful
 	// to get Subject's aka User access control information such as roles and permissions.
 	GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *AuthorizationInfo
+}
+
+// Reason struct used to represent authorization failed details.
+type Reason struct {
+	Func     string
+	Expected string
+	Got      string
+}
+
+// String method is Stringer interface
+func (r Reason) String() string {
+	return fmt.Sprintf("reason(func=%s expected=%s got=%s)", r.Func, r.Expected, r.Got)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

@@ -61,7 +61,7 @@ func TestSecuritySubject(t *testing.T) {
 
 	str := sub.String()
 	assert.True(t, strings.Contains(str, "user@sample.com"))
-	assert.True(t, strings.Contains(str, "Roles[role1|role2|role3|role4]"))
+	assert.True(t, strings.Contains(str, "Roles[role1, role2, role3, role4]"))
 	assert.True(t, strings.Contains(str, "Permissions[newsletter:read,write]"))
 
 	// Session
