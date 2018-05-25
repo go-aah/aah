@@ -21,7 +21,7 @@ import (
 
 const (
 	flowCont flowResult = iota
-	flowStop
+	flowAbort
 )
 
 const (
@@ -70,9 +70,10 @@ type HTTPEngine struct {
 // Handle method is HTTP handler for aah application.
 func (e *HTTPEngine) Handle(w http.ResponseWriter, r *http.Request) {
 	ctx := e.ctxPool.Get().(*Context)
+	defer e.releaseContext(ctx)
+
 	ctx.Req, ctx.Res = ahttp.AcquireRequest(r), ahttp.AcquireResponseWriter(w)
 	ctx.Set(reqStartTimeKey, time.Now())
-	defer e.releaseContext(ctx)
 
 	// Record access log
 	if e.a.accessLogEnabled {
@@ -336,7 +337,6 @@ func (e *HTTPEngine) writeReply(ctx *Context) {
 
 		e.writeOnWire(ctx)
 	} else {
-		// ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
 		ctx.Res.WriteHeader(re.Code)
 	}
 
@@ -358,7 +358,6 @@ func (e *HTTPEngine) writeOnWire(ctx *Context) {
 
 	// Render it
 	if re.Rdr == nil {
-		// ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
 		ctx.Res.WriteHeader(re.Code)
 		return
 	}
@@ -369,14 +368,11 @@ func (e *HTTPEngine) writeOnWire(ctx *Context) {
 	}
 
 	// Check response qualify for Gzip
-	if e.a.gzipEnabled && ctx.Req.IsGzipAccepted &&
-		re.gzip && re.body.Len() > defaultGzipMinSize {
+	if e.qualifyGzip(ctx) && re.body.Len() > defaultGzipMinSize {
 		ctx.Res = wrapGzipWriter(ctx.Res)
 	}
 
-	// ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
 	ctx.Res.WriteHeader(re.Code)
-
 	var w io.Writer = ctx.Res
 
 	// If response dump log enabled with response body
@@ -394,10 +390,8 @@ func (e *HTTPEngine) writeOnWire(ctx *Context) {
 		if err := e.a.viewMgr.minifier(re.ContType, w, re.body); err != nil {
 			ctx.Log().Error(err)
 		}
-	} else {
-		if _, err := re.body.WriteTo(w); err != nil {
-			ctx.Log().Error(err)
-		}
+	} else if _, err := re.body.WriteTo(w); err != nil {
+		ctx.Log().Error(err)
 	}
 }
 
@@ -405,11 +399,10 @@ func (e *HTTPEngine) writeBinary(ctx *Context) {
 	re := ctx.Reply()
 
 	// Check response qualify for Gzip
-	if e.a.gzipEnabled && ctx.Req.IsGzipAccepted && re.gzip {
+	if e.qualifyGzip(ctx) {
 		ctx.Res = wrapGzipWriter(ctx.Res)
 	}
 
-	// ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
 	ctx.Res.WriteHeader(re.Code)
 
 	// currently write error on wire is not propagated to error
@@ -422,6 +415,10 @@ func (e *HTTPEngine) writeBinary(ctx *Context) {
 
 func (e *HTTPEngine) minifierExists() bool {
 	return e.a.viewMgr != nil && e.a.viewMgr.minifier != nil
+}
+
+func (e *HTTPEngine) qualifyGzip(ctx *Context) bool {
+	return e.a.gzipEnabled && ctx.Req.IsGzipAccepted && ctx.Reply().gzip
 }
 
 func (e *HTTPEngine) releaseContext(ctx *Context) {

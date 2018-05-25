@@ -164,7 +164,7 @@ func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 			loginURL = fmt.Sprintf("%s?_rt=%s", loginURL, ctx.Req.Unwrap().RequestURI)
 		}
 		ctx.Reply().Redirect(loginURL)
-		return flowStop
+		return flowAbort
 	}
 
 	ctx.e.publishOnPreAuthEvent(ctx)
@@ -181,7 +181,7 @@ func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 		}
 
 		ctx.Reply().Redirect(redirectURL)
-		return flowStop
+		return flowAbort
 	}
 
 	ctx.logger = ctx.Log().WithField("principal", authcInfo.PrimaryPrincipal().Value)
@@ -211,7 +211,7 @@ func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 		ctx.Reply().Redirect(rt)
 	}
 
-	return flowStop
+	return flowAbort
 }
 
 // doAuthcAndAuthz method does Authentication and Authorization.
@@ -233,7 +233,7 @@ func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 			Code:    http.StatusUnauthorized,
 			Message: http.StatusText(http.StatusUnauthorized),
 		})
-		return flowStop
+		return flowAbort
 	}
 
 	ctx.logger = ctx.Log().WithField("principal", authcInfo.PrimaryPrincipal().Value)

@@ -73,41 +73,72 @@ func TestStaticFilesDelivery(t *testing.T) {
 }
 
 func TestStaticDetectContentType(t *testing.T) {
-	v, _ := detectFileContentType("image1.svg", nil)
-	assert.Equal(t, "image/svg+xml", v)
+	testcases := []struct {
+		label    string
+		filename string
+		result   string
+	}{
+		{
+			label:    "svg",
+			filename: "image1.svg",
+			result:   "image/svg+xml",
+		},
+		{
+			label:    "png",
+			filename: "image2.png",
+			result:   "image/png",
+		},
+		{
+			label:    "jpg",
+			filename: "image3.jpg",
+			result:   "image/jpeg",
+		},
+		{
+			label:    "jpeg",
+			filename: "image4.jpeg",
+			result:   "image/jpeg",
+		},
+		{
+			label:    "pdf",
+			filename: "file.pdf",
+			result:   "application/pdf",
+		},
+		{
+			label:    "javascript",
+			filename: "file.js",
+			result:   "application/javascript",
+		},
+		{
+			label:    "txt",
+			filename: "file.txt",
+			result:   "text/plain; charset=utf-8",
+		},
+		{
+			label:    "xml",
+			filename: "file.xml",
+			result:   "application/xml",
+		},
+		{
+			label:    "css",
+			filename: "file.css",
+			result:   "text/css; charset=utf-8",
+		},
+		{
+			label:    "html",
+			filename: "file.html",
+			result:   "text/html; charset=utf-8",
+		},
+	}
 
-	v, _ = detectFileContentType("image2.png", nil)
-	assert.Equal(t, "image/png", v)
-
-	v, _ = detectFileContentType("image3.jpg", nil)
-	assert.Equal(t, "image/jpeg", v)
-
-	v, _ = detectFileContentType("image4.jpeg", nil)
-	assert.Equal(t, "image/jpeg", v)
-
-	v, _ = detectFileContentType("file.pdf", nil)
-	assert.Equal(t, "application/pdf", v)
-
-	v, _ = detectFileContentType("file.js", nil)
-	assert.Equal(t, "application/javascript", v)
-
-	v, _ = detectFileContentType("file.txt", nil)
-	assert.Equal(t, "text/plain; charset=utf-8", v)
-
-	v, _ = detectFileContentType("file.html", nil)
-	assert.Equal(t, "text/html; charset=utf-8", v)
-
-	v, _ = detectFileContentType("file.xml", nil)
-	assert.Equal(t, "application/xml", v)
-
-	v, _ = detectFileContentType("file.json", nil)
-	assert.Equal(t, "application/json", v)
-
-	v, _ = detectFileContentType("file.css", nil)
-	assert.Equal(t, "text/css; charset=utf-8", v)
+	for _, tc := range testcases {
+		t.Run(tc.label, func(t *testing.T) {
+			v, _ := detectFileContentType(tc.filename, nil)
+			assert.Equal(t, tc.result, v)
+		})
+	}
 
 	content, _ := ioutil.ReadFile(filepath.Join(testdataBaseDir(), "test-image.noext"))
-	v, _ = detectFileContentType("test-image.noext", bytes.NewReader(content))
+	v, _ := detectFileContentType("test-image.noext", bytes.NewReader(content))
 	assert.Equal(t, "image/png", v)
 }
 

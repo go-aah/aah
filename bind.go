@@ -151,7 +151,7 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 
 		// Parse request content by Content-Type
 		if parser, found := ctx.a.bindMgr.requestParsers[ctx.Req.ContentType().Mime]; found {
-			if res := parser(ctx); res == flowStop {
+			if res := parser(ctx); res == flowAbort {
 				return
 			}
 		}

@@ -126,6 +126,17 @@ type finallyInterceptor interface {
 //				Panic, Panic<ActionName>, Finally, Finally<ActionName>)
 // 	- Invokes Controller Action
 func ActionMiddleware(ctx *Context, m *Middleware) {
+	if err := ctx.setTarget(ctx.route); err == errTargetNotFound {
+		// No controller or action found for the route
+		ctx.Log().Warnf("Target not found, Controller: %s, Action: %s", ctx.route.Target, ctx.route.Action)
+		ctx.Reply().Error(&Error{
+			Reason:  ErrControllerOrActionNotFound,
+			Code:    http.StatusNotFound,
+			Message: http.StatusText(http.StatusNotFound),
+		})
+		return
+	}
+
 	// Finally action and method. Always executed if present
 	defer func() {
 		if finallyActionMethod := ctx.targetrv.MethodByName(incpFinallyActionName + ctx.action.Name); finallyActionMethod.IsValid() {

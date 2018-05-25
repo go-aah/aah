@@ -25,7 +25,7 @@ import (
 
 // RouteMiddleware method performs the routing logic.
 func RouteMiddleware(ctx *Context, m *Middleware) {
-	if handleRoute(ctx) == flowStop {
+	if handleRoute(ctx) == flowAbort {
 		return
 	}
 
@@ -81,14 +81,14 @@ func handleRoute(ctx *Context) flowResult {
 			Code:    http.StatusNotFound,
 			Message: http.StatusText(http.StatusNotFound),
 		})
-		return flowStop
+		return flowAbort
 	}
 	ctx.domain = domain
 
 	route, pathParams, rts := domain.Lookup(ctx.Req.Unwrap())
 	if route == nil { // route not found
 		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
-			return flowStop
+			return flowAbort
 		}
 
 		ctx.Log().Warnf("Route not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
@@ -97,14 +97,13 @@ func handleRoute(ctx *Context) flowResult {
 			Code:    http.StatusNotFound,
 			Message: http.StatusText(http.StatusNotFound),
 		})
-		return flowStop
+		return flowAbort
 	}
 	ctx.route = route
 	ctx.Req.Params.Path = pathParams
 
 	// Serving static file
 	if route.IsStatic {
-		// TODO fix me use better way to access engine
 		if err := ctx.a.staticMgr.Serve(ctx); err == errFileNotFound {
 			ctx.Log().Warnf("Static file not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 			ctx.Reply().done = false
@@ -114,23 +113,7 @@ func handleRoute(ctx *Context) flowResult {
 				Message: http.StatusText(http.StatusNotFound),
 			})
 		}
-		return flowStop
-	}
-
-	// security form auth login submit case
-	if ctx.route.IsFormAuthLoginSubmit() {
-		return flowCont
-	}
-
-	if err := ctx.setTarget(route); err == errTargetNotFound {
-		// No controller or action found for the route
-		ctx.Log().Warnf("Target not found, Controller: %s, Action: %s", route.Target, route.Action)
-		ctx.Reply().Error(&Error{
-			Reason:  ErrControllerOrActionNotFound,
-			Code:    http.StatusNotFound,
-			Message: http.StatusText(http.StatusNotFound),
-		})
-		return flowStop
+		return flowAbort
 	}
 
 	return flowCont

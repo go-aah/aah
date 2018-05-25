@@ -349,7 +349,7 @@ func (ctx *Context) writeHeaders() {
 			ctx.Res.Header().Set(ahttp.HeaderXXSSProtection, secureHeaders.XSSFilter)
 
 			// Content-Security-Policy (CSP) and applied only to environment `prod`
-			if ctx.a.IsProfileProd() && !ess.IsStrEmpty(secureHeaders.CSP) {
+			if ctx.a.IsProfileProd() && len(secureHeaders.CSP) > 0 {
 				if secureHeaders.CSPReportOnly {
 					ctx.Res.Header().Set(ahttp.HeaderContentSecurityPolicy+"-Report-Only", secureHeaders.CSP)
 				} else {
@@ -364,7 +364,7 @@ func (ctx *Context) writeHeaders() {
 			ctx.Res.Header().Set(ahttp.HeaderStrictTransportSecurity, secureHeaders.STS)
 
 			// Public-Key-Pins PKP (aka HPKP) and applied only to environment `prod`
-			if ctx.a.IsProfileProd() && !ess.IsStrEmpty(secureHeaders.PKP) {
+			if ctx.a.IsProfileProd() && len(secureHeaders.PKP) > 0 {
 				if secureHeaders.PKPReportOnly {
 					ctx.Res.Header().Set(ahttp.HeaderPublicKeyPins+"-Report-Only", secureHeaders.PKP)
 				} else {
