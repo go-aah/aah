@@ -11,8 +11,6 @@ import (
 	"net"
 	"net/http"
 	"sync"
-
-	"aahframework.org/essentials.v0"
 )
 
 var (
@@ -95,8 +93,9 @@ func (g *GzipResponse) BytesWritten() int {
 
 // Close method closes the writer if possible.
 func (g *GzipResponse) Close() error {
-	ess.CloseQuietly(g.gw)
-	g.gw = nil
+	if err := g.gw.Close(); err != nil {
+		return err
+	}
 	return g.r.Close()
 }
 
@@ -138,9 +137,9 @@ func (g *GzipResponse) Push(target string, opts *http.PushOptions) error {
 
 // releaseGzipResponse method resets and puts the gzip response into pool.
 func releaseGzipResponse(gw *GzipResponse) {
-	releaseGzipWriter(gw.gw)
-	releaseResponse(gw.r)
 	_ = gw.Close()
+	gwPool.Put(gw.gw)
+	releaseResponse(gw.r)
 	grPool.Put(gw)
 }
 
@@ -155,9 +154,4 @@ func acquireGzipWriter(w io.Writer) *gzip.Writer {
 	ngw := gw.(*gzip.Writer)
 	ngw.Reset(w)
 	return ngw
-}
-
-func releaseGzipWriter(gw *gzip.Writer) {
-	_ = gw.Close()
-	gwPool.Put(gw)
 }
