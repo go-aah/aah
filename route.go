@@ -49,12 +49,6 @@ func (r *Route) IsFile() bool {
 	return !ess.IsStrEmpty(r.File)
 }
 
-// IsFormAuthLoginSubmit method returns true for form auth login submit route
-// otherwise false.
-func (r *Route) IsFormAuthLoginSubmit() bool {
-	return r.Name == loginSubmitRouteName
-}
-
 // ValidationRule methdo returns `validation rule, true` if exists for path param
 // otherwise `"", false`
 func (r *Route) ValidationRule(name string) (string, bool) {
