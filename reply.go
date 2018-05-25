@@ -390,8 +390,11 @@ func (r *Reply) IsContentTypeSet() bool {
 // Body method returns the response body buffer.
 //
 //    It might be nil if the -
+//
 //      1) Response was written successfully on the wire
+//
 //      2) Response is not yet rendered
+//
 //      3) Static files, since response is written via `http.ServeContent`
 func (r *Reply) Body() *bytes.Buffer {
 	return r.body

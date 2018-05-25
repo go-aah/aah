@@ -12,33 +12,44 @@ import (
 )
 
 const (
-	// EventOnInit event is fired right after aah application config is initialized.
+	// EventOnInit event is published right after aah application config is loaded,
+	// but application is not initialized.
 	EventOnInit = "OnInit"
 
-	// EventOnStart event is fired before HTTP/Unix listener starts
+	// EventOnStart event is published before HTTP/Unix listener starts.
 	EventOnStart = "OnStart"
 
-	// EventOnShutdown event is fired when server recevies an interrupt or kill command.
+	// EventOnPreShutdown event is published right before the triggering graceful shutdown.
+	EventOnPreShutdown = "OnPreShutdown"
+
+	// EventOnShutdown event is published right after the successful grace shutdown
+	// of aah server.
 	EventOnShutdown = "OnShutdown"
 
 	//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 	// HTTP Engine events
 	//______________________________________________________________________________
 
-	// EventOnRequest event is fired when server recevies an incoming request.
+	// EventOnRequest event is published when server recevies an incoming HTTP request.
 	EventOnRequest = "OnRequest"
 
-	// EventOnPreReply event is fired when before server writes the reply on the wire.
+	// EventOnPreReply event is published when before server writes the reply on the wire.
 	// Except when
+	//
 	//   1) `Reply().Done()`,
+	//
 	//   2) `Reply().Redirect(...)` is called.
+	//
 	// Refer `aah.Reply.Done()` godoc for more info.
 	EventOnPreReply = "OnPreReply"
 
-	// EventOnPostReply event is fired when before server writes the reply on the wire.
+	// EventOnPostReply event is published when before server writes the reply on the wire.
 	// Except when
+	//
 	//   1) `Reply().Done()`,
+	//
 	//   2) `Reply().Redirect(...)` is called.
+	//
 	// Refer `aah.Reply.Done()` godoc for more info.
 	EventOnPostReply = "OnPostReply"
 
@@ -47,10 +58,10 @@ const (
 	// Note: DEPRECATED elements to be removed in `v1.0.0` release.
 	EventOnAfterReply = EventOnPostReply
 
-	// EventOnPreAuth event is fired before server Authenticates & Authorizes an incoming request.
+	// EventOnPreAuth event is published before aah Authenticates & Authorizes an incoming request.
 	EventOnPreAuth = "OnPreAuth"
 
-	// EventOnPostAuth event is fired after server Authenticates & Authorizes an incoming request.
+	// EventOnPostAuth event is published after aah Authenticates & Authorizes an incoming request.
 	EventOnPostAuth = "OnPostAuth"
 )
 
@@ -91,6 +102,14 @@ func (a *app) OnInit(ecb EventCallbackFunc, priority ...int) {
 
 func (a *app) OnStart(ecb EventCallbackFunc, priority ...int) {
 	a.eventStore.Subscribe(EventOnStart, EventCallback{
+		Callback: ecb,
+		CallOnce: true,
+		priority: parsePriority(priority...),
+	})
+}
+
+func (a *app) OnPreShutdown(ecb EventCallbackFunc, priority ...int) {
+	a.eventStore.Subscribe(EventOnPreShutdown, EventCallback{
 		Callback: ecb,
 		CallOnce: true,
 		priority: parsePriority(priority...),

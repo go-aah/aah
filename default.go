@@ -300,7 +300,7 @@ func SetMinifier(fn MinifierFunc) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// app event methods
+// Application event methods
 //______________________________________________________________________________
 
 // OnInit method is to subscribe to aah application `OnInit` event. `OnInit`
@@ -311,14 +311,21 @@ func OnInit(ecb EventCallbackFunc, priority ...int) {
 }
 
 // OnStart method is to subscribe to aah application `OnStart` event. `OnStart`
-// event pubished right before the aah server listen and serving request.
+// event pubished right before the aah server starts listening to the request.
 func OnStart(ecb EventCallbackFunc, priority ...int) {
 	defaultApp.OnStart(ecb, priority...)
 }
 
+// OnPreShutdown method is to subscribe to aah application `OnPreShutdown` event.
+// `OnPreShutdown` event pubished right before the triggering aah server graceful
+// shutdown.
+func OnPreShutdown(ecb EventCallbackFunc, priority ...int) {
+	defaultApp.OnPreShutdown(ecb, priority...)
+}
+
 // OnShutdown method is to subscribe to aah application `OnShutdown` event.
-// `OnShutdown` event pubished right before the aah server is stopped Listening
-// and serving request.
+// `OnShutdown` event pubished right the successful grace shutdown
+// of aah server.
 func OnShutdown(ecb EventCallbackFunc, priority ...int) {
 	defaultApp.OnShutdown(ecb, priority...)
 }

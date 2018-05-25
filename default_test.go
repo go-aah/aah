@@ -116,6 +116,10 @@ func TestDefaultApp(t *testing.T) {
 		t.Log("Application OnStart extension point")
 	})
 
+	OnPreShutdown(func(e *Event) {
+		t.Log("Application OnPreShutdown extension point")
+	})
+
 	OnShutdown(func(e *Event) {
 		t.Log("Application OnShutdown extension point")
 	})

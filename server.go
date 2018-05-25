@@ -116,6 +116,9 @@ func (a *app) Start() {
 }
 
 func (a *app) Shutdown() {
+	// Publish `OnPreShutdown` event
+	a.EventStore().sortAndPublishSync(&Event{Name: EventOnPreShutdown})
+
 	ctx, cancel := context.WithTimeout(context.Background(), a.shutdownGraceTimeout)
 	defer cancel()
 

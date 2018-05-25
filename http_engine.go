@@ -49,7 +49,8 @@ type (
 // HTTP Engine
 //______________________________________________________________________________
 
-// HTTPEngine holds the implementation HTTP request, response, security, etc.
+// HTTPEngine holds the implementation handling HTTP request, response,
+// middlewares, interceptors, etc.
 type HTTPEngine struct {
 	a        *app
 	ctxPool  *sync.Pool
