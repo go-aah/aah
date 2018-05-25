@@ -40,17 +40,29 @@ const (
 	//
 	//   2) `Reply().Redirect(...)` is called.
 	//
-	// Refer `aah.Reply.Done()` godoc for more info.
+	// Refer `aah.Reply().Done()` godoc for more info.
 	EventOnPreReply = "OnPreReply"
 
-	// EventOnPostReply event is published when before server writes the reply on the wire.
+	// EventOnHeaderReply event is published before writing HTTP header `Status`.
+	// At this point all the headers from aah have been written on the
+	// `http.ResponseWriter` except Header `Status`.
 	// Except when
 	//
 	//   1) `Reply().Done()`,
 	//
 	//   2) `Reply().Redirect(...)` is called.
 	//
-	// Refer `aah.Reply.Done()` godoc for more info.
+	// Refer `aah.Reply().Done()` godoc for more info.
+	EventOnHeaderReply = "OnHeaderReply"
+
+	// EventOnPostReply event is published right before server writes the reply on the wire.
+	// Except when
+	//
+	//   1) `Reply().Done()`,
+	//
+	//   2) `Reply().Redirect(...)` is called.
+	//
+	// Refer `aah.Reply().Done()` godoc for more info.
 	EventOnPostReply = "OnPostReply"
 
 	// EventOnAfterReply DEPRECATED use EventOnPostReply instead.
@@ -58,10 +70,10 @@ const (
 	// Note: DEPRECATED elements to be removed in `v1.0.0` release.
 	EventOnAfterReply = EventOnPostReply
 
-	// EventOnPreAuth event is published before aah Authenticates & Authorizes an incoming request.
+	// EventOnPreAuth event is published right before aah Authenticates & Authorizes an incoming request.
 	EventOnPreAuth = "OnPreAuth"
 
-	// EventOnPostAuth event is published after aah Authenticates & Authorizes an incoming request.
+	// EventOnPostAuth event is published right after aah Authenticates & Authorizes an incoming request.
 	EventOnPostAuth = "OnPostAuth"
 )
 

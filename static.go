@@ -120,6 +120,9 @@ func (s *staticManager) Serve(ctx *Context) error {
 		// 'OnPreReply' server extension point
 		s.a.he.publishOnPreReplyEvent(ctx)
 
+		// 'OnHeaderReply' HTTP event
+		s.a.he.publishOnHeaderReplyEvent(ctx.Res.Header())
+
 		http.ServeContent(ctx.Res, ctx.Req.Unwrap(), path.Base(fi.Name()), fi.ModTime(), fr)
 
 		// 'OnAfterReply' server extension point

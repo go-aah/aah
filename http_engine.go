@@ -59,11 +59,12 @@ type HTTPEngine struct {
 	registry *ainsp.TargetRegistry
 
 	// http engine events/extensions
-	onRequestFunc   EventCallbackFunc
-	onPreReplyFunc  EventCallbackFunc
-	onPostReplyFunc EventCallbackFunc
-	onPreAuthFunc   EventCallbackFunc
-	onPostAuthFunc  EventCallbackFunc
+	onRequestFunc     EventCallbackFunc
+	onPreReplyFunc    EventCallbackFunc
+	onHeaderReplyFunc EventCallbackFunc
+	onPostReplyFunc   EventCallbackFunc
+	onPreAuthFunc     EventCallbackFunc
+	onPostAuthFunc    EventCallbackFunc
 }
 
 // Handle method is HTTP handler for aah application.
@@ -133,8 +134,11 @@ func (e *HTTPEngine) OnRequest(sef EventCallbackFunc) {
 // `OnPreReply` called for every reply from aah server.
 //
 // 	Except when
+//
 //  		1) `Reply().Done()`,
+//
 //  		2) `Reply().Redirect(...)` is called.
+//
 // Refer `aah.Reply().Done()` godoc for more info.
 func (e *HTTPEngine) OnPreReply(sef EventCallbackFunc) {
 	if e.onPreReplyFunc != nil {
@@ -144,12 +148,33 @@ func (e *HTTPEngine) OnPreReply(sef EventCallbackFunc) {
 	e.onPreReplyFunc = sef
 }
 
+// OnHeaderReply method is to subscribe to aah HTTP engine `OnHeaderReply` extension point.
+// `OnHeaderReply` called for every reply from aah server.
+//
+// 	Except when
+//
+//  		1) `Reply().Done()`,
+//
+//  		2) `Reply().Redirect(...)` is called.
+//
+// Refer `aah.Reply().Done()` godoc for more info.
+func (e *HTTPEngine) OnHeaderReply(sef EventCallbackFunc) {
+	if e.onHeaderReplyFunc != nil {
+		e.Log().Warnf("Changing 'OnHeaderReply' server extension from '%s' to '%s'",
+			funcName(e.onHeaderReplyFunc), funcName(sef))
+	}
+	e.onHeaderReplyFunc = sef
+}
+
 // OnPostReply method is to subscribe to aah HTTP engine `OnPostReply` extension
 // point. `OnPostReply` called for every reply from aah server.
 //
 // 	Except when
+//
 //  		1) `Reply().Done()`,
+//
 //  		2) `Reply().Redirect(...)` is called.
+//
 // Refer `aah.Reply().Done()` godoc for more info.
 func (e *HTTPEngine) OnPostReply(sef EventCallbackFunc) {
 	if e.onPostReplyFunc != nil {
@@ -202,6 +227,12 @@ func (e *HTTPEngine) publishOnRequestEvent(ctx *Context) {
 func (e *HTTPEngine) publishOnPreReplyEvent(ctx *Context) {
 	if e.onPreReplyFunc != nil {
 		e.onPreReplyFunc(&Event{Name: EventOnPreReply, Data: ctx})
+	}
+}
+
+func (e *HTTPEngine) publishOnHeaderReplyEvent(hdr http.Header) {
+	if e.onHeaderReplyFunc != nil {
+		e.onHeaderReplyFunc(&Event{Name: EventOnHeaderReply, Data: hdr})
 	}
 }
 
@@ -293,6 +324,10 @@ func (e *HTTPEngine) writeReply(ctx *Context) {
 	if ess.IsStrEmpty(re.ContType) {
 		re.ContentType(ctx.detectContentType().String())
 	}
+	ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+
+	// 'OnHeaderReply' HTTP event
+	e.publishOnHeaderReplyEvent(ctx.Res.Header())
 
 	if bodyAllowedForStatus(re.Code) {
 		if e.a.viewMgr != nil && re.isHTML() {
@@ -301,7 +336,7 @@ func (e *HTTPEngine) writeReply(ctx *Context) {
 
 		e.writeOnWire(ctx)
 	} else {
-		ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+		// ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
 		ctx.Res.WriteHeader(re.Code)
 	}
 
@@ -323,7 +358,7 @@ func (e *HTTPEngine) writeOnWire(ctx *Context) {
 
 	// Render it
 	if re.Rdr == nil {
-		ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+		// ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
 		ctx.Res.WriteHeader(re.Code)
 		return
 	}
@@ -339,7 +374,7 @@ func (e *HTTPEngine) writeOnWire(ctx *Context) {
 		ctx.Res = wrapGzipWriter(ctx.Res)
 	}
 
-	ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+	// ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
 	ctx.Res.WriteHeader(re.Code)
 
 	var w io.Writer = ctx.Res
@@ -374,7 +409,7 @@ func (e *HTTPEngine) writeBinary(ctx *Context) {
 		ctx.Res = wrapGzipWriter(ctx.Res)
 	}
 
-	ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+	// ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
 	ctx.Res.WriteHeader(re.Code)
 
 	// currently write error on wire is not propagated to error
