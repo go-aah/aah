@@ -79,11 +79,6 @@ const (
 	// Refer `aah.Reply().Done()` godoc for more info.
 	EventOnPostReply = "OnPostReply"
 
-	// EventOnAfterReply DEPRECATED use EventOnPostReply instead.
-	//
-	// Note: DEPRECATED elements to be removed in `v1.0.0` release.
-	EventOnAfterReply = EventOnPostReply
-
 	// EventOnPreAuth is published just before the Authentication and Authorization.
 	EventOnPreAuth = "OnPreAuth"
 
@@ -159,24 +154,12 @@ func (a *app) SubscribeEventFunc(eventName string, ecf EventCallbackFunc) {
 	a.eventStore.Subscribe(eventName, EventCallback{Callback: ecf})
 }
 
-// DEPRECATED: use SubscribeEventFunc instead.
-func (a *app) SubscribeEventf(eventName string, ecf EventCallbackFunc) {
-	a.showDeprecatedMsg("SubscribeEventf, use 'SubscribeEventFunc' instead")
-	a.SubscribeEventFunc(eventName, ecf)
-}
-
 func (a *app) UnsubscribeEvent(eventName string, ec EventCallback) {
 	a.UnsubscribeEventFunc(eventName, ec.Callback)
 }
 
 func (a *app) UnsubscribeEventFunc(eventName string, ecf EventCallbackFunc) {
 	a.eventStore.Unsubscribe(eventName, ecf)
-}
-
-// DEPRECATED: use UnsubscribeEventFunc instead.
-func (a *app) UnsubscribeEventf(eventName string, ecf EventCallbackFunc) {
-	a.showDeprecatedMsg("UnsubscribeEventf, use 'UnsubscribeEventFunc' instead")
-	a.UnsubscribeEventFunc(eventName, ecf)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

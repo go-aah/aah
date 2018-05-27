@@ -83,7 +83,6 @@ func TestDefaultApp(t *testing.T) {
 
 	// TLS config
 	t.Log("TLS Config")
-	AddServerTLSConfig(&tls.Config{})
 	SetTLSConfig(&tls.Config{})
 
 	// Add controller
@@ -131,11 +130,9 @@ func TestDefaultApp(t *testing.T) {
 		t.Log("custom-event-1")
 	}
 	SubscribeEvent("custom-event-1", EventCallback{Callback: eventFunc1})
-	SubscribeEventf("custom-event-2", eventFunc1)
 	SubscribeEventFunc("custom-event-2", eventFunc1)
 	PublishEvent("custom-event-1", "event data 1")
 	PublishEventSync("custom-event-1", "event data 2")
-	UnsubscribeEventf("custom-event-1", eventFunc1)
 	UnsubscribeEventFunc("custom-event-2", eventFunc1)
 	UnsubscribeEvent("custom-event-1", EventCallback{Callback: eventFunc1})
 

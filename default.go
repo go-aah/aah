@@ -165,13 +165,6 @@ func AppI18nLocales() []string {
 	return defaultApp.I18n().Locales()
 }
 
-// AddServerTLSConfig DEPRECATED use method `aah.SetTLSConfig` instead.
-// Planned to be removed in `v1.0.0` release.
-func AddServerTLSConfig(tlsCfg *tls.Config) {
-	defaultApp.showDeprecatedMsg("Method 'AddServerTLSConfig', use method 'aah.SetTLSConfig' instead")
-	SetTLSConfig(tlsCfg)
-}
-
 // SetTLSConfig method is used to set custom TLS config for aah server.
 // Note: if `server.ssl.lets_encrypt.enable=true` then framework sets the
 // `GetCertificate` from autocert manager.
@@ -353,13 +346,6 @@ func SubscribeEventFunc(eventName string, ecf EventCallbackFunc) {
 	defaultApp.SubscribeEventFunc(eventName, ecf)
 }
 
-// SubscribeEventf DEPRECATED use `aah.SubscribeEventFunc` instead. Planned to be removed in
-// `v1.0.0` release.
-func SubscribeEventf(eventName string, ecf EventCallbackFunc) {
-	defaultApp.showDeprecatedMsg("Method 'SubscribeEventf', use `aah.SubscribeEventFunc` instead")
-	defaultApp.SubscribeEventf(eventName, ecf)
-}
-
 // UnsubscribeEvent method is to unsubscribe by event name and `EventCallback`
 // from app event store.
 func UnsubscribeEvent(eventName string, ec EventCallback) {
@@ -370,11 +356,4 @@ func UnsubscribeEvent(eventName string, ec EventCallback) {
 // `EventCallbackFunc` from app event store.
 func UnsubscribeEventFunc(eventName string, ecf EventCallbackFunc) {
 	defaultApp.UnsubscribeEventFunc(eventName, ecf)
-}
-
-// UnsubscribeEventf method DEPRECATED use `aah.UnsubscribeEventFunc` instead.
-// Planned to be removed in `v1.0.0` release.
-func UnsubscribeEventf(eventName string, ecf EventCallbackFunc) {
-	defaultApp.showDeprecatedMsg("Method 'UnsubscribeEventf', use `aah.UnsubscribeEventFunc` instead")
-	defaultApp.UnsubscribeEventf(eventName, ecf)
 }

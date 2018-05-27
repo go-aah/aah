@@ -40,11 +40,6 @@ func TestHTTPEngineTestRequests(t *testing.T) {
 		hdr.Add("X-Event-OnHeaderReply", "Application OnHeaderReply extension point")
 	}
 
-	testOnAfterReply := func(e *Event) {
-		ctx := e.Data.(*Context)
-		ctx.Log().Info("Application OnAfterReply extension point")
-	}
-
 	testOnPostReply := func(e *Event) {
 		ctx := e.Data.(*Context)
 		ctx.Log().Info("Application OnPostReply extension point")
@@ -81,11 +76,6 @@ func TestHTTPEngineTestRequests(t *testing.T) {
 		t.Log("Application OnPostReply extension point")
 	})
 	he.OnPostReply(testOnPostReply)
-
-	he.OnAfterReply(func(e *Event) {
-		t.Log("Application OnAfterReply extension point")
-	})
-	he.OnAfterReply(testOnAfterReply)
 
 	he.OnPreAuth(func(e *Event) {
 		t.Log("Application OnPreAuth extension point")

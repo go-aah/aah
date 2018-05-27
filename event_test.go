@@ -128,8 +128,7 @@ func TestEventSubscribeAndUnsubscribeAndPublish(t *testing.T) {
 	assert.Equal(t, 1, es.SubscriberCount("myEvent1"))
 
 	ts.app.SubscribeEvent("myEvent1", EventCallback{Callback: myEventFunc2})
-	ts.app.SubscribeEventf("myEvent1", myEventFunc2)
-	assert.Equal(t, 3, es.SubscriberCount("myEvent1"))
+	assert.Equal(t, 2, es.SubscriberCount("myEvent1"))
 
 	assert.Equal(t, 0, es.SubscriberCount("myEvent2"))
 	ts.app.SubscribeEvent("myEvent2", EventCallback{Callback: myEventFunc3})
@@ -139,7 +138,7 @@ func TestEventSubscribeAndUnsubscribeAndPublish(t *testing.T) {
 	time.Sleep(time.Millisecond * 100) // for goroutine to finish
 
 	ts.app.UnsubscribeEvent("myEvent1", ecb1)
-	assert.Equal(t, 2, es.SubscriberCount("myEvent1"))
+	assert.Equal(t, 1, es.SubscriberCount("myEvent1"))
 
 	ts.app.PublishEvent("myEvent1", "myEvent1 is fired async")
 	time.Sleep(time.Millisecond * 100) // for goroutine to finish

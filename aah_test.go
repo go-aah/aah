@@ -7,7 +7,6 @@ package aah
 import (
 	"bytes"
 	"compress/gzip"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -101,16 +100,6 @@ func TestAahApp(t *testing.T) {
 	// Redirect - /test-redirect.html?mode=status
 	t.Log("Redirect - /test-redirect.html?mode=status")
 	req, err = http.NewRequest(ahttp.MethodGet, ts.URL+"/test-redirect.html?mode=status", nil)
-	assert.Nil(t, err)
-	result = fireRequest(t, req)
-	assert.Equal(t, 307, result.StatusCode)
-	assert.NotNil(t, result.Header)
-	assert.True(t, result.Header.Get(ahttp.HeaderLocation) != "")
-	assert.True(t, strings.Contains(result.Body, "Temporary Redirect"))
-
-	// Redirect - /test-redirect.html?mode=redirect_decrep
-	t.Log("Redirect - /test-redirect.html?mode=redirect_decrep")
-	req, err = http.NewRequest(ahttp.MethodGet, ts.URL+"/test-redirect.html?mode=redirect_decrep", nil)
 	assert.Nil(t, err)
 	result = fireRequest(t, req)
 	assert.Equal(t, 307, result.StatusCode)
@@ -226,16 +215,12 @@ func TestAppMisc(t *testing.T) {
 	pa.logger = l
 	pa.SetPackaged(true)
 	pa.initPath()
-	fmt.Println(pa.BaseDir())
-	// assert.True(t, strings.HasSuffix(pa.BaseDir(), "aah.v0"))
 
 	// App embedded mode
 	assert.False(t, pa.IsEmbeddedMode())
 	pa.SetEmbeddedMode()
 	assert.True(t, pa.IsEmbeddedMode())
 	pa.initPath()
-	fmt.Println(pa.BaseDir())
-	// assert.True(t, strings.HasSuffix(pa.BaseDir(), "aah.v0/_test"))
 
 	// App WS engine
 	assert.Nil(t, pa.WSEngine())
@@ -419,8 +404,6 @@ func (s *testSiteController) Redirect(mode string) {
 			"param1": "param1value",
 			"Param2": "Param2Value",
 		}))
-	case "redirect_decrep":
-		s.Reply().RedirectSts(s.ReverseURL("text_get"), 307)
 	default:
 		s.Reply().Redirect(s.ReverseURL("index"))
 	}

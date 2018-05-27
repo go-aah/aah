@@ -185,7 +185,7 @@ func (r *Reply) Text(format string, values ...interface{}) *Reply {
 // Binary method writes given bytes into response. It auto-detects the
 // content type of the given bytes if header `Content-Type` is not set.
 func (r *Reply) Binary(b []byte) *Reply {
-	return r.Readfrom(bytes.NewReader(b))
+	return r.FromReader(bytes.NewReader(b))
 }
 
 // FromReader method reads the data from given reader and writes into response.
@@ -195,13 +195,6 @@ func (r *Reply) Binary(b []byte) *Reply {
 func (r *Reply) FromReader(reader io.Reader) *Reply {
 	r.Render(&binaryRender{Reader: reader})
 	return r
-}
-
-// Readfrom method DEPRECATED to be removed `v1.0.0` release.
-// Use `Reply().FromReader` instead.
-func (r *Reply) Readfrom(reader io.Reader) *Reply {
-	r.ctx.a.showDeprecatedMsg("Method 'Readfrom', use 'Reply().FromReader' instead.")
-	return r.FromReader(reader)
 }
 
 // File method send the given as file to client. It auto-detects the content type
@@ -290,13 +283,6 @@ func (r *Reply) RedirectWithStatus(redirectURL string, code int) *Reply {
 	r.redirect = true
 	r.Status(code)
 	r.path = redirectURL
-	return r
-}
-
-// RedirectSts method DEPRECATED use `Reply().RedirectWithStatus` instead.
-func (r *Reply) RedirectSts(redirectURL string, code int) *Reply {
-	r.ctx.a.showDeprecatedMsg("Method 'RedirectSts', use 'Reply().RedirectWithStatus' instead.")
-	r.RedirectWithStatus(redirectURL, code)
 	return r
 }
 

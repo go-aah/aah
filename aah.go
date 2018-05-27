@@ -374,15 +374,6 @@ func (a *app) logsDir() string {
 	return filepath.Join(a.BaseDir(), "logs")
 }
 
-func (a *app) showDeprecatedMsg(msg string, v ...interface{}) {
-	warnf := log.Warnf
-	if a.Log() != nil {
-		warnf = a.Log().Warnf
-	}
-	warnf("DEPRECATED: "+msg, v...)
-	warnf("Deprecated elements are planned to be remove in major release v1.0.0")
-}
-
 func (a *app) initPath() error {
 	defer func() {
 		err := a.VFS().AddMount(a.VirtualBaseDir(), a.BaseDir())

@@ -185,12 +185,6 @@ func (e *HTTPEngine) OnPostReply(sef EventCallbackFunc) {
 	e.onPostReplyFunc = sef
 }
 
-// OnAfterReply method  DEPRECATED use 'OnPostReply' instead.
-func (e *HTTPEngine) OnAfterReply(sef EventCallbackFunc) {
-	e.a.showDeprecatedMsg("Method 'OnAfterReply', use 'OnPostReply' instead.")
-	e.OnPostReply(sef)
-}
-
 // OnPreAuth method is to subscribe to aah application `OnPreAuth` event.
 // `OnPreAuth` event pubished right before the aah server authenticates &
 // authorizes an incoming request.
