@@ -22,13 +22,4 @@ func TestCryptoPasswordAlgrothim(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Nil(t, PasswordAlgorithm("notexists"))
-
-	pass, err := CreatePasswordEncoder("sha-256")
-	assert.Nil(t, pass)
-	assert.NotNil(t, err)
-	assert.Equal(t, "security/acrypto: password encoder not found", err.Error())
-
-	pass, err = CreatePasswordEncoder("bcrypt")
-	assert.Nil(t, err)
-	assert.NotNil(t, pass)
 }

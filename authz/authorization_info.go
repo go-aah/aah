@@ -62,8 +62,8 @@ func (a *AuthorizationInfo) AddPermissionString(permissions ...string) *Authoriz
 	return a
 }
 
-// HasRole method returns true if the corresponding Subject/user has the
-// specified role, false otherwise.
+// HasRole method returns true if the Subject has the
+// specified role, otherwise false.
 func (a *AuthorizationInfo) HasRole(role string) bool {
 	for _, r := range a.roles {
 		if r == role {
@@ -73,19 +73,19 @@ func (a *AuthorizationInfo) HasRole(role string) bool {
 	return false
 }
 
-// HasAllRoles method returns true if the corresponding Subject/user has all of
-// the specified roles, false otherwise.
-func (a *AuthorizationInfo) HasAllRoles(roles ...string) bool {
-	return a.roles.ContainsAll(roles)
-}
-
-// HasAnyRole method returns true if the corresponding Subject/user has any-one
-// of the specified roles, false otherwise.
+// HasAnyRole method returns true if the Subject has any-one
+// of the specified roles, otherwise false.
 func (a *AuthorizationInfo) HasAnyRole(roles ...string) bool {
 	return a.roles.ContainsAny(roles)
 }
 
-// IsPermitted method returns true if the corresponding subject/user is permitted
+// HasAllRoles method returns true if the  Subject has all of
+// the specified roles, otherwise false.
+func (a *AuthorizationInfo) HasAllRoles(roles ...string) bool {
+	return a.roles.ContainsAll(roles)
+}
+
+// IsPermitted method returns true if the Subject is permitted
 // to perform an action or access a resource summarized by the specified
 // permission string.
 func (a *AuthorizationInfo) IsPermitted(permission string) bool {
@@ -93,8 +93,8 @@ func (a *AuthorizationInfo) IsPermitted(permission string) bool {
 	return a.IsPermittedp(p)
 }
 
-// IsPermittedAll method returns true if the corresponding Subject/user implies
-// all of the specified permission strings, false otherwise.
+// IsPermittedAll method returns true if the Subject implies
+// all of the specified permission strings, otherwise false.
 func (a *AuthorizationInfo) IsPermittedAll(permissions ...string) bool {
 	for _, permission := range permissions {
 		p, _ := NewPermission(permission)
@@ -105,7 +105,7 @@ func (a *AuthorizationInfo) IsPermittedAll(permissions ...string) bool {
 	return true
 }
 
-// IsPermittedp method returns true if the corresponding subject/user is permitted
+// IsPermittedp method returns true if the Subject is permitted
 // to perform an action or access a resource summarized by the specified
 // permission string.
 func (a *AuthorizationInfo) IsPermittedp(permission *Permission) bool {
@@ -121,7 +121,7 @@ func (a *AuthorizationInfo) IsPermittedp(permission *Permission) bool {
 	return false
 }
 
-// IsPermittedAllp method returns true if the corresponding Subject/user implies
+// IsPermittedAllp method returns true if the Subject implies
 // all of the specified permission strings, false otherwise.
 func (a *AuthorizationInfo) IsPermittedAllp(permissions ...*Permission) bool {
 	for _, permission := range permissions {

@@ -30,8 +30,8 @@ import (
 // Permission methods
 //
 // Subject instance provides a convenience wrapper method for all authentication
-// (primary principal, is-authenticated, logout) and authorization (has-role,
-// has-any-role, has-all-roles, is-permitted) purpose.
+// (primary principal, is-authenticated, logout) and authorization (hasrole,
+// hasanyrole, hasallroles, ispermitted, ispermittedall) purpose.
 type Subject struct {
 	AuthenticationInfo *authc.AuthenticationInfo
 	AuthorizationInfo  *authz.AuthorizationInfo
