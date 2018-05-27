@@ -105,7 +105,7 @@ func TestHTTPParseRequest(t *testing.T) {
 	ReleaseRequest(aahReq)
 	assert.Nil(t, aahReq.Header)
 	assert.Nil(t, aahReq.Params)
-	assert.Nil(t, aahReq.Raw)
+	assert.Nil(t, aahReq.raw)
 	assert.True(t, aahReq.UserAgent == "")
 }
 
@@ -253,49 +253,6 @@ func TestRequestSaveFileCannotCreateFile(t *testing.T) {
 	_, err := aahReq.SaveFile("framework", "/root/aah.txt")
 	assert.NotNil(t, err)
 	assert.True(t, strings.HasPrefix(err.Error(), "ahttp: open /root/aah.txt"))
-}
-
-func TestRequestSaveFiles(t *testing.T) {
-	aahReq, dir, teardown := setUpRequestSaveFiles(t)
-	defer teardown()
-
-	sizes, errs := aahReq.SaveFiles("framework", dir)
-	assert.Nil(t, errs)
-	assert.Nil(t, sizes)
-	_, err := os.Stat(dir + "/aah")
-	assert.Nil(t, err)
-	_, err = os.Stat(dir + "/aah2")
-	assert.Nil(t, err)
-}
-
-func TestRequestSaveFilesFailsVaildation(t *testing.T) {
-	aahReq, dir, teardown := setUpRequestSaveFiles(t)
-	defer teardown()
-
-	// Empty key
-	sizes, errs := aahReq.SaveFiles("", dir)
-	assert.NotNil(t, errs)
-	assert.Equal(t, "ahttp: form file key, '' is empty", errs[0].Error())
-	assert.Equal(t, int64(0), sizes[0])
-
-	// Empty directory
-	sizes, errs = aahReq.SaveFiles("key", "")
-	assert.NotNil(t, errs)
-	assert.Equal(t, "ahttp: destination path, '' is not a directory", errs[0].Error())
-	assert.Equal(t, int64(0), sizes[0])
-}
-
-func TestRequestSaveFilesCannotCreateFile(t *testing.T) {
-	aahReq, _, teardown := setUpRequestSaveFiles(t)
-	defer teardown()
-
-	sizes, errs := aahReq.SaveFiles("framework", "/root")
-	assert.NotNil(t, errs)
-	assert.Equal(t, int64(0), sizes[0])
-
-	errMsg := errs[0].Error()
-	assert.True(t, ("ahttp: open /root/aah: permission denied" == errMsg ||
-		"ahttp: destination path, '/root' is not a directory" == errMsg))
 }
 
 func TestRequestSaveFileForExistingFile(t *testing.T) {

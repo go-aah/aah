@@ -41,26 +41,6 @@ type ResponseWriter interface {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//___________________________________
-
-// TODO for old method cleanup
-
-// GetResponseWriter method wraps given writer and returns the aah response writer.
-// Deprecated use `AcquireResponseWriter` instead.
-func GetResponseWriter(w http.ResponseWriter) ResponseWriter {
-	rw := responsePool.Get().(*Response)
-	rw.w = w
-	return rw
-}
-
-// PutResponseWriter method puts response writer back to pool.
-// Deprecated use `ReleaseResponseWriter` instead.
-func PutResponseWriter(aw ResponseWriter) {
-	releaseResponse(aw.(*Response))
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Response
 //___________________________________
 

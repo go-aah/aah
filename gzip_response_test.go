@@ -21,8 +21,8 @@ import (
 func TestHTTPGzipWriter(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		GzipLevel = gzip.BestSpeed
-		gw := GetGzipResponseWriter(GetResponseWriter(w))
-		defer PutGzipResponseWiriter(gw)
+		gw := WrapGzipWriter(AcquireResponseWriter(w))
+		defer ReleaseResponseWriter(gw)
 
 		gw.Header().Set(HeaderVary, HeaderAcceptEncoding)
 		gw.Header().Set(HeaderContentEncoding, "gzip")
@@ -92,7 +92,7 @@ func TestHTTPGzipHijack(t *testing.T) {
 			ngw, _ := gzip.NewWriterLevel(w, GzipLevel)
 			gwPool.Put(ngw)
 		}
-		gw := WrapGzipWriter(GetResponseWriter(w))
+		gw := WrapGzipWriter(AcquireResponseWriter(w))
 
 		con, rw, err := gw.(http.Hijacker).Hijack()
 		assert.FailOnError(t, err, "")

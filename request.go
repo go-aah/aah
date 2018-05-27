@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -43,8 +42,7 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 	req.Referer = getReferer(r.Header)
 	req.UserAgent = r.Header.Get(HeaderUserAgent)
 	req.IsGzipAccepted = strings.Contains(r.Header.Get(HeaderAcceptEncoding), "gzip")
-	req.Raw = r
-
+	req.raw = r
 	return req
 }
 
@@ -89,12 +87,7 @@ type Request struct {
 	// otherwise false.
 	IsGzipAccepted bool
 
-	// Raw an object of Go HTTP server, direct interaction with
-	// raw object is not encouraged.
-	//
-	// DEPRECATED: Raw field to be unexported on v1 release, use `Req.Unwarp()` instead.
-	Raw *http.Request
-
+	raw               *http.Request
 	locale            *Locale
 	contentType       *ContentType
 	acceptContentType *ContentType
@@ -252,7 +245,7 @@ func (r *Request) Body() io.ReadCloser {
 // Unwrap method returns the underlying *http.Request instance of Go HTTP server,
 // direct interaction with raw object is not encouraged. Use it appropriately.
 func (r *Request) Unwrap() *http.Request {
-	return r.Raw
+	return r.raw
 }
 
 // SaveFile method saves an uploaded multipart file for given key from the HTTP
@@ -275,37 +268,6 @@ func (r *Request) SaveFile(key, dstFile string) (int64, error) {
 	return saveFile(uploadedFile, dstFile)
 }
 
-// SaveFiles method saves an uploaded multipart file(s) for the given key
-// from the HTTP request into given destination directory. It uses the filename
-// as uploaded filename from the request
-func (r *Request) SaveFiles(key, dstPath string) ([]int64, []error) {
-	if !ess.IsDir(dstPath) {
-		return []int64{0}, []error{fmt.Errorf("ahttp: destination path, '%s' is not a directory", dstPath)}
-	}
-
-	if ess.IsStrEmpty(key) {
-		return []int64{0}, []error{fmt.Errorf("ahttp: form file key, '%s' is empty", key)}
-	}
-
-	var errs []error
-	var sizes []int64
-	for _, file := range r.Params.File[key] {
-		uploadedFile, err := file.Open()
-		if err != nil {
-			sizes = append(sizes, 0)
-			errs = append(errs, err)
-			continue
-		}
-
-		if size, err := saveFile(uploadedFile, filepath.Join(dstPath, file.Filename)); err != nil {
-			sizes = append(sizes, size)
-			errs = append(errs, err)
-		}
-		ess.CloseQuietly(uploadedFile)
-	}
-	return sizes, errs
-}
-
 // Reset method resets request instance for reuse.
 func (r *Request) Reset() {
 	r.Scheme = ""
@@ -318,8 +280,8 @@ func (r *Request) Reset() {
 	r.Referer = ""
 	r.UserAgent = ""
 	r.IsGzipAccepted = false
-	r.Raw = nil
 
+	r.raw = nil
 	r.locale = nil
 	r.contentType = nil
 	r.acceptContentType = nil
