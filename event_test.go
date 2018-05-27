@@ -12,187 +12,93 @@ import (
 	"aahframework.org/test.v0/assert"
 )
 
-func TestEvenOnInit(t *testing.T) {
+func TestAppEvents(t *testing.T) {
+	testcases := []string{
+		EventOnInit,
+		EventOnStart,
+		EventOnPreShutdown,
+		EventOnPostShutdown,
+	}
+
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
 	ts, err := newTestServer(t, importPath)
 	assert.Nil(t, err)
 	defer ts.Close()
 
-	t.Logf("Test Server URL [Event Publisher]: %s", ts.URL)
+	t.Logf("Test Server URL [App Events]: %s", ts.URL)
+	ts.app.eventStore.PublishSync(&Event{Name: EventOnStart})
+	ts.app.UnsubscribeEvent(EventOnStart, EventCallback{})
 
+	for _, event := range testcases {
+		t.Run(event+" test", func(t *testing.T) {
+			performEventTest(t, ts.app, event)
+		})
+	}
+
+}
+
+func performEventTest(t *testing.T, a *app, eventName string) {
 	// declare functions
-	onInitFunc1 := func(e *Event) {
-		t.Log("onInitFunc1:", e)
+	onFunc1 := func(e *Event) {
+		t.Log(eventName+" Func1:", e)
 	}
 
-	onInitFunc2 := func(e *Event) {
-		t.Log("onInitFunc2:", e)
+	onFunc2 := func(e *Event) {
+		t.Log(eventName+" Func2:", e)
 	}
 
-	onInitFunc3 := func(e *Event) {
-		t.Log("onInitFunc3:", e)
+	onFunc3 := func(e *Event) {
+		t.Log(eventName+" Func3:", e)
 	}
 
-	es := ts.app.eventStore
-	assert.False(t, es.IsEventExists(EventOnInit))
+	es := a.eventStore
+	assert.False(t, es.IsEventExists(eventName))
 
-	ts.app.OnInit(onInitFunc1)
-	assert.True(t, es.IsEventExists(EventOnInit))
-	assert.Equal(t, 1, es.SubscriberCount(EventOnInit))
+	addTestEvent(a, eventName, onFunc1)
+	assert.True(t, es.IsEventExists(eventName))
+	assert.Equal(t, 1, es.SubscriberCount(eventName))
 
-	ts.app.OnInit(onInitFunc3, 4)
-	assert.Equal(t, 2, es.SubscriberCount(EventOnInit))
+	addTestEvent(a, eventName, onFunc3, 4)
+	assert.Equal(t, 2, es.SubscriberCount(eventName))
 
-	ts.app.OnInit(onInitFunc2, 2)
-	assert.Equal(t, 3, es.SubscriberCount(EventOnInit))
+	addTestEvent(a, eventName, onFunc2, 2)
+	assert.Equal(t, 3, es.SubscriberCount(eventName))
 
 	// publish 1
-	es.sortAndPublishSync(&Event{Name: EventOnInit, Data: "On Init event published 1"})
+	es.sortAndPublishSync(&Event{Name: eventName, Data: eventName + " event published 1"})
 
-	es.Unsubscribe(EventOnInit, onInitFunc2)
-	assert.Equal(t, 2, es.SubscriberCount(EventOnInit))
+	es.Unsubscribe(eventName, onFunc2)
+	assert.Equal(t, 2, es.SubscriberCount(eventName))
 
 	// publish 2
-	ts.app.PublishEventSync(EventOnInit, "On Init event published 2")
+	a.PublishEventSync(eventName, eventName+" event published 2")
 
-	es.Unsubscribe(EventOnInit, onInitFunc1)
-	assert.Equal(t, 1, es.SubscriberCount(EventOnInit))
+	es.Unsubscribe(eventName, onFunc1)
+	assert.Equal(t, 1, es.SubscriberCount(eventName))
 
 	// publish 3
-	ts.app.PublishEventSync(EventOnInit, "On Init event published 3")
-	ts.app.PublishEventSync(EventOnStart, "On start not gonna fire")
+	a.PublishEventSync(eventName, eventName+" event published 3")
 
-	// event not exists
-	es.Unsubscribe(EventOnStart, onInitFunc1)
-
-	es.Unsubscribe(EventOnInit, onInitFunc3)
-	assert.Equal(t, 0, es.SubscriberCount(EventOnInit))
-	assert.Equal(t, 0, es.SubscriberCount(EventOnStart))
+	es.Unsubscribe(eventName, onFunc3)
+	assert.Equal(t, 0, es.SubscriberCount(eventName))
 
 	// EventOnInit not exists
-	es.Unsubscribe(EventOnInit, onInitFunc3)
+	es.Unsubscribe(eventName, onFunc3)
 }
 
-func TestEventOnStart(t *testing.T) {
-	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
-	defer ts.Close()
-
-	t.Logf("Test Server URL [Event Publisher]: %s", ts.URL)
-
-	// declare functions
-	onStartFunc1 := func(e *Event) {
-		t.Log("onStartFunc1:", e)
+func addTestEvent(a *app, eventName string, fn func(e *Event), priority ...int) {
+	switch eventName {
+	case EventOnInit:
+		a.OnInit(fn, priority...)
+	case EventOnStart:
+		a.OnStart(fn, priority...)
+	case EventOnPreShutdown:
+		a.OnPreShutdown(fn, priority...)
+	case EventOnPostShutdown:
+		a.OnPostShutdown(fn, priority...)
 	}
-
-	onStartFunc2 := func(e *Event) {
-		t.Log("onStartFunc2:", e)
-	}
-
-	onStartFunc3 := func(e *Event) {
-		t.Log("onStartFunc3:", e)
-	}
-
-	es := ts.app.eventStore
-	assert.False(t, es.IsEventExists(EventOnStart))
-
-	ts.app.OnStart(onStartFunc1)
-	assert.True(t, es.IsEventExists(EventOnStart))
-	assert.Equal(t, 1, es.SubscriberCount(EventOnStart))
-
-	ts.app.OnStart(onStartFunc3, 4)
-	assert.Equal(t, 2, es.SubscriberCount(EventOnStart))
-
-	ts.app.OnStart(onStartFunc2, 2)
-	assert.Equal(t, 3, es.SubscriberCount(EventOnStart))
-
-	// publish 1
-	es.sortAndPublishSync(&Event{Name: EventOnStart, Data: "On start event published 1"})
-
-	es.Unsubscribe(EventOnStart, onStartFunc2)
-	assert.Equal(t, 2, es.SubscriberCount(EventOnStart))
-
-	// publish 2
-	ts.app.PublishEventSync(EventOnStart, "On start event published 2")
-
-	es.Unsubscribe(EventOnStart, onStartFunc1)
-	assert.Equal(t, 1, es.SubscriberCount(EventOnStart))
-
-	// publish 3
-	es.sortAndPublishSync(&Event{Name: EventOnStart, Data: "On start event published 3"})
-	ts.app.PublishEventSync(EventOnInit, "On init not gonna fire")
-
-	// event not exists
-	es.Unsubscribe(EventOnInit, onStartFunc1)
-
-	es.Unsubscribe(EventOnStart, onStartFunc3)
-	assert.Equal(t, 0, es.SubscriberCount(EventOnStart))
-	assert.Equal(t, 0, es.SubscriberCount(EventOnInit))
-
-	// EventOnInit not exists
-	es.Unsubscribe(EventOnStart, onStartFunc3)
 }
 
-func TestEventOnShutdown(t *testing.T) {
-	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
-	defer ts.Close()
-
-	t.Logf("Test Server URL [Event Publisher]: %s", ts.URL)
-
-	// declare functions
-	onShutdownFunc1 := func(e *Event) {
-		t.Log("onShutdownFunc1:", e)
-	}
-
-	onShutdownFunc2 := func(e *Event) {
-		t.Log("onShutdownFunc2:", e)
-	}
-
-	onShutdownFunc3 := func(e *Event) {
-		t.Log("onShutdownFunc3:", e)
-	}
-
-	es := ts.app.eventStore
-	assert.False(t, es.IsEventExists(EventOnShutdown))
-
-	ts.app.OnShutdown(onShutdownFunc1)
-	assert.True(t, es.IsEventExists(EventOnShutdown))
-	assert.Equal(t, 1, es.SubscriberCount(EventOnShutdown))
-
-	ts.app.OnShutdown(onShutdownFunc3, 4)
-	assert.Equal(t, 2, es.SubscriberCount(EventOnShutdown))
-
-	ts.app.OnShutdown(onShutdownFunc2, 2)
-	assert.Equal(t, 3, es.SubscriberCount(EventOnShutdown))
-
-	// publish 1
-	es.sortAndPublishSync(&Event{Name: EventOnShutdown, Data: "On shutdown event published 1"})
-
-	es.Unsubscribe(EventOnShutdown, onShutdownFunc2)
-	assert.Equal(t, 2, es.SubscriberCount(EventOnShutdown))
-
-	// publish 2
-	ts.app.PublishEventSync(EventOnShutdown, "On shutdown event published 2")
-
-	es.Unsubscribe(EventOnShutdown, onShutdownFunc1)
-	assert.Equal(t, 1, es.SubscriberCount(EventOnShutdown))
-
-	// publish 3
-	es.sortAndPublishSync(&Event{Name: EventOnShutdown, Data: "On shutdown event published 3"})
-	ts.app.PublishEventSync(EventOnShutdown, "On shutdown not gonna fire")
-
-	// event not exists
-	es.Unsubscribe(EventOnShutdown, onShutdownFunc1)
-
-	es.Unsubscribe(EventOnShutdown, onShutdownFunc3)
-	assert.Equal(t, 0, es.SubscriberCount(EventOnShutdown))
-
-	// EventOnShutdown not exists
-	es.Unsubscribe(EventOnShutdown, onShutdownFunc3)
-}
 func TestEventSubscribeAndUnsubscribeAndPublish(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
 	ts, err := newTestServer(t, importPath)

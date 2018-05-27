@@ -12,28 +12,38 @@ import (
 )
 
 const (
-	// EventOnInit event is published right after aah application config is loaded,
-	// but application is not initialized.
+	// EventOnInit is published once the aah.AppConfig() is loaded. At this stage,
+	// only aah.conf config is initialized. App Variables, Routes, i18n, Security,
+	// View Engine, Logs and so on will be initialized after this event.
 	EventOnInit = "OnInit"
 
-	// EventOnStart event is published before HTTP/Unix listener starts.
+	// EventOnStart is published just before the start of aah Server.
+	// The application is completely initialized at this stage. The server
+	// is yet to be started.
 	EventOnStart = "OnStart"
 
-	// EventOnPreShutdown event is published right before the triggering graceful shutdown.
+	// EventOnPreShutdown is published when application receives OS Signals
+	// `SIGINT` or `SIGTERM` and before the triggering graceful shutdown. After this
+	// event, aah triggers graceful shutdown with config value of
+	// `server.timeout.grace_shutdown`.
 	EventOnPreShutdown = "OnPreShutdown"
 
-	// EventOnShutdown event is published right after the successful grace shutdown
-	// of aah server.
-	EventOnShutdown = "OnShutdown"
+	// EventOnPostShutdown is published just after the successful grace shutdown
+	// of aah server and then application does clean exit.
+	EventOnPostShutdown = "OnPostShutdown"
 
 	//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 	// HTTP Engine events
 	//______________________________________________________________________________
 
-	// EventOnRequest event is published when server recevies an incoming HTTP request.
+	// EventOnRequest is published on each incoming request to the aah server.
 	EventOnRequest = "OnRequest"
 
-	// EventOnPreReply event is published when before server writes the reply on the wire.
+	// EventOnPreReply is published just before writing a reply/response on the wire.
+	// At this point, the response writer is clean. i.e. Headers, Cookies, Redirects,
+	// Status Code and Response Body are not written. event is published when
+	// before server writes the reply on the wire.
+	//
 	// Except when
 	//
 	//   1) `Reply().Done()`,
@@ -43,9 +53,10 @@ const (
 	// Refer `aah.Reply().Done()` godoc for more info.
 	EventOnPreReply = "OnPreReply"
 
-	// EventOnHeaderReply event is published before writing HTTP header `Status`.
-	// At this point all the headers from aah have been written on the
-	// `http.ResponseWriter` except Header `Status`.
+	// EventOnHeaderReply is published before writing HTTP header Status.
+	// At this point, all the headers except the header Status get written on
+	// the http.ResponseWriter.
+	//
 	// Except when
 	//
 	//   1) `Reply().Done()`,
@@ -55,7 +66,10 @@ const (
 	// Refer `aah.Reply().Done()` godoc for more info.
 	EventOnHeaderReply = "OnHeaderReply"
 
-	// EventOnPostReply event is published right before server writes the reply on the wire.
+	// EventOnPostReply is published right after the response gets written on the
+	// wire. We can do nothing about the response, however the context has valuable
+	// information such as response bytes size, response status code, etc.
+	//
 	// Except when
 	//
 	//   1) `Reply().Done()`,
@@ -70,10 +84,11 @@ const (
 	// Note: DEPRECATED elements to be removed in `v1.0.0` release.
 	EventOnAfterReply = EventOnPostReply
 
-	// EventOnPreAuth event is published right before aah Authenticates & Authorizes an incoming request.
+	// EventOnPreAuth is published just before the Authentication and Authorization.
 	EventOnPreAuth = "OnPreAuth"
 
-	// EventOnPostAuth event is published right after aah Authenticates & Authorizes an incoming request.
+	// EventOnPostAuth is published once the Authentication and Authorization
+	// info gets populated into Subject.
 	EventOnPostAuth = "OnPostAuth"
 )
 
@@ -105,34 +120,26 @@ type (
 //______________________________________________________________________________
 
 func (a *app) OnInit(ecb EventCallbackFunc, priority ...int) {
-	a.eventStore.Subscribe(EventOnInit, EventCallback{
-		Callback: ecb,
-		CallOnce: true,
-		priority: parsePriority(priority...),
-	})
+	a.subcribeAppEvent(EventOnInit, ecb, priority)
 }
 
 func (a *app) OnStart(ecb EventCallbackFunc, priority ...int) {
-	a.eventStore.Subscribe(EventOnStart, EventCallback{
-		Callback: ecb,
-		CallOnce: true,
-		priority: parsePriority(priority...),
-	})
+	a.subcribeAppEvent(EventOnStart, ecb, priority)
 }
 
 func (a *app) OnPreShutdown(ecb EventCallbackFunc, priority ...int) {
-	a.eventStore.Subscribe(EventOnPreShutdown, EventCallback{
-		Callback: ecb,
-		CallOnce: true,
-		priority: parsePriority(priority...),
-	})
+	a.subcribeAppEvent(EventOnPreShutdown, ecb, priority)
 }
 
-func (a *app) OnShutdown(ecb EventCallbackFunc, priority ...int) {
-	a.eventStore.Subscribe(EventOnShutdown, EventCallback{
+func (a *app) OnPostShutdown(ecb EventCallbackFunc, priority ...int) {
+	a.subcribeAppEvent(EventOnPostShutdown, ecb, priority)
+}
+
+func (a *app) subcribeAppEvent(eventName string, ecb EventCallbackFunc, priority []int) {
+	a.SubscribeEvent(eventName, EventCallback{
 		Callback: ecb,
 		CallOnce: true,
-		priority: parsePriority(priority...),
+		priority: parsePriority(priority),
 	})
 }
 
@@ -294,11 +301,15 @@ func (es *EventStore) SubscriberCount(eventName string) int {
 	return 0
 }
 
-func (es *EventStore) sortAndPublishSync(e *Event) {
-	if es.IsEventExists(e.Name) {
-		sort.Sort(es.subscribers[e.Name])
-		es.PublishSync(e)
+func (es *EventStore) sortEventSubscribers(eventName string) {
+	if es.IsEventExists(eventName) {
+		sort.Sort(es.subscribers[eventName])
 	}
+}
+
+func (es *EventStore) sortAndPublishSync(e *Event) {
+	es.sortEventSubscribers(e.Name)
+	es.PublishSync(e)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

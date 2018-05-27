@@ -178,7 +178,7 @@ func funcName(f interface{}) string {
 	return fi.Name
 }
 
-func parsePriority(priority ...int) int {
+func parsePriority(priority []int) int {
 	pr := 1 // default priority is 1
 	if len(priority) > 0 && priority[0] > 0 {
 		pr = priority[0]

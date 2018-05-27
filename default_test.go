@@ -41,6 +41,7 @@ func TestDefaultApp(t *testing.T) {
 	assert.Equal(t, "aah framework web application", AppDesc())
 	assert.Equal(t, "dev", AppProfile())
 	assert.Equal(t, importPath, AppBaseDir())
+	assert.Equal(t, "/app", AppVirtualBaseDir())
 	assert.Equal(t, importPath, AppImportPath()) // this is only for test scenario
 	assert.Equal(t, "", AppHTTPAddress())
 	assert.Equal(t, "8080", AppHTTPPort())
@@ -54,6 +55,8 @@ func TestDefaultApp(t *testing.T) {
 	assert.True(t, strings.Contains(strings.Join(AllAppProfiles(), ", "), "prod"))
 
 	// Default App module instances
+	assert.NotNil(t, AppHTTPEngine())
+	assert.NotNil(t, AppWSEngine())
 	assert.NotNil(t, AppI18n())
 	assert.NotNil(t, AppLog())
 	assert.NotNil(t, AppConfig())
@@ -120,8 +123,8 @@ func TestDefaultApp(t *testing.T) {
 		t.Log("Application OnPreShutdown extension point")
 	})
 
-	OnShutdown(func(e *Event) {
-		t.Log("Application OnShutdown extension point")
+	OnPostShutdown(func(e *Event) {
+		t.Log("Application OnPostShutdown extension point")
 	})
 
 	eventFunc1 := func(e *Event) {
@@ -143,6 +146,7 @@ func TestDefaultApp(t *testing.T) {
 		{Name: "Binary", Parameters: []*ainsp.Parameter{{Name: "encoding", Type: reflect.TypeOf((*string)(nil))}}},
 	})
 
+	// assert.Nil(t, SetAppProfile("dev"))
 }
 
 func TestHotAppReload(t *testing.T) {

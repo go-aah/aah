@@ -258,7 +258,7 @@ func Start() {
 //
 // Method performs:
 //    - Graceful server shutdown with timeout by `server.timeout.grace_shutdown`
-//    - Publishes `OnShutdown` event
+//    - Publishes `OnPostShutdown` event
 //    - Exits program with code 0
 func Shutdown() {
 	defaultApp.Shutdown()
@@ -323,11 +323,11 @@ func OnPreShutdown(ecb EventCallbackFunc, priority ...int) {
 	defaultApp.OnPreShutdown(ecb, priority...)
 }
 
-// OnShutdown method is to subscribe to aah application `OnShutdown` event.
-// `OnShutdown` event pubished right the successful grace shutdown
+// OnPostShutdown method is to subscribe to aah application `OnPostShutdown` event.
+// `OnPostShutdown` event pubished right the successful grace shutdown
 // of aah server.
-func OnShutdown(ecb EventCallbackFunc, priority ...int) {
-	defaultApp.OnShutdown(ecb, priority...)
+func OnPostShutdown(ecb EventCallbackFunc, priority ...int) {
+	defaultApp.OnPostShutdown(ecb, priority...)
 }
 
 // PublishEvent method publishes events to subscribed callbacks asynchronously.

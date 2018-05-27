@@ -7,6 +7,7 @@ package aah
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -22,6 +23,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/ainsp.v0"
+	config "aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
@@ -216,6 +218,30 @@ func TestAppMisc(t *testing.T) {
 	a.importPath = "github.com/jeevatkm/noapp"
 	err = a.initPath()
 	assert.True(t, strings.HasPrefix(err.Error(), "import path does not exists:"))
+
+	// App packaged mode
+	t.Log("App packaged mode")
+	pa := newApp()
+	l, _ := log.New(config.NewEmpty())
+	pa.logger = l
+	pa.SetPackaged(true)
+	pa.initPath()
+	fmt.Println(pa.BaseDir())
+	// assert.True(t, strings.HasSuffix(pa.BaseDir(), "aah.v0"))
+
+	// App embedded mode
+	assert.False(t, pa.IsEmbeddedMode())
+	pa.SetEmbeddedMode()
+	assert.True(t, pa.IsEmbeddedMode())
+	pa.initPath()
+	fmt.Println(pa.BaseDir())
+	// assert.True(t, strings.HasSuffix(pa.BaseDir(), "aah.v0/_test"))
+
+	// App WS engine
+	assert.Nil(t, pa.WSEngine())
+
+	// App Parse port
+	assert.Equal(t, "80", pa.parsePort(""))
 }
 
 func fireRequest(t *testing.T, req *http.Request) *testResult {

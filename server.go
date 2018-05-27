@@ -129,8 +129,8 @@ func (a *app) Shutdown() {
 
 	a.shutdownRedirectServer()
 
-	// Publish `OnShutdown` event
-	a.EventStore().sortAndPublishSync(&Event{Name: EventOnShutdown})
+	// Publish `OnPostShutdown` event
+	a.EventStore().sortAndPublishSync(&Event{Name: EventOnPostShutdown})
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
