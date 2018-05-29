@@ -96,7 +96,7 @@ func (a *app) initView() error {
 		"hasanyrole":      viewMgr.tmplHasAnyRole,
 		"ispermitted":     viewMgr.tmplIsPermitted,
 		"ispermittedall":  viewMgr.tmplIsPermittedAll,
-		"anitcsrftoken":   viewMgr.tmplAntiCSRFToken,
+		"anticsrftoken":   viewMgr.tmplAntiCSRFToken,
 	})
 
 	if err := viewEngine.Init(a.VFS(), a.Config(), viewsDir); err != nil {
