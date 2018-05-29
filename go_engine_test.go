@@ -163,7 +163,7 @@ func TestViewErrors(t *testing.T) {
 func loadGoViewEngine(t *testing.T, cfg *config.Config, dir string) *GoViewEngine {
 	// dummy func for test
 	AddTemplateFunc(template.FuncMap{
-		"anitcsrftoken": func(arg interface{}) string {
+		"anticsrftoken": func(arg interface{}) string {
 			return ""
 		},
 	})

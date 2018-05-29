@@ -42,7 +42,7 @@ func NewAntiCSRFField(engineName, leftDelim, rightDelim string) *AntiCSRFField {
 func NewAntiCSRFFieldWithVFS(fs *vfs.VFS, engineName, leftDelim, rightDelim string) *AntiCSRFField {
 	csft := &AntiCSRFField{vfs: fs, engineName: engineName, leftDelim: leftDelim, rightDelim: rightDelim}
 
-	csft.field = fmt.Sprintf(`	<input type="hidden" name="anti_csrf_token" value="%s anitcsrftoken . %s">
+	csft.field = fmt.Sprintf(`	<input type="hidden" name="anti_csrf_token" value="%s anticsrftoken . %s">
      	</form>`, csft.leftDelim, csft.rightDelim)
 	csft.inserter = strings.NewReplacer("</form>", csft.field)
 

@@ -30,7 +30,7 @@ func TestAntiCSRFFieldFormTag(t *testing.T) {
 	files := acsrf.InsertOnFiles(fpath)
 	bytes, err := ioutil.ReadFile(files[0])
 	assert.Nil(t, err)
-	assert.True(t, strings.Contains(string(bytes), "%% anitcsrftoken . %%"))
+	assert.True(t, strings.Contains(string(bytes), "%% anticsrftoken . %%"))
 }
 
 func TestAntiCSRFFieldFormTagDelim(t *testing.T) {
