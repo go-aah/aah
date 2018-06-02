@@ -22,8 +22,9 @@ var (
 	passEncoders = make(map[string]PasswordEncoder)
 )
 
-// PasswordEncoder interface is used to implement generate password hash and compare given hash & password
-// based chosen hashing type. Such as `bcrypt`, `scrypt` and `pbkdf2`.
+// PasswordEncoder interface is used to implement generate password hash and
+// compare given hash & password based chosen hashing type. Such as `bcrypt`,
+// `scrypt` and `pbkdf2`.
 //
 // Good read about hashing security https://crackstation.net/hashing-security.htm
 type PasswordEncoder interface {
