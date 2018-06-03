@@ -57,6 +57,19 @@ func (a *AuthenticationInfo) PrimaryPrincipal() *Principal {
 	return nil
 }
 
+// Principal method returns the principal that matches given Claim.
+//
+// 	For e.g:
+// 		value := AuthenticationInfo.Principal("Email")
+func (a *AuthenticationInfo) Principal(claim string) *Principal {
+	for _, p := range a.Principals {
+		if p.Claim == claim {
+			return p
+		}
+	}
+	return nil
+}
+
 // Merge method merges the given authentication information into existing
 // `AuthenticationInfo` instance. IsExpired and IsLocked values considered as latest
 // from the given object.
@@ -69,7 +82,7 @@ func (a *AuthenticationInfo) Merge(oa *AuthenticationInfo) *AuthenticationInfo {
 
 // String method is stringer interface implementation.
 func (a AuthenticationInfo) String() string {
-	return fmt.Sprintf("AuthenticationInfo:: Principals%s, Credential: *******, IsLocked: %v, IsExpired: %v",
+	return fmt.Sprintf("authenticationinfo(%s credential:******* islocked:%v isexpired:%v)",
 		a.Principals, a.IsLocked, a.IsExpired)
 }
 
@@ -83,11 +96,12 @@ func (a AuthenticationInfo) String() string {
 // considered an 'identifying' attribute for a Subject.
 type Principal struct {
 	Realm     string
+	Claim     string
 	Value     string
 	IsPrimary bool
 }
 
 // String method is stringer interface implementation.
 func (p Principal) String() string {
-	return fmt.Sprintf("Realm: %v, Principal: %s, IsPrimary: %v", p.Realm, p.Value, p.IsPrimary)
+	return fmt.Sprintf("principal(realm:%s isprimary:%v claim:%s value:%s)", p.Realm, p.IsPrimary, p.Claim, p.Value)
 }

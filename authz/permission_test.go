@@ -103,7 +103,7 @@ func TestAuthPermissionList(t *testing.T) {
 	p2, _ = NewPermission("one:three:two")
 	assert.True(t, p1.Implies(p2))
 	assert.False(t, p2.Implies(p1))
-	assert.Equal(t, "one,two,three:one,two,three:one,two", p1.String())
+	assert.Equal(t, "permission(one,two,three:one,two,three:one,two)", p1.String())
 
 	p1, _ = NewPermission("one")
 	p2, _ = NewPermission("one:two,three,four")

@@ -17,7 +17,7 @@ const hashDelim = "$"
 
 var (
 	// ErrPasswordEncoderIsNil returned when given password encoder instance is nil.
-	ErrPasswordEncoderIsNil = errors.New("acrypto: password encoder is nil")
+	ErrPasswordEncoderIsNil = errors.New("security/crypto: password encoder is nil")
 
 	passEncoders = make(map[string]PasswordEncoder)
 )

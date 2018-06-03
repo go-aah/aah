@@ -21,7 +21,7 @@ import (
 
 var (
 	// ErrUnableToDecrypt returned for decrypt errors.
-	ErrUnableToDecrypt = errors.New("acrypto: unable to decrypt")
+	ErrUnableToDecrypt = errors.New("security/crypto: unable to decrypt")
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

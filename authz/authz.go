@@ -14,13 +14,13 @@ import (
 
 var (
 	// ErrAuthorizerIsNil error is return when authorizer is nil in the auth scheme.
-	ErrAuthorizerIsNil = errors.New("security: authorizer is nil")
+	ErrAuthorizerIsNil = errors.New("security/authz: authorizer is nil")
 )
 
 // Authorizer interface is gets implemented by user application to provide Subject's
 // (aka 'application user') access control information.
 type Authorizer interface {
-	// Init method gets called by framework during an application start.
+	// Init method gets called by aah during an application start.
 	Init(appCfg *config.Config) error
 
 	// GetAuthorizationInfo method gets called after authentication is successful

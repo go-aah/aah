@@ -43,6 +43,12 @@ func (s *Subject) PrimaryPrincipal() *authc.Principal {
 	return s.AuthenticationInfo.PrimaryPrincipal()
 }
 
+// Principal method returns the principal value for given Claim.
+// See `AuthenticationInfo.Principal`.
+func (s *Subject) Principal(claim string) *authc.Principal {
+	return s.AuthenticationInfo.Principal(claim)
+}
+
 // AllPrincipals method is convenience wrapper.
 func (s *Subject) AllPrincipals() []*authc.Principal {
 	return s.AuthenticationInfo.Principals

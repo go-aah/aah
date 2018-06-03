@@ -19,7 +19,7 @@ func TestAuthAuthorizationRoles(t *testing.T) {
 	assert.False(t, a1.HasRole("one"))
 	assert.False(t, a1.HasAnyRole("one", "two", "three"))
 	assert.False(t, a1.HasAllRoles("one", "two", "three"))
-	assert.Equal(t, "Roles[role1, role2, role3, role4] Permissions[]", a1.String())
+	assert.Equal(t, "authorizationinfo(roles(role1, role2, role3, role4) allpermissions())", a1.String())
 }
 
 func TestAuthAuthorizationPermissions(t *testing.T) {
@@ -28,7 +28,7 @@ func TestAuthAuthorizationPermissions(t *testing.T) {
 	assert.True(t, a1.IsPermitted("newsletter:*:read"))
 	assert.True(t, a1.IsPermittedAll("newsletter:read,write", "newsletter:*:read"))
 	assert.True(t, a1.IsPermitted("newsletter:123:read:write"))
-	assert.Equal(t, "Roles[] Permissions[newsletter:*:*]", a1.String())
+	assert.Equal(t, "authorizationinfo(roles() allpermissions(permission(newsletter:*:*)))", a1.String())
 
 	p1, _ := NewPermission("newsletter:read,write")
 	p2, _ := NewPermission("newsletter:*:read")

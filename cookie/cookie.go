@@ -19,13 +19,13 @@ import (
 	"aahframework.org/security.v0/acrypto"
 )
 
-// All possible cookie errors
+// Cookie errors
 var (
-	ErrCookieValueIsTooLarge    = errors.New("security/cookie: cookie value is greater than 4096")
-	ErrCookieValueIsInvalid     = errors.New("security/cookie: cookie value is not valid")
-	ErrCookieInvaildTimestamp   = errors.New("security/cookie: cookie timestamp is invalid")
-	ErrCookieTimestampIsTooNew  = errors.New("security/cookie: cookie timestamp is too new")
-	ErrCookieTimestampIsExpired = errors.New("security/cookie: cookie timestamp expried")
+	ErrCookieValueIsTooLarge    = errors.New("security/cookie: value is greater than 4096")
+	ErrCookieValueIsInvalid     = errors.New("security/cookie: value is not valid")
+	ErrCookieInvaildTimestamp   = errors.New("security/cookie: timestamp is invalid")
+	ErrCookieTimestampIsTooNew  = errors.New("security/cookie: timestamp is too new")
+	ErrCookieTimestampIsExpired = errors.New("security/cookie: timestamp expried")
 	ErrSignVerificationIsFailed = errors.New("security/cookie: sign verification is failed")
 )
 

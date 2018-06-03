@@ -6,6 +6,7 @@ package anticsrf
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -122,4 +123,10 @@ func TestAntiCSRFCipherSecret(t *testing.T) {
 	areq.Unwrap().Header.Set("Cookie", "aah_anti_csrf=This is cookie value")
 	secret = antiCSRF.CipherSecret(areq)
 	assert.NotNil(t, secret)
+}
+
+func TestAntiCSRFTimeUnit(t *testing.T) {
+	v, err := toSeconds("10s")
+	assert.Equal(t, int64(0), v)
+	assert.Equal(t, errors.New("unsupported time unit '10s' on 'security.anti_csrf.ttl'"), err)
 }

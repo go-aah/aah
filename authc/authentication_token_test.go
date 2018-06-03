@@ -17,6 +17,5 @@ func TestAuthcAuthenticationToken(t *testing.T) {
 		Credential: "welcome123",
 	}
 
-	assert.Equal(t, "AuthenticationToken:: Scheme: form, Identity: jeeva, Credential: *******",
-		authToken.String())
+	assert.Equal(t, "authenticationtoken(scheme:form identity:jeeva credential:*******)", authToken.String())
 }

@@ -148,5 +148,5 @@ func (a *AuthorizationInfo) Permissions() string {
 
 // String method is stringer interface implementation.
 func (a AuthorizationInfo) String() string {
-	return "Roles[" + a.Roles() + "] Permissions[" + a.Permissions() + "]"
+	return "authorizationinfo(roles(" + a.Roles() + ") allpermissions(" + a.Permissions() + "))"
 }

@@ -144,7 +144,7 @@ func (s *Session) GetFloat64(key string) float64 {
 
 // String method is stringer interface implementation.
 func (s Session) String() string {
-	return fmt.Sprintf("Session: ID: %s, CreatedAt: %s, IsNew: %v, IsAuthenticated: %v, Values: %v",
+	return fmt.Sprintf("session(id:%s createdat:%s isnew:%v isauthenticated:%v values:%v)",
 		s.ID, s.CreatedTime, s.IsNew, s.IsAuthenticated, s.Values)
 }
 

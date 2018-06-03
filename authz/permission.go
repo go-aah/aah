@@ -21,7 +21,7 @@ const (
 var (
 	// ErrPermissionStringEmpty returned when empty permission string supplied to
 	// methods `security.authz.NewPermission` or `security.authz.NewPermissioncs`.
-	ErrPermissionStringEmpty = errors.New("security: permission string is empty")
+	ErrPermissionStringEmpty = errors.New("security/authz: permission string is empty")
 
 	// ErrPermissionImproperFormat returned when permission string is composed or
 	// formatted properly.
@@ -187,7 +187,7 @@ func (p Permission) String() string {
 	for _, part := range p.parts {
 		strs = append(strs, strings.Join(part, subPartDividerToken))
 	}
-	return strings.Join(strs, partDividerToken)
+	return "permission(" + strings.Join(strs, partDividerToken) + ")"
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

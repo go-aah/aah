@@ -39,7 +39,7 @@ import (
 
 var (
 	// ErrSessionStoreIsNil returned when suppiled store is nil.
-	ErrSessionStoreIsNil = errors.New("session: store value is nil")
+	ErrSessionStoreIsNil = errors.New("security/session: store value is nil")
 
 	registerStores = make(map[string]Storer)
 	sessionPool    = sync.Pool{New: func() interface{} { return &Session{Values: make(map[string]interface{})} }}

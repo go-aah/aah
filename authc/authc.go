@@ -8,28 +8,45 @@ import (
 	"errors"
 
 	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
 )
 
 var (
-	// ErrAuthenticatorIsNil error is returned when authenticator is nil in the auth scheme.
-	ErrAuthenticatorIsNil = errors.New("security: authenticator is nil")
+	// ErrAuthenticatorIsNil error is returned when given authenticator is nil.
+	ErrAuthenticatorIsNil = errors.New("security/authc: authenticator is nil")
+
+	//ErrPrincipalIsNil error is returned when given principal provider is nil.
+	ErrPrincipalIsNil = errors.New("security/authc: principal provider is nil")
 
 	// ErrAuthenticationFailed error is returned when user authentication fails;
-	// such as subject password doesn't match, is-locked or is-Expired.
-	ErrAuthenticationFailed = errors.New("security: authentication failed")
+	// such as subject password doesn't match, is-locked or is-expired.
+	ErrAuthenticationFailed = errors.New("security/authc: authentication failed")
 
 	// ErrSubjectNotExists error is returned when Subject is not exists in the application
-	// datasource. Typically used by aah application.
-	ErrSubjectNotExists = errors.New("security: subject not exists")
+	// datasource.
+	ErrSubjectNotExists = errors.New("security/authc: subject not exists")
 )
 
 // Authenticator interface is implemented by user application to provide
 // authentication information during authentication process.
 type Authenticator interface {
-	// Init method gets called by framework during an application start.
+	// Init method gets called by aah during an application start.
 	Init(appCfg *config.Config) error
 
 	// GetAuthenticationInfo method gets called when authentication happens for
 	// user provided credentials.
 	GetAuthenticationInfo(authcToken *AuthenticationToken) (*AuthenticationInfo, error)
+}
+
+// PrincipalProvider interface is implemented to provide Subject's principals
+// where authentication is done third party, for e.g. OAuth2, etc.
+type PrincipalProvider interface {
+	// Init method gets called by aah during an application start.
+	Init(appCfg *config.Config) error
+
+	// Principal method called auth scheme to get Principals.
+	//
+	// 	For e.g: keyName is the auth scheme configuration KeyName.
+	// 		 security.auth_schemes.<keyname>
+	Principal(keyName string, v ess.Valuer) ([]*Principal, error)
 }

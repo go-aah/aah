@@ -21,7 +21,7 @@ func TestSecurityInit(t *testing.T) {
 	sec := New()
 	err = sec.Init(cfg)
 	assert.Nil(t, err)
-	assert.True(t, sec.IsAuthSchemesConfigured())
+	assert.True(t, len(sec.AuthSchemes()) != 0)
 
 	// Add auth scheme
 	err = sec.AddAuthScheme("myauth", nil)

@@ -6,6 +6,7 @@ package session
 
 import (
 	"encoding/gob"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -100,7 +101,7 @@ func TestSessionRegisterStore(t *testing.T) {
 
 	err = AddStore("custom", nil)
 	assert.NotNil(t, err)
-	assert.Equal(t, "session: store value is nil", err.Error())
+	assert.Equal(t, errors.New("security/session: store value is nil"), err)
 }
 
 func TestSessionStoreNotExists(t *testing.T) {

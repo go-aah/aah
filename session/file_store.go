@@ -18,7 +18,7 @@ import (
 )
 
 // Storer interface comply
-var _ Storer = &FileStore{}
+var _ Storer = (*FileStore)(nil)
 
 // FileStore is the aah framework session store implementation.
 type FileStore struct {
