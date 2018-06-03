@@ -43,7 +43,7 @@ func TestSecuritySubject(t *testing.T) {
 	assert.NotNil(t, p)
 	assert.Equal(t, "user@sample.com", p.Value)
 	assert.True(t, p.IsPrimary)
-	assert.Equal(t, "Realm: , Principal: user@sample.com, IsPrimary: true", p.String())
+	assert.Equal(t, "principal(realm: isprimary:true claim: value:user@sample.com)", p.String())
 
 	all := sub.AllPrincipals()
 	assert.NotNil(t, all)
@@ -61,8 +61,8 @@ func TestSecuritySubject(t *testing.T) {
 
 	str := sub.String()
 	assert.True(t, strings.Contains(str, "user@sample.com"))
-	assert.True(t, strings.Contains(str, "Roles[role1, role2, role3, role4]"))
-	assert.True(t, strings.Contains(str, "Permissions[newsletter:read,write]"))
+	assert.True(t, strings.Contains(str, "role1, role2, role3, role4"))
+	assert.True(t, strings.Contains(str, "newsletter:read,write"))
 
 	// Session
 	assert.True(t, sub.IsAuthenticated())
