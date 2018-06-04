@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -22,7 +22,7 @@ import (
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/ainsp.v0"
-	config "aahframework.org/config.v0"
+	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/test.v0/assert"
@@ -30,8 +30,7 @@ import (
 
 func TestAahApp(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL: %s", ts.URL)
@@ -166,8 +165,7 @@ func TestAahApp(t *testing.T) {
 
 func TestAppMisc(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL [App Misc]: %s", ts.URL)
@@ -189,7 +187,7 @@ func TestAppMisc(t *testing.T) {
 	t.Log("simualate CLI call")
 	a.SetBuildInfo(nil)
 	a.packagedMode = false
-	err = a.Init(importPath)
+	err := a.Init(importPath)
 	assert.Nil(t, err)
 
 	// SSL
@@ -229,6 +227,27 @@ func TestAppMisc(t *testing.T) {
 	assert.Equal(t, "80", pa.parsePort(""))
 }
 
+type het struct {
+	HTTPEngine
+}
+
+func (e *het) Handle(w http.ResponseWriter, r *http.Request) {
+	// to test recover panic
+	panic("to test recover panic")
+}
+
+func TestAppRecover(t *testing.T) {
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	a := newTestApp(t, importPath)
+	a.Log().(*log.Logger).SetWriter(ioutil.Discard)
+	panicTest(a)
+}
+
+func panicTest(a *app) {
+	defer a.aahRecover()
+	panic("test panic")
+}
+
 func fireRequest(t *testing.T, req *http.Request) *testResult {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -249,33 +268,37 @@ func fireRequest(t *testing.T, req *http.Request) *testResult {
 // Test Server
 //______________________________________________________________________________
 
-func newTestServer(t *testing.T, importPath string) (*testServer, error) {
+func newTestServer(t *testing.T, importPath string) *testServer {
 	ts := &testServer{
-		app: newApp(),
+		app: newTestApp(t, importPath),
 	}
 
 	ts.server = httptest.NewServer(ts.app)
 	ts.URL = ts.server.URL
 
-	ts.app.SetBuildInfo(&BuildInfo{
+	// Manually do it here here, for aah CLI test no issue `aah test` :)
+	ts.manualInit()
+
+	ts.DiscordLog()
+
+	return ts
+}
+
+func newTestApp(t *testing.T, importPath string) *app {
+	a := newApp()
+	a.SetBuildInfo(&BuildInfo{
 		BinaryName: filepath.Base(importPath),
 		Date:       time.Now().Format(time.RFC3339),
 		Version:    "1.0.0",
 	})
 
-	err := ts.app.VFS().AddMount(ts.app.VirtualBaseDir(), importPath)
+	err := a.VFS().AddMount(a.VirtualBaseDir(), importPath)
 	assert.FailOnError(t, err, "not expecting any error")
 
-	if err := ts.app.Init(importPath); err != nil {
-		return nil, err
-	}
+	err = a.Init(importPath)
+	assert.FailOnError(t, err, "app init failure")
 
-	// Manually do it here here, for aah CLI test no issue `aah test` :)
-	ts.manualInit()
-
-	ts.app.Log().(*log.Logger).SetWriter(ioutil.Discard)
-
-	return ts, nil
+	return a
 }
 
 type testResult struct {
@@ -297,6 +320,14 @@ type testServer struct {
 
 func (ts *testServer) Close() {
 	ts.server.Close()
+}
+
+func (ts *testServer) DiscordLog() {
+	ts.app.Log().(*log.Logger).SetWriter(ioutil.Discard)
+}
+
+func (ts *testServer) UndiscordLog() {
+	ts.app.Log().(*log.Logger).SetWriter(os.Stdout)
 }
 
 // It a workaround to init required things for application, since test `webapp1`

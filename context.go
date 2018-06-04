@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -17,10 +17,14 @@ import (
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
 	"aahframework.org/security.v0"
+	"aahframework.org/security.v0/authz"
+	"aahframework.org/security.v0/scheme"
 	"aahframework.org/security.v0/session"
 )
 
 var (
+	_ ess.Valuer = (*Context)(nil)
+
 	ctxPtrType = reflect.TypeOf((*Context)(nil))
 
 	errTargetNotFound = errors.New("target not found")
@@ -375,6 +379,18 @@ func (ctx *Context) writeHeaders() {
 	}
 }
 
+// hasAccess method checks the subject's access by defined access rule in the
+// route.
+func (ctx *Context) hasAccess() (bool, []*authz.Reason) {
+	return ctx.route.HasAccess(ctx.Subject())
+}
+
+// authScheme method returns the Route auth scheme. Might be nil for
+// anonymous route.
+func (ctx *Context) authScheme() scheme.Schemer {
+	return ctx.a.SecurityManager().AuthScheme(ctx.route.Auth)
+}
+
 // callAction method calls targed action method on the controller.
 func (ctx *Context) callAction() {
 	// Parse Action Parameters
@@ -384,7 +400,7 @@ func (ctx *Context) callAction() {
 		return
 	}
 
-	ctx.Log().Debugf("Calling controller: %s.%s", ctx.controller.FqName, ctx.action.Name)
+	ctx.Log().Debugf("Calling action: %s.%s", ctx.controller.FqName, ctx.action.Name)
 	if ctx.actionrv.Type().IsVariadic() {
 		ctx.actionrv.CallSlice(actionArgs)
 	} else {

@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
@@ -26,7 +27,11 @@ const (
 	// KeyViewArgSubject key name is used to store `Subject` instance into `ViewArgs`.
 	KeyViewArgSubject = "_aahSubject"
 
-	keyAntiCSRF = "_AntiCSRF"
+	// KeyOAuth2Token key name is used to store OAuth2 Access Token into `aah.Context`.
+	KeyOAuth2Token = "_aahOAuth2Token"
+
+	keyAntiCSRF       = "_aahAntiCSRF"
+	keyOAuth2StateKey = "_aahOAuth2State"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -81,20 +86,25 @@ func (a *app) initSecurity() error {
 
 // AuthcAuthzMiddleware is aah Authentication and Authorization Middleware.
 func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
+	// Load session from request if its `stateful`.
+	if ctx.a.SessionManager().IsStateful() {
+		ctx.Subject().Session = ctx.a.SessionManager().GetSession(ctx.Req.Unwrap())
+	}
+
 	// If route auth is `anonymous` then continue the request flow
 	// No authentication or authorization is required for that route.
 	if ctx.route.Auth == "anonymous" {
-		ctx.Log().Debugf("Route auth is anonymous: %v", ctx.Req.Path)
 		m.Next(ctx)
 		return
 	}
 
-	authScheme := ctx.a.SecurityManager().GetAuthScheme(ctx.route.Auth)
+	authScheme := ctx.authScheme()
 	if authScheme == nil {
 		// If one or more auth schemes are defined in `security.auth_schemes { ... }`
-		// and routes `auth` attribute is not defined then framework treats that route as `403 Forbidden`.
-		if ctx.a.SecurityManager().IsAuthSchemesConfigured() {
-			ctx.Log().Warnf("Auth schemes are configured in security.conf, however attribute 'auth' or 'default_auth' is not defined in routes.conf, so treat it as 403 forbidden: %v", ctx.Req.Path)
+		// and routes `auth` attribute is not defined then aah treats that route as `403 Forbidden`.
+		if len(ctx.a.SecurityManager().AuthSchemes()) != 0 {
+			ctx.Log().Warnf("Auth schemes are configured in security.conf, however attribute 'auth' "+
+				"or 'default_auth' is not defined in routes.conf, so treat it as 403 Forbidden: %v", ctx.Req.Path)
 			ctx.Reply().Error(&Error{
 				Reason:  ErrAccessDenied,
 				Code:    http.StatusForbidden,
@@ -109,25 +119,22 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 		return
 	}
 
-	// loadSession method loads session from request for `stateful` session.
-	if ctx.a.SessionManager().IsStateful() {
-		ctx.Subject().Session = ctx.a.SessionManager().GetSession(ctx.Req.Unwrap())
-	}
-
-	ctx.Log().Debugf("Route auth scheme: %s", authScheme.Scheme())
+	ctx.Log().Debugf("Route auth scheme: %s", authScheme.Key())
 	var result flowResult
 	switch authScheme.Scheme() {
 	case "form":
-		result = doFormAuthcAndAuthz(authScheme, ctx)
+		result = doFormAuth(authScheme, ctx)
+	case "oauth2":
+		result = doOAuth2(authScheme, ctx)
 	default:
-		result = doAuthcAndAuthz(authScheme, ctx)
+		result = doAuthScheme(authScheme, ctx)
 	}
 
 	if result == flowCont {
-		if result, reasons := ctx.route.HasAccess(ctx.Subject()); result {
+		if result, reasons := ctx.hasAccess(); result {
 			m.Next(ctx)
 		} else {
-			ctx.Log().Warnf("Authorization failed:%v", reason2String(reasons))
+			ctx.Log().Warnf("%s: Authorization failed:%v", authScheme.Key(), reason2String(reasons))
 			ctx.Reply().Forbidden().Error(&Error{
 				Reason:  ErrAuthorizationFailed,
 				Code:    http.StatusForbidden,
@@ -138,30 +145,21 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 	}
 }
 
-// doFormAuthcAndAuthz method does Form Authentication and Authorization.
-func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
-	formAuth := ascheme.(*scheme.FormAuth)
-
-	// In Form authentication check session is already authentication if yes
-	// then continue the request flow immediately.
+// doFormAuth method does Form Authentication and Authorization.
+func doFormAuth(authScheme scheme.Schemer, ctx *Context) flowResult {
 	if ctx.Subject().IsAuthenticated() {
-		if ctx.Session().IsKeyExists(KeyViewArgAuthcInfo) {
-			ctx.Subject().AuthenticationInfo = ctx.Session().Get(KeyViewArgAuthcInfo).(*authc.AuthenticationInfo)
-			ctx.Subject().AuthorizationInfo = formAuth.DoAuthorizationInfo(ctx.Subject().AuthenticationInfo)
-			ctx.logger = ctx.Log().WithField("principal", ctx.Subject().AuthenticationInfo.PrimaryPrincipal().Value)
-		} else {
-			ctx.Log().Warn("It seems there is an issue with session data - AuthenticationInfo")
-		}
-
-		return flowCont
+		// If session is authenticated then populate subject and continue the request flow.
+		return populateSubject(authScheme, ctx)
 	}
+
+	formAuth := authScheme.(*scheme.FormAuth)
 
 	// Check route is login submit URL otherwise send it login URL.
 	// Since session is not authenticated.
 	if formAuth.LoginSubmitURL != ctx.route.Path && ctx.Req.Method != ahttp.MethodPost {
 		loginURL := formAuth.LoginURL
 		if formAuth.LoginURL != ctx.Req.Path {
-			loginURL = fmt.Sprintf("%s?_rt=%s", loginURL, ctx.Req.Unwrap().RequestURI)
+			loginURL = fmt.Sprintf("%s?_rt=%s", loginURL, ctx.Req.URL().String())
 		}
 		ctx.Reply().Redirect(loginURL)
 		return flowAbort
@@ -169,88 +167,191 @@ func doFormAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
 
 	ctx.e.publishOnPreAuthEvent(ctx)
 
-	// Do Authentication
-	authcInfo, err := formAuth.DoAuthenticate(formAuth.ExtractAuthenticationToken(ctx.Req))
-	if err != nil || authcInfo == nil {
-		ctx.Log().Info("Authentication is failed, sending to login failure URL")
-
-		redirectURL := formAuth.LoginFailureURL
-		redirectTarget := ctx.Req.Unwrap().FormValue("_rt")
-		if !ess.IsStrEmpty(redirectTarget) {
-			redirectURL = redirectURL + "&_rt=" + redirectTarget
-		}
-
-		ctx.Reply().Redirect(redirectURL)
+	if doAuthentication(authScheme, ctx) == flowAbort {
 		return flowAbort
 	}
 
-	ctx.logger = ctx.Log().WithField("principal", authcInfo.PrimaryPrincipal().Value)
-
-	ctx.Log().Debug(authcInfo)
-	ctx.Log().Info("Authentication successful")
-	ctx.Subject().AuthenticationInfo = authcInfo
-	ctx.Subject().AuthorizationInfo = formAuth.DoAuthorizationInfo(authcInfo)
-	ctx.Session().IsAuthenticated = true
-	ctx.Log().Debug(ctx.Subject().AuthorizationInfo)
-
-	// Change the Anti-CSRF token in use for a request after login for security purposes.
-	ctx.Log().Debug("Change Anti-CSRF secret after login for security purpose")
-	ctx.AddViewArg(keyAntiCSRF, ctx.a.SecurityManager().AntiCSRF.GenerateSecret())
-
-	// Remove the credential
-	ctx.Subject().AuthenticationInfo.Credential = nil
-	ctx.Session().Set(KeyViewArgAuthcInfo, ctx.Subject().AuthenticationInfo)
+	populateAuthorizationInfo(authScheme, ctx)
+	debugLogSubjectInfo(ctx)
 
 	ctx.e.publishOnPostAuthEvent(ctx)
 
-	rt := ctx.Req.Unwrap().FormValue("_rt") // redirect to value
+	rt := ctx.Req.Unwrap().FormValue("_rt") // redirect to requested URL
 	if formAuth.IsAlwaysToDefaultTarget || ess.IsStrEmpty(rt) {
 		ctx.Reply().Redirect(formAuth.DefaultTargetURL)
 	} else {
-		ctx.Log().Debugf("Redirect to URL found ('_rt'): %v", rt)
+		ctx.Log().Debugf("Redirecting to URL found in param '_rt': %s", rt)
 		ctx.Reply().Redirect(rt)
 	}
 
 	return flowAbort
 }
 
-// doAuthcAndAuthz method does Authentication and Authorization.
-func doAuthcAndAuthz(ascheme scheme.Schemer, ctx *Context) flowResult {
+// doOAuth2 method does 3-legged OAuth2 authentication with provider
+// and adds the Token into Context. It bit different from FormAuth,
+// BasicAuth and Generic (basically it does not have support for
+// interface authenticator and authorizer, since its not appliable in the
+// OAuth2 flow).
+func doOAuth2(authScheme scheme.Schemer, ctx *Context) flowResult {
+	if ctx.Subject().IsAuthenticated() {
+		// If session is authenticated then populate subject and continue the request flow.
+		return populateSubject(authScheme, ctx)
+	}
+
 	ctx.e.publishOnPreAuthEvent(ctx)
+	oauth := authScheme.(*scheme.OAuth2)
 
-	// Do Authentication
-	authcInfo, err := ascheme.DoAuthenticate(ascheme.ExtractAuthenticationToken(ctx.Req))
-	if err != nil || authcInfo == nil {
-		ctx.Log().Info("Authentication is failed")
-
-		if ascheme.Scheme() == "basic" {
-			basicAuth := ascheme.(*scheme.BasicAuth)
-			ctx.Reply().Header(ahttp.HeaderWWWAuthenticate, `Basic realm="`+basicAuth.RealmName+`"`)
-		}
-
-		ctx.Reply().Error(&Error{
-			Reason:  ErrAuthenticationFailed,
-			Code:    http.StatusUnauthorized,
-			Message: http.StatusText(http.StatusUnauthorized),
-		})
+	// OAuth2 provider login
+	if ctx.Req.Path == oauth.LoginURL {
+		state, authURL := oauth.ProviderAuthURL(ctx.Req)
+		ctx.Session().Set(keyOAuth2StateKey, state)
+		ctx.Reply().Redirect(authURL)
 		return flowAbort
 	}
 
-	ctx.logger = ctx.Log().WithField("principal", authcInfo.PrimaryPrincipal().Value)
+	// OAuth2 provider callback handling
+	if ctx.Req.Path == oauth.RedirectURL {
+		defer ctx.Session().Del(keyOAuth2StateKey)
 
-	ctx.Log().Debug(authcInfo)
-	ctx.Log().Info("Authentication successful")
-	ctx.Subject().AuthenticationInfo = authcInfo
-	ctx.Subject().AuthorizationInfo = ascheme.DoAuthorizationInfo(authcInfo)
-	ctx.Session().IsAuthenticated = true
-	ctx.Log().Debug(ctx.Subject().AuthorizationInfo)
+		// Validate OAuth2 callback
+		ctx.Log().Debug(ctx.Req.URL().String())
+		token, err := oauth.ValidateCallback(ctx.Session().GetString(keyOAuth2StateKey), ctx.Req)
+		if err != nil {
+			ctx.Log().Error(err)
+			ctx.Reply().Unauthorized().Error(newError(err, http.StatusUnauthorized))
+			return flowAbort
+		}
 
-	// Remove the credential
-	ctx.Subject().AuthenticationInfo.Credential = nil
+		// Set successful access token into aah.Context
+		ctx.Log().Info("oauth2: Token obtained from provider")
+		ctx.Set(KeyOAuth2Token, token)
+
+		if doAuthentication(authScheme, ctx) == flowAbort {
+			return flowAbort
+		}
+
+		populateAuthorizationInfo(authScheme, ctx)
+		debugLogSubjectInfo(ctx)
+
+		ctx.e.publishOnPostAuthEvent(ctx)
+
+		// Redirect to success URL
+		ctx.Reply().Redirect(oauth.SuccessURL)
+		return flowAbort
+	}
+
+	// typically it should not reach here
+	ctx.Log().Trace("OAuth2 flow; typically it should not reach here")
+	return flowAbort
+}
+
+// doAuthScheme method does generic and basic (Authentication and Authorization).
+func doAuthScheme(authScheme scheme.Schemer, ctx *Context) flowResult {
+	ctx.e.publishOnPreAuthEvent(ctx)
+
+	if doAuthentication(authScheme, ctx) == flowAbort {
+		return flowAbort
+	}
+
+	populateAuthorizationInfo(authScheme, ctx)
+	debugLogSubjectInfo(ctx)
 
 	ctx.e.publishOnPostAuthEvent(ctx)
 
 	return flowCont
+}
+
+type principalProviderNoInit interface {
+	Principal(keyName string, v ess.Valuer) ([]*authc.Principal, error)
+}
+
+func doAuthentication(authScheme scheme.Schemer, ctx *Context) flowResult {
+	var authcInfo *authc.AuthenticationInfo
+	if c, ok := authScheme.(principalProviderNoInit); ok {
+		// Call Subject principals provider
+		principals, err := c.Principal(authScheme.Key(), ctx)
+		if err != nil {
+			ctx.Log().Error(ErrUnableToGetPrincipal)
+			ctx.Reply().Unauthorized().Error(newError(ErrUnableToGetPrincipal, http.StatusUnauthorized))
+			return flowAbort
+		}
+
+		ctx.Log().Debugf("%s: Subject principals obtained", authScheme.Key())
+		authcInfo = authc.NewAuthenticationInfo()
+		authcInfo.Principals = append(authcInfo.Principals, principals...)
+	} else {
+		// Call Authentication Info provider
+		var err error
+		authcInfo, err = authScheme.DoAuthenticate(authScheme.ExtractAuthenticationToken(ctx.Req))
+		if err != nil || authcInfo == nil {
+			switch sa := authScheme.(type) {
+			case *scheme.FormAuth:
+				ctx.Log().Infof("%s: Authentication is failed, sending to login failure URL", authScheme.Key())
+				redirectURL := sa.LoginFailureURL
+				if rt := ctx.Req.Unwrap().FormValue("_rt"); !ess.IsStrEmpty(rt) {
+					// rt => Redirect Target
+					if strings.IndexByte(redirectURL, '?') > 0 {
+						redirectURL += "&_rt=" + rt
+					} else {
+						redirectURL += "?_rt=" + rt
+					}
+				}
+				ctx.Reply().Redirect(redirectURL)
+			case *scheme.BasicAuth:
+				ctx.Log().Infof("%s: Authentication is failed", authScheme.Key())
+				ctx.Reply().Header(ahttp.HeaderWWWAuthenticate, `Basic realm="`+sa.RealmName+`"`)
+				ctx.Reply().Unauthorized().Error(newError(ErrAuthenticationFailed, http.StatusUnauthorized))
+			}
+
+			return flowAbort
+		}
+	}
+
+	populateAuthenticationInfo(authcInfo, ctx)
+	ctx.Session().IsAuthenticated = true
+	ctx.Log().Infof("%s: Authentication successful", authScheme.Key())
+
+	// Add to session its stateful
+	if ctx.a.SessionManager().IsStateful() {
+		ctx.Session().Set(KeyViewArgAuthcInfo, ctx.Subject().AuthenticationInfo)
+	}
+
+	if ctx.a.ViewEngine() != nil {
+		// Change the Anti-CSRF token in use for a request after login for security purposes.
+		ctx.Log().Info("Change Anti-CSRF secret after login authentication for security purpose")
+		ctx.AddViewArg(keyAntiCSRF, ctx.a.SecurityManager().AntiCSRF.GenerateSecret())
+	}
+
+	return flowCont
+}
+
+func populateSubject(authScheme scheme.Schemer, ctx *Context) flowResult {
+	if ctx.Session().IsKeyExists(KeyViewArgAuthcInfo) {
+		populateAuthenticationInfo(ctx.Session().Get(KeyViewArgAuthcInfo).(*authc.AuthenticationInfo), ctx)
+		populateAuthorizationInfo(authScheme, ctx)
+		return flowCont
+	}
+
+	ctx.Log().Warn("It seems there is an issue with session data, possibly Authentication Info")
+	ctx.Reply().Error(newError(ErrSessionAuthenticationInfo, http.StatusBadRequest))
+	return flowAbort
+}
+
+func populateAuthenticationInfo(authcInfo *authc.AuthenticationInfo, ctx *Context) {
+	ctx.Subject().AuthenticationInfo = authcInfo
+	ctx.logger = ctx.Log().WithField("principal", ctx.Subject().PrimaryPrincipal().Value)
+
+	// Remove the credential
+	ctx.Subject().AuthenticationInfo.Credential = nil
+}
+
+func populateAuthorizationInfo(authScheme scheme.Schemer, ctx *Context) {
+	ctx.Subject().AuthorizationInfo = authScheme.DoAuthorizationInfo(ctx.Subject().AuthenticationInfo)
+}
+
+func debugLogSubjectInfo(ctx *Context) {
+	ctx.Log().Debug(ctx.Subject().AuthenticationInfo)
+	ctx.Log().Debug(ctx.Subject().AuthorizationInfo)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -263,7 +364,6 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// If Anti-CSRF is not enabled, move on.
 	// It is highly recommended to enable for web application.
 	if !ctx.a.SecurityManager().AntiCSRF.Enabled || !ctx.route.IsAntiCSRFCheck || ctx.a.ViewEngine() == nil {
-		// ctx.Log().Tracef("Anti CSRF protection is not enabled [%s: %s], clear the cookie if present.", ctx.Req.Method, ctx.Req.Path)
 		ctx.a.SecurityManager().AntiCSRF.ClearCookie(ctx.Res, ctx.Req)
 		m.Next(ctx)
 		return
@@ -301,7 +401,7 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	if ctx.Req.Scheme == ahttp.SchemeHTTPS {
 		referer, err := url.Parse(ctx.Req.Referer)
 		if err != nil {
-			ctx.Log().Warnf("Anti-CSRF: malformed referer %s", ctx.Req.Referer)
+			ctx.Log().Warnf("anticsrf: Malformed referer %s", ctx.Req.Referer)
 			ctx.Reply().Error(&Error{
 				Reason:  anticsrf.ErrMalformedReferer,
 				Code:    http.StatusForbidden,
@@ -311,7 +411,7 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 		}
 
 		if ess.IsStrEmpty(referer.String()) {
-			ctx.Log().Warnf("Anti-CSRF: no referer %s", ctx.Req.Referer)
+			ctx.Log().Warnf("anticsrf: No referer %s", ctx.Req.Referer)
 			ctx.Reply().Error(&Error{
 				Reason:  anticsrf.ErrNoReferer,
 				Code:    http.StatusForbidden,
@@ -321,7 +421,7 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 		}
 
 		if !anticsrf.IsSameOrigin(ctx.Req.URL(), referer) {
-			ctx.Log().Warnf("Anti-CSRF: bad referer %s", ctx.Req.Referer)
+			ctx.Log().Warnf("anticsrf: Bad referer %s", ctx.Req.Referer)
 			ctx.Reply().Error(&Error{
 				Reason:  anticsrf.ErrBadReferer,
 				Code:    http.StatusForbidden,
@@ -334,7 +434,7 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// Get request cipher secret from HTTP header or Form
 	requestSecret := ctx.a.SecurityManager().AntiCSRF.RequestCipherSecret(ctx.Req)
 	if requestSecret == nil || !ctx.a.SecurityManager().AntiCSRF.IsAuthentic(secret, requestSecret) {
-		ctx.Log().Warn("Anti-CSRF: verification failed, invalid cipher secret")
+		ctx.Log().Warn("anticsrf: Verification failed, invalid cipher secret")
 		ctx.Reply().Error(&Error{
 			Reason:  anticsrf.ErrNoCookieFound,
 			Code:    http.StatusForbidden,
@@ -342,8 +442,8 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 		})
 		return
 	}
-	ctx.Log().Debug("Anti-CSRF cipher secret verification passed")
 
+	ctx.Log().Info("anticsrf: Cipher secret verification passed")
 	m.Next(ctx)
 
 	writeAntiCSRFCookie(ctx, ctx.viewArgs[keyAntiCSRF].([]byte))
@@ -351,7 +451,7 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 
 func writeAntiCSRFCookie(ctx *Context, secret []byte) {
 	if err := ctx.a.SecurityManager().AntiCSRF.SetCookie(ctx.Res, secret); err != nil {
-		ctx.Log().Error("Unable to write Anti-CSRF cookie")
+		ctx.Log().Error("anticsrf: Unable to write cookie")
 	}
 }
 

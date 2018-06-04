@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -17,13 +17,12 @@ import (
 
 func TestRouterTemplateFuncs(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL [Router Template funcs]: %s", ts.URL)
 
-	err = ts.app.initRouter()
+	err := ts.app.initRouter()
 	assert.Nil(t, err)
 
 	err = ts.app.initView()
@@ -58,8 +57,7 @@ func TestRouterMisc(t *testing.T) {
 
 func TestRouterCORS(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL [CORS]: %s", ts.URL)

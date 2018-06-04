@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -19,8 +19,7 @@ func TestServerStartHTTP(t *testing.T) {
 	defer ess.DeleteFiles("webapp1.pid")
 
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL [Server Start HTTP]: %s", ts.URL)
@@ -35,8 +34,7 @@ func TestServerStartUnix(t *testing.T) {
 	defer ess.DeleteFiles("webapp1.pid")
 
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL [Server Start Unix]: %s", ts.URL)
@@ -52,8 +50,7 @@ func TestServerHTTPRedirect(t *testing.T) {
 	defer ess.DeleteFiles("webapp1.pid")
 
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts1, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts1 := newTestServer(t, importPath)
 	defer ts1.Close()
 
 	t.Logf("Test Server URL [Redirect Server]: %s", ts1.URL)
@@ -70,8 +67,7 @@ func TestServerHTTPRedirect(t *testing.T) {
 	defer ts1.app.shutdownRedirectServer()
 
 	// redirect enabled with port
-	ts2, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts2 := newTestServer(t, importPath)
 	defer ts2.Close()
 
 	t.Logf("Test Server URL [Redirect Server]: %s", ts2.URL)

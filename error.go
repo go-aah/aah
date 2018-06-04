@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"net/http"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
@@ -27,6 +28,8 @@ var (
 	ErrAccessDenied               = errors.New("aah: access denied")
 	ErrAuthenticationFailed       = errors.New("aah: authentication failed")
 	ErrAuthorizationFailed        = errors.New("aah: authorization failed")
+	ErrSessionAuthenticationInfo  = errors.New("aah: session authentication info")
+	ErrUnableToGetPrincipal       = errors.New("aah: unable to get principal")
 	ErrGeneric                    = errors.New("aah: generic error")
 	ErrValidation                 = errors.New("aah: validation error")
 	ErrRenderResponse             = errors.New("aah: render response error")
@@ -155,6 +158,9 @@ func (er *errorManager) DefaultHandler(ctx *Context, err *Error) bool {
 	ct := ctx.Reply().ContType
 	if ess.IsStrEmpty(ct) {
 		ct = ctx.detectContentType().Mime
+		if ctx.a.viewMgr == nil && ct == ahttp.ContentTypeHTML.Mime {
+			ct = ahttp.ContentTypePlainText.Mime
+		}
 	}
 
 	ct = stripCharset(ct)
@@ -207,4 +213,12 @@ type Error struct {
 // Error method is to comply error interface.
 func (e *Error) Error() string {
 	return fmt.Sprintf("%v, code '%v', message '%s'", e.Reason, e.Code, e.Message)
+}
+
+func newError(err error, code int) *Error {
+	return &Error{Reason: err, Code: code, Message: http.StatusText(code)}
+}
+
+func newErrorWithData(err error, code int, data interface{}) *Error {
+	return &Error{Reason: err, Code: code, Message: http.StatusText(code), Data: data}
 }
