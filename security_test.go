@@ -1,18 +1,23 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
+	"aahframework.org/essentials.v0"
 	"aahframework.org/router.v0"
 	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/anticsrf"
@@ -21,6 +26,8 @@ import (
 	"aahframework.org/security.v0/scheme"
 	"aahframework.org/security.v0/session"
 	"aahframework.org/test.v0/assert"
+	"golang.org/x/net/publicsuffix"
+	"golang.org/x/oauth2"
 )
 
 func TestSecuritySessionStore(t *testing.T) {
@@ -30,18 +37,17 @@ func TestSecuritySessionStore(t *testing.T) {
 
 	err = AddSessionStore("custom", nil)
 	assert.NotNil(t, err)
-	assert.Equal(t, "session: store value is nil", err.Error())
+	assert.Equal(t, errors.New("security/session: store value is nil"), err)
 }
 
 func TestSecuritySessionTemplateFuns(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL [Security Template funcs]: %s", ts.URL)
 
-	err = ts.app.initSecurity()
+	err := ts.app.initSecurity()
 	assert.Nil(t, err)
 
 	err = ts.app.initView()
@@ -96,22 +102,21 @@ func TestSecuritySessionTemplateFuns(t *testing.T) {
 	assert.False(t, v4)
 }
 
-type testFormAuthentication struct {
-}
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Form Auth test
+//______________________________________________________________________________
+
+type testFormAuthentication struct{}
 
 var (
 	_ authc.Authenticator = (*testFormAuthentication)(nil)
 	_ authz.Authorizer    = (*testFormAuthentication)(nil)
 )
 
-func (tfa *testFormAuthentication) Init(cfg *config.Config) error {
-	return nil
-}
-
+func (tfa *testFormAuthentication) Init(cfg *config.Config) error { return nil }
 func (tfa *testFormAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
 	return testGetAuthenticationInfo(), nil
 }
-
 func (tfa *testFormAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {
 	return nil
 }
@@ -125,8 +130,7 @@ func testGetAuthenticationInfo() *authc.AuthenticationInfo {
 
 func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL [Security Form Authc and Authz]: %s", ts.URL)
@@ -150,7 +154,7 @@ func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 		}
 	`)
 
-	err = ts.app.Config().Merge(cfg)
+	err := ts.app.Config().Merge(cfg)
 	assert.Nil(t, err)
 
 	err = ts.app.initSecurity()
@@ -170,12 +174,12 @@ func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 	// form auth
 	t.Log("form auth")
 	testFormAuth := &testFormAuthentication{}
-	formAuth := ts.app.SecurityManager().GetAuthScheme("form_auth").(*scheme.FormAuth)
+	formAuth := ts.app.SecurityManager().AuthScheme("form_auth").(*scheme.FormAuth)
 	err = formAuth.SetAuthenticator(testFormAuth)
 	assert.Nil(t, err)
 	err = formAuth.SetAuthorizer(testFormAuth)
 	assert.Nil(t, err)
-	r2, _ := http.NewRequest("POST", "http://localhost:8080/login", nil)
+	r2, _ := http.NewRequest("POST", "http://localhost:8080/login?_rt=/", nil)
 	ctx.Req = ahttp.AcquireRequest(r2)
 	ctx.Session().Set(KeyViewArgAuthcInfo, testGetAuthenticationInfo())
 	AuthcAuthzMiddleware(ctx, &Middleware{})
@@ -194,30 +198,159 @@ func TestSecurityHandleFormAuthcAndAuthz(t *testing.T) {
 	AuthcAuthzMiddleware(ctx, &Middleware{})
 }
 
-type testBasicAuthentication struct {
-}
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// OAuth2 Auth test
+//______________________________________________________________________________
+
+type testOAuth2Auth struct{}
 
 var (
-	_ authc.Authenticator = (*testBasicAuthentication)(nil)
-	_ authz.Authorizer    = (*testBasicAuthentication)(nil)
+	_ authc.PrincipalProvider = (*testOAuth2Auth)(nil)
+	_ authz.Authorizer        = (*testOAuth2Auth)(nil)
 )
 
-func (tba *testBasicAuthentication) Init(cfg *config.Config) error {
+func (to *testOAuth2Auth) Init(cfg *config.Config) error { return nil }
+func (to *testOAuth2Auth) Principal(keyName string, v ess.Valuer) ([]*authc.Principal, error) {
+	principals := make([]*authc.Principal, 0)
+	principals = append(principals,
+		&authc.Principal{Realm: "TestOAuth", Claim: "Email", Value: "test@test.com", IsPrimary: true})
+	return principals, nil
+}
+func (to *testOAuth2Auth) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {
 	return nil
 }
 
-func (tba *testBasicAuthentication) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
-	return testGetAuthenticationInfo(), nil
+func createOAuth2TestServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/auth/login" {
+			redirectURL := r.FormValue("redirect_uri") +
+				"?code=EAACmZAkEPRWwBABp3pPRSAww7i4NS" + "&state=" + r.FormValue("state")
+			http.Redirect(w, r, redirectURL, 302)
+			return
+		}
+
+		if r.Method == http.MethodPost && r.URL.Path == "/auth/token" {
+			if strings.HasSuffix(r.FormValue("code"), ":senderror") {
+				return
+			}
+
+			// test token
+			w.Header().Set("Content-Type", "application/json")
+			token := &oauth2.Token{
+				TokenType:    "bearer",
+				AccessToken:  "EAACmZAkEPRWwBABp3pPRSAww7i4NSIbGHjwmGpR0tuqN29ZCXA2",
+				RefreshToken: "SzGotMzeKoIlCLVrZApwEfo4zNA10mcsWMeViZAy2y7legE6aEZD",
+				Expiry:       time.Now().UTC().AddDate(0, 0, 60),
+			}
+			_ = json.NewEncoder(w).Encode(token)
+			return
+		}
+	}))
 }
 
-func (tba *testBasicAuthentication) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {
+func TestSecurityHandleOAuth2(t *testing.T) {
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts := newTestServer(t, importPath)
+	defer ts.Close()
+
+	t.Logf("Test Server URL [Security OAuth2 Authc and Authz]: %s", ts.URL)
+
+	// form auth scheme
+	cfg, _ := config.ParseString(`
+security {
+	auth_schemes {
+		local_oauth {
+			scheme = "oauth2"
+			client {
+				id = "clientid"
+				secret = "clientsecret"
+				sign_key = "5a977494319cde3203fbb49711f08ad2"
+			}
+			provider {
+				url {
+					auth = "http://localhost/auth/login"
+					token = "http://localhost/auth/token"
+				}
+			}
+			principal = "security/SubjectPrincipalProvider"
+			authorizer = "security/AuthorizationProvider"
+		}
+	}
+}`)
+
+	err := ts.app.Config().Merge(cfg)
+	assert.Nil(t, err)
+
+	// Load new security config and router
+	err = ts.app.initSecurity()
+	assert.Nil(t, err)
+	err = ts.app.initRouter()
+	assert.Nil(t, err)
+
+	ots := createOAuth2TestServer()
+	defer ots.Close()
+
+	t.Logf("Local dummy mock OAuth2 server: %s", ots.URL)
+	oauth := ts.app.SecurityManager().AuthScheme("local_oauth").(*scheme.OAuth2)
+	assert.NotNil(t, oauth)
+	oauth.Config().Endpoint = oauth2.Endpoint{
+		AuthURL:  ots.URL + "/auth/login",
+		TokenURL: ots.URL + "/auth/token",
+	}
+
+	cookieJar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	client := &http.Client{Jar: cookieJar}
+
+	r1, _ := http.NewRequest(http.MethodGet, ts.URL+"/local-oauth/login", nil)
+	resp, err := client.Do(r1)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+	testOAuth2 := new(testOAuth2Auth)
+	assert.Nil(t, oauth.SetPrincipalProvider(testOAuth2))
+	assert.Nil(t, oauth.SetAuthorizer(testOAuth2))
+
+	resp, err = client.Do(r1)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	r2, _ := http.NewRequest(http.MethodGet, ts.URL+"/get-json-oauth2", nil)
+	resp, err = client.Do(r2)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+
+	// correcting route auth attribute
+	domain := ts.app.Router().Lookup(ts.URL[7:])
+	route := domain.LookupByName("get_json_oauth2")
+	route.Auth = "local_oauth"
+	resp, err = client.Do(r2)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.True(t, strings.HasPrefix(responseBody(resp), `{"ProductID":190398398,"ProductName":"JSONP product","Username"`))
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Basic Auth test
+//______________________________________________________________________________
+
+type testBasicAuth struct{}
+
+var (
+	_ authc.Authenticator = (*testBasicAuth)(nil)
+	_ authz.Authorizer    = (*testBasicAuth)(nil)
+)
+
+func (tba *testBasicAuth) Init(cfg *config.Config) error { return nil }
+func (tba *testBasicAuth) GetAuthenticationInfo(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
+	return testGetAuthenticationInfo(), nil
+}
+func (tba *testBasicAuth) GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo {
 	return nil
 }
 
 func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL [Security Basic Authc and Authz]: %s", ts.URL)
@@ -236,7 +369,7 @@ func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
 		}
 	`)
 
-	err = ts.app.Config().Merge(cfg)
+	err := ts.app.Config().Merge(cfg)
 	assert.Nil(t, err)
 
 	err = ts.app.initSecurity()
@@ -250,8 +383,8 @@ func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
 	ctx1.route = &router.Route{Auth: "basic_auth"}
 	AuthcAuthzMiddleware(ctx1, &Middleware{})
 
-	testBasicAuth := &testBasicAuthentication{}
-	basicAuth := ts.app.SecurityManager().GetAuthScheme("basic_auth").(*scheme.BasicAuth)
+	testBasicAuth := &testBasicAuth{}
+	basicAuth := ts.app.SecurityManager().AuthScheme("basic_auth").(*scheme.BasicAuth)
 	err = basicAuth.SetAuthenticator(testBasicAuth)
 	assert.Nil(t, err)
 	err = basicAuth.SetAuthorizer(testBasicAuth)
@@ -270,8 +403,7 @@ func TestSecurityHandleBasicAuthcAndAuthz(t *testing.T) {
 
 func TestSecurityAntiCSRF(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL [Security Basic Authc and Authz]: %s", ts.URL)
@@ -283,7 +415,7 @@ func TestSecurityAntiCSRF(t *testing.T) {
 		}
 	}
 	`)
-	err = ts.app.Config().Merge(cfg)
+	err := ts.app.Config().Merge(cfg)
 	assert.Nil(t, err)
 
 	err = ts.app.initView()

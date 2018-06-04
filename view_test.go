@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -21,13 +21,12 @@ import (
 
 func TestViewStore(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL [View Store]: %s", ts.URL)
 
-	err = ts.app.AddViewEngine("go", &view.GoViewEngine{})
+	err := ts.app.AddViewEngine("go", &view.GoViewEngine{})
 	assert.NotNil(t, err)
 	assert.Equal(t, "view: engine name 'go' is already added, skip it", err.Error())
 
@@ -48,8 +47,7 @@ func TestViewResolveView(t *testing.T) {
 	defer ess.DeleteFiles("webapp1.pid")
 
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL [Resolve View]: %s", ts.URL)
@@ -114,8 +112,7 @@ func TestViewMinifier(t *testing.T) {
 	defer ess.DeleteFiles("webapp1.pid")
 
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
-	ts, err := newTestServer(t, importPath)
-	assert.Nil(t, err)
+	ts := newTestServer(t, importPath)
 	defer ts.Close()
 
 	t.Logf("Test Server URL [View Minifier]: %s", ts.URL)
