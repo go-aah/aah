@@ -4,7 +4,7 @@
 
 // Package router provides routing implementation for aah framework.
 // Routes config file format is similar to HOCON syntax aka typesafe config
-// it gets parsed by `go-aah/config`.
+// it gets parsed by `aahframework.org/config`.
 //
 // aah framework router uses radix tree implementation of
 // https://github.com/julienschmidt/httprouter
@@ -26,10 +26,9 @@ import (
 )
 
 const (
-	wildcardSubdomainPrefix  = "*."
-	methodWebSocket          = "WS"
-	loginSubmitRouteName     = "aah_login_submit"
-	formAuthLoginSubmitRoute = "aahFormAuthLoginSubmit"
+	wildcardSubdomainPrefix = "*."
+	methodWebSocket         = "WS"
+	autoRouteNameSuffix     = "__aah"
 )
 
 var (
@@ -191,7 +190,7 @@ func (r *Router) RegisteredActions() map[string]map[string]uint8 {
 	for _, d := range r.Domains {
 		for _, route := range d.routes {
 			if route.IsStatic || route.Method == methodWebSocket ||
-				route.Name == loginSubmitRouteName {
+				strings.HasSuffix(route.Name, autoRouteNameSuffix) {
 				continue
 			}
 			addRegisteredAction(methods, route)
@@ -397,18 +396,30 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 	}
 
 	// Add form login route per security.conf for configured domains
-	for _, route := range domain.routes {
-		if !ess.IsStrEmpty(route.Auth) {
-			authScheme := r.app.SecurityManager().GetAuthScheme(route.Auth)
-			if formAuth, ok := authScheme.(*scheme.FormAuth); ok {
+	if r.app.SecurityManager() != nil {
+		authSchemes := r.app.SecurityManager().AuthSchemes()
+		for kn, s := range authSchemes {
+			switch sv := s.(type) {
+			case *scheme.FormAuth:
 				_ = domain.AddRoute(&Route{
-					Name:   loginSubmitRouteName,
-					Path:   formAuth.LoginSubmitURL,
+					Name:   kn + "_login_submit" + autoRouteNameSuffix,
+					Path:   sv.LoginSubmitURL,
 					Method: ahttp.MethodPost,
-					Target: formAuthLoginSubmitRoute,
-					Auth:   route.Auth,
+					Auth:   kn,
 				})
-				break
+			case *scheme.OAuth2:
+				_ = domain.AddRoute(&Route{
+					Name:   kn + "_login" + autoRouteNameSuffix,
+					Path:   sv.LoginURL,
+					Method: ahttp.MethodGet,
+					Auth:   kn,
+				})
+				_ = domain.AddRoute(&Route{
+					Name:   kn + "_redirect" + autoRouteNameSuffix,
+					Path:   sv.RedirectURL,
+					Method: ahttp.MethodGet,
+					Auth:   kn,
+				})
 			}
 		}
 	}

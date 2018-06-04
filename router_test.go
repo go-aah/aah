@@ -411,7 +411,7 @@ func TestRouterNamespaceConfig(t *testing.T) {
 
 	routes := router.Domains["localhost:8080"].routes
 	assert.NotNil(t, routes)
-	assert.Equal(t, 4, len(routes))
+	assert.Equal(t, 5, len(routes))
 	assert.Equal(t, "/v1/users", routes["create_user"].Path)
 	assert.Equal(t, "POST", routes["create_user"].Method)
 	assert.Equal(t, "form", routes["create_user"].Auth)
@@ -479,7 +479,7 @@ func TestRouterStaticSectionBaseDirForFilePaths(t *testing.T) {
 	// Assertion
 	routes := router.Domains["localhost:8080"].routes
 	assert.NotNil(t, routes)
-	assert.Equal(t, 4, len(routes))
+	assert.Equal(t, 5, len(routes))
 
 	faviconRoute := routes["favicon"]
 	assert.False(t, faviconRoute.IsDir())
@@ -505,7 +505,7 @@ func TestRouterWebSocketConfig(t *testing.T) {
 
 	routes := router.Domains["localhost:8080"].routes
 	assert.NotNil(t, routes)
-	assert.Equal(t, 7, len(routes))
+	assert.Equal(t, 8, len(routes))
 
 	// WebSocket
 	assert.Equal(t, "/ws/binary", routes["ws_binary"].Path)
