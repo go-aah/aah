@@ -77,6 +77,8 @@ func readRandomUint32() uint32 {
 		return (uint32(b[0]) << 0) | (uint32(b[1]) << 8) | (uint32(b[2]) << 16) | (uint32(b[3]) << 24)
 	}
 
+	// To initialize package unexported variable 'guidCounter'.
+	// This panic would happen at program startup, so no worries at runtime panic.
 	panic(errors.New("ess - guid: unable to generate random object id"))
 }
 
@@ -97,6 +99,7 @@ func readMachineID() []byte {
 		return id
 	}
 
-	// return nil, errors.New("guid: unable to get hostname and random bytes")
+	// To initialize package unexported variable 'machineID'.
+	// This panic would happen at program startup, so no worries at runtime panic.
 	panic(errors.New("ess - guid: unable to get hostname and random bytes"))
 }
