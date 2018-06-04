@@ -5,6 +5,7 @@
 package scheme
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -94,7 +95,7 @@ func TestSchemeAPIAuth(t *testing.T) {
 	authcToken := genericAuth.ExtractAuthenticationToken(areq)
 	authcInfo, err := genericAuth.DoAuthenticate(authcToken)
 	assert.NotNil(t, err)
-	assert.Equal(t, "security: authenticator is nil", err.Error())
+	assert.Equal(t, errors.New("security/authc: authenticator is nil"), err)
 	assert.Nil(t, authcInfo)
 
 	ta := &testGenericAuthentication{}

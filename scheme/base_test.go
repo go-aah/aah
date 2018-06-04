@@ -16,12 +16,12 @@ import (
 func TestSchemeBaseAuth(t *testing.T) {
 	// BaseAuth initialize and assertion
 	baseAuth := BaseAuth{}
-	cfg, _ := config.ParseString("")
+	cfg := config.NewEmpty()
 	err := baseAuth.Init(cfg, "base")
 
 	assert.Nil(t, err)
 	assert.NotNil(t, baseAuth)
-	assert.Nil(t, baseAuth.appCfg)
+	assert.Nil(t, baseAuth.AppConfig)
 
 	// Authenticator & Authorizer to nil
 	err = baseAuth.SetAuthenticator(nil)

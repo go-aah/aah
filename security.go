@@ -132,7 +132,7 @@ func (m *Manager) Init(appCfg *config.Config) error {
 			return fmt.Errorf("security: '%v' is required", keyPrefixAuthScheme+"."+keyAuthScheme+".scheme")
 		}
 
-		authScheme := m.GetAuthScheme(keyAuthScheme)
+		authScheme := m.AuthScheme(keyAuthScheme)
 		if authScheme == nil {
 			authScheme = scheme.New(schemeName)
 			if authScheme == nil {
@@ -152,8 +152,8 @@ func (m *Manager) Init(appCfg *config.Config) error {
 	return err
 }
 
-// GetAuthScheme ...
-func (m *Manager) GetAuthScheme(name string) scheme.Schemer {
+// AuthScheme method returns the auth scheme instance for given name otherwise nil.
+func (m *Manager) AuthScheme(name string) scheme.Schemer {
 	if authScheme, found := m.authSchemes[name]; found {
 		return authScheme
 	}

@@ -18,7 +18,7 @@ import (
 var _ Schemer = (*BasicAuth)(nil)
 
 type (
-	// BasicAuth struct is aah framework's ready to use Basic Authentication scheme.
+	// BasicAuth struct provides aah's OOTB Basic Auth scheme.
 	BasicAuth struct {
 		BaseAuth
 		RealmName string
@@ -35,14 +35,13 @@ type (
 
 // Init method initializes the Basic authentication scheme from `security.auth_schemes`.
 func (b *BasicAuth) Init(cfg *config.Config, keyName string) error {
-	b.appCfg = cfg
+	b.AppConfig = cfg
+	b.KeyName = keyName
+	b.KeyPrefix = "security.auth_schemes." + b.KeyName
+	b.Name, _ = b.AppConfig.String(b.ConfigKey("scheme"))
 
-	b.keyPrefix = "security.auth_schemes." + keyName
-	b.scheme = b.appCfg.StringDefault(b.keyPrefix+".scheme", "basic")
-
-	b.RealmName = b.appCfg.StringDefault(b.keyPrefix+".realm_name", "Authentication Required")
-
-	fileRealmPath := b.appCfg.StringDefault(b.keyPrefix+".file_realm", "")
+	b.RealmName = b.AppConfig.StringDefault(b.ConfigKey("realm_name"), "Authentication Required")
+	fileRealmPath := b.AppConfig.StringDefault(b.ConfigKey("file_realm"), "")
 	b.isFileRealm = !ess.IsStrEmpty(fileRealmPath)
 
 	// Basic auth configured to use file based user source
@@ -60,7 +59,7 @@ func (b *BasicAuth) Init(cfg *config.Config, keyName string) error {
 			}
 
 			authcInfo := authc.NewAuthenticationInfo()
-			authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Value: username, IsPrimary: true})
+			authcInfo.Principals = append(authcInfo.Principals, &authc.Principal{Realm: "Basic", Claim: "Username", Value: username, IsPrimary: true})
 			authcInfo.Credential = []byte(password)
 
 			authzInfo := authz.NewAuthorizationInfo()
@@ -77,14 +76,9 @@ func (b *BasicAuth) Init(cfg *config.Config, keyName string) error {
 	}
 
 	var err error
-	b.passwordEncoder, err = passwordAlgorithm(b.appCfg, b.keyPrefix)
+	b.passwordEncoder, err = passwordAlgorithm(b.AppConfig, b.KeyPrefix)
 
 	return err
-}
-
-// Scheme method return authentication scheme name.
-func (b *BasicAuth) Scheme() string {
-	return b.scheme
 }
 
 // DoAuthenticate method calls the registered `Authenticator` with authentication token.
@@ -102,7 +96,7 @@ func (b *BasicAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*auth
 		}
 	} else {
 		if b.authenticator == nil {
-			log.Warnf("%v: you have not configured your basic auth properly in security.conf, possibly file realm or authenticator", b.scheme)
+			log.Warnf("%s: basic auth is not properly configured in security.conf, possibly file realm or authenticator", b.Scheme())
 			return nil, authc.ErrAuthenticatorIsNil
 		}
 
@@ -136,7 +130,7 @@ func (b *BasicAuth) DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *au
 	}
 
 	if b.authorizer == nil {
-		log.Warnf("%v: authorizer is not properly configured in security.conf", b.scheme)
+		log.Warnf("%s: '%s' is not properly configured in security.conf", b.Scheme(), b.ConfigKey("authorizer"))
 		return authz.NewAuthorizationInfo()
 	}
 
@@ -153,7 +147,7 @@ func (b *BasicAuth) DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *au
 func (b *BasicAuth) ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken {
 	username, password, _ := r.Unwrap().BasicAuth()
 	return &authc.AuthenticationToken{
-		Scheme:     b.scheme,
+		Scheme:     b.Scheme(),
 		Identity:   username,
 		Credential: password,
 	}

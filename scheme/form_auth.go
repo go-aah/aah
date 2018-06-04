@@ -13,36 +13,35 @@ import (
 
 var _ Schemer = (*FormAuth)(nil)
 
-// FormAuth struct is aah framework's ready to use Form Authentication scheme.
+// FormAuth struct provides aah's OOTB Form Auth scheme.
 type FormAuth struct {
 	BaseAuth
+	IsAlwaysToDefaultTarget bool
 	LoginURL                string
 	LoginSubmitURL          string
 	LoginFailureURL         string
 	DefaultTargetURL        string
-	IsAlwaysToDefaultTarget bool
 	FieldIdentity           string
 	FieldCredential         string
 }
 
-// Init method initializes the Form authentication scheme from `security.auth_schemes`.
+// Init method initializes the Form Auth scheme from `security.auth_schemes`.
 func (f *FormAuth) Init(cfg *config.Config, keyName string) error {
-	f.appCfg = cfg
+	f.AppConfig = cfg
+	f.KeyName = keyName
+	f.KeyPrefix = "security.auth_schemes." + f.KeyName
+	f.Name, _ = f.AppConfig.String(f.ConfigKey("scheme"))
 
-	f.keyPrefix = "security.auth_schemes." + keyName
-	f.scheme = f.appCfg.StringDefault(f.keyPrefix+".scheme", "form")
-
-	f.LoginURL = f.appCfg.StringDefault(f.keyPrefix+".url.login", "/login.html")
-	f.LoginSubmitURL = f.appCfg.StringDefault(f.keyPrefix+".url.login_submit", "/login")
-	f.LoginFailureURL = f.appCfg.StringDefault(f.keyPrefix+".url.login_failure", "/login.html?error=true")
-	f.DefaultTargetURL = f.appCfg.StringDefault(f.keyPrefix+".url.default_target", "/")
-	f.IsAlwaysToDefaultTarget = f.appCfg.BoolDefault(f.keyPrefix+".url.always_to_default", false)
-	f.FieldIdentity = f.appCfg.StringDefault(f.keyPrefix+".field.identity", "username")
-	f.FieldCredential = f.appCfg.StringDefault(f.keyPrefix+".field.credential", "password")
+	f.LoginURL = f.AppConfig.StringDefault(f.ConfigKey("url.login"), "/login.html")
+	f.LoginSubmitURL = f.AppConfig.StringDefault(f.ConfigKey("url.login_submit"), "/login")
+	f.LoginFailureURL = f.AppConfig.StringDefault(f.ConfigKey("url.login_failure"), "/login.html?error=true")
+	f.DefaultTargetURL = f.AppConfig.StringDefault(f.ConfigKey("url.default_target"), "/")
+	f.IsAlwaysToDefaultTarget = f.AppConfig.BoolDefault(f.ConfigKey("url.always_to_default"), false)
+	f.FieldIdentity = f.AppConfig.StringDefault(f.ConfigKey("field.identity"), "username")
+	f.FieldCredential = f.AppConfig.StringDefault(f.ConfigKey("field.credential"), "password")
 
 	var err error
-	f.passwordEncoder, err = passwordAlgorithm(f.appCfg, f.keyPrefix)
-
+	f.passwordEncoder, err = passwordAlgorithm(f.AppConfig, f.KeyPrefix)
 	return err
 }
 
@@ -50,7 +49,7 @@ func (f *FormAuth) Init(cfg *config.Config, keyName string) error {
 func (f *FormAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error) {
 	log.Info(authcToken)
 	if f.authenticator == nil {
-		log.Warnf("%v: authenticator is not properly configured in security.conf", f.scheme)
+		log.Warnf("%s: '%s' is not properly configured in security.conf", f.KeyName, f.ConfigKey("authenticator"))
 		return nil, authc.ErrAuthenticatorIsNil
 	}
 
@@ -66,12 +65,12 @@ func (f *FormAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 	// Compare passwords
 	isPasswordOk := f.passwordEncoder.Compare(authcInfo.Credential, []byte(authcToken.Credential))
 	if !isPasswordOk {
-		log.Errorf("Subject [%s] credentials do not match", authcToken.Identity)
+		log.Errorf("%s: subject [%s] credentials do not match", f.KeyName, authcToken.Identity)
 		return nil, authc.ErrAuthenticationFailed
 	}
 
 	if authcInfo.IsLocked || authcInfo.IsExpired {
-		log.Errorf("Subject [%s] is locked or expired", authcToken.Identity)
+		log.Errorf("%s: subject [%s] is locked or expired", f.KeyName, authcToken.Identity)
 		return nil, authc.ErrAuthenticationFailed
 	}
 
@@ -82,11 +81,9 @@ func (f *FormAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 // ExtractAuthenticationToken method extracts the authentication token information
 // from the HTTP request.
 func (f *FormAuth) ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken {
-	req := r.Unwrap()
-	_ = req.ParseForm()
 	return &authc.AuthenticationToken{
-		Scheme:     f.scheme,
-		Identity:   req.FormValue(f.FieldIdentity),
-		Credential: req.FormValue(f.FieldCredential),
+		Scheme:     f.Scheme(),
+		Identity:   r.Unwrap().FormValue(f.FieldIdentity),
+		Credential: r.Unwrap().FormValue(f.FieldCredential),
 	}
 }

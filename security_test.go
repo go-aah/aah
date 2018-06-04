@@ -33,11 +33,11 @@ func TestSecurityInit(t *testing.T) {
 	assert.Equal(t, "security: auth scheme name 'form_auth' is already added", err.Error())
 
 	// Get auth scheme
-	authScheme := sec.GetAuthScheme("form_auth")
+	authScheme := sec.AuthScheme("form_auth")
 	assert.NotNil(t, authScheme)
 	assert.Equal(t, "form", authScheme.Scheme())
 
-	authScheme = sec.GetAuthScheme("no_auth")
+	authScheme = sec.AuthScheme("no_auth")
 	assert.Nil(t, authScheme)
 
 	// Validate Secure headers

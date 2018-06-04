@@ -5,6 +5,7 @@
 package scheme
 
 import (
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -57,7 +58,7 @@ func TestSchemeBasicAuthFileRealm(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.NotNil(t, basicAuth)
-	assert.NotNil(t, basicAuth.appCfg)
+	assert.NotNil(t, basicAuth.AppConfig)
 	assert.NotNil(t, basicAuth.passwordEncoder)
 	assert.Equal(t, "Authentication Required", basicAuth.RealmName)
 	assert.Equal(t, "basic", basicAuth.Scheme())
@@ -95,7 +96,7 @@ func TestSchemeBasicAuthFileRealm(t *testing.T) {
 	authcToken = basicAuth.ExtractAuthenticationToken(areq)
 	authcInfo, err = basicAuth.DoAuthenticate(authcToken)
 	assert.NotNil(t, err)
-	assert.Equal(t, "security: authentication failed", err.Error())
+	assert.Equal(t, errors.New("security/authc: authentication failed"), err)
 	assert.Nil(t, authcInfo)
 
 	// Authenticate - Subject not exists
@@ -104,7 +105,7 @@ func TestSchemeBasicAuthFileRealm(t *testing.T) {
 	authcToken = basicAuth.ExtractAuthenticationToken(areq)
 	authcInfo, err = basicAuth.DoAuthenticate(authcToken)
 	assert.NotNil(t, err)
-	assert.Equal(t, "security: subject not exists", err.Error())
+	assert.Equal(t, errors.New("security/authc: subject not exists"), err)
 	assert.Nil(t, authcInfo)
 }
 
@@ -169,7 +170,7 @@ func TestSchemeBasicAuthCustom(t *testing.T) {
 	err := basicAuth.Init(cfg, "basic_auth")
 	assert.Nil(t, err)
 	assert.NotNil(t, basicAuth)
-	assert.NotNil(t, basicAuth.appCfg)
+	assert.NotNil(t, basicAuth.AppConfig)
 	assert.NotNil(t, basicAuth.passwordEncoder)
 	assert.Equal(t, "Authentication Required", basicAuth.RealmName)
 	assert.Equal(t, "basic", basicAuth.Scheme())
@@ -183,7 +184,7 @@ func TestSchemeBasicAuthCustom(t *testing.T) {
 	authcToken := basicAuth.ExtractAuthenticationToken(areq)
 	authcInfo, err := basicAuth.DoAuthenticate(authcToken)
 	assert.NotNil(t, err)
-	assert.Equal(t, "security: authenticator is nil", err.Error())
+	assert.Equal(t, errors.New("security/authc: authenticator is nil"), err)
 	assert.Nil(t, authcInfo)
 
 	// Authorization

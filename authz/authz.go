@@ -40,6 +40,11 @@ func (r Reason) String() string {
 	return fmt.Sprintf("reason(func=%s expected=%s got=%s)", r.Func, r.Expected, r.Got)
 }
 
+// Error method is error interface
+func (r Reason) Error() string {
+	return fmt.Sprintf("error(func=%s expected=%s got=%s)", r.Func, r.Expected, r.Got)
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________

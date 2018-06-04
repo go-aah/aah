@@ -6,6 +6,7 @@ package scheme
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -85,7 +86,7 @@ func TestSchemeFormAuth(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.NotNil(t, formAuth)
-	assert.NotNil(t, formAuth.appCfg)
+	assert.NotNil(t, formAuth.AppConfig)
 	assert.NotNil(t, formAuth.passwordEncoder)
 	assert.Equal(t, "/login.html", formAuth.LoginURL)
 	assert.Equal(t, "/login", formAuth.LoginSubmitURL)
@@ -94,7 +95,7 @@ func TestSchemeFormAuth(t *testing.T) {
 	assert.Equal(t, "username", formAuth.FieldIdentity)
 	assert.Equal(t, "password", formAuth.FieldCredential)
 	assert.Equal(t, "form", formAuth.Scheme())
-	assert.Equal(t, "security.auth_schemes.form_auth", formAuth.keyPrefix)
+	assert.Equal(t, "security.auth_schemes.form_auth", formAuth.KeyPrefix)
 
 	// Extract AuthenticationToken
 	req, _ := http.NewRequest("POST", "http://localhost:8080/login", strings.NewReader("username=jeeva&password=welcome123"))
@@ -109,7 +110,7 @@ func TestSchemeFormAuth(t *testing.T) {
 	// Do Authentication
 	authcInfo, err := formAuth.DoAuthenticate(authcToken)
 	assert.NotNil(t, err)
-	assert.Equal(t, "security: authenticator is nil", err.Error())
+	assert.Equal(t, errors.New("security/authc: authenticator is nil"), err)
 	assert.Nil(t, authcInfo)
 
 	testFormAuth := &testFormAuthentication{}

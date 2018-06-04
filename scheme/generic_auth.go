@@ -14,8 +14,7 @@ import (
 
 var _ Schemer = (*GenericAuth)(nil)
 
-// GenericAuth struct is aah framework's ready to use Generic Authentication scheme
-// Could be used all custom scenario's.
+// GenericAuth struct provides generic Auth Scheme for all custom scenario's.
 type GenericAuth struct {
 	BaseAuth
 	IdentityHeader   string
@@ -24,11 +23,12 @@ type GenericAuth struct {
 
 // Init method initializes the Generic authentication scheme from `security.auth_schemes`.
 func (g *GenericAuth) Init(cfg *config.Config, keyName string) error {
-	g.appCfg = cfg
-	g.keyPrefix = "security.auth_schemes." + keyName
-	g.scheme = g.appCfg.StringDefault(g.keyPrefix+".scheme", "generic")
-	g.IdentityHeader = http.CanonicalHeaderKey(g.appCfg.StringDefault(g.keyPrefix+".header.identity", "Authorization"))
-	g.CredentialHeader = g.appCfg.StringDefault(g.keyPrefix+".header.credential", "")
+	g.AppConfig = cfg
+	g.KeyName = keyName
+	g.KeyPrefix = "security.auth_schemes." + keyName
+	g.Name, _ = g.AppConfig.String(g.ConfigKey("scheme"))
+	g.IdentityHeader = http.CanonicalHeaderKey(g.AppConfig.StringDefault(g.ConfigKey("header.identity"), "Authorization"))
+	g.CredentialHeader = g.AppConfig.StringDefault(g.ConfigKey("header.credential"), "")
 	return nil
 }
 
@@ -36,7 +36,7 @@ func (g *GenericAuth) Init(cfg *config.Config, keyName string) error {
 // from the HTTP request.
 func (g *GenericAuth) ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken {
 	return &authc.AuthenticationToken{
-		Scheme:     g.scheme,
+		Scheme:     g.Scheme(),
 		Identity:   r.Header.Get(g.IdentityHeader),
 		Credential: r.Header.Get(g.CredentialHeader),
 	}

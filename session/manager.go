@@ -167,7 +167,6 @@ func (m *Manager) NewSession() *Session {
 func (m *Manager) GetSession(r *http.Request) *Session {
 	scookie, err := r.Cookie(m.cookieMgr.Options.Name)
 	if err == http.ErrNoCookie {
-		log.Trace("aah application session cookie is not yet created or unavailable")
 		return nil
 	}
 
@@ -236,7 +235,6 @@ func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
 		}
 	}
 
-	log.Debugf("Session saved, ID: %s", s.ID)
 	m.cookieMgr.Write(w, encodedStr)
 	return nil
 }
@@ -246,14 +244,13 @@ func (m *Manager) SaveSession(w http.ResponseWriter, s *Session) error {
 func (m *Manager) DeleteSession(w http.ResponseWriter, s *Session) error {
 	if !m.IsCookieStore() {
 		if err := m.store.Delete(s.ID); err != nil {
-			// store delete had error, log it and go forward to clean the cookie
+			// store delete had an error, log it and go forward to clean the cookie
 			log.Error(err)
 		}
 	}
 
 	opts := *m.cookieMgr.Options
 	opts.MaxAge = -1
-	log.Debugf("Session deleted, ID: %s", s.ID)
 	http.SetCookie(w, cookie.NewWithOptions("", &opts))
 	return nil
 }

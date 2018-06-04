@@ -20,27 +20,24 @@ import (
 type Schemer interface {
 	// Init method gets called by framework during an application start.
 	//
-	// `keyName` is value of security auth scheme key. For e.g.:
-	// `security.auth_schemes.<keyname>`.
+	// `keyName` is value of security auth scheme key.
+	// 		For e.g.:
+	// 			security.auth_schemes.<keyname>
 	Init(appCfg *config.Config, keyName string) error
 
-	// Scheme method returns the auth scheme name. For e.g.: form, basic, oauth, generic, etc.
+	// Key method returns auth scheme configuration KeyName.
+	// For e.g: `security.auth_schemes.<keyname>`.
+	Key() string
+
+	// Scheme method returns auth scheme name. For e.g.: form, basic, oauth, generic, etc.
 	Scheme() string
-
-	// SetAuthenticator method is used to set user provided Authentication implementation.
-	// Value from `security.auth_schemes.<keyname>.authenticator`
-	SetAuthenticator(authenticator authc.Authenticator) error
-
-	// SetAuthorizer method is used to set user provided Authorization implementation.
-	// Value from `security.auth_schemes.<keyname>.authorizer`
-	SetAuthorizer(authorizer authz.Authorizer) error
 
 	// DoAuthenticate method called by aah SecurityManager to get Subject authentication
 	// information.
 	DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc.AuthenticationInfo, error)
 
 	// DoAuthorizationInfo method called by aah SecurityManager to get
-	// Subject's authorization information only after successful authentication.
+	// Subject's authorization information if successful authentication.
 	DoAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *authz.AuthorizationInfo
 
 	// ExtractAuthenticationToken method called by aah SecurityManager to
@@ -59,6 +56,8 @@ func New(authSchemeType string) Schemer {
 		return &FormAuth{}
 	case "basic":
 		return &BasicAuth{}
+	case "oauth2":
+		return &OAuth2{}
 	case "generic":
 		return &GenericAuth{}
 	}
