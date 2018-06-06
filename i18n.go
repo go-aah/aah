@@ -7,7 +7,6 @@ package aah
 import (
 	"path"
 
-	"aahframework.org/ahttp.v0"
 	"aahframework.org/i18n.v0"
 )
 
@@ -46,24 +45,4 @@ func (a *app) initI18n() error {
 
 	a.i18n = ai18n
 	return nil
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// View Template methods
-//______________________________________________________________________________
-
-// tmplI18n method is mapped to Go template func for resolving i18n values.
-func (vm *viewManager) tmplI18n(viewArgs map[string]interface{}, key string, args ...interface{}) string {
-	if locale, ok := viewArgs[keyLocale].(*ahttp.Locale); ok {
-		if len(args) == 0 {
-			return vm.a.I18n().Lookup(locale, key)
-		}
-
-		sanatizeArgs := make([]interface{}, 0)
-		for _, value := range args {
-			sanatizeArgs = append(sanatizeArgs, sanatizeValue(value))
-		}
-		return vm.a.I18n().Lookup(locale, key, sanatizeArgs...)
-	}
-	return ""
 }

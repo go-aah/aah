@@ -111,12 +111,11 @@ func TestBindParamTemplateFuncs(t *testing.T) {
 	_ = req1.ParseForm()
 
 	aahReq1 := ahttp.ParseRequest(req1, &ahttp.Request{})
-	aahReq1.Params.Form = req1.Form
-	aahReq1.Params.Path = make(map[string]string)
-	aahReq1.Params.Path["userId"] = "100001"
+	aahReq1.PathParams = ahttp.PathParams{}
+	aahReq1.PathParams["userId"] = "100001"
 
 	viewArgs := map[string]interface{}{}
-	viewArgs[KeyViewArgRequestParams] = aahReq1.Params
+	viewArgs[KeyViewArgRequest] = aahReq1
 
 	v1 := a.viewMgr.tmplQueryParam(viewArgs, "_ref")
 	assert.Equal(t, "true", v1)

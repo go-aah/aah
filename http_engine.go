@@ -92,13 +92,13 @@ func (e *HTTPEngine) Handle(w http.ResponseWriter, r *http.Request) {
 
 	// Middlewares, interceptors, targeted controller
 	if len(e.mwChain) == 0 {
-		ctx.Log().Error("'init.go' file introduced in release v0.10; please check your 'app-base-dir/app' " +
-			"and then add to your version control")
-		ctx.Reply().Error(&Error{
-			Reason:  ErrGeneric,
-			Code:    http.StatusInternalServerError,
-			Message: http.StatusText(http.StatusInternalServerError),
-		})
+		if e.a.Type() == "websocket" {
+			ctx.Log().Error("HTTP engine is not configured. It seems like WebSocket application.")
+		} else {
+			ctx.Log().Error("'init.go' file introduced in release v0.10; please check your 'app-base-dir/app' " +
+				"and then add to your version control")
+		}
+		ctx.Reply().Error(newError(ErrGeneric, http.StatusInternalServerError))
 	} else {
 		e.mwChain[0].Next(ctx)
 	}
@@ -275,13 +275,7 @@ func (e *HTTPEngine) handleRecovery(ctx *Context) {
 			err = er
 		}
 
-		ctx.Reply().Error(&Error{
-			Reason:  err,
-			Code:    http.StatusInternalServerError,
-			Message: http.StatusText(http.StatusInternalServerError),
-			Data:    r,
-		})
-
+		ctx.Reply().Error(newErrorWithData(err, http.StatusInternalServerError, r))
 		e.writeReply(ctx)
 	}
 }

@@ -11,7 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
+	"aahframework.org/security.v0"
 	"aahframework.org/view.v0"
 )
 
@@ -57,7 +59,8 @@ func (a *app) SetMinifier(fn MinifierFunc) {
 func (a *app) initView() error {
 	viewsDir := path.Join(a.VirtualBaseDir(), "views")
 	if !a.VFS().IsExists(viewsDir) {
-		// view directory not exists, scenario could be only API application
+		// view directory not exists, scenario could be API, WebSocket application
+		a.SecurityManager().AntiCSRF.Enabled = false
 		return nil
 	}
 
@@ -224,11 +227,201 @@ func (vm *viewManager) addFrameworkValuesIntoViewArgs(ctx *Context) {
 	html.ViewArgs["IsAJAX"] = ctx.Req.IsAJAX()
 	html.ViewArgs["HTTPReferer"] = ctx.Req.Referer
 	html.ViewArgs["AahVersion"] = Version
-	html.ViewArgs[KeyViewArgRequestParams] = ctx.Req.Params
+	html.ViewArgs[KeyViewArgRequest] = ctx.Req
 	if ctx.subject != nil {
 		html.ViewArgs[KeyViewArgSubject] = ctx.Subject()
 	}
 
 	html.ViewArgs["EnvProfile"] = vm.a.Profile()
 	html.ViewArgs["AppBuildInfo"] = vm.a.BuildInfo()
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// View Template methods
+//______________________________________________________________________________
+
+//
+// Request Parameters
+//
+
+// tmplPathParam method returns Request Path Param value for the given key.
+func (vm *viewManager) tmplPathParam(viewArgs map[string]interface{}, key string) interface{} {
+	return vm.tmplRequestParameters(viewArgs, "P", key)
+}
+
+// tmplFormParam method returns Request Form value for the given key.
+func (vm *viewManager) tmplFormParam(viewArgs map[string]interface{}, key string) interface{} {
+	return vm.tmplRequestParameters(viewArgs, "F", key)
+}
+
+// tmplQueryParam method returns Request Query String value for the given key.
+func (vm *viewManager) tmplQueryParam(viewArgs map[string]interface{}, key string) interface{} {
+	return vm.tmplRequestParameters(viewArgs, "Q", key)
+}
+
+func (vm *viewManager) tmplRequestParameters(viewArgs map[string]interface{}, fn, key string) interface{} {
+	req := viewArgs[KeyViewArgRequest].(*ahttp.Request)
+	switch fn {
+	case "Q":
+		return sanatizeValue(req.QueryValue(key))
+	case "F":
+		return sanatizeValue(req.FormValue(key))
+	case "P":
+		return sanatizeValue(req.PathValue(key))
+	}
+	return ""
+}
+
+//
+// Configuration view functions
+//
+
+// tmplConfig method provides access to application config on templates.
+func (vm *viewManager) tmplConfig(key string) interface{} {
+	if value, found := vm.a.Config().Get(key); found {
+		return sanatizeValue(value)
+	}
+	vm.a.Log().Warnf("Configuration key not found: '%s'", key)
+	return ""
+}
+
+//
+// i18n view functions
+//
+
+// tmplI18n method is mapped to Go template func for resolving i18n values.
+func (vm *viewManager) tmplI18n(viewArgs map[string]interface{}, key string, args ...interface{}) string {
+	if locale, ok := viewArgs[keyLocale].(*ahttp.Locale); ok {
+		if len(args) == 0 {
+			return vm.a.I18n().Lookup(locale, key)
+		}
+
+		sanatizeArgs := make([]interface{}, 0)
+		for _, value := range args {
+			sanatizeArgs = append(sanatizeArgs, sanatizeValue(value))
+		}
+		return vm.a.I18n().Lookup(locale, key, sanatizeArgs...)
+	}
+	return ""
+}
+
+//
+// Route view functions
+//
+
+// tmplURL method returns reverse URL by given route name and args.
+// Mapped to Go template func.
+func (vm *viewManager) tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL {
+	if len(args) == 0 {
+		vm.a.Log().Errorf("router: template 'rurl' - route name is empty: %v", args)
+		return template.URL("#")
+	}
+	domain, routeName := vm.a.findReverseURLDomain(viewArgs["Host"].(string), args[0].(string))
+	/* #nosec */
+	return template.URL(createReverseURL(vm.a.Log(), domain, routeName, nil, args[1:]...))
+}
+
+// tmplURLm method returns reverse URL by given route name and
+// map[string]interface{}. Mapped to Go template func.
+func (vm *viewManager) tmplURLm(viewArgs map[string]interface{}, routeName string, args map[string]interface{}) template.URL {
+	domain, rn := vm.a.findReverseURLDomain(viewArgs["Host"].(string), routeName)
+	/* #nosec */
+	return template.URL(createReverseURL(vm.a.Log(), domain, rn, args))
+}
+
+//
+// Session and Flash view functions
+//
+
+// tmplSessionValue method returns session value for the given key. If session
+// object unavailable this method returns nil.
+func (vm *viewManager) tmplSessionValue(viewArgs map[string]interface{}, key string) interface{} {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
+		if sub.Session != nil {
+			value := sub.Session.Get(key)
+			return sanatizeValue(value)
+		}
+	}
+	return nil
+}
+
+// tmplFlashValue method returns session value for the given key. If session
+// object unavailable this method returns nil.
+func (vm *viewManager) tmplFlashValue(viewArgs map[string]interface{}, key string) interface{} {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
+		if sub.Session != nil {
+			return sanatizeValue(sub.Session.GetFlash(key))
+		}
+	}
+	return nil
+}
+
+//
+// Security view functions
+//
+
+// tmplIsAuthenticated method returns the value of `Session.IsAuthenticated`.
+func (vm *viewManager) tmplIsAuthenticated(viewArgs map[string]interface{}) bool {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
+		if sub.Session != nil {
+			return sub.Session.IsAuthenticated
+		}
+	}
+	return false
+}
+
+// tmplHasRole method returns the value of `Subject.HasRole`.
+func (vm *viewManager) tmplHasRole(viewArgs map[string]interface{}, role string) bool {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
+		return sub.HasRole(role)
+	}
+	return false
+}
+
+// tmplHasAllRoles method returns the value of `Subject.HasAllRoles`.
+func (vm *viewManager) tmplHasAllRoles(viewArgs map[string]interface{}, roles ...string) bool {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
+		return sub.HasAllRoles(roles...)
+	}
+	return false
+}
+
+// tmplHasAnyRole method returns the value of `Subject.HasAnyRole`.
+func (vm *viewManager) tmplHasAnyRole(viewArgs map[string]interface{}, roles ...string) bool {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
+		return sub.HasAnyRole(roles...)
+	}
+	return false
+}
+
+// tmplIsPermitted method returns the value of `Subject.IsPermitted`.
+func (vm *viewManager) tmplIsPermitted(viewArgs map[string]interface{}, permission string) bool {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
+		return sub.IsPermitted(permission)
+	}
+	return false
+}
+
+// tmplIsPermittedAll method returns the value of `Subject.IsPermittedAll`.
+func (vm *viewManager) tmplIsPermittedAll(viewArgs map[string]interface{}, permissions ...string) bool {
+	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
+		return sub.IsPermittedAll(permissions...)
+	}
+	return false
+}
+
+// tmplAntiCSRFToken method returns the salted Anti-CSRF secret for the view,
+// if enabled otherwise empty string.
+func (vm *viewManager) tmplAntiCSRFToken(viewArgs map[string]interface{}) string {
+	if vm.a.SecurityManager().AntiCSRF.Enabled {
+		return vm.a.SecurityManager().AntiCSRF.SaltCipherSecret(viewArgs[keyAntiCSRF].([]byte))
+	}
+	return ""
+}
+
+func (vm *viewManager) getSubjectFromViewArgs(viewArgs map[string]interface{}) *security.Subject {
+	if sv, found := viewArgs[KeyViewArgSubject]; found {
+		return sv.(*security.Subject)
+	}
+	return nil
 }

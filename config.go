@@ -127,16 +127,3 @@ func (a *app) hotReloadConfig() {
 
 	a.Log().Info("Application hot-reload and reinitialization was successful")
 }
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// View Template methods
-//______________________________________________________________________________
-
-// tmplConfig method provides access to application config on templates.
-func (vm *viewManager) tmplConfig(key string) interface{} {
-	if value, found := vm.a.Config().Get(key); found {
-		return sanatizeValue(value)
-	}
-	vm.a.Log().Warnf("app config key not found: %s", key)
-	return ""
-}

@@ -96,10 +96,7 @@ func TestErrorCallControllerHandler(t *testing.T) {
 	ctx.logger = l
 
 	ctx.Reply().ContentType("application/json")
-	ctx.Reply().Error(&Error{
-		Code:    http.StatusBadRequest,
-		Message: http.StatusText(http.StatusBadRequest),
-	})
+	ctx.Reply().Error(newError(nil, http.StatusBadRequest))
 
 	em := new(errorManager)
 	em.Handle(ctx)
