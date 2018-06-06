@@ -105,11 +105,7 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 		if len(ctx.a.SecurityManager().AuthSchemes()) != 0 {
 			ctx.Log().Warnf("Auth schemes are configured in security.conf, however attribute 'auth' "+
 				"or 'default_auth' is not defined in routes.conf, so treat it as 403 Forbidden: %v", ctx.Req.Path)
-			ctx.Reply().Error(&Error{
-				Reason:  ErrAccessDenied,
-				Code:    http.StatusForbidden,
-				Message: http.StatusText(http.StatusForbidden),
-			})
+			ctx.Reply().Forbidden().Error(newError(ErrAccessDenied, http.StatusForbidden))
 			return
 		}
 
@@ -135,12 +131,8 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 			m.Next(ctx)
 		} else {
 			ctx.Log().Warnf("%s: Authorization failed:%v", authScheme.Key(), reason2String(reasons))
-			ctx.Reply().Forbidden().Error(&Error{
-				Reason:  ErrAuthorizationFailed,
-				Code:    http.StatusForbidden,
-				Message: http.StatusText(http.StatusForbidden),
-				Data:    reasons,
-			})
+			ctx.Reply().Forbidden().Error(newErrorWithData(ErrAuthorizationFailed, http.StatusForbidden, reasons))
+			return
 		}
 	}
 }
@@ -362,7 +354,7 @@ func debugLogSubjectInfo(ctx *Context) {
 // attacks.
 func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// If Anti-CSRF is not enabled, move on.
-	// It is highly recommended to enable for web application.
+	// It is highly recommended to enable it for web application.
 	if !ctx.a.SecurityManager().AntiCSRF.Enabled || !ctx.route.IsAntiCSRFCheck || ctx.a.ViewEngine() == nil {
 		ctx.a.SecurityManager().AntiCSRF.ClearCookie(ctx.Res, ctx.Req)
 		m.Next(ctx)
@@ -402,31 +394,19 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 		referer, err := url.Parse(ctx.Req.Referer)
 		if err != nil {
 			ctx.Log().Warnf("anticsrf: Malformed referer %s", ctx.Req.Referer)
-			ctx.Reply().Error(&Error{
-				Reason:  anticsrf.ErrMalformedReferer,
-				Code:    http.StatusForbidden,
-				Message: http.StatusText(http.StatusForbidden),
-			})
+			ctx.Reply().Forbidden().Error(newError(anticsrf.ErrMalformedReferer, http.StatusForbidden))
 			return
 		}
 
 		if ess.IsStrEmpty(referer.String()) {
 			ctx.Log().Warnf("anticsrf: No referer %s", ctx.Req.Referer)
-			ctx.Reply().Error(&Error{
-				Reason:  anticsrf.ErrNoReferer,
-				Code:    http.StatusForbidden,
-				Message: http.StatusText(http.StatusForbidden),
-			})
+			ctx.Reply().Forbidden().Error(newError(anticsrf.ErrNoReferer, http.StatusForbidden))
 			return
 		}
 
 		if !anticsrf.IsSameOrigin(ctx.Req.URL(), referer) {
 			ctx.Log().Warnf("anticsrf: Bad referer %s", ctx.Req.Referer)
-			ctx.Reply().Error(&Error{
-				Reason:  anticsrf.ErrBadReferer,
-				Code:    http.StatusForbidden,
-				Message: http.StatusText(http.StatusForbidden),
-			})
+			ctx.Reply().Forbidden().Error(newError(anticsrf.ErrBadReferer, http.StatusForbidden))
 			return
 		}
 	}
@@ -435,11 +415,7 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	requestSecret := ctx.a.SecurityManager().AntiCSRF.RequestCipherSecret(ctx.Req)
 	if requestSecret == nil || !ctx.a.SecurityManager().AntiCSRF.IsAuthentic(secret, requestSecret) {
 		ctx.Log().Warn("anticsrf: Verification failed, invalid cipher secret")
-		ctx.Reply().Error(&Error{
-			Reason:  anticsrf.ErrNoCookieFound,
-			Code:    http.StatusForbidden,
-			Message: http.StatusText(http.StatusForbidden),
-		})
+		ctx.Reply().Forbidden().Error(newError(anticsrf.ErrNoCookieFound, http.StatusForbidden))
 		return
 	}
 
@@ -453,97 +429,4 @@ func writeAntiCSRFCookie(ctx *Context, secret []byte) {
 	if err := ctx.a.SecurityManager().AntiCSRF.SetCookie(ctx.Res, secret); err != nil {
 		ctx.Log().Error("anticsrf: Unable to write cookie")
 	}
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// View Template methods
-//______________________________________________________________________________
-
-// tmplSessionValue method returns session value for the given key. If session
-// object unavailable this method returns nil.
-func (vm *viewManager) tmplSessionValue(viewArgs map[string]interface{}, key string) interface{} {
-	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
-		if sub.Session != nil {
-			value := sub.Session.Get(key)
-			return sanatizeValue(value)
-		}
-	}
-	return nil
-}
-
-// tmplFlashValue method returns session value for the given key. If session
-// object unavailable this method returns nil.
-func (vm *viewManager) tmplFlashValue(viewArgs map[string]interface{}, key string) interface{} {
-	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
-		if sub.Session != nil {
-			return sanatizeValue(sub.Session.GetFlash(key))
-		}
-	}
-	return nil
-}
-
-// tmplIsAuthenticated method returns the value of `Session.IsAuthenticated`.
-func (vm *viewManager) tmplIsAuthenticated(viewArgs map[string]interface{}) bool {
-	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
-		if sub.Session != nil {
-			return sub.Session.IsAuthenticated
-		}
-	}
-	return false
-}
-
-// tmplHasRole method returns the value of `Subject.HasRole`.
-func (vm *viewManager) tmplHasRole(viewArgs map[string]interface{}, role string) bool {
-	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
-		return sub.HasRole(role)
-	}
-	return false
-}
-
-// tmplHasAllRoles method returns the value of `Subject.HasAllRoles`.
-func (vm *viewManager) tmplHasAllRoles(viewArgs map[string]interface{}, roles ...string) bool {
-	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
-		return sub.HasAllRoles(roles...)
-	}
-	return false
-}
-
-// tmplHasAnyRole method returns the value of `Subject.HasAnyRole`.
-func (vm *viewManager) tmplHasAnyRole(viewArgs map[string]interface{}, roles ...string) bool {
-	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
-		return sub.HasAnyRole(roles...)
-	}
-	return false
-}
-
-// tmplIsPermitted method returns the value of `Subject.IsPermitted`.
-func (vm *viewManager) tmplIsPermitted(viewArgs map[string]interface{}, permission string) bool {
-	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
-		return sub.IsPermitted(permission)
-	}
-	return false
-}
-
-// tmplIsPermittedAll method returns the value of `Subject.IsPermittedAll`.
-func (vm *viewManager) tmplIsPermittedAll(viewArgs map[string]interface{}, permissions ...string) bool {
-	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
-		return sub.IsPermittedAll(permissions...)
-	}
-	return false
-}
-
-// tmplAntiCSRFToken method returns the salted Anti-CSRF secret for the view,
-// if enabled otherwise empty string.
-func (vm *viewManager) tmplAntiCSRFToken(viewArgs map[string]interface{}) string {
-	if vm.a.SecurityManager().AntiCSRF.Enabled {
-		return vm.a.SecurityManager().AntiCSRF.SaltCipherSecret(viewArgs[keyAntiCSRF].([]byte))
-	}
-	return ""
-}
-
-func (vm *viewManager) getSubjectFromViewArgs(viewArgs map[string]interface{}) *security.Subject {
-	if sv, found := viewArgs[KeyViewArgSubject]; found {
-		return sv.(*security.Subject)
-	}
-	return nil
 }

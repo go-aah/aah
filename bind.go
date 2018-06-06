@@ -21,9 +21,9 @@ import (
 )
 
 const (
-	// KeyViewArgRequestParams key name is used to store HTTP Request Params instance
+	// KeyViewArgRequest key name is used to store HTTP Request instance
 	// into `ViewArgs`.
-	KeyViewArgRequestParams = "_aahRequestParams"
+	KeyViewArgRequest = "_aahRequest"
 
 	keyOverrideI18nName = "lang"
 	allContentTypes     = "*/*"
@@ -115,22 +115,14 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 			if len(ctx.a.bindMgr.acceptedContentTypes) > 0 &&
 				!ess.IsSliceContainsString(ctx.a.bindMgr.acceptedContentTypes, ctx.Req.ContentType().Mime) {
 				ctx.Log().Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType())
-				ctx.Reply().Error(&Error{
-					Reason:  ErrContentTypeNotAccepted,
-					Code:    http.StatusUnsupportedMediaType,
-					Message: http.StatusText(http.StatusUnsupportedMediaType),
-				})
+				ctx.Reply().Error(newError(ErrContentTypeNotAccepted, http.StatusUnsupportedMediaType))
 				return
 			}
 
 			if len(ctx.a.bindMgr.offeredContentTypes) > 0 &&
 				!ess.IsSliceContainsString(ctx.a.bindMgr.offeredContentTypes, ctx.Req.AcceptContentType().Mime) {
-				ctx.Reply().Error(&Error{
-					Reason:  ErrContentTypeNotOffered,
-					Code:    http.StatusNotAcceptable,
-					Message: http.StatusText(http.StatusNotAcceptable),
-				})
 				ctx.Log().Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType())
+				ctx.Reply().Error(newError(ErrContentTypeNotOffered, http.StatusNotAcceptable))
 				return
 			}
 		}
@@ -240,9 +232,6 @@ type bindManager struct {
 func multipartFormParser(ctx *Context) flowResult {
 	if err := ctx.Req.Unwrap().ParseMultipartForm(ctx.a.multipartMaxMemory); err != nil {
 		ctx.Log().Errorf("Unable to parse multipart form: %s", err)
-	} else {
-		ctx.Req.Params.Form = ctx.Req.Unwrap().MultipartForm.Value
-		ctx.Req.Params.File = ctx.Req.Unwrap().MultipartForm.File
 	}
 	return flowCont
 }
@@ -250,8 +239,6 @@ func multipartFormParser(ctx *Context) flowResult {
 func formParser(ctx *Context) flowResult {
 	if err := ctx.Req.Unwrap().ParseForm(); err != nil {
 		ctx.Log().Errorf("Unable to parse form: %s", err)
-	} else {
-		ctx.Req.Params.Form = ctx.Req.Unwrap().Form
 	}
 	return flowCont
 }
@@ -283,12 +270,7 @@ func (ctx *Context) parseParameters() ([]reflect.Value, *Error) {
 					errMsg := fmt.Sprintf("Path param validation failed [name: %s, rule: %s, value: %v]",
 						val.Name, rule, result.Interface())
 					ctx.Log().Error(errMsg)
-					return nil, &Error{
-						Reason:  ErrValidation,
-						Code:    http.StatusBadRequest,
-						Message: http.StatusText(http.StatusBadRequest),
-						Data:    errMsg,
-					}
+					return nil, newErrorWithData(ErrValidation, http.StatusBadRequest, errMsg)
 				}
 			}
 		} else if val.Kind == reflect.Struct {
@@ -307,13 +289,7 @@ func (ctx *Context) parseParameters() ([]reflect.Value, *Error) {
 				ctx.Log().Errorf("Parsed parameter value is invalid or value parser not found [param: %s, type: %s]",
 					val.Name, val.Type)
 			}
-
-			return nil, &Error{
-				Reason:  ErrInvalidRequestParameter,
-				Code:    http.StatusBadRequest,
-				Message: http.StatusText(http.StatusBadRequest),
-				Data:    err,
-			}
+			return nil, newErrorWithData(ErrInvalidRequestParameter, http.StatusBadRequest, err)
 		}
 
 		// Apply Validation for type `struct`
@@ -321,13 +297,7 @@ func (ctx *Context) parseParameters() ([]reflect.Value, *Error) {
 			if errs, _ := Validate(result.Interface()); errs != nil {
 				ctx.Log().Errorf("Param validation failed [name: %s, type: %s], Validation Errors:\n%v",
 					val.Name, val.Type, errs.Error())
-
-				return nil, &Error{
-					Reason:  ErrValidation,
-					Code:    http.StatusBadRequest,
-					Message: http.StatusText(http.StatusBadRequest),
-					Data:    errs,
-				}
+				return nil, newErrorWithData(ErrValidation, http.StatusBadRequest, errs)
 			}
 		}
 
@@ -344,40 +314,18 @@ func (ctx *Context) createParams() url.Values {
 	for _, priority := range ctx.a.bindMgr.autobindPriority {
 		switch priority {
 		case "P": // Path Values
-			for k, v := range ctx.Req.Params.Path {
+			for k, v := range ctx.Req.PathParams {
 				params.Set(k, v)
 			}
 		case "F": // Form Values
-			for k, v := range ctx.Req.Params.Form {
+			for k, v := range ctx.Req.Unwrap().Form {
 				params[k] = v
 			}
 		case "Q": // Query Values
-			for k, v := range ctx.Req.Params.Query {
+			for k, v := range ctx.Req.URL().Query() {
 				params[k] = v
 			}
 		}
 	}
 	return params
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// View Template methods
-//______________________________________________________________________________
-
-// tmplPathParam method returns Request Path Param value for the given key.
-func (vm *viewManager) tmplPathParam(viewArgs map[string]interface{}, key string) interface{} {
-	params := viewArgs[KeyViewArgRequestParams].(*ahttp.Params)
-	return sanatizeValue(params.PathValue(key))
-}
-
-// tmplFormParam method returns Request Form value for the given key.
-func (vm *viewManager) tmplFormParam(viewArgs map[string]interface{}, key string) interface{} {
-	params := viewArgs[KeyViewArgRequestParams].(*ahttp.Params)
-	return sanatizeValue(params.FormValue(key))
-}
-
-// tmplQueryParam method returns Request Query String value for the given key.
-func (vm *viewManager) tmplQueryParam(viewArgs map[string]interface{}, key string) interface{} {
-	params := viewArgs[KeyViewArgRequestParams].(*ahttp.Params)
-	return sanatizeValue(params.QueryValue(key))
 }

@@ -7,7 +7,6 @@ package aah
 import (
 	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
 	"net/url"
 	"path"
@@ -76,11 +75,7 @@ func handleRoute(ctx *Context) flowResult {
 	domain := ctx.a.Router().Lookup(ctx.Req.Host)
 	if domain == nil {
 		ctx.Log().Warnf("Domain not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
-		ctx.Reply().Error(&Error{
-			Reason:  ErrDomainNotFound,
-			Code:    http.StatusNotFound,
-			Message: http.StatusText(http.StatusNotFound),
-		})
+		ctx.Reply().Error(newError(ErrDomainNotFound, http.StatusNotFound))
 		return flowAbort
 	}
 	ctx.domain = domain
@@ -92,26 +87,18 @@ func handleRoute(ctx *Context) flowResult {
 		}
 
 		ctx.Log().Warnf("Route not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
-		ctx.Reply().Error(&Error{
-			Reason:  ErrRouteNotFound,
-			Code:    http.StatusNotFound,
-			Message: http.StatusText(http.StatusNotFound),
-		})
+		ctx.Reply().Error(newError(ErrRouteNotFound, http.StatusNotFound))
 		return flowAbort
 	}
 	ctx.route = route
-	ctx.Req.Params.Path = pathParams
+	ctx.Req.PathParams = pathParams
 
 	// Serving static file
 	if route.IsStatic {
 		if err := ctx.a.staticMgr.Serve(ctx); err == errFileNotFound {
 			ctx.Log().Warnf("Static file not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 			ctx.Reply().done = false
-			ctx.Reply().Error(&Error{
-				Reason:  ErrStaticFileNotFound,
-				Code:    http.StatusNotFound,
-				Message: http.StatusText(http.StatusNotFound),
-			})
+			ctx.Reply().Error(newError(ErrStaticFileNotFound, http.StatusNotFound))
 		}
 		return flowAbort
 	}
@@ -232,11 +219,7 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 	// 405 Method Not Allowed
 	if domain.MethodNotAllowed {
 		if processAllowedMethods(reply, domain.Allowed(reqMethod, reqPath), "405 response, ") {
-			ctx.Reply().Error(&Error{
-				Reason:  ErrHTTPMethodNotAllowed,
-				Code:    http.StatusMethodNotAllowed,
-				Message: http.StatusText(http.StatusMethodNotAllowed),
-			})
+			ctx.Reply().Error(newError(ErrHTTPMethodNotAllowed, http.StatusMethodNotAllowed))
 			return nil
 		}
 	}
@@ -312,11 +295,7 @@ func handleCORSPreflight(ctx *Context) {
 	} else {
 		ctx.Log().Warnf("CORS: preflight request - invalid origin '%s' for %s %s",
 			origin, ctx.Req.Method, ctx.Req.Path)
-		ctx.Reply().Error(&Error{
-			Reason:  router.ErrCORSOriginIsInvalid,
-			Code:    http.StatusBadRequest,
-			Message: http.StatusText(http.StatusBadRequest),
-		})
+		ctx.Reply().Error(newError(router.ErrCORSOriginIsInvalid, http.StatusBadRequest))
 		return
 	}
 
@@ -327,11 +306,7 @@ func handleCORSPreflight(ctx *Context) {
 	} else {
 		ctx.Log().Warnf("CORS: preflight request - method not allowed '%s' for path %s",
 			method, ctx.Req.Path)
-		ctx.Reply().Error(&Error{
-			Reason:  router.ErrCORSMethodNotAllowed,
-			Code:    http.StatusMethodNotAllowed,
-			Message: http.StatusText(http.StatusMethodNotAllowed),
-		})
+		ctx.Reply().Error(newError(router.ErrCORSMethodNotAllowed, http.StatusMethodNotAllowed))
 		return
 	}
 
@@ -344,11 +319,7 @@ func handleCORSPreflight(ctx *Context) {
 	} else {
 		ctx.Log().Warnf("CORS: preflight request - headers not allowed '%s' for path %s",
 			hdrs, ctx.Req.Path)
-		ctx.Reply().Error(&Error{
-			Reason:  router.ErrCORSHeaderNotAllowed,
-			Code:    http.StatusForbidden,
-			Message: http.StatusText(http.StatusForbidden),
-		})
+		ctx.Reply().Error(newError(router.ErrCORSHeaderNotAllowed, http.StatusForbidden))
 		return
 	}
 
@@ -361,28 +332,4 @@ func handleCORSPreflight(ctx *Context) {
 	}
 
 	ctx.Reply().Ok().Text("")
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// View Template methods
-//______________________________________________________________________________
-
-// tmplURL method returns reverse URL by given route name and args.
-// Mapped to Go template func.
-func (vm *viewManager) tmplURL(viewArgs map[string]interface{}, args ...interface{}) template.URL {
-	if len(args) == 0 {
-		vm.a.Log().Errorf("router: template 'rurl' - route name is empty: %v", args)
-		return template.URL("#")
-	}
-	domain, routeName := vm.a.findReverseURLDomain(viewArgs["Host"].(string), args[0].(string))
-	/* #nosec */
-	return template.URL(createReverseURL(vm.a.Log(), domain, routeName, nil, args[1:]...))
-}
-
-// tmplURLm method returns reverse URL by given route name and
-// map[string]interface{}. Mapped to Go template func.
-func (vm *viewManager) tmplURLm(viewArgs map[string]interface{}, routeName string, args map[string]interface{}) template.URL {
-	domain, rn := vm.a.findReverseURLDomain(viewArgs["Host"].(string), routeName)
-	/* #nosec */
-	return template.URL(createReverseURL(vm.a.Log(), domain, rn, args))
 }

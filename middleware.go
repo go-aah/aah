@@ -129,11 +129,7 @@ func ActionMiddleware(ctx *Context, m *Middleware) {
 	if err := ctx.setTarget(ctx.route); err == errTargetNotFound {
 		// No controller or action found for the route
 		ctx.Log().Warnf("Target not found, Controller: %s, Action: %s", ctx.route.Target, ctx.route.Action)
-		ctx.Reply().Error(&Error{
-			Reason:  ErrControllerOrActionNotFound,
-			Code:    http.StatusNotFound,
-			Message: http.StatusText(http.StatusNotFound),
-		})
+		ctx.Reply().Error(newError(ErrControllerOrActionNotFound, http.StatusNotFound))
 		return
 	}
 

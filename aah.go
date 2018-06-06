@@ -93,7 +93,6 @@ type app struct {
 	httpMaxHdrBytes        int
 	multipartMaxMemory     int64
 	maxBodyBytes           int64
-	name                   string
 	importPath             string
 	baseDir                string
 	envProfile             string
@@ -214,7 +213,10 @@ func (a *app) Init(importPath string) error {
 }
 
 func (a *app) Name() string {
-	return a.name
+	if a.BuildInfo() == nil {
+		return a.Config().StringDefault("name", path.Base(a.ImportPath()))
+	}
+	return a.Config().StringDefault("name", a.BuildInfo().BinaryName)
 }
 func (a *app) InstanceName() string {
 	return a.Config().StringDefault("instance_name", "")
@@ -427,8 +429,6 @@ func (a *app) initPath() error {
 
 func (a *app) initConfigValues() (err error) {
 	cfg := a.Config()
-	a.name = cfg.StringDefault("name", filepath.Base(a.BaseDir()))
-
 	a.envProfile = cfg.StringDefault("env.active", defaultEnvProfile)
 	if err = a.SetProfile(a.Profile()); err != nil {
 		return err
