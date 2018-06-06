@@ -98,10 +98,15 @@ func WrapGzipWriter(w io.Writer) ResponseWriter {
 
 // Scheme method is to identify value of protocol value. It's is derived
 // one, Go language doesn't provide directly.
+//
 //  - `X-Forwarded-Proto` is not empty, returns as-is
+//
 //  - `X-Forwarded-Protocol` is not empty, returns as-is
+//
 //  - `http.Request.TLS` is not nil or `X-Forwarded-Ssl == on` returns `https`
+//
 //  - `X-Url-Scheme` is not empty, returns as-is
+//
 //  - returns `http`
 func Scheme(r *http.Request) string {
 	if scheme := r.Header.Get(HeaderXForwardedProto); scheme != "" {

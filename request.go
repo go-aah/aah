@@ -38,7 +38,6 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 	req.Method = r.Method
 	req.Path = r.URL.Path
 	req.Header = r.Header
-	req.Params = &Params{Query: r.URL.Query()}
 	req.Referer = getReferer(r.Header)
 	req.UserAgent = r.Header.Get(HeaderUserAgent)
 	req.IsGzipAccepted = strings.Contains(r.Header.Get(HeaderAcceptEncoding), "gzip")
@@ -53,16 +52,13 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 // Request type extends `http.Request` and provides multiple helper methods
 // per industry RFC guideline for aah framework.
 type Request struct {
-	// Scheme value is protocol; it's a derived value in the order as below.
-	//  - `X-Forwarded-Proto` is not empty return value as is
-	//  - `http.Request.TLS` is not nil value is `https`
-	//  - `http.Request.TLS` is nil value is `http`
+	// Scheme value is protocol, refer to method `ahttp.Scheme`.
 	Scheme string
 
-	// Host value of the HTTP 'Host' header (e.g. 'example.com:8080').
+	// Host value is HTTP 'Host' header (e.g. 'example.com:8080').
 	Host string
 
-	// Proto value of the current HTTP request protocol. (e.g. HTTP/1.1, HTTP/2.0)
+	// Proto value is current HTTP request protocol. (e.g. HTTP/1.1, HTTP/2.0)
 	Proto string
 
 	// Method request method e.g. `GET`, `POST`, etc.
@@ -74,13 +70,13 @@ type Request struct {
 	// Header request HTTP headers
 	Header http.Header
 
-	// Params contains values from Path, Query, Form and File.
-	Params *Params
+	// PathParams value is URL path parameters.
+	PathParams PathParams
 
-	// Referer value of the HTTP 'Referrer' (or 'Referer') header.
+	// Referer value is HTTP 'Referrer' (or 'Referer') header.
 	Referer string
 
-	// UserAgent value of the HTTP 'User-Agent' header.
+	// UserAgent value is HTTP 'User-Agent' header.
 	UserAgent string
 
 	// IsGzipAccepted is true if the HTTP client accepts Gzip response,
@@ -205,36 +201,44 @@ func (r *Request) URL() *url.URL {
 // PathValue method returns value for given Path param key otherwise empty string.
 // For eg.: /users/:userId => PathValue("userId")
 func (r *Request) PathValue(key string) string {
-	return r.Params.PathValue(key)
+	return r.PathParams.Get(key)
 }
 
 // QueryValue method returns value for given URL query param key
 // otherwise empty string.
 func (r *Request) QueryValue(key string) string {
-	return r.Params.QueryValue(key)
+	return r.URL().Query().Get(key)
 }
 
 // QueryArrayValue method returns array value for given URL query param key
 // otherwise empty string slice.
 func (r *Request) QueryArrayValue(key string) []string {
-	return r.Params.QueryArrayValue(key)
+	if values, found := r.URL().Query()[key]; found {
+		return values
+	}
+	return []string{}
 }
 
 // FormValue method returns value for given form key otherwise empty string.
 func (r *Request) FormValue(key string) string {
-	return r.Params.FormValue(key)
+	return r.Unwrap().FormValue(key)
 }
 
 // FormArrayValue method returns array value for given form key
 // otherwise empty string slice.
 func (r *Request) FormArrayValue(key string) []string {
-	return r.Params.FormArrayValue(key)
+	if r.Unwrap().Form != nil {
+		if values, found := r.Unwrap().Form[key]; found {
+			return values
+		}
+	}
+	return []string{}
 }
 
 // FormFile method returns the first file for the provided form key otherwise
 // returns error. It is caller responsibility to close the file.
 func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, error) {
-	return r.Params.FormFile(key)
+	return r.Unwrap().FormFile(key)
 }
 
 // Body method returns the HTTP request body.
@@ -276,7 +280,7 @@ func (r *Request) Reset() {
 	r.Method = ""
 	r.Path = ""
 	r.Header = nil
-	r.Params = nil
+	r.PathParams = nil
 	r.Referer = ""
 	r.UserAgent = ""
 	r.IsGzipAccepted = false
@@ -312,74 +316,6 @@ func (p PathParams) Get(key string) string {
 // Len method returns count of total no. of values.
 func (p PathParams) Len() int {
 	return len(p)
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Params
-//___________________________________
-
-// Params structure holds value of Path, Query, Form and File.
-type Params struct {
-	Path  PathParams
-	Query url.Values
-	Form  url.Values
-	File  map[string][]*multipart.FileHeader
-}
-
-// PathValue method returns value for given Path param key otherwise empty string.
-// For eg.: `/users/:userId` => `PathValue("userId")`.
-func (p *Params) PathValue(key string) string {
-	if p.Path != nil {
-		return p.Path.Get(key)
-	}
-	return ""
-}
-
-// QueryValue method returns value for given URL query param key
-// otherwise empty string.
-func (p *Params) QueryValue(key string) string {
-	return p.Query.Get(key)
-}
-
-// QueryArrayValue method returns array value for given URL query param key
-// otherwise empty string slice.
-func (p *Params) QueryArrayValue(key string) []string {
-	if values, found := p.Query[key]; found {
-		return values
-	}
-	return []string{}
-}
-
-// FormValue method returns value for given form key otherwise empty string.
-func (p *Params) FormValue(key string) string {
-	if p.Form != nil {
-		return p.Form.Get(key)
-	}
-	return ""
-}
-
-// FormArrayValue method returns array value for given form key
-// otherwise empty string slice.
-func (p *Params) FormArrayValue(key string) []string {
-	if p.Form != nil {
-		if values, found := p.Form[key]; found {
-			return values
-		}
-	}
-	return []string{}
-}
-
-// FormFile method returns the first file for the provided form key
-// otherwise returns error. It is caller responsibility to close the file.
-func (p *Params) FormFile(key string) (multipart.File, *multipart.FileHeader, error) {
-	if p.File != nil {
-		if fh := p.File[key]; len(fh) > 0 {
-			f, err := fh[0].Open()
-			return f, fh[0], err
-		}
-		return nil, nil, fmt.Errorf("ahttp: no such key/file: %s", key)
-	}
-	return nil, nil, nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

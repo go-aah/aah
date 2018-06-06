@@ -7,6 +7,7 @@ package ahttp
 import (
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -88,7 +89,7 @@ func TestHTTPParseRequest(t *testing.T) {
 	f, hdr, err := aahReq.FormFile("no_file")
 	assert.Nil(t, f)
 	assert.Nil(t, hdr)
-	assert.Nil(t, err)
+	assert.NotNil(t, err) // request Content-Type isn't multipart/form-data
 	assert.False(t, aahReq.IsJSONP())
 	assert.False(t, aahReq.IsAJAX())
 
@@ -104,7 +105,6 @@ func TestHTTPParseRequest(t *testing.T) {
 	// Release it
 	ReleaseRequest(aahReq)
 	assert.Nil(t, aahReq.Header)
-	assert.Nil(t, aahReq.Params)
 	assert.Nil(t, aahReq.raw)
 	assert.True(t, aahReq.UserAgent == "")
 }
@@ -115,16 +115,17 @@ func TestHTTPRequestParams(t *testing.T) {
 	req1.Method = MethodPost
 	req1.URL, _ = url.Parse("http://localhost:8080/welcome1.html?_ref=true&names=Test1&names=Test%202")
 
-	params1 := AcquireRequest(req1).Params
-	params1.Path = make(map[string]string)
-	params1.Path["userId"] = "100001"
-	assert.Equal(t, "true", params1.QueryValue("_ref"))
-	assert.Equal(t, "Test1", params1.QueryArrayValue("names")[0])
-	assert.Equal(t, "Test 2", params1.QueryArrayValue("names")[1])
-	assert.True(t, len(params1.QueryArrayValue("not-exists")) == 0)
-	assert.Equal(t, "100001", params1.PathValue("userId"))
-	assert.Equal(t, "", params1.PathValue("accountId"))
-	assert.Equal(t, 1, params1.Path.Len())
+	aahReq1 := AcquireRequest(req1)
+	aahReq1.PathParams = PathParams{}
+	aahReq1.PathParams["userId"] = "100001"
+
+	assert.Equal(t, "true", aahReq1.QueryValue("_ref"))
+	assert.Equal(t, "Test1", aahReq1.QueryArrayValue("names")[0])
+	assert.Equal(t, "Test 2", aahReq1.QueryArrayValue("names")[1])
+	assert.True(t, len(aahReq1.QueryArrayValue("not-exists")) == 0)
+	assert.Equal(t, "100001", aahReq1.PathValue("userId"))
+	assert.Equal(t, "", aahReq1.PathValue("accountId"))
+	assert.Equal(t, 1, aahReq1.PathParams.Len())
 
 	// Form value
 	form := url.Values{}
@@ -137,24 +138,22 @@ func TestHTTPRequestParams(t *testing.T) {
 	_ = req2.ParseForm()
 
 	aahReq2 := AcquireRequest(req2)
-	aahReq2.Params.Form = req2.Form
-
-	params2 := aahReq2.Params
 	assert.NotNil(t, aahReq2.Body())
-	assert.Equal(t, "welcome", params2.FormValue("username"))
-	assert.Equal(t, "welcome@welcome.com", params2.FormValue("email"))
-	assert.Equal(t, "Test1", params2.FormArrayValue("names")[0])
-	assert.Equal(t, "Test 2 value", params2.FormArrayValue("names")[1])
-	assert.True(t, len(params2.FormArrayValue("not-exists")) == 0)
-	assert.Equal(t, 0, params2.Path.Len())
+	assert.Equal(t, "welcome", aahReq2.FormValue("username"))
+	assert.Equal(t, "welcome@welcome.com", aahReq2.FormValue("email"))
+	assert.Equal(t, "Test1", aahReq2.FormArrayValue("names")[0])
+	assert.Equal(t, "Test 2 value", aahReq2.FormArrayValue("names")[1])
+	assert.True(t, len(aahReq2.FormArrayValue("not-exists")) == 0)
+	assert.Equal(t, 0, aahReq2.PathParams.Len())
 	ReleaseRequest(aahReq2)
 
 	// File value
-	req3, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", nil)
+	req3, _ := http.NewRequest("POST", "http://localhost:8080/user/registration", strings.NewReader(form.Encode()))
 	req3.Header.Add(HeaderContentType, ContentTypeMultipartForm.String())
 	aahReq3 := AcquireRequest(req3)
-	aahReq3.Params.File = make(map[string][]*multipart.FileHeader)
-	aahReq3.Params.File["testfile.txt"] = []*multipart.FileHeader{{Filename: "testfile.txt"}}
+	aahReq3.Unwrap().MultipartForm = new(multipart.Form)
+	aahReq3.Unwrap().MultipartForm.File = make(map[string][]*multipart.FileHeader)
+	aahReq3.Unwrap().MultipartForm.File["testfile.txt"] = []*multipart.FileHeader{{Filename: "testfile.txt"}}
 	f, fh, err := aahReq3.FormFile("testfile.txt")
 	assert.Nil(t, f)
 	assert.Equal(t, "testfile.txt", fh.Filename)
@@ -243,7 +242,7 @@ func TestRequestSaveFileFailsForNotFoundFile(t *testing.T) {
 
 	_, err := aahReq.SaveFile("unknown-key", path)
 	assert.NotNil(t, err)
-	assert.Equal(t, "ahttp: no such key/file: unknown-key", err.Error())
+	assert.Equal(t, errors.New("http: no such file"), err)
 }
 
 func TestRequestSaveFileCannotCreateFile(t *testing.T) {
@@ -284,46 +283,16 @@ func setUpRequestSaveFile(t *testing.T) (*Request, string, func()) {
 	req, _ := http.NewRequest("POST", "http://localhost:8080", buf)
 	req.Header.Add(HeaderContentType, multipartWriter.FormDataContentType())
 	aahReq := AcquireRequest(req)
-	aahReq.Params.File = make(map[string][]*multipart.FileHeader)
 
 	_, header, err := req.FormFile("framework")
 	assert.Nil(t, err)
 
-	aahReq.Params.File["framework"] = []*multipart.FileHeader{header}
+	aahReq.Unwrap().MultipartForm.File = make(map[string][]*multipart.FileHeader)
+	aahReq.Unwrap().MultipartForm.File["framework"] = []*multipart.FileHeader{header}
 
 	path := "testdata/aah.txt"
 
 	return aahReq, path, func() {
 		_ = os.Remove(path) //Teardown
-	}
-}
-
-func setUpRequestSaveFiles(t *testing.T) (*Request, string, func()) {
-	buf := new(bytes.Buffer)
-	multipartWriter := multipart.NewWriter(buf)
-	_, err := multipartWriter.CreateFormFile("framework", "aah")
-	assert.Nil(t, err)
-	_, err = multipartWriter.CreateFormFile("framework2", "aah2")
-	assert.Nil(t, err)
-
-	ess.CloseQuietly(multipartWriter)
-
-	req, _ := http.NewRequest("POST", "http://localhost:8080", buf)
-	req.Header.Add(HeaderContentType, multipartWriter.FormDataContentType())
-	aahReq := AcquireRequest(req)
-	aahReq.Params.File = make(map[string][]*multipart.FileHeader)
-
-	_, header, err := req.FormFile("framework")
-	assert.Nil(t, err)
-	_, header2, err := req.FormFile("framework2")
-	assert.Nil(t, err)
-
-	aahReq.Params.File["framework"] = []*multipart.FileHeader{header, header2}
-
-	dir := "testdata/upload"
-
-	_ = ess.MkDirAll(dir, 0755)
-	return aahReq, dir, func() {
-		_ = os.RemoveAll(dir)
 	}
 }
