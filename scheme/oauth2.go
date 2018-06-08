@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"path"
 	"strconv"
@@ -56,6 +57,7 @@ var (
 	ErrOAuth2MissingStateOrCode = errors.New("oauth2: callback missing state or code")
 	ErrOAuth2InvalidState       = errors.New("oauth2: invalid state")
 	ErrOAuth2Exchange           = errors.New("oauth2: exchange failed, unable to get token")
+	ErrOAuth2TokenIsValid       = errors.New("oauth2: token is vaild")
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -101,14 +103,16 @@ func (o *OAuth2) Init(appCfg *config.Config, keyName string) error {
 	}
 
 	o.oauthCfg.Scopes, _ = o.AppConfig.StringList(o.ConfigKey("client.scopes"))
-	provider := o.AppConfig.StringDefault(o.ConfigKey("provider.name"), "nil")
+	provider := o.AppConfig.StringDefault(o.ConfigKey("client.provider.name"), "nil")
 	endpoint := inferEndpoint(provider)
 	if ess.IsStrEmpty(endpoint.AuthURL) && ess.IsStrEmpty(endpoint.TokenURL) {
-		authURL := o.AppConfig.StringDefault(o.ConfigKey("provider.url.auth"), "")
-		tokenURL := o.AppConfig.StringDefault(o.ConfigKey("provider.url.token"), "")
+		authURL := o.AppConfig.StringDefault(o.ConfigKey("client.provider.url.auth"), "")
+		tokenURL := o.AppConfig.StringDefault(o.ConfigKey("client.provider.url.token"), "")
 		if ess.IsStrEmpty(authURL) || ess.IsStrEmpty(tokenURL) {
 			return fmt.Errorf("%s: either one is required '%s' or (%s and %s)",
-				o.KeyName, o.ConfigKey("provider.name"), o.ConfigKey("provider.url.auth"), o.ConfigKey("provider.url.token"))
+				o.KeyName, o.ConfigKey("client.provider.name"),
+				o.ConfigKey("client.provider.url.auth"),
+				o.ConfigKey("client.provider.url.token"))
 		}
 		o.oauthCfg.Endpoint = oauth2.Endpoint{AuthURL: authURL, TokenURL: tokenURL}
 	} else {
@@ -132,6 +136,28 @@ func (o *OAuth2) Init(appCfg *config.Config, keyName string) error {
 // Config method returns OAuth2 config instance.
 func (o *OAuth2) Config() *oauth2.Config {
 	return o.oauthCfg
+}
+
+// Client method returns Go HTTP client configured with given OAuth2 Token.
+func (o *OAuth2) Client(token *oauth2.Token) *http.Client {
+	return o.oauthCfg.Client(context.Background(), token)
+}
+
+// RefreshAccessToken method returns new OAuth2 token if given token was expried
+// otherwise returns error `scheme.ErrOAuth2TokenIsValid`.
+func (o *OAuth2) RefreshAccessToken(token *oauth2.Token) (*oauth2.Token, error) {
+	tsrc := o.oauthCfg.TokenSource(context.Background(), token)
+	tn, err := tsrc.Token()
+	if err != nil {
+		return nil, err
+	}
+
+	// if its same access token then given token is stil vaild
+	if tn.AccessToken == token.AccessToken {
+		return nil, ErrOAuth2TokenIsValid
+	}
+
+	return tn, nil
 }
 
 // ProviderAuthURL method returns aah generated state value and OAuth2 login URL.

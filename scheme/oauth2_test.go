@@ -79,8 +79,9 @@ func TestOAuth2InitializeError(t *testing.T) {
 			}
 			`,
 			keyname: "facebook_auth",
-			err: errors.New("facebook_auth: either one is required 'security.auth_schemes.facebook_auth.provider.name' " +
-				"or (security.auth_schemes.facebook_auth.provider.url.auth and security.auth_schemes.facebook_auth.provider.url.token)"),
+			err: errors.New("facebook_auth: either one is required 'security.auth_schemes.facebook_auth.client.provider.name' " +
+				"or (security.auth_schemes.facebook_auth.client.provider.url.auth and " +
+				"security.auth_schemes.facebook_auth.client.provider.url.token)"),
 		},
 		{
 			label: "OAuth2 authorizer is missing",
@@ -92,9 +93,9 @@ func TestOAuth2InitializeError(t *testing.T) {
 						client {
 							id = "client id"
 							secret = "client secret"
-						}
-						provider {
-							name = "facebook"
+							provider {
+								name = "facebook"
+							}
 						}
 						principal = "security/SubjectPrincipalProvider"
 					}
@@ -115,9 +116,9 @@ func TestOAuth2InitializeError(t *testing.T) {
 						client {
 							id = "client id"
 							secret = "client secret"
-						}
-						provider {
-							name = "facebook"
+							provider {
+								name = "facebook"
+							}
 						}
 						principal = "security/SubjectPrincipalProvider"
 						authorizer = "security/AuthorizationProvider"
@@ -137,12 +138,12 @@ func TestOAuth2InitializeError(t *testing.T) {
 						client {
 							id = "client id"
 							secret = "client secret"
-						}
-						provider {
-							url {
-			          auth = "https://provider.com/o/oauth2/auth"
-			          token = "https://provider.com/o/oauth2/token"
-			        }
+							provider {
+								url {
+				          auth = "https://provider.com/o/oauth2/auth"
+				          token = "https://provider.com/o/oauth2/token"
+				        }
+							}
 						}
 						principal = "security/SubjectPrincipalProvider"
 						authorizer = "security/AuthorizationProvider"
@@ -193,11 +194,11 @@ security {
 				id = "clientid"
 				secret = "clientsecret"
 				sign_key = "5a977494319cde3203fbb49711f08ad2"
-			}
-			provider {
-				url {
-					auth = "http://localhost/auth/login"
-					token = "http://localhost/auth/token"
+				provider {
+					url {
+						auth = "http://localhost/auth/login"
+						token = "http://localhost/auth/token"
+					}
 				}
 			}
 			principal = "security/SubjectPrincipalProvider"
