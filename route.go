@@ -5,6 +5,7 @@
 package router
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -56,7 +57,9 @@ func (r *Route) ValidationRule(name string) (string, bool) {
 	return rules, found
 }
 
-// HasAccess ...
+// HasAccess method does authorization check based on configured values at route
+// level.
+// TODO: the appropriate place for this method would be `security` package.
 func (r *Route) HasAccess(subject *security.Subject) (bool, []*authz.Reason) {
 	var reasons []*authz.Reason
 	if r.authorizationInfo == nil || (len(r.authorizationInfo.Roles) == 0 &&
@@ -126,6 +129,23 @@ func (r *Route) HasAccess(subject *security.Subject) (bool, []*authz.Reason) {
 	return rolesResult && permissionResult, reasons
 }
 
+// String method is Stringer interface.
+func (r *Route) String() string {
+	if r.IsStatic {
+		if r.IsFile() {
+			return fmt.Sprintf("staticroute(name:%s path:%s file:%s/%s)", r.Name, r.Path, r.Dir, r.File)
+		}
+		return fmt.Sprintf("staticroute(name:%s path:%s dir:%s listing:%v)", r.Name, r.Path, r.Dir, r.ListDir)
+	}
+
+	parentName := ""
+	if !ess.IsStrEmpty(r.ParentName) {
+		parentName = fmt.Sprintf("(parent: %s)", r.ParentName)
+	}
+	return fmt.Sprintf("route(name:%s %s method:%s path:%s target:%s.%s auth:%s maxbodysize:%v %s %v validations(%v))",
+		r.Name, parentName, r.Method, r.Path, r.Target, r.Action, r.Auth, r.MaxBodySize, r.CORS, r.authorizationInfo, r.validationRules)
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported types and methods
 //______________________________________________________________________________
@@ -137,6 +157,7 @@ type parentRouteInfo struct {
 	PrefixPath        string
 	Target            string
 	Auth              string
+	MaxBodySizeStr    string
 	CORS              *CORS
 	AuthorizationInfo *authorizationInfo
 }
@@ -149,6 +170,32 @@ type authorizationInfo struct {
 
 func (a *authorizationInfo) SatisfyEither() bool {
 	return a.Satisfy == "either"
+}
+
+func (a *authorizationInfo) String() string {
+	buf := new(bytes.Buffer)
+	buf.WriteString("authorizationinfo(satisfy:")
+	buf.WriteString(a.Satisfy)
+
+	buf.WriteString(" roles:[")
+	for k, v := range a.Roles {
+		buf.WriteString(k)
+		buf.WriteByte('(')
+		buf.WriteString(strings.Join(v, ","))
+		buf.WriteString(") ")
+	}
+	buf.WriteByte(']')
+
+	buf.WriteString(" permissions:[")
+	for k, v := range a.Permissions {
+		buf.WriteString(k)
+		buf.WriteByte('(')
+		buf.WriteString(strings.Join(v, "|"))
+		buf.WriteString(") ")
+	}
+	buf.WriteString("])")
+
+	return buf.String()
 }
 
 func parseAuthorizationInfo(cfg *config.Config, routeName string, parentRoute *parentRouteInfo) (*authorizationInfo, error) {

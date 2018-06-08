@@ -40,6 +40,7 @@ func TestRouteAuthorizationConfig(t *testing.T) {
 	assert.Equal(t, []string{"role1", "role2", "role3"}, info.Roles["hasanyrole"])
 	assert.Equal(t, []string{"newsletter:read,write"}, info.Permissions["ispermitted"])
 	assert.Equal(t, []string{"newsletter:read,write", "newsletter:12345"}, info.Permissions["ispermittedall"])
+	assert.True(t, len(info.String()) > 0)
 }
 
 func TestRouteAuthorizationConfigParentRoute(t *testing.T) {

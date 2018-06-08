@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"regexp"
 	"strings"
 
 	"aahframework.org/ahttp.v0"
@@ -53,6 +54,7 @@ var (
 // aah application interface for minimal purpose
 type application interface {
 	Config() *config.Config
+	Log() log.Loggerer
 	VFS() *vfs.VFS
 	SecurityManager() *security.Manager
 }
@@ -301,30 +303,21 @@ func (r *Router) processRoutesConfig() (err error) {
 		// add domain routes
 		key := domain.key()
 		log.Debugf("Domain: %s, routes found: %d", key, len(domain.routes))
-		if log.IsLevelTrace() {
-			// don't spend time here, process only if log level is trace
+		if log.IsLevelTrace() { // process only if log level is trace
 			// Static Files routes
-			log.Trace("Static Files Routes")
+			log.Trace("Routes: Static")
 			for _, dr := range domain.routes {
 				if dr.IsStatic {
-					log.Tracef("Route Name: %v, Path: %v, IsDir: %v, Dir: %v, ListDir: %v, IsFile: %v, File: %v",
-						dr.Name, dr.Path, dr.IsDir(), dr.Dir, dr.ListDir, dr.IsFile(), dr.File)
+					log.Trace(dr)
 				}
 			}
 
 			// Application routes
-			log.Trace("Application Routes")
+			log.Trace("Routes: Application")
 			for _, dr := range domain.routes {
-				if dr.IsStatic {
-					continue
+				if !dr.IsStatic {
+					log.Trace(dr)
 				}
-				parentInfo := ""
-				if !ess.IsStrEmpty(dr.ParentName) {
-					parentInfo = fmt.Sprintf("(parent: %s)", dr.ParentName)
-				}
-				log.Tracef("Route Name: %v %v, Path: %v, Method: %v, Target: %v, Action: %v, Auth: %v, MaxBodySize: %v\nCORS: [%v]\nValidation Rules:%v\nAuthorization Info:%v\n",
-					dr.Name, parentInfo, dr.Path, dr.Method, dr.Target, dr.Action, dr.Auth, dr.MaxBodySize,
-					dr.CORS, dr.validationRules, dr.authorizationInfo)
 			}
 		}
 
@@ -378,8 +371,10 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 		return nil
 	}
 
+	maxBodySizeStr := r.appConfig().StringDefault("request.max_body_size", "5mb")
 	routes, err := parseSectionRoutes(routesCfg, &parentRouteInfo{
 		Auth:              domain.DefaultAuth,
+		MaxBodySizeStr:    maxBodySizeStr,
 		CORS:              domain.CORS,
 		AntiCSRFCheck:     domain.AntiCSRFEnabled,
 		CORSEnabled:       domain.CORSEnabled,
@@ -401,12 +396,10 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 		for kn, s := range authSchemes {
 			switch sv := s.(type) {
 			case *scheme.FormAuth:
-				_ = domain.AddRoute(&Route{
-					Name:   kn + "_login_submit" + autoRouteNameSuffix,
-					Path:   sv.LoginSubmitURL,
-					Method: ahttp.MethodPost,
-					Auth:   kn,
-				})
+				name := kn + "_login_submit" + autoRouteNameSuffix // for e.g.: form_auth_login__aah
+				if domain.LookupByName(name) == nil {              // add only if not exists
+					_ = domain.AddRoute(&Route{Name: name, Path: sv.LoginSubmitURL, Method: ahttp.MethodPost, Auth: kn})
+				}
 			case *scheme.OAuth2:
 				_ = domain.AddRoute(&Route{
 					Name:   kn + "_login" + autoRouteNameSuffix,
@@ -437,6 +430,8 @@ func (r *Router) appConfig() *config.Config {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //______________________________________________________________________________
+
+var payloadSupported = regexp.MustCompile(`(POST|PUT|DELETE)`)
 
 func parseSectionRoutes(cfg *config.Config, routeInfo *parentRouteInfo) (routes []*Route, err error) {
 	for _, routeName := range cfg.Keys() {
@@ -510,12 +505,15 @@ func parseSectionRoutes(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		}
 
 		// getting route authentication scheme name
-		routeAuth := cfg.StringDefault(routeName+".auth", routeInfo.Auth)
+		routeAuth := strings.TrimSpace(cfg.StringDefault(routeName+".auth", routeInfo.Auth))
 
 		// getting route max body size, GitHub go-aah/aah#83
-		routeMaxBodySize, er := ess.StrToBytes(cfg.StringDefault(routeName+".max_body_size", "0kb"))
+		routeMaxBodySize, er := ess.StrToBytes(cfg.StringDefault(routeName+".max_body_size", routeInfo.MaxBodySizeStr))
 		if er != nil {
 			log.Warnf("'%v.max_body_size' value is not a valid size unit, fallback to global limit", routeName)
+		}
+		if !payloadSupported.MatchString(routeMethod) {
+			routeMaxBodySize = 0
 		}
 
 		// getting Anti-CSRF check value, GitHub go-aah/aah#115

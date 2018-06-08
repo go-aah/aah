@@ -5,6 +5,7 @@
 package router
 
 import (
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
+	log "aahframework.org/log.v0"
 	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/scheme"
 	"aahframework.org/test.v0/assert"
@@ -538,11 +540,13 @@ func TestMiscRouter(t *testing.T) {
 
 type app struct {
 	cfg *config.Config
+	l   log.Loggerer
 	fs  *vfs.VFS
 	sec *security.Manager
 }
 
 func (a *app) Config() *config.Config             { return a.cfg }
+func (a *app) Log() log.Loggerer                  { return a.l }
 func (a *app) VFS() *vfs.VFS                      { return a.fs }
 func (a *app) SecurityManager() *security.Manager { return a.sec }
 
@@ -557,11 +561,14 @@ func createRouter(filename string) (*Router, error) {
 			}
 		}`)
 
+	l, _ := log.New(config.NewEmpty())
+	l.SetWriter(ioutil.Discard)
+
 	sec := security.New()
 	sec.AddAuthScheme("form_auth", &scheme.FormAuth{LoginSubmitURL: "/login"})
 
 	// config path in vfs, filepath.Join not required
-	return NewWithApp(&app{cfg: appCfg, fs: fs, sec: sec}, "/app/config/"+filename)
+	return NewWithApp(&app{cfg: appCfg, l: l, fs: fs, sec: sec}, "/app/config/"+filename)
 }
 
 func createHTTPRequest(host, path string) *http.Request {
