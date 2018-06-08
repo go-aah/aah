@@ -32,6 +32,7 @@ const (
 
 	keyAntiCSRF       = "_aahAntiCSRF"
 	keyOAuth2StateKey = "_aahOAuth2State"
+	keyAuthScheme     = "_aahAuthScheme"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -91,6 +92,17 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 		ctx.Subject().Session = ctx.a.SessionManager().GetSession(ctx.Req.Unwrap())
 	}
 
+	// If session is authenticated then populate subject and continue the request flow.
+	if ctx.Subject().IsAuthenticated() {
+		if key := ctx.Session().GetString(keyAuthScheme); key != "" {
+			authScheme := ctx.a.SecurityManager().AuthScheme(key)
+			if populateSubject(authScheme, ctx) == flowCont {
+				m.Next(ctx)
+				return
+			}
+		}
+	}
+
 	// If route auth is `anonymous` then continue the request flow
 	// No authentication or authorization is required for that route.
 	if ctx.route.Auth == "anonymous" {
@@ -98,52 +110,56 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 		return
 	}
 
-	authScheme := ctx.authScheme()
-	if authScheme == nil {
+	// Route `auth` attribute or global `default_auth` is not defined
+	if ctx.route.Auth == "" {
 		// If one or more auth schemes are defined in `security.auth_schemes { ... }`
-		// and routes `auth` attribute is not defined then aah treats that route as `403 Forbidden`.
+		// then aah treats that route as `403 Forbidden`.
 		if len(ctx.a.SecurityManager().AuthSchemes()) != 0 {
 			ctx.Log().Warnf("Auth schemes are configured in security.conf, however attribute 'auth' "+
-				"or 'default_auth' is not defined in routes.conf, so treat it as 403 Forbidden: %v", ctx.Req.Path)
+				"or 'default_auth' is not defined in routes.conf. Let's treat it as 403 Forbidden: %s", ctx.Req.Path)
 			ctx.Reply().Forbidden().Error(newError(ErrAccessDenied, http.StatusForbidden))
 			return
 		}
 
 		// If auth scheme is not configured in security.conf then treat it as `anonymous`.
-		ctx.Log().Tracef("Route auth scheme is not configured, so treat it as anonymous: %v", ctx.Req.Path)
+		ctx.Log().Tracef("Route auth scheme is not configured, so treat it as anonymous: %s", ctx.Req.Path)
 		m.Next(ctx)
 		return
 	}
 
-	ctx.Log().Debugf("Route auth scheme: %s", authScheme.Key())
+	ctx.Log().Debugf("Route auth scheme(s): %s", ctx.route.Auth)
+
+	// Supports one or more auth scheme on route
 	var result flowResult
-	switch authScheme.Scheme() {
-	case "form":
-		result = doFormAuth(authScheme, ctx)
-	case "oauth2":
-		result = doOAuth2(authScheme, ctx)
-	default:
-		result = doAuthScheme(authScheme, ctx)
+	for _, s := range strings.Split(ctx.route.Auth, ",") {
+		authScheme := ctx.a.SecurityManager().AuthScheme(strings.TrimSpace(s))
+		ctx.Log().Debugf("Processing auth scheme: %s", authScheme.Key())
+		switch authScheme.Scheme() {
+		case "form":
+			result = doFormAuth(authScheme, ctx)
+		case "oauth2":
+			result = doOAuth2(authScheme, ctx)
+		default:
+			result = doAuthScheme(authScheme, ctx)
+		}
+
+		if result == flowCont {
+			break
+		}
 	}
 
 	if result == flowCont {
 		if result, reasons := ctx.hasAccess(); result {
 			m.Next(ctx)
 		} else {
-			ctx.Log().Warnf("%s: Authorization failed:%v", authScheme.Key(), reason2String(reasons))
+			ctx.Log().Warnf("Authorization failed:%s", reason2String(reasons))
 			ctx.Reply().Forbidden().Error(newErrorWithData(ErrAuthorizationFailed, http.StatusForbidden, reasons))
-			return
 		}
 	}
 }
 
 // doFormAuth method does Form Authentication and Authorization.
 func doFormAuth(authScheme scheme.Schemer, ctx *Context) flowResult {
-	if ctx.Subject().IsAuthenticated() {
-		// If session is authenticated then populate subject and continue the request flow.
-		return populateSubject(authScheme, ctx)
-	}
-
 	formAuth := authScheme.(*scheme.FormAuth)
 
 	// Check route is login submit URL otherwise send it login URL.
@@ -185,11 +201,6 @@ func doFormAuth(authScheme scheme.Schemer, ctx *Context) flowResult {
 // interface authenticator and authorizer, since its not appliable in the
 // OAuth2 flow).
 func doOAuth2(authScheme scheme.Schemer, ctx *Context) flowResult {
-	if ctx.Subject().IsAuthenticated() {
-		// If session is authenticated then populate subject and continue the request flow.
-		return populateSubject(authScheme, ctx)
-	}
-
 	ctx.e.publishOnPreAuthEvent(ctx)
 	oauth := authScheme.(*scheme.OAuth2)
 
@@ -301,6 +312,7 @@ func doAuthentication(authScheme scheme.Schemer, ctx *Context) flowResult {
 
 	populateAuthenticationInfo(authcInfo, ctx)
 	ctx.Session().IsAuthenticated = true
+	ctx.Session().Set(keyAuthScheme, authScheme.Key())
 	ctx.Log().Infof("%s: Authentication successful", authScheme.Key())
 
 	// Add to session its stateful

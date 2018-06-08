@@ -130,14 +130,13 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 		// Prevent DDoS attacks by large HTTP request bodies by enforcing
 		// configured hard limit for non-multipart/form-data Content-Type GitHub #83.
 		if !ahttp.ContentTypeMultipartForm.IsEqual(ctx.Req.ContentType().Mime) {
-			ctx.Req.Unwrap().Body = http.MaxBytesReader(ctx.Res, ctx.Req.Unwrap().Body,
-				firstNonZeroInt64(ctx.route.MaxBodySize, ctx.a.maxBodyBytes))
+			ctx.Req.Unwrap().Body = http.MaxBytesReader(ctx.Res, ctx.Req.Body(), ctx.route.MaxBodySize)
 		}
 
 		// Set the tee reader if dump log enabled with request body enabled
 		if ctx.a.dumpLogEnabled && ctx.a.dumpLog.logRequestBody {
 			reqBuf := acquireBuffer()
-			ctx.Req.Unwrap().Body = ioutil.NopCloser(io.TeeReader(ctx.Req.Unwrap().Body, reqBuf))
+			ctx.Req.Unwrap().Body = ioutil.NopCloser(io.TeeReader(ctx.Req.Body(), reqBuf))
 			ctx.Set(keyAahRequestBodyBuf, reqBuf)
 		}
 

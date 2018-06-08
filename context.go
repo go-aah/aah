@@ -18,7 +18,6 @@ import (
 	"aahframework.org/router.v0"
 	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/authz"
-	"aahframework.org/security.v0/scheme"
 	"aahframework.org/security.v0/session"
 )
 
@@ -383,12 +382,6 @@ func (ctx *Context) writeHeaders() {
 // route.
 func (ctx *Context) hasAccess() (bool, []*authz.Reason) {
 	return ctx.route.HasAccess(ctx.Subject())
-}
-
-// authScheme method returns the Route auth scheme. Might be nil for
-// anonymous route.
-func (ctx *Context) authScheme() scheme.Schemer {
-	return ctx.a.SecurityManager().AuthScheme(ctx.route.Auth)
 }
 
 // callAction method calls targed action method on the controller.
