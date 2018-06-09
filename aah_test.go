@@ -293,10 +293,10 @@ func newTestApp(t *testing.T, importPath string) *app {
 	})
 
 	err := a.VFS().AddMount(a.VirtualBaseDir(), importPath)
-	assert.FailOnError(t, err, "not expecting any error")
+	assert.FailNowOnError(t, err, "not expecting any error")
 
 	err = a.Init(importPath)
-	assert.FailOnError(t, err, "app init failure")
+	assert.FailNowOnError(t, err, "app init failure")
 
 	return a
 }

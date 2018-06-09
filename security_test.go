@@ -265,11 +265,11 @@ security {
 				id = "clientid"
 				secret = "clientsecret"
 				sign_key = "5a977494319cde3203fbb49711f08ad2"
-			}
-			provider {
-				url {
-					auth = "http://localhost/auth/login"
-					token = "http://localhost/auth/token"
+				provider {
+					url {
+						auth = "http://localhost/auth/login"
+						token = "http://localhost/auth/token"
+					}
 				}
 			}
 			principal = "security/SubjectPrincipalProvider"
@@ -285,7 +285,7 @@ security {
 	err = ts.app.initSecurity()
 	assert.Nil(t, err)
 	err = ts.app.initRouter()
-	assert.Nil(t, err)
+	assert.FailNowOnError(t, err, "router init issue")
 
 	ots := createOAuth2TestServer()
 	defer ots.Close()
@@ -314,15 +314,10 @@ security {
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
+	// set auth attribute to oauth2
 	r2, _ := http.NewRequest(http.MethodGet, ts.URL+"/get-json-oauth2", nil)
-	resp, err = client.Do(r2)
-	assert.Nil(t, err)
-	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
-
-	// correcting route auth attribute
 	domain := ts.app.Router().Lookup(ts.URL[7:])
-	route := domain.LookupByName("get_json_oauth2")
-	route.Auth = "local_oauth"
+	domain.LookupByName("get_json_oauth2").Auth = "local_oauth"
 	resp, err = client.Do(r2)
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)

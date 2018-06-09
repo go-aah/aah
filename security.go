@@ -78,6 +78,7 @@ func (a *app) initSecurity() error {
 	}
 
 	a.securityMgr = asecmgr
+	a.authSchemeExists = len(a.securityMgr.AuthSchemes()) > 0
 	return nil
 }
 
@@ -87,6 +88,11 @@ func (a *app) initSecurity() error {
 
 // AuthcAuthzMiddleware is aah Authentication and Authorization Middleware.
 func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
+	if !ctx.a.authSchemeExists {
+		m.Next(ctx)
+		return
+	}
+
 	// Load session from request if its `stateful`.
 	if ctx.a.SessionManager().IsStateful() {
 		ctx.Subject().Session = ctx.a.SessionManager().GetSession(ctx.Req.Unwrap())
@@ -106,23 +112,6 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 	// If route auth is `anonymous` then continue the request flow
 	// No authentication or authorization is required for that route.
 	if ctx.route.Auth == "anonymous" {
-		m.Next(ctx)
-		return
-	}
-
-	// Route `auth` attribute or global `default_auth` is not defined
-	if ctx.route.Auth == "" {
-		// If one or more auth schemes are defined in `security.auth_schemes { ... }`
-		// then aah treats that route as `403 Forbidden`.
-		if len(ctx.a.SecurityManager().AuthSchemes()) != 0 {
-			ctx.Log().Warnf("Auth schemes are configured in security.conf, however attribute 'auth' "+
-				"or 'default_auth' is not defined in routes.conf. Let's treat it as 403 Forbidden: %s", ctx.Req.Path)
-			ctx.Reply().Forbidden().Error(newError(ErrAccessDenied, http.StatusForbidden))
-			return
-		}
-
-		// If auth scheme is not configured in security.conf then treat it as `anonymous`.
-		ctx.Log().Tracef("Route auth scheme is not configured, so treat it as anonymous: %s", ctx.Req.Path)
 		m.Next(ctx)
 		return
 	}

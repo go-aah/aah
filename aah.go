@@ -89,6 +89,7 @@ type app struct {
 	dumpLogEnabled         bool
 	initialized            bool
 	hotReload              bool
+	authSchemeExists       bool
 	pid                    int
 	httpMaxHdrBytes        int
 	multipartMaxMemory     int64
