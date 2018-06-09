@@ -16,7 +16,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
-	log "aahframework.org/log.v0"
+	"aahframework.org/log.v0"
 	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/scheme"
 	"aahframework.org/test.v0/assert"
@@ -566,6 +566,7 @@ func createRouter(filename string) (*Router, error) {
 
 	sec := security.New()
 	sec.AddAuthScheme("form_auth", &scheme.FormAuth{LoginSubmitURL: "/login"})
+	sec.AddAuthScheme("form", &scheme.FormAuth{LoginSubmitURL: "/login"})
 
 	// config path in vfs, filepath.Join not required
 	return NewWithApp(&app{cfg: appCfg, l: l, fs: fs, sec: sec}, "/app/config/"+filename)

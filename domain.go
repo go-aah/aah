@@ -15,6 +15,7 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
+	"aahframework.org/security.v0"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -259,4 +260,25 @@ func (d *Domain) lookupRouteTree(req *http.Request) (*node, bool) {
 	}
 
 	return nil, false
+}
+
+func (d *Domain) isAuthConfigured(secMgr *security.Manager) ([]string, bool) {
+	if !ess.IsStrEmpty(d.DefaultAuth) && secMgr.AuthScheme(d.DefaultAuth) != nil {
+		return []string{}, true
+	}
+
+	names := []string{}
+	for _, r := range d.routes {
+		if r.IsStatic || r.Auth == "anonymous" {
+			continue
+		}
+
+		if r.Auth == "" {
+			names = append(names, r.Name)
+		} else if secMgr.AuthScheme(r.Auth) == nil {
+			names = append(names, r.Name)
+		}
+	}
+
+	return names, len(names) == 0
 }

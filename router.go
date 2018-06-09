@@ -393,6 +393,15 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 	// Add form login route per security.conf for configured domains
 	if r.app.SecurityManager() != nil {
 		authSchemes := r.app.SecurityManager().AuthSchemes()
+		if len(authSchemes) > 0 {
+			if routeNames, result := domain.isAuthConfigured(r.app.SecurityManager()); !result {
+				log.Errorf("Auth schemes are configured in 'security.conf', however "+
+					"these routes have invaild auth scheme or not configured: %s",
+					strings.Join(routeNames, ", "))
+				return fmt.Errorf("routes configuration error in domain '%s', please check the logs", domain.Name)
+			}
+		}
+
 		for kn, s := range authSchemes {
 			switch sv := s.(type) {
 			case *scheme.FormAuth:
