@@ -191,12 +191,14 @@ func (eb *EngineBase) Open(filename string) (string, error) {
 	// process auto field insertion, if form tag exists
 	// anti_csrf_token field
 	if bytes.Contains(b, []byte("</form>")) {
+		log.Tracef("Adding field 'anti_csrf_token' into all forms: %s", filename)
 		fc = strings.Replace(string(b), "</form>", fmt.Sprintf(`<input type="hidden" name="anti_csrf_token" value="%s anticsrftoken . %s">
 	     	</form>`, eb.LeftDelim, eb.RightDelim), -1)
 	}
 
 	// _rt field
 	if matches := eb.loginFormRegex.FindAllStringIndex(fc, -1); len(matches) > 0 {
+		log.Tracef("Adding field '_rt' into login form: %s", filename)
 		for _, m := range matches {
 			ts := fc[m[0]:m[1]]
 			fc = strings.Replace(fc, ts, fmt.Sprintf(`%s

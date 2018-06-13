@@ -11,7 +11,7 @@ branches:
 
 go:
   - 1.9
-  - "1.10"
+  - 1.x
   - tip
 
 go_import_path: aahframework.org/view.v0

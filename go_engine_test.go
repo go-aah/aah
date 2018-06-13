@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"html/template"
+	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -17,7 +18,8 @@ import (
 )
 
 func TestViewAppPages(t *testing.T) {
-	_ = log.SetLevel("trace")
+	// _ = log.SetLevel("trace")
+	log.SetWriter(ioutil.Discard)
 	cfg, _ := config.ParseString(`view { }`)
 	ge := loadGoViewEngine(t, cfg, "views")
 
@@ -45,7 +47,8 @@ func TestViewAppPages(t *testing.T) {
 }
 
 func TestViewUserPages(t *testing.T) {
-	_ = log.SetLevel("trace")
+	// _ = log.SetLevel("trace")
+	log.SetWriter(ioutil.Discard)
 	cfg, _ := config.ParseString(`view {
 		delimiters = "{{.}}"
 	}`)
@@ -78,7 +81,8 @@ func TestViewUserPages(t *testing.T) {
 }
 
 func TestViewUserPagesNoLayout(t *testing.T) {
-	_ = log.SetLevel("trace")
+	// _ = log.SetLevel("trace")
+	log.SetWriter(ioutil.Discard)
 	cfg, _ := config.ParseString(`view {
 		delimiters = "{{.}}"
 		default_layout = false
@@ -126,7 +130,8 @@ func TestViewDelimitersError(t *testing.T) {
 }
 
 func TestViewErrors(t *testing.T) {
-	_ = log.SetLevel("trace")
+	// _ = log.SetLevel("trace")
+	log.SetWriter(ioutil.Discard)
 	cfg, _ := config.ParseString(`view {
 		default_layout = false
 	}`)
@@ -185,6 +190,8 @@ func loadGoViewEngine(t *testing.T, cfg *config.Config, dir string) *GoViewEngin
 	assert.NotNil(t, ge.Templates)
 
 	assert.NotNil(t, (&EngineBase{}).Init(nil, nil, "", "", ""))
+
+	log.SetWriter(ioutil.Discard)
 
 	return ge
 }
