@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/view source code and usage is governed by a MIT style
+// aahframework.org/view source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package view
@@ -102,16 +102,14 @@ func (e *GoViewEngine) loadCommonTemplates() error {
 		tmplKey := StripPathPrefixAt(filepath.ToSlash(file), "views/")
 		tmpl := e.NewTemplate(tmplKey)
 
-		tbytes, err := vfs.ReadFile(e.VFS, file)
+		log.Tracef("Parsing file: %s", TrimPathPrefix(prefix, file))
+		tstr, err := e.Open(file)
 		if err != nil {
 			return err
 		}
-
-		tstr := e.AntiCSRFField.InsertOnString(string(tbytes))
-		if tmpl, err = tmpl.Parse(tstr); err != nil {
+		if _, err = tmpl.Parse(tstr); err != nil {
 			return err
 		}
-
 		if err = commonTemplates.Add(tmplKey, tmpl); err != nil {
 			return err
 		}
@@ -139,17 +137,15 @@ func (e *GoViewEngine) loadLayoutTemplates(layouts []string) error {
 			}
 
 			for _, file := range files {
-				tfiles := []string{layout, file}
 				tmplKey := StripPathPrefixAt(filepath.ToSlash(file), "views/")
 				tmpl := e.NewTemplate(tmplKey)
-				tmplfiles := e.AntiCSRFField.InsertOnFiles(tfiles...)
+				tfiles := []string{layout, file}
 
 				log.Tracef("Parsing files: %s", TrimPathPrefix(prefix, tfiles...))
-				if tmpl, err = tmpl.ParseFiles(tmplfiles...); err != nil {
+				if _, err = e.ParseFiles(tmpl, tfiles...); err != nil {
 					errs = append(errs, err)
 					continue
 				}
-
 				if err = e.AddTemplate(layoutKey, tmplKey, tmpl); err != nil {
 					errs = append(errs, err)
 					continue
@@ -179,11 +175,13 @@ func (e *GoViewEngine) loadNonLayoutTemplates(scope string) error {
 		for _, file := range files {
 			tmplKey := noLayout + "-" + StripPathPrefixAt(filepath.ToSlash(file), "views/")
 			tmpl := e.NewTemplate(tmplKey)
-			fileBytes, _ := e.VFS.ReadFile(file)
-			fileStr := e.AntiCSRFField.InsertOnString(string(fileBytes))
 
 			log.Tracef("Parsing file: %s", TrimPathPrefix(prefix, file))
-			if tmpl, err = tmpl.Parse(fileStr); err != nil {
+			tstr, err := e.Open(file)
+			if err != nil {
+				return err
+			}
+			if tmpl, err = tmpl.Parse(tstr); err != nil {
 				errs = append(errs, err)
 				continue
 			}

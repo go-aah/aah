@@ -166,6 +166,12 @@ func loadGoViewEngine(t *testing.T, cfg *config.Config, dir string) *GoViewEngin
 		"anticsrftoken": func(arg interface{}) string {
 			return ""
 		},
+		"rurl": func(args map[string]interface{}, key string) string {
+			return "//localhost:8080/login"
+		},
+		"qparam": func(args map[string]interface{}, key string) string {
+			return "/index"
+		},
 	})
 
 	viewsDir := join("testdata", dir)

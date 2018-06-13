@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/view source code and usage is governed by a MIT style
+// aahframework.org/view source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 // Package view is implementation of aah framework view engine using Go
@@ -8,11 +8,13 @@
 package view
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"html/template"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"aahframework.org/config.v0"
@@ -124,7 +126,7 @@ func (t *Templates) Keys() []string {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// type EngineBase, methods
+// type EngineBase, its methods
 //______________________________________________________________________________
 
 // EngineBase struct is to create common and repurpose the implementation.
@@ -139,8 +141,9 @@ type EngineBase struct {
 	RightDelim      string
 	AppConfig       *config.Config
 	Templates       map[string]*Templates
-	AntiCSRFField   *AntiCSRFField
 	VFS             *vfs.VFS
+
+	loginFormRegex *regexp.Regexp
 }
 
 // Init method is to initialize the base fields values.
@@ -170,9 +173,64 @@ func (eb *EngineBase) Init(fs *vfs.VFS, appCfg *config.Config, baseDir, defaultE
 	}
 	eb.LeftDelim, eb.RightDelim = delimiter[0], delimiter[1]
 
-	// Anti CSRF
-	eb.AntiCSRFField = NewAntiCSRFFieldWithVFS(eb.VFS, "go", eb.LeftDelim, eb.RightDelim)
+	eb.loginFormRegex = regexp.MustCompile(`(<form(.*)_login_submit__aah\"(.*)(?s)>)`)
+
 	return nil
+}
+
+// Open method reads template from VFS if not found resolve from physical
+// file system. Also does auto field insertion such as
+// Anti-CSRF(anti_csrf_token) and requested page URL (_rt).
+func (eb *EngineBase) Open(filename string) (string, error) {
+	b, err := vfs.ReadFile(eb.VFS, filename)
+	if err != nil {
+		return "", err
+	}
+
+	fc := string(b)
+	// process auto field insertion, if form tag exists
+	// anti_csrf_token field
+	if bytes.Contains(b, []byte("</form>")) {
+		fc = strings.Replace(string(b), "</form>", fmt.Sprintf(`<input type="hidden" name="anti_csrf_token" value="%s anticsrftoken . %s">
+	     	</form>`, eb.LeftDelim, eb.RightDelim), -1)
+	}
+
+	// _rt field
+	if matches := eb.loginFormRegex.FindAllStringIndex(fc, -1); len(matches) > 0 {
+		for _, m := range matches {
+			ts := fc[m[0]:m[1]]
+			fc = strings.Replace(fc, ts, fmt.Sprintf(`%s
+			<input type="hidden" value="{{ qparam . "_rt" }}" name="_rt">`, ts), 1)
+		}
+	}
+
+	return fc, nil
+}
+
+// ParseFiles method parses given files with given template instance.
+func (eb *EngineBase) ParseFiles(t *template.Template, filenames ...string) (*template.Template, error) {
+	for _, filename := range filenames {
+		s, err := eb.Open(filename)
+		if err != nil {
+			return nil, err
+		}
+
+		name := filepath.Base(filename)
+		var tmpl *template.Template
+		if t == nil {
+			t = eb.NewTemplate(name)
+		}
+		if name == t.Name() {
+			tmpl = t
+		} else {
+			tmpl = t.New(name)
+		}
+		if _, err = tmpl.Parse(s); err != nil {
+			return nil, err
+		}
+	}
+
+	return t, nil
 }
 
 // Get method returns the template based given name if found, otherwise nil.
