@@ -143,6 +143,7 @@ type EngineBase struct {
 	Templates       map[string]*Templates
 	VFS             *vfs.VFS
 
+	hotReload      bool
 	loginFormRegex *regexp.Regexp
 }
 
@@ -192,7 +193,7 @@ func (eb *EngineBase) Open(filename string) (string, error) {
 	// anti_csrf_token field
 	if bytes.Contains(b, []byte("</form>")) {
 		log.Tracef("Adding field 'anti_csrf_token' into all forms: %s", filename)
-		fc = strings.Replace(string(b), "</form>", fmt.Sprintf(`<input type="hidden" name="anti_csrf_token" value="%s anticsrftoken . %s">
+		fc = strings.Replace(fc, "</form>", fmt.Sprintf(`<input type="hidden" name="anti_csrf_token" value="%s anticsrftoken . %s">
 	     	</form>`, eb.LeftDelim, eb.RightDelim), -1)
 	}
 
@@ -207,6 +208,19 @@ func (eb *EngineBase) Open(filename string) (string, error) {
 	}
 
 	return fc, nil
+}
+
+// ParseFile method parses given single file.
+func (eb *EngineBase) ParseFile(filename string) (*template.Template, error) {
+	if !strings.HasPrefix(filename, eb.BaseDir) {
+		filename = path.Join(eb.BaseDir, filename)
+	}
+	tmpl := eb.NewTemplate(StripPathPrefixAt(filepath.ToSlash(filename), "views/"))
+	tstr, err := eb.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	return tmpl.Parse(tstr)
 }
 
 // ParseFiles method parses given files with given template instance.
@@ -236,13 +250,27 @@ func (eb *EngineBase) ParseFiles(t *template.Template, filenames ...string) (*te
 }
 
 // Get method returns the template based given name if found, otherwise nil.
-func (eb *EngineBase) Get(layout, path, tmplName string) (*template.Template, error) {
+func (eb *EngineBase) Get(layout, tpath, tmplName string) (*template.Template, error) {
+	if eb.hotReload {
+		key := path.Join(tpath, tmplName)
+		if !eb.CaseSensitive {
+			key = strings.ToLower(key)
+		}
+
+		if ess.IsStrEmpty(layout) {
+			return eb.ParseFile(path.Join(eb.BaseDir, key))
+		}
+		return eb.ParseFiles(eb.NewTemplate(key),
+			path.Join(eb.BaseDir, "layouts", layout),
+			path.Join(eb.BaseDir, key))
+	}
+
 	if ess.IsStrEmpty(layout) {
 		layout = noLayout
 	}
 
 	if tmpls, found := eb.Templates[layout]; found {
-		key := filepath.Join(path, tmplName)
+		key := path.Join(tpath, tmplName)
 		if layout == noLayout {
 			key = noLayout + "-" + key
 		}
@@ -257,6 +285,11 @@ func (eb *EngineBase) Get(layout, path, tmplName string) (*template.Template, er
 	}
 
 	return nil, ErrTemplateNotFound
+}
+
+// SetHotReload method set teh view engine mode into hot reload without watcher.
+func (eb *EngineBase) SetHotReload(r bool) {
+	eb.hotReload = r
 }
 
 // AddTemplate method adds the given template for layout and key.

@@ -46,8 +46,9 @@ func (e *GoViewEngine) Init(fs *vfs.VFS, appCfg *config.Config, baseDir string) 
 
 	// Add template func
 	AddTemplateFunc(template.FuncMap{
-		"import":  tmplInclude,
-		"include": tmplInclude, // alias for import
+		"safeHTML": e.tmplSafeHTML,
+		"import":   e.tmplInclude,
+		"include":  e.tmplInclude, // alias for import
 	})
 
 	// load common templates
@@ -99,18 +100,12 @@ func (e *GoViewEngine) loadCommonTemplates() error {
 			continue
 		}
 
-		tmplKey := StripPathPrefixAt(filepath.ToSlash(file), "views/")
-		tmpl := e.NewTemplate(tmplKey)
-
 		log.Tracef("Parsing file: %s", TrimPathPrefix(prefix, file))
-		tstr, err := e.Open(file)
+		tmpl, err := e.ParseFile(file)
 		if err != nil {
 			return err
 		}
-		if _, err = tmpl.Parse(tstr); err != nil {
-			return err
-		}
-		if err = commonTemplates.Add(tmplKey, tmpl); err != nil {
+		if err = commonTemplates.Add(tmpl.Name(), tmpl); err != nil {
 			return err
 		}
 	}
@@ -198,9 +193,4 @@ func (e *GoViewEngine) loadNonLayoutTemplates(scope string) error {
 
 func init() {
 	_ = AddEngine("go", &GoViewEngine{})
-
-	// Add template func
-	AddTemplateFunc(template.FuncMap{
-		"safeHTML": tmplSafeHTML,
-	})
 }

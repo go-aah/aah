@@ -21,7 +21,7 @@ func TestViewAppPages(t *testing.T) {
 	// _ = log.SetLevel("trace")
 	log.SetWriter(ioutil.Discard)
 	cfg, _ := config.ParseString(`view { }`)
-	ge := loadGoViewEngine(t, cfg, "views")
+	ge := loadGoViewEngine(t, cfg, "views", false)
 
 	data := map[string]interface{}{
 		"GreetName": "aah framework",
@@ -52,7 +52,7 @@ func TestViewUserPages(t *testing.T) {
 	cfg, _ := config.ParseString(`view {
 		delimiters = "{{.}}"
 	}`)
-	ge := loadGoViewEngine(t, cfg, "views")
+	ge := loadGoViewEngine(t, cfg, "views", true)
 
 	data := map[string]interface{}{
 		"GreetName": "aah framework",
@@ -87,7 +87,7 @@ func TestViewUserPagesNoLayout(t *testing.T) {
 		delimiters = "{{.}}"
 		default_layout = false
 	}`)
-	ge := loadGoViewEngine(t, cfg, "views")
+	ge := loadGoViewEngine(t, cfg, "views", false)
 
 	data := map[string]interface{}{
 		"GreetName": "aah framework",
@@ -165,7 +165,7 @@ func TestViewErrors(t *testing.T) {
 	assert.Equal(t, "goviewengine: error processing templates, please check the log", err.Error())
 }
 
-func loadGoViewEngine(t *testing.T, cfg *config.Config, dir string) *GoViewEngine {
+func loadGoViewEngine(t *testing.T, cfg *config.Config, dir string, hotreload bool) *GoViewEngine {
 	// dummy func for test
 	AddTemplateFunc(template.FuncMap{
 		"anticsrftoken": func(arg interface{}) string {
@@ -184,6 +184,7 @@ func loadGoViewEngine(t *testing.T, cfg *config.Config, dir string) *GoViewEngin
 
 	err := ge.Init(newVFS(), cfg, viewsDir)
 	assert.FailNowOnError(t, err, "")
+	ge.hotReload = hotreload
 
 	assert.Equal(t, viewsDir, ge.BaseDir)
 	assert.NotNil(t, ge.AppConfig)
