@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/router source code and usage is governed by a MIT style
+// aahframework.org/router source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 // Package router provides routing implementation for aah framework.
@@ -405,9 +405,11 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 		for kn, s := range authSchemes {
 			switch sv := s.(type) {
 			case *scheme.FormAuth:
-				name := kn + "_login_submit" + autoRouteNameSuffix // for e.g.: form_auth_login__aah
+				maxBodySize, _ := ess.StrToBytes(maxBodySizeStr)
+				name := kn + "_login_submit" + autoRouteNameSuffix // for e.g.: form_auth_login_submit__aah
 				if domain.LookupByName(name) == nil {              // add only if not exists
-					_ = domain.AddRoute(&Route{Name: name, Path: sv.LoginSubmitURL, Method: ahttp.MethodPost, Auth: kn})
+					_ = domain.AddRoute(&Route{Name: name, Path: sv.LoginSubmitURL,
+						Method: ahttp.MethodPost, Auth: kn, MaxBodySize: maxBodySize})
 				}
 			case *scheme.OAuth2:
 				_ = domain.AddRoute(&Route{
@@ -580,6 +582,7 @@ func parseSectionRoutes(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 				PrefixPath:        routePath,
 				Target:            routeTarget,
 				Auth:              routeAuth,
+				MaxBodySizeStr:    routeInfo.MaxBodySizeStr,
 				AntiCSRFCheck:     routeAntiCSRFCheck,
 				CORS:              cors,
 				CORSEnabled:       routeInfo.CORSEnabled,

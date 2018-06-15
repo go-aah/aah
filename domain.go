@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/router source code and usage is governed by a MIT style
+// aahframework.org/router source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package router
@@ -269,7 +269,7 @@ func (d *Domain) isAuthConfigured(secMgr *security.Manager) ([]string, bool) {
 
 	names := []string{}
 	for _, r := range d.routes {
-		if r.IsStatic || r.Auth == "anonymous" {
+		if r.IsStatic || r.Auth == "anonymous" || r.Auth == "authenticated" {
 			continue
 		}
 
