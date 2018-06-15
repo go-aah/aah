@@ -120,6 +120,10 @@ func Walk(srcDir string, walkFn filepath.WalkFunc) error {
 
 func doWalk(fname string, linkName string, walkFn filepath.WalkFunc) error {
 	fsWalkFn := func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
 		var name string
 		name, err = filepath.Rel(fname, path)
 		if err != nil {
@@ -135,7 +139,6 @@ func doWalk(fname string, linkName string, walkFn filepath.WalkFunc) error {
 				return err
 			}
 
-			// https://github.com/golang/go/blob/master/src/path/filepath/path.go#L392
 			info, err = os.Lstat(symlinkPath)
 			if err != nil {
 				return walkFn(path, info, err)
