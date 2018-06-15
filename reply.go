@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -108,9 +108,19 @@ func (r *Reply) MethodNotAllowed() *Reply {
 	return r.Status(http.StatusMethodNotAllowed)
 }
 
-// Conflict method sets the HTTP Code as 409  RFC 7231, 6.5.8.
+// NotAcceptable method sets the HTTP Code as 406 RFC 7231, 6.5.6
+func (r *Reply) NotAcceptable() *Reply {
+	return r.Status(http.StatusNotAcceptable)
+}
+
+// Conflict method sets the HTTP Code as 409 RFC 7231, 6.5.8.
 func (r *Reply) Conflict() *Reply {
 	return r.Status(http.StatusConflict)
+}
+
+// UnsupportedMediaType method sets the HTTP Code as 415 RFC 7231, 6.5.13
+func (r *Reply) UnsupportedMediaType() *Reply {
+	return r.Status(http.StatusUnsupportedMediaType)
 }
 
 // InternalServerError method sets the HTTP Code as 500 RFC 7231, 6.6.1.

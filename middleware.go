@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -129,7 +129,7 @@ func ActionMiddleware(ctx *Context, m *Middleware) {
 	if err := ctx.setTarget(ctx.route); err == errTargetNotFound {
 		// No controller or action found for the route
 		ctx.Log().Warnf("Target not found, Controller: %s, Action: %s", ctx.route.Target, ctx.route.Action)
-		ctx.Reply().Error(newError(ErrControllerOrActionNotFound, http.StatusNotFound))
+		ctx.Reply().NotFound().Error(newError(ErrControllerOrActionNotFound, http.StatusNotFound))
 		return
 	}
 

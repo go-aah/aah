@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -96,7 +96,7 @@ func TestErrorCallControllerHandler(t *testing.T) {
 	ctx.logger = l
 
 	ctx.Reply().ContentType("application/json")
-	ctx.Reply().Error(newError(nil, http.StatusBadRequest))
+	ctx.Reply().BadRequest().Error(newError(nil, http.StatusBadRequest))
 
 	em := new(errorManager)
 	em.Handle(ctx)

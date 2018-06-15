@@ -55,6 +55,7 @@ func TestViewResolveView(t *testing.T) {
 	vm := ts.app.viewMgr
 	assert.NotNil(t, vm)
 	assert.NotNil(t, vm.engine)
+	vm.setHotReload(false)
 
 	req := httptest.NewRequest(ahttp.MethodGet, ts.URL, nil)
 	ctx := newContext(httptest.NewRecorder(), req)

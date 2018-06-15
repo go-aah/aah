@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -85,7 +85,7 @@ func handleCORSPreflight(ctx *Context) {
 	} else {
 		ctx.Log().Warnf("CORS: preflight request - invalid origin '%s' for %s %s",
 			origin, ctx.Req.Method, ctx.Req.Path)
-		ctx.Reply().Error(newError(router.ErrCORSOriginIsInvalid, http.StatusBadRequest))
+		ctx.Reply().BadRequest().Error(newError(router.ErrCORSOriginIsInvalid, http.StatusBadRequest))
 		return
 	}
 
@@ -96,7 +96,7 @@ func handleCORSPreflight(ctx *Context) {
 	} else {
 		ctx.Log().Warnf("CORS: preflight request - method not allowed '%s' for path %s",
 			method, ctx.Req.Path)
-		ctx.Reply().Error(newError(router.ErrCORSMethodNotAllowed, http.StatusMethodNotAllowed))
+		ctx.Reply().MethodNotAllowed().Error(newError(router.ErrCORSMethodNotAllowed, http.StatusMethodNotAllowed))
 		return
 	}
 
@@ -109,7 +109,7 @@ func handleCORSPreflight(ctx *Context) {
 	} else {
 		ctx.Log().Warnf("CORS: preflight request - headers not allowed '%s' for path %s",
 			hdrs, ctx.Req.Path)
-		ctx.Reply().Error(newError(router.ErrCORSHeaderNotAllowed, http.StatusForbidden))
+		ctx.Reply().Forbidden().Error(newError(router.ErrCORSHeaderNotAllowed, http.StatusForbidden))
 		return
 	}
 
@@ -168,7 +168,7 @@ func handleRoute(ctx *Context) flowResult {
 	domain := ctx.a.Router().Lookup(ctx.Req.Host)
 	if domain == nil {
 		ctx.Log().Warnf("Domain not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
-		ctx.Reply().Error(newError(ErrDomainNotFound, http.StatusNotFound))
+		ctx.Reply().NotFound().Error(newError(ErrDomainNotFound, http.StatusNotFound))
 		return flowAbort
 	}
 	ctx.domain = domain
@@ -180,7 +180,7 @@ func handleRoute(ctx *Context) flowResult {
 		}
 
 		ctx.Log().Warnf("Route not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
-		ctx.Reply().Error(newError(ErrRouteNotFound, http.StatusNotFound))
+		ctx.Reply().NotFound().Error(newError(ErrRouteNotFound, http.StatusNotFound))
 		return flowAbort
 	}
 	ctx.route = route
@@ -191,7 +191,7 @@ func handleRoute(ctx *Context) flowResult {
 		if err := ctx.a.staticMgr.Serve(ctx); err == errFileNotFound {
 			ctx.Log().Warnf("Static file not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 			ctx.Reply().done = false
-			ctx.Reply().Error(newError(ErrStaticFileNotFound, http.StatusNotFound))
+			ctx.Reply().NotFound().Error(newError(ErrStaticFileNotFound, http.StatusNotFound))
 		}
 		return flowAbort
 	}
@@ -312,7 +312,7 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 	// 405 Method Not Allowed
 	if domain.MethodNotAllowed {
 		if processAllowedMethods(reply, domain.Allowed(reqMethod, reqPath), "405 response, ") {
-			ctx.Reply().Error(newError(ErrHTTPMethodNotAllowed, http.StatusMethodNotAllowed))
+			ctx.Reply().MethodNotAllowed().Error(newError(ErrHTTPMethodNotAllowed, http.StatusMethodNotAllowed))
 			return nil
 		}
 	}

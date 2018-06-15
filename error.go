@@ -25,6 +25,7 @@ var (
 	ErrContentTypeNotAccepted     = errors.New("aah: content type not accepted")
 	ErrContentTypeNotOffered      = errors.New("aah: content type not offered")
 	ErrHTTPMethodNotAllowed       = errors.New("aah: http method not allowed")
+	ErrNotAuthenticated           = errors.New("aah: not authenticated")
 	ErrAccessDenied               = errors.New("aah: access denied")
 	ErrAuthenticationFailed       = errors.New("aah: authentication failed")
 	ErrAuthorizationFailed        = errors.New("aah: authorization failed")

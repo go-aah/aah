@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -17,6 +17,7 @@ import (
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/security.v0"
+	"aahframework.org/security.v0/authc"
 )
 
 const (
@@ -87,6 +88,14 @@ func (e *HTTPEngine) Handle(w http.ResponseWriter, r *http.Request) {
 		ctx.setRequestID()
 	}
 
+	// Load session from request if its `stateful` and subject authentication info.
+	if ctx.a.SessionManager().IsStateful() {
+		ctx.Subject().Session = ctx.a.SessionManager().GetSession(ctx.Req.Unwrap())
+		if ctx.Session().IsKeyExists(KeyViewArgAuthcInfo) {
+			populateAuthenticationInfo(ctx.Session().Get(KeyViewArgAuthcInfo).(*authc.AuthenticationInfo), ctx)
+		}
+	}
+
 	// 'OnRequest' HTTP engine event
 	e.publishOnRequestEvent(ctx)
 
@@ -98,7 +107,7 @@ func (e *HTTPEngine) Handle(w http.ResponseWriter, r *http.Request) {
 			ctx.Log().Error("'init.go' file introduced in release v0.10; please check your 'app-base-dir/app' " +
 				"and then add to your version control")
 		}
-		ctx.Reply().Error(newError(ErrGeneric, http.StatusInternalServerError))
+		ctx.Reply().InternalServerError().Error(newError(ErrGeneric, http.StatusInternalServerError))
 	} else {
 		e.mwChain[0].Next(ctx)
 	}
@@ -275,7 +284,7 @@ func (e *HTTPEngine) handleRecovery(ctx *Context) {
 			err = er
 		}
 
-		ctx.Reply().Error(newErrorWithData(err, http.StatusInternalServerError, r))
+		ctx.Reply().InternalServerError().Error(newErrorWithData(err, http.StatusInternalServerError, r))
 		e.writeReply(ctx)
 	}
 }

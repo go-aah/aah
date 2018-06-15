@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -115,14 +115,14 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 			if len(ctx.a.bindMgr.acceptedContentTypes) > 0 &&
 				!ess.IsSliceContainsString(ctx.a.bindMgr.acceptedContentTypes, ctx.Req.ContentType().Mime) {
 				ctx.Log().Warnf("Content type '%v' not accepted by server", ctx.Req.ContentType())
-				ctx.Reply().Error(newError(ErrContentTypeNotAccepted, http.StatusUnsupportedMediaType))
+				ctx.Reply().UnsupportedMediaType().Error(newError(ErrContentTypeNotAccepted, http.StatusUnsupportedMediaType))
 				return
 			}
 
 			if len(ctx.a.bindMgr.offeredContentTypes) > 0 &&
 				!ess.IsSliceContainsString(ctx.a.bindMgr.offeredContentTypes, ctx.Req.AcceptContentType().Mime) {
 				ctx.Log().Warnf("Content type '%v' not offered by server", ctx.Req.AcceptContentType())
-				ctx.Reply().Error(newError(ErrContentTypeNotOffered, http.StatusNotAcceptable))
+				ctx.Reply().NotAcceptable().Error(newError(ErrContentTypeNotOffered, http.StatusNotAcceptable))
 				return
 			}
 		}

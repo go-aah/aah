@@ -88,41 +88,32 @@ func (a *app) initSecurity() error {
 
 // AuthcAuthzMiddleware is aah Authentication and Authorization Middleware.
 func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
-	if !ctx.a.authSchemeExists {
+	// Continue with the flow, if -
+	// 		- Auth scheme is not defined in `security.conf`
+	// 		- Route auth is `anonymous`
+	if !ctx.a.authSchemeExists || ctx.route.Auth == "anonymous" {
 		m.Next(ctx)
 		return
-	}
-
-	// Load session from request if its `stateful`.
-	if ctx.a.SessionManager().IsStateful() {
-		ctx.Subject().Session = ctx.a.SessionManager().GetSession(ctx.Req.Unwrap())
 	}
 
 	// If session is authenticated then populate subject and continue the request flow.
 	if ctx.Subject().IsAuthenticated() {
 		if key := ctx.Session().GetString(keyAuthScheme); key != "" {
-			authScheme := ctx.a.SecurityManager().AuthScheme(key)
-			if populateSubject(authScheme, ctx) == flowCont {
-				m.Next(ctx)
-				return
-			}
+			populateAuthorizationInfo(ctx.a.SecurityManager().AuthScheme(key), ctx)
+			m.Next(ctx)
+			return
 		}
-	}
-
-	// If route auth is `anonymous` then continue the request flow
-	// No authentication or authorization is required for that route.
-	if ctx.route.Auth == "anonymous" {
-		m.Next(ctx)
+	} else if ctx.route.Auth == "authenticated" {
+		// If route auth is `authenticated` then denied request with 401
+		ctx.Reply().Unauthorized().Error(newError(ErrNotAuthenticated, http.StatusUnauthorized))
 		return
 	}
-
-	ctx.Log().Debugf("Route auth scheme(s): %s", ctx.route.Auth)
 
 	// Supports one or more auth scheme on route
 	var result flowResult
 	for _, s := range strings.Split(ctx.route.Auth, ",") {
 		authScheme := ctx.a.SecurityManager().AuthScheme(strings.TrimSpace(s))
-		ctx.Log().Debugf("Processing auth scheme: %s", authScheme.Key())
+		ctx.Log().Debugf("Processing route auth scheme: %s", authScheme.Key())
 		switch authScheme.Scheme() {
 		case "form":
 			result = doFormAuth(authScheme, ctx)
@@ -316,18 +307,6 @@ func doAuthentication(authScheme scheme.Schemer, ctx *Context) flowResult {
 	}
 
 	return flowCont
-}
-
-func populateSubject(authScheme scheme.Schemer, ctx *Context) flowResult {
-	if ctx.Session().IsKeyExists(KeyViewArgAuthcInfo) {
-		populateAuthenticationInfo(ctx.Session().Get(KeyViewArgAuthcInfo).(*authc.AuthenticationInfo), ctx)
-		populateAuthorizationInfo(authScheme, ctx)
-		return flowCont
-	}
-
-	ctx.Log().Warn("It seems there is an issue with session data, possibly Authentication Info")
-	ctx.Reply().Error(newError(ErrSessionAuthenticationInfo, http.StatusBadRequest))
-	return flowAbort
 }
 
 func populateAuthenticationInfo(authcInfo *authc.AuthenticationInfo, ctx *Context) {

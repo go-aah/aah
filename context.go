@@ -389,7 +389,7 @@ func (ctx *Context) callAction() {
 	// Parse Action Parameters
 	actionArgs, err := ctx.parseParameters()
 	if err != nil { // Any error of parameter parsing result in 400 Bad Request
-		ctx.Reply().Error(err)
+		ctx.Reply().BadRequest().Error(err)
 		return
 	}
 

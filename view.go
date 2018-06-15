@@ -113,6 +113,7 @@ func (a *app) initView() error {
 
 	a.viewMgr = viewMgr
 	a.SecurityManager().AntiCSRF.Enabled = true
+	a.viewMgr.setHotReload(a.IsProfileDev() && !a.IsPackaged())
 
 	return nil
 }
@@ -192,7 +193,7 @@ func (vm *viewManager) resolve(ctx *Context) {
 
 	tmplPath = filepath.Join("pages", tmplPath)
 
-	ctx.Log().Tracef("Layout: %s, Template Path: %s, Template Name: %s", htmlRdr.Layout, tmplPath, tmplName)
+	ctx.Log().Tracef("view(layout:%s path:%s name:%s)", htmlRdr.Layout, tmplPath, tmplName)
 	var err error
 	if htmlRdr.Template, err = vm.engine.Get(htmlRdr.Layout, tmplPath, tmplName); err != nil {
 		if err == view.ErrTemplateNotFound {
@@ -234,6 +235,14 @@ func (vm *viewManager) addFrameworkValuesIntoViewArgs(ctx *Context) {
 
 	html.ViewArgs["EnvProfile"] = vm.a.Profile()
 	html.ViewArgs["AppBuildInfo"] = vm.a.BuildInfo()
+}
+
+func (vm *viewManager) setHotReload(v bool) {
+	if hr, ok := vm.engine.(interface {
+		SetHotReload(r bool)
+	}); ok {
+		hr.SetHotReload(v)
+	}
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
