@@ -193,8 +193,9 @@ func (eb *EngineBase) Open(filename string) (string, error) {
 	// anti_csrf_token field
 	if bytes.Contains(b, []byte("</form>")) {
 		log.Tracef("Adding field 'anti_csrf_token' into all forms: %s", filename)
-		fc = strings.Replace(fc, "</form>", fmt.Sprintf(`<input type="hidden" name="anti_csrf_token" value="%s anticsrftoken . %s">
-	     	</form>`, eb.LeftDelim, eb.RightDelim), -1)
+		fieldName := eb.AppConfig.StringDefault("security.anti_csrf.form_field_name", "anti_csrf_token")
+		fc = strings.Replace(fc, "</form>", fmt.Sprintf(`<input type="hidden" name="%s" value="%s anticsrftoken . %s">
+	     	</form>`, fieldName, eb.LeftDelim, eb.RightDelim), -1)
 	}
 
 	// _rt field
