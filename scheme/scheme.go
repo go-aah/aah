@@ -18,7 +18,7 @@ import (
 
 // Schemer interface is used to create new Auth Scheme for aah framework.
 type Schemer interface {
-	// Init method gets called by framework during an application start.
+	// Init method gets called by aah during an application start.
 	//
 	// `keyName` is value of security auth scheme key.
 	// 		For e.g.:
@@ -29,7 +29,7 @@ type Schemer interface {
 	// For e.g: `security.auth_schemes.<keyname>`.
 	Key() string
 
-	// Scheme method returns auth scheme name. For e.g.: form, basic, oauth, generic, etc.
+	// Scheme method returns auth scheme name. For e.g.: form, basic, oauth2, generic, etc.
 	Scheme() string
 
 	// DoAuthenticate method called by aah SecurityManager to get Subject authentication

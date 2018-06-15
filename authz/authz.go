@@ -17,14 +17,15 @@ var (
 	ErrAuthorizerIsNil = errors.New("security/authz: authorizer is nil")
 )
 
-// Authorizer interface is gets implemented by user application to provide Subject's
-// (aka 'application user') access control information.
+// Authorizer interface is used to provide authorization info (roles and permissions)
+// after successful authentication.
 type Authorizer interface {
 	// Init method gets called by aah during an application start.
 	Init(appCfg *config.Config) error
 
-	// GetAuthorizationInfo method gets called after authentication is successful
-	// to get Subject's aka User access control information such as roles and permissions.
+	// GetAuthorizationInfo method called by auth scheme after authentication
+	// successful to get Subject's (aka User) access control information
+	// such as roles and permissions.
 	GetAuthorizationInfo(authcInfo *authc.AuthenticationInfo) *AuthorizationInfo
 }
 

@@ -27,14 +27,14 @@ var (
 	ErrSubjectNotExists = errors.New("security/authc: subject not exists")
 )
 
-// Authenticator interface is implemented by user application to provide
-// authentication information during authentication process.
+// Authenticator interface is used to provide authentication information of application
+// during a login.
 type Authenticator interface {
 	// Init method gets called by aah during an application start.
 	Init(appCfg *config.Config) error
 
-	// GetAuthenticationInfo method gets called when authentication happens for
-	// user provided credentials.
+	// GetAuthenticationInfo method called by auth scheme to get subject's authentication
+	// info for given authentication token.
 	GetAuthenticationInfo(authcToken *AuthenticationToken) (*AuthenticationInfo, error)
 }
 
@@ -44,7 +44,7 @@ type PrincipalProvider interface {
 	// Init method gets called by aah during an application start.
 	Init(appCfg *config.Config) error
 
-	// Principal method called auth scheme to get Principals.
+	// Principal method called by auth scheme to get Principals.
 	//
 	// 	For e.g: keyName is the auth scheme configuration KeyName.
 	// 		 security.auth_schemes.<keyname>
