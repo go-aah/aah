@@ -129,7 +129,7 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 	// Schedule cleanup
 	if !m.IsCookieStore() {
 		time.AfterFunc(time.Duration(m.cleanupInterval)*time.Second, func() {
-			log.Info("Running expired session cleanup at %v", time.Now())
+			log.Infof("Running expired session cleanup at %v", time.Now())
 			m.store.Cleanup(m)
 		})
 	}
