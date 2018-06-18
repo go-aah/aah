@@ -17,7 +17,7 @@ go:
 go_import_path: aahframework.org/ws.v0
 
 before_install:
-  - bash <(curl -s https://aahframework.org/base-before-install) "forge ahttp config ainsp essentials valpar log router"
+  - bash <(curl -s https://aahframework.org/base-before-install) "forge ahttp config ainsp essentials valpar log router security"
 
 install:
   - go get -t -v ./...
