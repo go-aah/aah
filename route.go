@@ -35,8 +35,8 @@ type Route struct {
 	Dir             string
 	File            string
 	CORS            *CORS
+	Constraints     map[string]string
 
-	validationRules   map[string]string
 	authorizationInfo *authorizationInfo
 }
 
@@ -48,13 +48,6 @@ func (r *Route) IsDir() bool {
 // IsFile method returns true if serving single file otherwise false.
 func (r *Route) IsFile() bool {
 	return !ess.IsStrEmpty(r.File)
-}
-
-// ValidationRule methdo returns `validation rule, true` if exists for path param
-// otherwise `"", false`
-func (r *Route) ValidationRule(name string) (string, bool) {
-	rules, found := r.validationRules[name]
-	return rules, found
 }
 
 // HasAccess method does authorization check based on configured values at route
@@ -142,8 +135,8 @@ func (r *Route) String() string {
 	if !ess.IsStrEmpty(r.ParentName) {
 		parentName = fmt.Sprintf("(parent: %s)", r.ParentName)
 	}
-	return fmt.Sprintf("route(name:%s %s method:%s path:%s target:%s.%s auth:%s maxbodysize:%v %s %v validations(%v))",
-		r.Name, parentName, r.Method, r.Path, r.Target, r.Action, r.Auth, r.MaxBodySize, r.CORS, r.authorizationInfo, r.validationRules)
+	return fmt.Sprintf("route(name:%s %s method:%s path:%s target:%s.%s auth:%s maxbodysize:%v %s %v constraints(%v))",
+		r.Name, parentName, r.Method, r.Path, r.Target, r.Action, r.Auth, r.MaxBodySize, r.CORS, r.authorizationInfo, r.Constraints)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

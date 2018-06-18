@@ -122,10 +122,10 @@ func (d *Domain) Allowed(requestMethod, path string) (allowed string) {
 	return
 }
 
-// ReverseURLm composes reverse URL by route name and key-value pair arguments.
+// RouteURLNamedArgs composes reverse URL by route name and key-value pair arguments.
 // Additional key-value pairs composed as URL query string.
 // If error occurs then method logs it and returns empty string.
-func (d *Domain) ReverseURLm(routeName string, args map[string]interface{}) string {
+func (d *Domain) RouteURLNamedArgs(routeName string, args map[string]interface{}) string {
 	route, found := d.routes[routeName]
 	if !found {
 		log.Errorf("route name '%v' not found", routeName)
@@ -180,10 +180,10 @@ func (d *Domain) ReverseURLm(routeName string, args map[string]interface{}) stri
 	return reverseURL
 }
 
-// ReverseURL method composes route reverse URL for given route and
+// RouteURL method composes route reverse URL for given route and
 // arguments based on index order. If error occurs then method logs it
 // and returns empty string.
-func (d *Domain) ReverseURL(routeName string, args ...interface{}) string {
+func (d *Domain) RouteURL(routeName string, args ...interface{}) string {
 	route, found := d.routes[routeName]
 	if !found {
 		log.Errorf("route name '%v' not found", routeName)

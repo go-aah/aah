@@ -5,6 +5,8 @@
 package router
 
 import (
+	"fmt"
+	"path"
 	"strings"
 
 	"aahframework.org/essentials.v0"
@@ -29,12 +31,57 @@ func findActionByHTTPMethod(method string) string {
 	return ""
 }
 
-// Return Values are
+func addRegisteredAction(methods map[string]map[string]uint8, route *Route) {
+	if target, found := methods[route.Target]; found {
+		target[route.Action] = 1
+	} else {
+		methods[route.Target] = map[string]uint8{route.Action: 1}
+	}
+}
+
+func routeConstraintExists(routePath string) bool {
+	sidx := strings.IndexByte(routePath, ruleStartByte)
+	eidx := strings.IndexByte(routePath, ruleEndByte)
+	return sidx > 0 || eidx > 0
+}
+
+// Return values are -
+// 1. route path
+// 2. route constraints
+// 3. error
+func parseRouteConstraints(routeName, routePath string) (string, map[string]string, error) {
+	if !routeConstraintExists(routePath) {
+		return routePath, nil, nil
+	}
+
+	constraints := make(map[string]string)
+	actualRoutePath := "/"
+	for _, seg := range strings.Split(routePath, "/")[1:] {
+		if seg[0] == paramByte || seg[0] == wildByte {
+			param, constraint, exists, valid := parameterConstraint(seg)
+			if exists {
+				if valid {
+					constraints[param[1:]] = constraint
+				} else {
+					return routePath, constraints, fmt.Errorf("'%s.path' has invalid contraint in path => '%s' (param => '%s')", routeName, routePath, seg)
+				}
+			}
+
+			actualRoutePath = path.Join(actualRoutePath, param)
+		} else {
+			actualRoutePath = path.Join(actualRoutePath, seg)
+		}
+	}
+
+	return actualRoutePath, constraints, nil
+}
+
+// Return values are -
 // 1. path param
-// 2. validation rules
-// 3. is validation rules exists
-// 4. valild validation rules
-func checkValidationRule(pathSeg string) (string, string, bool, bool) {
+// 2. param constraint
+// 3. is constraint exists
+// 4. is constraint valid
+func parameterConstraint(pathSeg string) (string, string, bool, bool) {
 	sidx := strings.IndexByte(pathSeg, ruleStartByte)
 	eidx := strings.IndexByte(pathSeg, ruleEndByte)
 
@@ -43,20 +90,9 @@ func checkValidationRule(pathSeg string) (string, string, bool, bool) {
 		return "", "", true, false
 	}
 
-	// Validation rule not exists
-	if sidx == -1 && eidx == -1 {
-		return pathSeg, "", false, true
-	}
-
-	pathParam := strings.TrimSpace(pathSeg[:sidx])
-	paramRule := strings.TrimSpace(pathSeg[sidx+1 : eidx])
-	return pathParam, paramRule, true, len(paramRule) > 0
-}
-
-func addRegisteredAction(methods map[string]map[string]uint8, route *Route) {
-	if target, found := methods[route.Target]; found {
-		target[route.Action] = 1
-	} else {
-		methods[route.Target] = map[string]uint8{route.Action: 1}
-	}
+	constraint := strings.TrimSpace(pathSeg[sidx+1 : eidx])
+	return strings.TrimSpace(pathSeg[:sidx]),
+		constraint,
+		true,
+		len(constraint) > 0
 }

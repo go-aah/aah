@@ -49,6 +49,9 @@ var (
 	// ErrNoDomainRoutesConfigFound returned when routes config file not found or doesn't
 	// have `domains { ... }` config information.
 	ErrNoDomainRoutesConfigFound = errors.New("router: no domain routes config found")
+
+	// ErrRouteConstraintFailed returned when request route constraints failed.
+	ErrRouteConstraintFailed = errors.New("router: route constraints failed")
 )
 
 // aah application interface for minimal purpose
@@ -391,7 +394,7 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 	}
 
 	// Add form login route per security.conf for configured domains
-	if r.app.SecurityManager() != nil {
+	if r.app != nil && r.app.SecurityManager() != nil {
 		authSchemes := r.app.SecurityManager().AuthSchemes()
 		if len(authSchemes) > 0 {
 			if routeNames, result := domain.isAuthConfigured(r.app.SecurityManager()); !result {
@@ -459,31 +462,13 @@ func parseSectionRoutes(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 			return
 		}
 
-		routePath = path.Join(routeInfo.PrefixPath, routePath)
+		routePath = strings.TrimSpace(path.Join(routeInfo.PrefixPath, routePath))
 
-		// Split validation rules from path params
-		pathParamRules := make(map[string]string)
-		actualRoutePath := "/"
-		for _, seg := range strings.Split(routePath, "/")[1:] {
-			if len(seg) == 0 {
-				continue
-			}
-
-			if seg[0] == paramByte || seg[0] == wildByte {
-				param, rules, exists, valid := checkValidationRule(seg)
-				if exists {
-					if valid {
-						pathParamRules[param[1:]] = rules
-					} else {
-						err = fmt.Errorf("'%v.path' has invalid validation rule '%v'", routeName, routePath)
-						return
-					}
-				}
-
-				actualRoutePath = path.Join(actualRoutePath, param)
-			} else {
-				actualRoutePath = path.Join(actualRoutePath, seg)
-			}
+		// route segment parameter constraints
+		actualRoutePath, routeConstraints, er := parseRouteConstraints(routeName, routePath)
+		if er != nil {
+			err = er
+			return
 		}
 
 		// getting 'method', default to GET, if method not found
@@ -569,7 +554,7 @@ func parseSectionRoutes(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 					MaxBodySize:       routeMaxBodySize,
 					IsAntiCSRFCheck:   routeAntiCSRFCheck,
 					CORS:              cors,
-					validationRules:   pathParamRules,
+					Constraints:       routeConstraints,
 					authorizationInfo: routeAuthorizationInfo,
 				})
 			}

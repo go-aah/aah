@@ -5,6 +5,7 @@
 package router
 
 import (
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -20,6 +21,7 @@ import (
 	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/scheme"
 	"aahframework.org/test.v0/assert"
+	"aahframework.org/valpar.v0"
 	"aahframework.org/vfs.v0"
 )
 
@@ -306,7 +308,7 @@ func TestRouterDomainAllowed(t *testing.T) {
 	assert.Nil(t, domain)
 }
 
-func TestRouterDomainReverseURL(t *testing.T) {
+func TestRouterDomainRouteURL(t *testing.T) {
 	router, err := createRouter("routes.conf")
 	assert.FailNowOnError(t, err, "")
 
@@ -314,51 +316,51 @@ func TestRouterDomainReverseURL(t *testing.T) {
 	domain := router.Lookup(req.Host)
 
 	// route name not exists
-	emptyURL := domain.ReverseURLm("not_exists_routename", map[string]interface{}{})
+	emptyURL := domain.RouteURLNamedArgs("not_exists_routename", map[string]interface{}{})
 	assert.Equal(t, "", emptyURL)
-	emptyURL = domain.ReverseURL("not_exists_routename")
+	emptyURL = domain.RouteURL("not_exists_routename")
 	assert.Equal(t, "", emptyURL)
 
 	// not enough arguments
-	emptyURL = domain.ReverseURLm("book_hotels", map[string]interface{}{})
+	emptyURL = domain.RouteURLNamedArgs("book_hotels", map[string]interface{}{})
 	assert.Equal(t, "", emptyURL)
-	emptyURL = domain.ReverseURL("book_hotels")
+	emptyURL = domain.RouteURL("book_hotels")
 	assert.Equal(t, "", emptyURL)
 
 	// incorrect key name scenario
-	emptyURL = domain.ReverseURLm("book_hotels", map[string]interface{}{
+	emptyURL = domain.RouteURLNamedArgs("book_hotels", map[string]interface{}{
 		"idvalue": "12345678",
 	})
 	assert.Equal(t, "", emptyURL)
 
 	// index route
-	indexURL := domain.ReverseURLm("app_index", map[string]interface{}{})
+	indexURL := domain.RouteURLNamedArgs("app_index", map[string]interface{}{})
 	assert.Equal(t, "/", indexURL)
-	indexURL = domain.ReverseURL("app_index")
+	indexURL = domain.RouteURL("app_index")
 	assert.Equal(t, "/", indexURL)
 
 	// static URL
-	loginURL := domain.ReverseURLm("login", map[string]interface{}{})
+	loginURL := domain.RouteURLNamedArgs("login", map[string]interface{}{})
 	assert.Equal(t, "/login", loginURL)
-	loginURL = domain.ReverseURL("login")
+	loginURL = domain.RouteURL("login")
 	assert.Equal(t, "/login", loginURL)
 
 	// success scenario
-	bookingURL := domain.ReverseURLm("book_hotels", map[string]interface{}{
+	bookingURL := domain.RouteURLNamedArgs("book_hotels", map[string]interface{}{
 		"id": "12345678",
 	})
 	assert.Equal(t, "/hotels/12345678/booking", bookingURL)
-	bookingURL = domain.ReverseURL("book_hotels", 12345678)
+	bookingURL = domain.RouteURL("book_hotels", 12345678)
 	assert.Equal(t, "/hotels/12345678/booking", bookingURL)
 
-	bookingURL = domain.ReverseURLm("book_hotels", map[string]interface{}{
+	bookingURL = domain.RouteURLNamedArgs("book_hotels", map[string]interface{}{
 		"id":     "12345678",
 		"param1": "param1value",
 		"param2": "param2value",
 	})
 	assert.Equal(t, "/hotels/12345678/booking?param1=param1value&param2=param2value", bookingURL)
 
-	bookingURL = domain.ReverseURL("book_hotels", 12345678, "param1value", "param2value")
+	bookingURL = domain.RouteURL("book_hotels", 12345678, "param1value", "param2value")
 	assert.Equal(t, "", bookingURL)
 }
 
@@ -463,15 +465,15 @@ func TestRouterNamespaceSimplified2Config(t *testing.T) {
 	}
 
 	userSettingsRoute := routes["get_user_settings"]
-	assert.Equal(t, 1, len(userSettingsRoute.validationRules))
-	rule, found := userSettingsRoute.ValidationRule("id")
+	assert.Equal(t, 1, len(userSettingsRoute.Constraints))
+	constraint, found := userSettingsRoute.Constraints["id"]
 	assert.True(t, found)
-	assert.Equal(t, "gt=1,lt=10", rule)
+	assert.Equal(t, "gt=1,lt=10", constraint)
 
 	// Error
 	_, err = createRouter("routes-simplified-2-error.conf")
 	assert.NotNil(t, err)
-	assert.Equal(t, "'routes.path' has invalid validation rule '/v1/users/:id  gt=1,lt=10]'", err.Error())
+	assert.Equal(t, errors.New(`'routes.path' has invalid contraint in path => '/v1/users/:id  gt=1,lt=10]' (param => ':id  gt=1,lt=10]')`), err)
 }
 
 func TestRouterStaticSectionBaseDirForFilePaths(t *testing.T) {
@@ -525,6 +527,78 @@ func TestRouterWebSocketConfig(t *testing.T) {
 	methods := router.RegisteredWSActions()
 	assert.NotNil(t, methods)
 	assert.Equal(t, 1, len(methods))
+}
+
+func TestRoutePathConstraints(t *testing.T) {
+	testcases := []struct {
+		label, name, path, actualpath string
+		constraints                   map[string]string
+		values                        []map[string]string
+		err                           error
+	}{
+		{
+			label:      "no path parameter",
+			name:       "products",
+			path:       "/api/v1/products",
+			actualpath: "/api/v1/products",
+		},
+		{
+			label:      "path parameter with no constraints",
+			name:       "products",
+			path:       "/api/v1/products/:id",
+			actualpath: "/api/v1/products/:id",
+		},
+		{
+			label:      "path parameter with constraints",
+			name:       "products",
+			path:       "/api/v1/products/:id[uuid]/colors/:color[oneof=blue green red,alpha]",
+			actualpath: "/api/v1/products/:id/colors/:color",
+			constraints: map[string]string{
+				"id":    "uuid",
+				"color": "oneof=blue green red,alpha",
+			},
+			values: []map[string]string{
+				{
+					"id":    "5de80bf1-b2c7-4c6e-b0bc-e47758b7d817",
+					"color": "green",
+				},
+				{
+					"id": "dshkjfdgf",
+				},
+				{
+					"color": "dksjhfd",
+				},
+			},
+		},
+	}
+
+	// validate := validator.New()
+	for _, tc := range testcases {
+		t.Run(tc.label, func(t *testing.T) {
+			routePath, constraints, err := parseRouteConstraints(tc.name, tc.path)
+			assert.Equal(t, tc.err, err)
+			assert.Equal(t, tc.actualpath, routePath)
+			assert.Equal(t, tc.constraints, constraints)
+
+			if len(constraints) > 0 {
+				for ek, ev := range tc.constraints {
+					if cv, found := constraints[ek]; found {
+						assert.Equal(t, ev, cv)
+					}
+				}
+
+				if len(tc.values) > 0 {
+					for _, vs := range tc.values {
+						if errs := valpar.ValidateValues(vs, constraints); len(errs) > 0 {
+							f := errs[0].Field
+							assert.Equal(t, tc.constraints[f], constraints[f])
+						}
+					}
+				}
+			}
+
+		})
+	}
 }
 
 func TestMiscRouter(t *testing.T) {
