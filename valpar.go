@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/valpar source code and usage is governed by a MIT style
+// aahframework.org/valpar source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package valpar
@@ -64,9 +64,9 @@ var (
 // similar to standard `strconv` package. It deals with reflect value.
 type Parser func(key string, typ reflect.Type, params url.Values) (reflect.Value, error)
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package Methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Package methods
+//______________________________________________________________________________
 
 // AddValueParser method adds given custom value parser for the `reflect.Type`
 func AddValueParser(typ reflect.Type, parser Parser) error {
@@ -163,9 +163,9 @@ rv:
 	return s.Elem(), err
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Unexported Methods
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Unexported methods
+//______________________________________________________________________________
 
 func handleTypes(key string, typ reflect.Type, params url.Values) (reflect.Value, error) {
 	var err error

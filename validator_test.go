@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/valpar source code and usage is governed by a MIT style
+// aahframework.org/valpar source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package valpar
@@ -85,7 +85,7 @@ func TestValidatorValidate(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestValidatorValueValidate(t *testing.T) {
+func TestValidatorValidateValue(t *testing.T) {
 	// Validation failed
 	i := 15
 	result := ValidateValue(i, "gt=1,lt=10")
@@ -111,4 +111,29 @@ func TestValidatorValueValidate(t *testing.T) {
 	numbers = []int{23, 67, 87, 56, 90}
 	result = ValidateValue(numbers, "unique")
 	assert.True(t, result)
+}
+
+func TestValidatorValidateValues(t *testing.T) {
+	values := map[string]string{
+		"id":    "5de80bf1-b2c7-4c6e-e47758b7d817",
+		"state": "green",
+	}
+
+	constraints := map[string]string{
+		"id":    "uuid",
+		"state": "oneof=3 7 8",
+	}
+
+	verrs := map[string]*Error{
+		"id":    {Field: "id", Value: "5de80bf1-b2c7-4c6e-e47758b7d817", Constraint: "uuid"},
+		"state": {Field: "state", Value: "green", Constraint: "oneof=3 7 8"},
+	}
+
+	errs := ValidateValues(values, constraints)
+	t.Log(errs.String())
+	for _, e := range errs {
+		if ev, found := verrs[e.Field]; found {
+			assert.Equal(t, ev, e)
+		}
+	}
 }
