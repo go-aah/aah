@@ -33,9 +33,13 @@ type Request struct {
 	// Header holds the values of HTTP headers when WebSocket connection made.
 	Header http.Header
 
-	pathParams  ahttp.PathParams
-	queryParams url.Values
-	raw         *http.Request
+	pathParams ahttp.PathParams
+	raw        *http.Request
+}
+
+// URL method returns HTTP request URL instance.
+func (r *Request) URL() *url.URL {
+	return r.raw.URL
 }
 
 // PathValue method returns value for given Path param key otherwise empty string.
@@ -50,13 +54,13 @@ func (r *Request) PathValue(key string) string {
 // QueryValue method returns value for given URL query param key
 // otherwise empty string.
 func (r *Request) QueryValue(key string) string {
-	return r.queryParams.Get(key)
+	return r.URL().Query().Get(key)
 }
 
 // QueryArrayValue method returns array value for given URL query param key
 // otherwise empty string slice.
 func (r *Request) QueryArrayValue(key string) []string {
-	if values, found := r.queryParams[key]; found {
+	if values, found := r.URL().Query()[key]; found {
 		return values
 	}
 	return []string{}
@@ -72,10 +76,10 @@ func (r *Request) ClientIP() string {
 
 // String request stringer interface.
 func (r Request) String() string {
-	return fmt.Sprintf("ReqID: %s, Host: %s, Path: %s, Query String: %s",
+	return fmt.Sprintf("request(id:%s host:%s path:%s querystring:%s)",
 		r.ID,
 		r.Host,
 		r.Path,
-		r.queryParams.Encode(),
+		r.URL().Query().Encode(),
 	)
 }

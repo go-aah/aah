@@ -17,6 +17,7 @@ import (
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
+	"aahframework.org/valpar.v0"
 
 	gws "github.com/gobwas/ws"
 )
@@ -188,6 +189,15 @@ func (e *Engine) Log() log.Loggerer {
 func (e *Engine) connect(w http.ResponseWriter, r *http.Request, route *router.Route, pathParams ahttp.PathParams) (*Context, error) {
 	ctx := e.newContext(r, route, pathParams)
 
+	// Route constraints validation
+	if errs := valpar.ValidateValues(pathParams, route.Constraints); len(errs) > 0 {
+		ctx.Log().Error("WS: Route constraints failed")
+		ctx.reason = router.ErrRouteConstraintFailed
+		e.publishOnErrorEvent(ctx)
+		e.replyError(w, http.StatusBadRequest)
+		return nil, router.ErrRouteConstraintFailed
+	}
+
 	// Check Origin
 	if e.checkOrigin && !e.isSameOrigin(ctx) {
 		ctx.Log().Error("WS: Origin mismatch")
@@ -247,12 +257,11 @@ func (e *Engine) newContext(r *http.Request, route *router.Route, pathParams aht
 		Header: make(http.Header),
 		route:  route,
 		Req: &Request{
-			Host:        ahttp.Host(r),
-			Path:        r.URL.Path,
-			Header:      r.Header,
-			pathParams:  pathParams,
-			queryParams: r.URL.Query(),
-			raw:         r,
+			Host:       ahttp.Host(r),
+			Path:       r.URL.Path,
+			Header:     r.Header,
+			pathParams: pathParams,
+			raw:        r,
 		},
 	}
 	ctx.Req.ID = e.createID(ctx)

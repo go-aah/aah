@@ -7,7 +7,6 @@ package ws
 import (
 	"encoding/json"
 	"encoding/xml"
-	"fmt"
 	"html"
 	"net"
 	"net/http"
@@ -213,7 +212,7 @@ func (ctx *Context) parseParameters() error {
 	for k, v := range ctx.Req.pathParams {
 		params.Set(k, v)
 	}
-	for k, v := range ctx.Req.queryParams {
+	for k, v := range ctx.Req.URL().Query() {
 		params[k] = v
 	}
 
@@ -224,12 +223,6 @@ func (ctx *Context) parseParameters() error {
 		var result reflect.Value
 		if vpFn, found := valpar.ValueParser(val.Type); found {
 			result, err = vpFn(val.Name, val.Type, params)
-			if rule, found := ctx.route.ValidationRule(val.Name); found {
-				if !valpar.ValidateValue(result.Interface(), rule) {
-					return fmt.Errorf("Path param validation failed [name: %s, rule: %s, value: %v]",
-						val.Name, rule, result.Interface())
-				}
-			}
 		} else if val.Kind == reflect.Struct {
 			result, err = valpar.Struct("", val.Type, params)
 		}

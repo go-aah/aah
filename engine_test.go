@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -42,19 +43,8 @@ func TestEngineWSClient(t *testing.T) {
     }
   `
 
-	cfg, _ := config.ParseString(cfgStr)
-	wse := newEngine(t, cfg)
-
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get(ahttp.HeaderOrigin) == "" {
-			r.Header.Set(ahttp.HeaderOrigin, fmt.Sprintf("http://%s", ahttp.Host(r)))
-		}
-		wse.Handle(w, r)
-	}))
-	assert.NotNil(t, ts)
-	t.Logf("Test WS server running here : %s", ts.URL)
-
-	wsURL := strings.Replace(ts.URL, "http", "ws", -1)
+	ts := createWSTestServer(t, cfgStr, "routes.conf")
+	wsURL := strings.Replace(ts.ts.URL, "http", "ws", -1)
 
 	// test cases
 	testcases := []struct {
@@ -110,7 +100,7 @@ func TestEngineWSClient(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(tc.label, func(t *testing.T) {
 			if tc.customID {
-				wse.SetIDGenerator(func(ctx *Context) string {
+				ts.wse.SetIDGenerator(func(ctx *Context) string {
 					return ess.RandomString(32)
 				})
 			}
@@ -141,6 +131,34 @@ func TestEngineWSClient(t *testing.T) {
 			assert.Equal(t, tc.content, b)
 		})
 	}
+
+}
+
+func TestEngineWSErrors(t *testing.T) {
+	cfgStr := `
+    server {
+      websocket {
+        enable = true
+      }
+    }
+  `
+
+	ts := createWSTestServer(t, cfgStr, "routes-multi.conf")
+
+	resp, err := http.Get(ts.ts.URL + "/ws/text")
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+
+	// 405 Method Not Allowed
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(ahttp.MethodPost, "http://localhost:8080/ws/text", strings.NewReader("error=notsupported"))
+	ts.wse.Handle(w, r)
+	assert.Equal(t, "405 Method Not Allowed", w.Body.String())
+}
+
+type testServer struct {
+	ts  *httptest.Server
+	wse *Engine
 }
 
 type app struct {
@@ -153,11 +171,30 @@ func (a *app) Config() *config.Config { return a.cfg }
 func (a *app) Router() *router.Router { return a.r }
 func (a *app) Log() log.Loggerer      { return a.l }
 
-func newEngine(t *testing.T, cfg *config.Config) *Engine {
+func createWSTestServer(t *testing.T, cfgStr, routeFile string) *testServer {
+	cfg, _ := config.ParseString(cfgStr)
+	wse := newEngine(t, cfg, routeFile)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(ahttp.HeaderOrigin) == "" {
+			r.Header.Set(ahttp.HeaderOrigin, fmt.Sprintf("http://%s", ahttp.Host(r)))
+		}
+		wse.Handle(w, r)
+	}))
+	assert.NotNil(t, ts)
+
+	t.Logf("Test WS server running here : %s", ts.URL)
+
+	return &testServer{ts: ts, wse: wse}
+}
+
+func newEngine(t *testing.T, cfg *config.Config, routeFile string) *Engine {
 	l, err := log.New(cfg)
 	assert.Nil(t, err)
 
-	r := router.New(filepath.Join(testdataBaseDir(), "routes.conf"), config.NewEmpty())
+	l.SetWriter(ioutil.Discard)
+
+	r := router.New(filepath.Join(testdataBaseDir(), routeFile), config.NewEmpty())
 	err = r.Load()
 	assert.Nil(t, err)
 
