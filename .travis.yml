@@ -4,15 +4,14 @@ sudo: false
 
 branches:
   except:
-    # skip tags and master build, since we are building branch v*-edge and
-    # master merge PR that is enough for consistenty check and release.
-    # Let's use Travis CI resources optimally for aah framework.
-    - master
+    # skip tags build, we are building branch and master that is enough for
+    # consistenty check and release. Let's use Travis CI resources optimally
+    # for aah framework.
     - /^v[0-9.]+$/
 
 go:
   - 1.9.x
-  - 1.10.x
+  - 1.x
   - tip
 
 go_import_path: aahframework.org/valpar.v0
