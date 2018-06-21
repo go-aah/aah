@@ -429,14 +429,14 @@ func (s *testSiteController) Text() {
 func (s *testSiteController) Redirect(mode string) {
 	switch mode {
 	case "status":
-		s.Reply().RedirectWithStatus(s.ReverseURL("text_get"), 307)
+		s.Reply().RedirectWithStatus(s.RouteURL("text_get"), 307)
 	case "text_get":
-		s.Reply().Redirect(s.ReverseURLm("text_get", map[string]interface{}{
+		s.Reply().Redirect(s.RouteURLNamedArgs("text_get", map[string]interface{}{
 			"param1": "param1value",
 			"Param2": "Param2Value",
 		}))
 	default:
-		s.Reply().Redirect(s.ReverseURL("index"))
+		s.Reply().Redirect(s.RouteURL("index"))
 	}
 }
 

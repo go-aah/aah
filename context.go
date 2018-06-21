@@ -93,18 +93,18 @@ func (ctx *Context) AddViewArg(key string, value interface{}) *Context {
 	return ctx
 }
 
-// ReverseURL method returns the URL for given route name and args.
-// See `Domain.ReverseURL` for more information.
-func (ctx *Context) ReverseURL(routeName string, args ...interface{}) string {
-	domain, rn := ctx.a.findReverseURLDomain(ctx.Req.Host, routeName)
-	return createReverseURL(ctx.Log(), domain, rn, nil, args...)
+// RouteURL method returns the URL for given route name and args.
+// See `router.Domain.RouteURL` for more information.
+func (ctx *Context) RouteURL(routeName string, args ...interface{}) string {
+	domain, rn := ctx.a.findRouteURLDomain(ctx.Req.Host, routeName)
+	return createRouteURL(ctx.Log(), domain, rn, nil, args...)
 }
 
-// ReverseURLm method returns the URL for given route name and key-value paris.
-// See `Domain.ReverseURLm` for more information.
-func (ctx *Context) ReverseURLm(routeName string, args map[string]interface{}) string {
-	domain, rn := ctx.a.findReverseURLDomain(ctx.Req.Host, routeName)
-	return createReverseURL(ctx.Log(), domain, rn, args)
+// RouteURLNamedArgs method returns the URL for given route name and key-value paris.
+// See `router.Domain.RouteURLNamedArgs` for more information.
+func (ctx *Context) RouteURLNamedArgs(routeName string, args map[string]interface{}) string {
+	domain, rn := ctx.a.findRouteURLDomain(ctx.Req.Host, routeName)
+	return createRouteURL(ctx.Log(), domain, rn, args)
 }
 
 // Msg method returns the i18n value for given key otherwise empty string returned.

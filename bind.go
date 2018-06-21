@@ -5,7 +5,6 @@
 package aah
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -229,7 +228,7 @@ type bindManager struct {
 //______________________________________________________________________________
 
 func multipartFormParser(ctx *Context) flowResult {
-	if err := ctx.Req.Unwrap().ParseMultipartForm(ctx.a.multipartMaxMemory); err != nil {
+	if err := ctx.Req.Unwrap().ParseMultipartForm(ctx.route.MaxBodySize); err != nil {
 		ctx.Log().Errorf("Unable to parse multipart form: %s", err)
 	}
 	return flowCont
@@ -262,16 +261,6 @@ func (ctx *Context) parseParameters() ([]reflect.Value, *Error) {
 		var result reflect.Value
 		if vpFn, found := valpar.ValueParser(val.Type); found {
 			result, err = vpFn(val.Name, val.Type, params)
-
-			// GitHub #132 Validation implementation
-			if rule, found := ctx.route.ValidationRule(val.Name); found {
-				if !ValidateValue(result.Interface(), rule) {
-					errMsg := fmt.Sprintf("Path param validation failed [name: %s, rule: %s, value: %v]",
-						val.Name, rule, result.Interface())
-					ctx.Log().Error(errMsg)
-					return nil, newErrorWithData(ErrValidation, http.StatusBadRequest, errMsg)
-				}
-			}
 		} else if val.Kind == reflect.Struct {
 			ct := ctx.Req.ContentType().Mime
 			if ct == ahttp.ContentTypeJSON.Mime || ct == ahttp.ContentTypeXML.Mime ||

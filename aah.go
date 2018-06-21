@@ -92,8 +92,6 @@ type app struct {
 	authSchemeExists       bool
 	pid                    int
 	httpMaxHdrBytes        int
-	multipartMaxMemory     int64
-	maxBodyBytes           int64
 	importPath             string
 	baseDir                string
 	envProfile             string
@@ -467,14 +465,8 @@ func (a *app) initConfigValues() (err error) {
 	}
 
 	if a.Type() != "websocket" {
-		maxBodySizeStr := cfg.StringDefault("request.max_body_size", "5mb")
-		if a.maxBodyBytes, err = ess.StrToBytes(maxBodySizeStr); err != nil {
+		if _, err = ess.StrToBytes(cfg.StringDefault("request.max_body_size", "5mb")); err != nil {
 			return errors.New("'request.max_body_size' value is not a valid size unit")
-		}
-
-		multipartMemoryStr := cfg.StringDefault("request.multipart_size", "32mb")
-		if a.multipartMaxMemory, err = ess.StrToBytes(multipartMemoryStr); err != nil {
-			return errors.New("'request.multipart_size' value is not a valid size unit")
 		}
 
 		a.serverHeader = cfg.StringDefault("server.header", "")
@@ -493,7 +485,7 @@ func (a *app) initConfigValues() (err error) {
 
 		a.secureJSONPrefix = cfg.StringDefault("render.secure_json.prefix", defaultSecureJSONPrefix)
 
-		ahttp.GzipLevel = cfg.IntDefault("render.gzip.level", 5)
+		ahttp.GzipLevel = cfg.IntDefault("render.gzip.level", 4)
 		if !(ahttp.GzipLevel >= 1 && ahttp.GzipLevel <= 9) {
 			return fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel)
 		}

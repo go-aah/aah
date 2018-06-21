@@ -16,6 +16,7 @@ import (
 	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
+	"aahframework.org/valpar.v0"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -196,6 +197,13 @@ func handleRoute(ctx *Context) flowResult {
 		return flowAbort
 	}
 
+	// Apply route constraints
+	if errs := valpar.ValidateValues(ctx.Req.PathParams, ctx.route.Constraints); len(errs) > 0 {
+		ctx.Log().Errorf("Route constraints failed: %s", errs)
+		ctx.Reply().BadRequest().Error(newErrorWithData(router.ErrRouteConstraintFailed, http.StatusBadRequest, errs))
+		return flowAbort
+	}
+
 	return flowCont
 }
 
@@ -226,7 +234,7 @@ func composeRouteURL(domain *router.Domain, routePath, anchorLink string) string
 	return appendAnchorLink(routePath, anchorLink)
 }
 
-func (a *app) findReverseURLDomain(host, routeName string) (*router.Domain, string) {
+func (a *app) findRouteURLDomain(host, routeName string) (*router.Domain, string) {
 	idx := strings.IndexByte(routeName, '.')
 	if idx > 0 {
 		subDomain := routeName[:idx]
@@ -246,11 +254,11 @@ func (a *app) findReverseURLDomain(host, routeName string) (*router.Domain, stri
 
 	// return root domain
 	root := a.Router().RootDomain()
-	a.Log().Tracef("ReverseURL: routeName: %s, host: %s", routeName, root.Host)
+	a.Log().Tracef("routeurlhost(name:%s host:%s)", routeName, root.Host)
 	return root, routeName
 }
 
-func createReverseURL(l log.Loggerer, domain *router.Domain, routeName string, margs map[string]interface{}, args ...interface{}) string {
+func createRouteURL(l log.Loggerer, domain *router.Domain, routeName string, margs map[string]interface{}, args ...interface{}) string {
 	if routeName == "host" {
 		return composeRouteURL(domain, "", "")
 	}
@@ -258,9 +266,9 @@ func createReverseURL(l log.Loggerer, domain *router.Domain, routeName string, m
 	routeName, anchorLink := getRouteNameAndAnchorLink(routeName)
 	var routePath string
 	if margs == nil {
-		routePath = domain.ReverseURL(routeName, args...)
+		routePath = domain.RouteURL(routeName, args...)
 	} else {
-		routePath = domain.ReverseURLm(routeName, margs)
+		routePath = domain.RouteURLNamedArgs(routeName, margs)
 	}
 
 	// URL escapes

@@ -107,7 +107,7 @@ func reverseSlice(s []string) []string {
 }
 
 func sortHeaderKeys(hdrs http.Header) []string {
-	keys := make([]string, 0, len(hdrs))
+	var keys []string
 	for key := range hdrs {
 		keys = append(keys, key)
 	}
