@@ -8,7 +8,6 @@
 package view
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"html/template"
@@ -89,7 +88,7 @@ type Templates struct {
 	set map[string]*template.Template
 }
 
-// Get method return the template for given key.
+// Lookup method return the template for given key.
 func (t *Templates) Lookup(key string) *template.Template {
 	return t.set[filepath.ToSlash(key)]
 }
@@ -134,6 +133,7 @@ func (t *Templates) Keys() []string {
 type EngineBase struct {
 	CaseSensitive   bool
 	IsLayoutEnabled bool
+	hotReload       bool
 	Name            string
 	BaseDir         string
 	FileExt         string
@@ -142,9 +142,7 @@ type EngineBase struct {
 	AppConfig       *config.Config
 	Templates       map[string]*Templates
 	VFS             *vfs.VFS
-
-	hotReload      bool
-	loginFormRegex *regexp.Regexp
+	loginFormRegex  *regexp.Regexp
 }
 
 // Init method is to initialize the base fields values.
@@ -187,28 +185,31 @@ func (eb *EngineBase) Open(filename string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return eb.AutoFieldInsertion(filename, string(b)), nil
+}
 
-	fc := string(b)
+// AutoFieldInsertion method processes the aah view's to auto insert the field.
+func (eb *EngineBase) AutoFieldInsertion(name, v string) string {
 	// process auto field insertion, if form tag exists
 	// anti_csrf_token field
-	if bytes.Contains(b, []byte("</form>")) {
-		log.Tracef("Adding field 'anti_csrf_token' into all forms: %s", filename)
+	if strings.Contains(v, "</form>") {
+		log.Tracef("Adding field 'anti_csrf_token' into all forms: %s", name)
 		fieldName := eb.AppConfig.StringDefault("security.anti_csrf.form_field_name", "anti_csrf_token")
-		fc = strings.Replace(fc, "</form>", fmt.Sprintf(`<input type="hidden" name="%s" value="%s anticsrftoken . %s">
+		v = strings.Replace(v, "</form>", fmt.Sprintf(`<input type="hidden" name="%s" value="%s anticsrftoken . %s">
 	     	</form>`, fieldName, eb.LeftDelim, eb.RightDelim), -1)
 	}
 
 	// _rt field
-	if matches := eb.loginFormRegex.FindAllStringIndex(fc, -1); len(matches) > 0 {
-		log.Tracef("Adding field '_rt' into login form: %s", filename)
+	if matches := eb.loginFormRegex.FindAllStringIndex(v, -1); len(matches) > 0 {
+		log.Tracef("Adding field '_rt' into login form: %s", name)
 		for _, m := range matches {
-			ts := fc[m[0]:m[1]]
-			fc = strings.Replace(fc, ts, fmt.Sprintf(`%s
+			ts := v[m[0]:m[1]]
+			v = strings.Replace(v, ts, fmt.Sprintf(`%s
 			<input type="hidden" value="{{ qparam . "_rt" }}" name="_rt">`, ts), 1)
 		}
 	}
 
-	return fc, nil
+	return v
 }
 
 // ParseFile method parses given single file.
@@ -252,7 +253,7 @@ func (eb *EngineBase) ParseFiles(t *template.Template, filenames ...string) (*te
 
 // Get method returns the template based given name if found, otherwise nil.
 func (eb *EngineBase) Get(layout, tpath, tmplName string) (*template.Template, error) {
-	if eb.hotReload {
+	if eb.hotReload && eb.Name == "go" {
 		key := path.Join(tpath, tmplName)
 		if !eb.CaseSensitive {
 			key = strings.ToLower(key)
