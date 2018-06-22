@@ -131,12 +131,8 @@ func (r *Route) String() string {
 		return fmt.Sprintf("staticroute(name:%s path:%s dir:%s listing:%v)", r.Name, r.Path, r.Dir, r.ListDir)
 	}
 
-	parentName := ""
-	if !ess.IsStrEmpty(r.ParentName) {
-		parentName = fmt.Sprintf("(parent: %s)", r.ParentName)
-	}
-	return fmt.Sprintf("route(name:%s %s method:%s path:%s target:%s.%s auth:%s maxbodysize:%v %s %v constraints(%v))",
-		r.Name, parentName, r.Method, r.Path, r.Target, r.Action, r.Auth, r.MaxBodySize, r.CORS, r.authorizationInfo, r.Constraints)
+	return fmt.Sprintf("route(name:%s method:%s path:%s target:%s.%s auth:%s maxbodysize:%v %s %v constraints(%v))",
+		r.Name, r.Method, r.Path, r.Target, r.Action, r.Auth, r.MaxBodySize, r.CORS, r.authorizationInfo, r.Constraints)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

@@ -230,13 +230,6 @@ func TestRouterErrorStaticPathBeginSlashLoadConfiguration(t *testing.T) {
 	assert.Equal(t, "'static.public.path' [static], path must begin with '/'", err.Error())
 }
 
-func TestRouterErrorRoutesPathBeginSlashLoadConfiguration(t *testing.T) {
-	router, err := createRouter("routes-path-slash-error.conf")
-	assert.NotNilf(t, err, "expected error loading '%v'", "routes-path-slash-error.conf")
-	assert.Nil(t, router)
-	assert.Equal(t, "'app_index.path' [login], path must begin with '/'", err.Error())
-}
-
 func TestRouterNoDomainRoutesFound(t *testing.T) {
 	router, err := createRouter("routes-no-domains.conf")
 	assert.Equal(t, ErrNoDomainRoutesConfigFound, err)
@@ -426,7 +419,7 @@ func TestRouterNamespaceConfig(t *testing.T) {
 	// Error
 	_, err = createRouter("routes-namespace-action-error.conf")
 	assert.NotNil(t, err)
-	assert.Equal(t, "'list_users.action' key is missing, it seems to be multiple HTTP methods", err.Error())
+	assert.Equal(t, "'list_users.action' key is missing or it seems to be multiple HTTP methods", err.Error())
 }
 
 func TestRouterNamespaceSimplifiedConfig(t *testing.T) {
@@ -435,10 +428,10 @@ func TestRouterNamespaceSimplifiedConfig(t *testing.T) {
 
 	routes := router.Domains["localhost:8080"].routes
 	assert.NotNil(t, routes)
-	assert.Equal(t, 3, len(routes))
+	assert.Equal(t, 4, len(routes))
 
 	// show_basket
-	assert.Equal(t, "/baskets", routes["show_basket"].Path)
+	assert.Equal(t, "/baskets/:id", routes["show_basket"].Path)
 	assert.Equal(t, "GET", routes["show_basket"].Method)
 	assert.Equal(t, "anonymous", routes["show_basket"].Auth)
 	assert.Equal(t, "BasketController", routes["show_basket"].Target)
@@ -509,7 +502,7 @@ func TestRouterWebSocketConfig(t *testing.T) {
 
 	routes := router.Domains["localhost:8080"].routes
 	assert.NotNil(t, routes)
-	assert.Equal(t, 8, len(routes))
+	assert.Equal(t, 10, len(routes))
 
 	// WebSocket
 	assert.Equal(t, "/ws/binary", routes["ws_binary"].Path)

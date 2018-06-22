@@ -96,3 +96,10 @@ func parameterConstraint(pathSeg string) (string, string, bool, bool) {
 		true,
 		len(constraint) > 0
 }
+
+func addSlashPrefix(v string) string {
+	if len(v) == 0 || v[0] == slashByte {
+		return v
+	}
+	return "/" + v
+}

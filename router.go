@@ -6,8 +6,8 @@
 // Routes config file format is similar to HOCON syntax aka typesafe config
 // it gets parsed by `aahframework.org/config`.
 //
-// aah framework router uses radix tree implementation of
-// https://github.com/julienschmidt/httprouter
+// aah router internally uses customized version of radix tree implementation from
+// `github.com/julienschmidt/httprouter` developer by `@julienschmidt`.
 package router
 
 import (
@@ -456,13 +456,12 @@ func parseSectionRoutes(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 			return
 		}
 
-		// path must begin with '/'
-		if !ess.IsStrEmpty(routePath) && routePath[0] != slashByte {
-			err = fmt.Errorf("'%v.path' [%v], path must begin with '/'", routeName, routePath)
-			return
+		if found && routePath[0] == '^' {
+			routePath = addSlashPrefix(routePath[1:])
+		} else {
+			routePath = path.Join(routeInfo.PrefixPath, addSlashPrefix(routePath))
 		}
-
-		routePath = strings.TrimSpace(path.Join(routeInfo.PrefixPath, routePath))
+		routePath = path.Clean(strings.TrimSpace(routePath))
 
 		// route segment parameter constraints
 		actualRoutePath, routeConstraints, er := parseRouteConstraints(routeName, routePath)
@@ -474,29 +473,27 @@ func parseSectionRoutes(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		// getting 'method', default to GET, if method not found
 		routeMethod := strings.ToUpper(cfg.StringDefault(routeName+".method", ahttp.MethodGet))
 
-		// check child routes exists
-		notToSkip := true
-		if cfg.IsExists(routeName + ".routes") {
-			if !cfg.IsExists(routeName+".action") &&
-				(!cfg.IsExists(routeName+".controller") || !cfg.IsExists(routeName+".websocket")) {
-				notToSkip = false
-			}
-		}
-
 		// getting 'target' info for e.g.: controller, websocket
-		routeTarget := cfg.StringDefault(routeName+".controller",
-			cfg.StringDefault(routeName+".websocket", routeInfo.Target))
-		if ess.IsStrEmpty(routeTarget) && notToSkip {
-			err = fmt.Errorf("'%v.controller' or '%v.websocket' key is missing", routeName, routeName)
-			return
-		}
+		routeTarget := cfg.StringDefault(routeName+".controller", cfg.StringDefault(routeName+".websocket", routeInfo.Target))
 
 		// getting 'action', if not found it will default to `HTTPMethodActionMap`
 		// based on `routeMethod`. For multiple HTTP method mapping scenario,
 		// this is required attribute.
 		routeAction := cfg.StringDefault(routeName+".action", findActionByHTTPMethod(routeMethod))
-		if ess.IsStrEmpty(routeAction) && notToSkip {
-			err = fmt.Errorf("'%v.action' key is missing, it seems to be multiple HTTP methods", routeName)
+
+		notToSkip := true
+		if cfg.IsExists(routeName + ".routes") {
+			if ess.IsStrEmpty(routeTarget) || ess.IsStrEmpty(routeAction) {
+				notToSkip = false
+			}
+		}
+
+		if notToSkip && ess.IsStrEmpty(routeTarget) {
+			err = fmt.Errorf("'%v.controller' or '%v.websocket' key is missing", routeName, routeName)
+			return
+		}
+		if notToSkip && ess.IsStrEmpty(routeAction) {
+			err = fmt.Errorf("'%v.action' key is missing or it seems to be multiple HTTP methods", routeName)
 			return
 		}
 
