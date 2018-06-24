@@ -1,17 +1,13 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/log source code and usage is governed by a MIT style
+// aahframework.org/log source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-// Package log implements a simple, flexible, non-blocking logger.
-// It supports `console`, `file` (rotation by daily, size, lines).
-// It also has a predefined 'standard' Logger accessible through helper
-// functions `Error{f}`, `Warn{f}`, `Info{f}`, `Debug{f}`, `Trace{f}`,
-// `Print{f,ln}`, `Fatal{f,ln}`, `Panic{f,ln}` which are easier to use than creating
-// a Logger manually. Default logger writes to standard error and prints log
-// `Entry` details as per `DefaultPattern`.
+// Package log simple logger and provides capabilities to fulfill application
+// use cases. It supports two receivers `console` and `file` and extensible
+// by interface and Hook.
 //
-// aah log package can be used as drop-in replacement for standard go logger
-// with features.
+// Also provides standard logger crossover binding (drop-in replacement
+// for standard go logger) for unified logging.
 //
 // 	log.Info("Welcome ", "to ", "aah ", "logger")
 // 	log.Infof("%v, %v, %v", "simple", "flexible", "logger")

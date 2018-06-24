@@ -175,11 +175,7 @@ func (f *FileReceiver) rotateFile() error {
 		}
 	}
 
-	if err := f.openFile(); err != nil {
-		return err
-	}
-
-	return nil
+	return f.openFile()
 }
 
 func (f *FileReceiver) openFile() error {
