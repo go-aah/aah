@@ -83,7 +83,7 @@ func (f *FormAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 func (f *FormAuth) ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken {
 	return &authc.AuthenticationToken{
 		Scheme:     f.Scheme(),
-		Identity:   r.Unwrap().FormValue(f.FieldIdentity),
-		Credential: r.Unwrap().FormValue(f.FieldCredential),
+		Identity:   r.FormValue(f.FieldIdentity),
+		Credential: r.FormValue(f.FieldCredential),
 	}
 }

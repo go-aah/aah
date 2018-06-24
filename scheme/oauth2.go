@@ -179,7 +179,7 @@ func (o *OAuth2) ProviderAuthURL(r *ahttp.Request) (string, string) {
 // ValidateCallback method validates the incoming OAuth2 provider redirect request
 // and gets Access token from OAuth2 provider.
 func (o *OAuth2) ValidateCallback(state string, r *ahttp.Request) (*oauth2.Token, error) {
-	callbackState, code := r.Unwrap().FormValue("state"), r.Unwrap().FormValue("code")
+	callbackState, code := r.FormValue("state"), r.FormValue("code")
 	if ess.IsStrEmpty(callbackState) || ess.IsStrEmpty(code) {
 		return nil, ErrOAuth2MissingStateOrCode
 	}
