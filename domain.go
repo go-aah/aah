@@ -269,7 +269,7 @@ func (d *Domain) isAuthConfigured(secMgr *security.Manager) ([]string, bool) {
 
 	names := []string{}
 	for _, r := range d.routes {
-		if r.IsStatic || r.Auth == "anonymous" || r.Auth == "authenticated" {
+		if r.IsStatic || r.Auth == "anonymous" || r.Auth == "authenticated" || r.Method == "WS" {
 			continue
 		}
 
