@@ -84,23 +84,24 @@ var defaultErrorHTMLTemplate = template.Must(template.New("error_template").Pars
 </html>
 `))
 
-// ErrorHandlerFunc is function type, it used to define centralized error handler
-// for your application.
+// ErrorHandlerFunc is a function type. It is used to define a centralized error handler
+// for an application.
 //
-//  - Return `true`, if you have handled your errors, aah just writes the reply on the wire.
+//  - Returns `true` when one or more errors are handled. aah just writes the reply on the wire.
 //
-//  - Return `false`, you may or may not handled the error, aah would propagate
-// 	the error further to default error handler.
+//  - Returns `false' when one or more errors could not be handled. aah propagates the error(s)
+// to default error handler.
 type ErrorHandlerFunc func(ctx *Context, err *Error) bool
 
-// ErrorHandler is interface for implement controller level error handling
+// ErrorHandler is an interface to implement controller level error handling
 type ErrorHandler interface {
-	// HandleError method is to handle error on your controller
+	// HandleError method is to handle controller specific errors
 	//
-	//  - Return `true`, if you have handled your errors, aah just writes the reply on the wire.
+	//  - Returns `true` if one or more errors are handled. aah just writes the reply on the wire.
 	//
-	//  - Return `false`, aah would propagate the error further to centralized
-	// 	  error handler, if not handled and then finally default error handler would take place.
+	//  - Return `false` if one or more errors could not be handled. aah propagates the error(s)
+	// further onto centralized error handler. If not handled, then finally default
+	// error handler takes control.
 	HandleError(err *Error) bool
 }
 
@@ -132,8 +133,11 @@ func (er *errorManager) SetHandler(handlerFn ErrorHandlerFunc) {
 }
 
 func (er *errorManager) Handle(ctx *Context) {
-	// GitHub #132 Call Controller error handler if exists
-	if ceh, ok := ctx.target.(ErrorHandler); ok {
+	if err := ctx.setTarget(ctx.route); err == errTargetNotFound {
+		// No controller or action found for the route
+		ctx.Log().Warnf("Target not found (controller:%s action:%s)", ctx.route.Target, ctx.route.Action)
+		ctx.Reply().NotFound().Error(newError(ErrControllerOrActionNotFound, http.StatusNotFound))
+	} else if ceh, ok := ctx.target.(ErrorHandler); ok { // GitHub #132 Call Controller error handler if exists
 		ctx.Log().Tracef("Calling controller error handler: %s.HandleError", ctx.controller.FqName)
 		if ceh.HandleError(ctx.Reply().err) {
 			return
@@ -203,7 +207,7 @@ func (er *errorManager) DefaultHandler(ctx *Context, err *Error) bool {
 // Error type
 //______________________________________________________________________________
 
-// Error structure used to represent the error details in the aah framework.
+// Error structure is used to represent the error information in aah framework.
 type Error struct {
 	Reason  error       `json:"-" xml:"-"`
 	Code    int         `json:"code,omitempty" xml:"code,omitempty"`

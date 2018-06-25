@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -77,7 +77,7 @@ func (d *dumpLogger) Dump(ctx *Context) {
 
 	// Request
 	uri := fmt.Sprintf("%s://%s%s", ctx.Req.Scheme, ctx.Req.Host, ctx.Req.Path)
-	if qs := ctx.Req.Unwrap().URL.RawQuery; !ess.IsStrEmpty(qs) {
+	if qs := ctx.Req.URL().RawQuery; !ess.IsStrEmpty(qs) {
 		uri += "?" + qs
 	}
 

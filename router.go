@@ -253,9 +253,7 @@ func (a *app) findRouteURLDomain(host, routeName string) (*router.Domain, string
 	}
 
 	// return root domain
-	root := a.Router().RootDomain()
-	a.Log().Tracef("routeurlhost(name:%s host:%s)", routeName, root.Host)
-	return root, routeName
+	return a.Router().RootDomain(), routeName
 }
 
 func createRouteURL(l log.Loggerer, domain *router.Domain, routeName string, margs map[string]interface{}, args ...interface{}) string {
@@ -296,12 +294,12 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 			}
 
 			if len(reqPath) > 1 && reqPath[len(reqPath)-1] == '/' {
-				ctx.Req.Unwrap().URL.Path = reqPath[:len(reqPath)-1]
+				ctx.Req.URL().Path = reqPath[:len(reqPath)-1]
 			} else {
-				ctx.Req.Unwrap().URL.Path = reqPath + "/"
+				ctx.Req.URL().Path = reqPath + "/"
 			}
 
-			reply.Redirect(ctx.Req.Unwrap().URL.String())
+			reply.Redirect(ctx.Req.URL().String())
 			ctx.Log().Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.path)
 			return nil
 		}

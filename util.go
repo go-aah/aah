@@ -1,10 +1,11 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
 
 import (
+	"errors"
 	"html/template"
 	"io"
 	"mime"
@@ -55,17 +56,6 @@ func firstNonZeroString(values ...string) string {
 		}
 	}
 	return ""
-}
-
-// TODO this method is candidate for essentials library
-// move it when you get a time
-func firstNonZeroInt64(values ...int64) int64 {
-	for _, v := range values {
-		if v != 0 {
-			return v
-		}
-	}
-	return 0
 }
 
 // resolveDefaultContentType method returns the Content-Type based on given
@@ -136,7 +126,7 @@ func gzipRequired(file string) bool {
 
 // detectFileContentType method to identify the static file content-type.
 func detectFileContentType(file string, content io.ReadSeeker) (string, error) {
-	ctype := mime.TypeByExtension(filepath.Ext(file))
+	ctype := mimeTypeByExtension(filepath.Ext(file))
 	if ctype == "" {
 		// read a chunk to decide between utf-8 text and binary
 		// only 512 bytes expected by `http.DetectContentType`
@@ -150,6 +140,20 @@ func detectFileContentType(file string, content io.ReadSeeker) (string, error) {
 		}
 	}
 	return ctype, nil
+}
+
+// mime.TypeByExtension behaves wired on windows for ".js", it better to have some basic measure
+func mimeTypeByExtension(ext string) string {
+	switch ext {
+	case ".htm", ".html":
+		return "text/html; charset=utf-8"
+	case ".css":
+		return "text/css; charset=utf-8"
+	case ".js":
+		return "application/javascript"
+	default:
+		return mime.TypeByExtension(ext)
+	}
 }
 
 // sanatizeValue method sanatizes string type value, rest we can't do any.
@@ -221,4 +225,28 @@ func reason2String(reasons []*authz.Reason) string {
 		str += " " + r.String()
 	}
 	return str
+}
+
+// addQueryString method adds the given query string key value pair appropriately
+func addQueryString(u, k, v string) string {
+	if ess.IsStrEmpty(u) {
+		return "?" + k + "=" + v
+	}
+	if idx := strings.IndexByte(u, '?'); idx == -1 {
+		return u + "?" + k + "=" + v
+	}
+	return u + "&" + k + "=" + v
+}
+
+func inferBaseDir(p string) (string, error) {
+	for {
+		p = filepath.Dir(p)
+		if p == "/" || p == "." || len(p) == 3 {
+			break
+		}
+		if ess.IsFileExists(filepath.Join(p, "config")) {
+			return p, nil
+		}
+	}
+	return "", errors.New("aah: config directory not found in parent directories")
 }

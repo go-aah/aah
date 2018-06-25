@@ -227,15 +227,6 @@ func TestAppMisc(t *testing.T) {
 	assert.Equal(t, "80", pa.parsePort(""))
 }
 
-type het struct {
-	HTTPEngine
-}
-
-func (e *het) Handle(w http.ResponseWriter, r *http.Request) {
-	// to test recover panic
-	panic("to test recover panic")
-}
-
 func TestAppRecover(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
 	a := newTestApp(t, importPath)

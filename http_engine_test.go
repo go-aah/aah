@@ -237,7 +237,7 @@ func TestServerRedirect(t *testing.T) {
 
 	type redirectTestCase struct {
 		label       string
-		fromUrl     string
+		fromURL     string
 		didItHappen bool
 		status      int
 		location    string
@@ -247,7 +247,7 @@ func TestServerRedirect(t *testing.T) {
 		for _, tc := range testcases {
 			t.Run(tc.label, func(t *testing.T) {
 				w := httptest.NewRecorder()
-				r := httptest.NewRequest(ahttp.MethodGet, tc.fromUrl, nil)
+				r := httptest.NewRequest(ahttp.MethodGet, tc.fromURL, nil)
 				didItHappen := a.he.doRedirect(w, r)
 				assert.Equal(t, tc.didItHappen, didItHappen)
 				assert.Equal(t, tc.status, w.Code)
@@ -259,28 +259,28 @@ func TestServerRedirect(t *testing.T) {
 	testcases := []redirectTestCase{
 		{
 			label:       "www domain",
-			fromUrl:     "http://aahframework.org/home.html?rt=login",
+			fromURL:     "http://aahframework.org/home.html?rt=login",
 			didItHappen: true,
 			status:      http.StatusTemporaryRedirect,
 			location:    "http://www.aahframework.org/home.html?rt=login",
 		},
 		{
 			label:       "www subdomain",
-			fromUrl:     "http://docs.aahframework.org",
+			fromURL:     "http://docs.aahframework.org",
 			didItHappen: true,
 			status:      http.StatusTemporaryRedirect,
 			location:    "http://www.docs.aahframework.org/",
 		},
 		{
 			label:       "www domain already correct",
-			fromUrl:     "http://www.aahframework.org",
+			fromURL:     "http://www.aahframework.org",
 			didItHappen: false,
 			status:      http.StatusOK,
 			location:    "",
 		},
 		{
 			label:       "www subdomain already correct",
-			fromUrl:     "http://www.docs.aahframework.org",
+			fromURL:     "http://www.docs.aahframework.org",
 			didItHappen: false,
 			status:      http.StatusOK,
 			location:    "",
@@ -302,28 +302,28 @@ func TestServerRedirect(t *testing.T) {
 	testcases = []redirectTestCase{
 		{
 			label:       "non-www domain",
-			fromUrl:     "http://www.aahframework.org/home.html?rt=login",
+			fromURL:     "http://www.aahframework.org/home.html?rt=login",
 			didItHappen: true,
 			status:      http.StatusMovedPermanently,
 			location:    "http://aahframework.org/home.html?rt=login",
 		},
 		{
 			label:       "non-www subdomain",
-			fromUrl:     "http://www.docs.aahframework.org",
+			fromURL:     "http://www.docs.aahframework.org",
 			didItHappen: true,
 			status:      http.StatusMovedPermanently,
 			location:    "http://docs.aahframework.org/",
 		},
 		{
 			label:       "non-www domain already correct",
-			fromUrl:     "http://aahframework.org",
+			fromURL:     "http://aahframework.org",
 			didItHappen: false,
 			status:      http.StatusOK,
 			location:    "",
 		},
 		{
 			label:       "non-www subdomain already correct",
-			fromUrl:     "http://docs.aahframework.org",
+			fromURL:     "http://docs.aahframework.org",
 			didItHappen: false,
 			status:      http.StatusOK,
 			location:    "",

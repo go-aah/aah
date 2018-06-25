@@ -5,7 +5,6 @@
 package aah
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -147,7 +146,7 @@ func doFormAuth(authScheme scheme.Schemer, ctx *Context) flowResult {
 	if formAuth.LoginSubmitURL != ctx.route.Path && ctx.Req.Method != ahttp.MethodPost {
 		loginURL := formAuth.LoginURL
 		if formAuth.LoginURL != ctx.Req.Path {
-			loginURL = fmt.Sprintf("%s?_rt=%s", loginURL, ctx.Req.URL().String())
+			loginURL = addQueryString(loginURL, "_rt", ctx.Req.URL().String())
 		}
 		ctx.Reply().Redirect(loginURL)
 		return flowAbort
@@ -164,7 +163,7 @@ func doFormAuth(authScheme scheme.Schemer, ctx *Context) flowResult {
 
 	ctx.e.publishOnPostAuthEvent(ctx)
 
-	rt := ctx.Req.Unwrap().FormValue("_rt") // redirect to requested URL
+	rt := ctx.Req.FormValue("_rt") // redirect to requested URL
 	if formAuth.IsAlwaysToDefaultTarget || ess.IsStrEmpty(rt) {
 		ctx.Reply().Redirect(formAuth.DefaultTargetURL)
 	} else {
@@ -233,6 +232,7 @@ func doAuthScheme(authScheme scheme.Schemer, ctx *Context) flowResult {
 	ctx.e.publishOnPreAuthEvent(ctx)
 
 	if doAuthentication(authScheme, ctx) == flowAbort {
+		ctx.Reply().Unauthorized().Error(newError(ErrAuthenticationFailed, http.StatusUnauthorized))
 		return flowAbort
 	}
 
@@ -270,16 +270,7 @@ func doAuthentication(authScheme scheme.Schemer, ctx *Context) flowResult {
 			switch sa := authScheme.(type) {
 			case *scheme.FormAuth:
 				ctx.Log().Infof("%s: Authentication is failed, sending to login failure URL", authScheme.Key())
-				redirectURL := sa.LoginFailureURL
-				if rt := ctx.Req.Unwrap().FormValue("_rt"); !ess.IsStrEmpty(rt) {
-					// rt => Redirect Target
-					if strings.IndexByte(redirectURL, '?') > 0 {
-						redirectURL += "&_rt=" + rt
-					} else {
-						redirectURL += "?_rt=" + rt
-					}
-				}
-				ctx.Reply().Redirect(redirectURL)
+				ctx.Reply().Redirect(addQueryString(sa.LoginFailureURL, "_rt", ctx.Req.FormValue("_rt")))
 			case *scheme.BasicAuth:
 				ctx.Log().Infof("%s: Authentication is failed", authScheme.Key())
 				ctx.Reply().Header(ahttp.HeaderWWWAuthenticate, `Basic realm="`+sa.RealmName+`"`)
@@ -302,7 +293,7 @@ func doAuthentication(authScheme scheme.Schemer, ctx *Context) flowResult {
 
 	if ctx.a.ViewEngine() != nil {
 		// Change the Anti-CSRF token in use for a request after login for security purposes.
-		ctx.Log().Info("Change Anti-CSRF secret after login authentication for security purpose")
+		ctx.Log().Info("Change Anti-CSRF secret after successful authentication for security purpose")
 		ctx.AddViewArg(keyAntiCSRF, ctx.a.SecurityManager().AntiCSRF.GenerateSecret())
 	}
 
@@ -312,9 +303,7 @@ func doAuthentication(authScheme scheme.Schemer, ctx *Context) flowResult {
 func populateAuthenticationInfo(authcInfo *authc.AuthenticationInfo, ctx *Context) {
 	ctx.Subject().AuthenticationInfo = authcInfo
 	ctx.logger = ctx.Log().WithField("principal", ctx.Subject().PrimaryPrincipal().Value)
-
-	// Remove the credential
-	ctx.Subject().AuthenticationInfo.Credential = nil
+	ctx.Subject().AuthenticationInfo.Credential = nil // Remove the credential
 }
 
 func populateAuthorizationInfo(authScheme scheme.Schemer, ctx *Context) {

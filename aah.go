@@ -374,11 +374,12 @@ func (a *app) logsDir() string {
 
 func (a *app) initPath() error {
 	defer func() {
-		err := a.VFS().AddMount(a.VirtualBaseDir(), a.BaseDir())
-		if err != nil && err.(*os.PathError).Err == vfs.ErrMountExists {
-			// Update app-base-dir to inferred base directory
-			if m, err := a.VFS().FindMount(a.VirtualBaseDir()); err == nil {
-				m.Proot = a.BaseDir()
+		if err := a.VFS().AddMount(a.VirtualBaseDir(), a.BaseDir()); err != nil {
+			if perr, ok := err.(*os.PathError); ok && perr == vfs.ErrMountExists {
+				// Update app-base-dir to inferred base directory
+				if m, err := a.VFS().FindMount(a.VirtualBaseDir()); err == nil {
+					m.Proot = a.BaseDir()
+				}
 			}
 		}
 	}()
@@ -392,8 +393,8 @@ func (a *app) initPath() error {
 
 		if a.IsEmbeddedMode() {
 			a.baseDir = filepath.Dir(ep)
-		} else {
-			a.baseDir = filepath.Dir(filepath.Dir(ep))
+		} else if a.baseDir, err = inferBaseDir(ep); err != nil {
+			return err
 		}
 
 		a.baseDir = filepath.Clean(a.baseDir)

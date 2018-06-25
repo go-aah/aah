@@ -281,6 +281,10 @@ func (ctx *Context) setRequestID() {
 // setTarget method sets contoller, action, embedded context into
 // controller.
 func (ctx *Context) setTarget(route *router.Route) error {
+	if ctx.route == nil || ctx.target != nil {
+		return nil
+	}
+
 	if ctx.controller = ctx.e.registry.Lookup(route.Target); ctx.controller == nil {
 		return errTargetNotFound
 	}
