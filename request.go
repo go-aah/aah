@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/ahttp source code and usage is governed by a MIT style
+// aahframework.org/ahttp source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package ahttp
@@ -61,13 +61,13 @@ type Request struct {
 	// Proto value is current HTTP request protocol. (e.g. HTTP/1.1, HTTP/2.0)
 	Proto string
 
-	// Method request method e.g. `GET`, `POST`, etc.
+	// Method value is HTTP verb from request e.g. `GET`, `POST`, etc.
 	Method string
 
-	// Path the request URL Path e.g. `/app/login.html`.
+	// Path value is request relative URL Path e.g. `/app/login.html`.
 	Path string
 
-	// Header request HTTP headers
+	// Header is request HTTP headers
 	Header http.Header
 
 	// PathParams value is URL path parameters.
@@ -132,12 +132,8 @@ func (r *Request) SetAcceptEncoding(encoding *AcceptSpec) *Request {
 }
 
 // ClientIP method returns remote client IP address aka Remote IP.
-// It parses in the order of `X-Forwarded-For`, `X-Real-IP` and
-// finally `http.Request.RemoteAddr`.
 //
-// Note: Make these header configurable from aah.conf so that aah user
-// could configure headers of their choice. For e.g.
-// X-Appengine-Remote-Addr, etc.
+// Refer to method `ahttp.ClientIP`.
 func (r *Request) ClientIP() string {
 	return ClientIP(r.Unwrap())
 }

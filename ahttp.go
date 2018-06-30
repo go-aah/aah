@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/ahttp source code and usage is governed by a MIT style
+// aahframework.org/ahttp source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 // Package ahttp is to cater HTTP helper methods for aah framework.
@@ -128,7 +128,7 @@ func Scheme(r *http.Request) string {
 	return "http"
 }
 
-// Host method is to correct Hosyt source value from HTTP request.
+// Host method is to correct Host value from HTTP request.
 func Host(r *http.Request) string {
 	if r.URL.Host == "" {
 		return r.Host
@@ -137,7 +137,8 @@ func Host(r *http.Request) string {
 }
 
 // ClientIP method returns remote Client IP address aka Remote IP.
-// It parses in the order of given set of headers otherwise it uses default
+//
+// It parses in the order of given headers otherwise it uses default
 // default header set `X-Forwarded-For`, `X-Real-IP`, "X-Appengine-Remote-Addr"
 // and finally `http.Request.RemoteAddr`.
 func ClientIP(r *http.Request, hdrs ...string) string {
