@@ -99,7 +99,9 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 	if ctx.Subject().IsAuthenticated() {
 		if key := ctx.Session().GetString(keyAuthScheme); key != "" {
 			populateAuthorizationInfo(ctx.a.SecurityManager().AuthScheme(key), ctx)
-			m.Next(ctx)
+			if hasAccess(ctx) == flowCont {
+				m.Next(ctx)
+			}
 			return
 		}
 	} else if ctx.route.Auth == "authenticated" {
@@ -127,13 +129,8 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 		}
 	}
 
-	if result == flowCont {
-		if result, reasons := ctx.hasAccess(); result {
-			m.Next(ctx)
-		} else {
-			ctx.Log().Warnf("Authorization failed:%s", reason2String(reasons))
-			ctx.Reply().Forbidden().Error(newErrorWithData(ErrAuthorizationFailed, http.StatusForbidden, reasons))
-		}
+	if result == flowCont && hasAccess(ctx) == flowCont {
+		m.Next(ctx)
 	}
 }
 
@@ -308,6 +305,17 @@ func populateAuthenticationInfo(authcInfo *authc.AuthenticationInfo, ctx *Contex
 
 func populateAuthorizationInfo(authScheme scheme.Schemer, ctx *Context) {
 	ctx.Subject().AuthorizationInfo = authScheme.DoAuthorizationInfo(ctx.Subject().AuthenticationInfo)
+}
+
+func hasAccess(ctx *Context) flowResult {
+	result, reasons := ctx.hasAccess()
+	if result {
+		return flowCont
+	}
+
+	ctx.Log().Warnf("Authorization failed:%s", reason2String(reasons))
+	ctx.Reply().Forbidden().Error(newErrorWithData(ErrAuthorizationFailed, http.StatusForbidden, reasons))
+	return flowAbort
 }
 
 func debugLogSubjectInfo(ctx *Context) {
