@@ -105,7 +105,7 @@ func (p *packageInfo) processImports(decl ast.Decl, imports map[string]string) {
 			} else { // build cache
 				pkg, err := build.Import(importPath, p.FilePath, 0)
 				if err != nil {
-					log.Errorf("AST: Unable to find import path: %s", importPath)
+					// log.Errorf("AST: Unable to find import path: %s", importPath)
 					continue
 				}
 				pkgAlias = pkg.Name

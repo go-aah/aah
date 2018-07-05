@@ -5,4 +5,4 @@
 package ainsp
 
 // Version no. of ainsp library for aah framework.
-const Version = "0.2.0"
+const Version = "0.2.1"
