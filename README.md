@@ -1,17 +1,21 @@
-# ahttp - aah framework
-[![Build Status](https://travis-ci.org/go-aah/ahttp.svg?branch=master)](https://travis-ci.org/go-aah/ahttp) [![codecov](https://codecov.io/gh/go-aah/ahttp/branch/master/graph/badge.svg)](https://codecov.io/gh/go-aah/ahttp/branch/master) [![Go Report Card](https://goreportcard.com/badge/aahframework.org/ahttp.v0-unstable)](https://goreportcard.com/report/aahframework.org/ahttp.v0-unstable) [![Version](https://img.shields.io/badge/version-0.10-blue.svg)](https://github.com/go-aah/ahttp/releases/latest) [![GoDoc](https://godoc.org/aahframework.org/ahttp.v0-unstable?status.svg)](https://godoc.org/aahframework.org/ahttp.v0-unstable)  [![License](https://img.shields.io/github/license/go-aah/ahttp.svg)](LICENSE) [![Twitter](https://img.shields.io/badge/twitter-@aahframework-55acee.svg)](https://twitter.com/aahframework)
+<p align="center">
+  <img src="https://cdn.aahframework.org/assets/img/aah-logo-64x64.png" />
+  <h2 align="center">HTTP extension library by aah framework</h2>
+</p>
+<p align="center">
+  <p align="center"><a href="https://travis-ci.org/go-aah/ahttp"><img src="https://travis-ci.org/go-aah/ahttp.svg?branch=master" alt="Build Status"></a> <a href="https://codecov.io/gh/go-aah/ahttp/branch/master"><img src="https://codecov.io/gh/go-aah/ahttp/branch/master/graph/badge.svg" alt="Code Coverage"></a> <a href="https://goreportcard.com/report/aahframework.org/ahttp.v0"><img src="https://goreportcard.com/badge/aahframework.org/ahttp.v0" alt="Go Report Card"></a> <a href="https://github.com/go-aah/ahttp/releases/latest"><img src="https://img.shields.io/badge/version-0.11.0-blue.svg" alt="Release Version"></a> <a href="https://godoc.org/aahframework.org/ahttp.v0"><img src="https://godoc.org/aahframework.org/ahttp.v0?status.svg" alt="Godoc"></a> <a href="https://twitter.com/aahframework"><img src="https://img.shields.io/badge/twitter-@aahframework-55acee.svg" alt="Twitter @aahframework"></a></p>
+</p>
 
-***v0.10 [released](https://github.com/go-aah/ahttp/releases/latest) and tagged on Sep 01, 2017***
+HTTP extension Library is used to handle/process Request and Response (headers, body, gzip, etc).
 
-HTTP Library built to process, manipulate Request and Response (headers, body, gzip, etc).
+### News
 
-*`ahttp` developed for aah framework. However, it's an independent library, can be used separately with any `Go` language project. Feel free to use it.*
+  * `v0.11.0` [released](https://github.com/go-aah/ahttp/releases/latest) and tagged on Jul 06, 2018.
 
-# Installation
-#### Stable Version - Production Ready
+## Installation
+
 ```bash
-# install the library
 go get -u aahframework.org/ahttp.v0
 ```
 
-Visit official website https://aahframework.org to learn more.
+Visit official website https://aahframework.org to learn more about `aah` framework.
