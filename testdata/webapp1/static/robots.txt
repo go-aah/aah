@@ -1,0 +1,3 @@
+# Prevents all robots visiting your site.
+User-agent: *
+Disallow: /

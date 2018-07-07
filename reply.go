@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -16,41 +17,28 @@ import (
 )
 
 var (
-	bufPool   = &sync.Pool{New: func() interface{} { return &bytes.Buffer{} }}
-	replyPool = &sync.Pool{New: func() interface{} { return NewReply() }}
+	bufPool = &sync.Pool{New: func() interface{} { return new(bytes.Buffer) }}
 )
 
 // Reply gives you control and convenient way to write a response effectively.
 type Reply struct {
+	Rdr      Render
 	Code     int
 	ContType string
-	Hdr      http.Header
-	Rdr      Render
-	body     *bytes.Buffer
-	cookies  []*http.Cookie
+
 	redirect bool
-	path     string
 	done     bool
 	gzip     bool
+	path     string
+	ctx      *Context
+	body     *bytes.Buffer
+	cookies  []*http.Cookie
 	err      *Error
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//___________________________________
-
-// NewReply method returns the new instance on reply builder.
-func NewReply() *Reply {
-	return &Reply{
-		Hdr:  http.Header{},
-		Code: http.StatusOK,
-		gzip: true,
-	}
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Reply methods - Code Codes
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Reply - HTTP Status Code
+//______________________________________________________________________________
 
 // Status method sets the HTTP Code code for the response.
 // Also Reply instance provides easy to use method for very frequently used
@@ -120,9 +108,19 @@ func (r *Reply) MethodNotAllowed() *Reply {
 	return r.Status(http.StatusMethodNotAllowed)
 }
 
-// Conflict method sets the HTTP Code as 409  RFC 7231, 6.5.8.
+// NotAcceptable method sets the HTTP Code as 406 RFC 7231, 6.5.6
+func (r *Reply) NotAcceptable() *Reply {
+	return r.Status(http.StatusNotAcceptable)
+}
+
+// Conflict method sets the HTTP Code as 409 RFC 7231, 6.5.8.
 func (r *Reply) Conflict() *Reply {
 	return r.Status(http.StatusConflict)
+}
+
+// UnsupportedMediaType method sets the HTTP Code as 415 RFC 7231, 6.5.13
+func (r *Reply) UnsupportedMediaType() *Reply {
+	return r.Status(http.StatusUnsupportedMediaType)
 }
 
 // InternalServerError method sets the HTTP Code as 500 RFC 7231, 6.6.1.
@@ -135,82 +133,90 @@ func (r *Reply) ServiceUnavailable() *Reply {
 	return r.Status(http.StatusServiceUnavailable)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Reply methods - Content Types
-//___________________________________
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Reply - Content Types
+//______________________________________________________________________________
 
 // ContentType method sets given Content-Type string for the response.
 // Also Reply instance provides easy to use method for very frequently used
 // Content-Type(s).
 //
 // By default aah framework try to determine response 'Content-Type' from
-// 'ahttp.Request.AcceptContentType'.
+// 'ahttp.Request.AcceptContentType()'.
 func (r *Reply) ContentType(contentType string) *Reply {
-	r.ContType = strings.ToLower(contentType)
+	if ess.IsStrEmpty(r.ContType) {
+		r.ContType = strings.ToLower(contentType)
+	}
 	return r
 }
 
-// JSON method renders given data as JSON response.
-// Also it sets HTTP 'Content-Type' as 'application/json; charset=utf-8'.
-// Response rendered pretty if 'render.pretty' is true.
+// JSON method renders given data as JSON response
+// and it sets HTTP 'Content-Type' as 'application/json; charset=utf-8'.
 func (r *Reply) JSON(data interface{}) *Reply {
-	j := acquireJSON()
-	j.Data = data
-	r.Rdr = j
-	r.ContentType(ahttp.ContentTypeJSON.Raw())
+	r.ContentType(ahttp.ContentTypeJSON.String())
+	r.Render(&jsonRender{Data: data})
 	return r
 }
 
-// JSONP method renders given data as JSONP response with callback.
-// Also it sets HTTP 'Content-Type' as 'application/json; charset=utf-8'.
-// Response rendered pretty if 'render.pretty' is true.
+// JSONSecure method renders given data as Secure JSON into response.
+// and it sets HTTP 'Content-Type' as 'application/json; charset=utf-8'.
+//
+// See config `render.secure_json.prefix`.
+func (r *Reply) JSONSecure(data interface{}) *Reply {
+	r.ContentType(ahttp.ContentTypeJSON.String())
+	r.Render(&secureJSONRender{Data: data, Prefix: r.ctx.a.secureJSONPrefix})
+	return r
+}
+
+// JSONP method renders given data as JSONP response with callback
+// and it sets HTTP 'Content-Type' as 'application/javascript; charset=utf-8'.
 func (r *Reply) JSONP(data interface{}, callback string) *Reply {
-	j := acquireJSON()
-	j.Data = data
-	j.IsJSONP = true
-	j.Callback = callback
-	r.Rdr = j
-	r.ContentType(ahttp.ContentTypeJSON.Raw())
+	r.ContentType(ahttp.ContentTypeJavascript.String())
+	r.Render(&jsonpRender{Data: data, Callback: callback})
 	return r
 }
 
-// XML method renders given data as XML response. Also it sets
+// XML method renders given data as XML response and it sets
 // HTTP Content-Type as 'application/xml; charset=utf-8'.
-// Response rendered pretty if 'render.pretty' is true.
 func (r *Reply) XML(data interface{}) *Reply {
-	x := acquireXML()
-	x.Data = data
-	r.Rdr = x
-	r.ContentType(ahttp.ContentTypeXML.Raw())
+	r.ContentType(ahttp.ContentTypeXML.String())
+	r.Render(&xmlRender{Data: data})
 	return r
 }
 
-// Text method renders given data as Plain Text response with given values.
-// Also it sets HTTP Content-Type as 'text/plain; charset=utf-8'.
+// Text method renders given data as Plain Text response with given values
+// and it sets HTTP Content-Type as 'text/plain; charset=utf-8'.
 func (r *Reply) Text(format string, values ...interface{}) *Reply {
-	r.Rdr = &Text{Format: format, Values: values}
-	r.ContentType(ahttp.ContentTypePlainText.Raw())
+	r.ContentType(ahttp.ContentTypePlainText.String())
+	r.Render(&textRender{Format: format, Values: values})
 	return r
 }
 
 // Binary method writes given bytes into response. It auto-detects the
 // content type of the given bytes if header `Content-Type` is not set.
 func (r *Reply) Binary(b []byte) *Reply {
-	return r.Readfrom(bytes.NewReader(b))
+	return r.FromReader(bytes.NewReader(b))
 }
 
-// Readfrom method reads the data from given reader and writes into response.
+// FromReader method reads the data from given reader and writes into response.
 // It auto-detects the content type of the file if `Content-Type` is not set.
+//
 // Note: Method will close the reader after serving if it's satisfies the `io.Closer`.
-func (r *Reply) Readfrom(reader io.Reader) *Reply {
-	r.Rdr = &Binary{Reader: reader}
+func (r *Reply) FromReader(reader io.Reader) *Reply {
+	r.Render(&binaryRender{Reader: reader})
 	return r
 }
 
 // File method send the given as file to client. It auto-detects the content type
 // of the file if `Content-Type` is not set.
+//
+// Note: If give filepath is relative path then application base directory is used
+// as prefix.
 func (r *Reply) File(file string) *Reply {
-	r.Rdr = &Binary{Path: file}
+	if !filepath.IsAbs(file) {
+		file = filepath.Join(r.ctx.a.BaseDir(), file)
+	}
+	r.Render(&binaryRender{Path: file})
 	return r
 }
 
@@ -224,7 +230,7 @@ func (r *Reply) FileDownload(file, targetName string) *Reply {
 
 // FileInline method send the given as file to client to display.
 // For e.g.: display within the browser. It sets the `Content-Disposition` as
-//  `inline` with given target name and auto-detects the content type of
+// `inline` with given target name and auto-detects the content type of
 // the file if `Content-Type` is not set.
 func (r *Reply) FileInline(file, targetName string) *Reply {
 	r.Header(ahttp.HeaderContentDisposition, "inline; filename="+targetName)
@@ -233,21 +239,26 @@ func (r *Reply) FileInline(file, targetName string) *Reply {
 
 // HTML method renders given data with auto mapped template name and layout
 // by framework. Also it sets HTTP 'Content-Type' as 'text/html; charset=utf-8'.
-// By default aah framework renders the template based on
+//
+// aah renders the view template based on -
+//
 // 1) path 'Namespace/Sub-package' of Controller,
+//
 // 2) path 'Controller.Action',
+//
 // 3) view extension 'view.ext' and
+//
 // 4) case sensitive 'view.case_sensitive' from aah.conf
+//
 // 5) default layout is 'master.html'
-//    E.g.:
+//
+//    For e.g.:
 //      Namespace/Sub-package: frontend
 //      Controller: App
 //      Action: Login
 //      view.ext: html
 //
-//      template => /views/pages/frontend/app/login.html
-//               => /views/pages/frontend/App/Login.html
-//
+//      Outcome view template path => /views/pages/frontend/app/login.html
 func (r *Reply) HTML(data Data) *Reply {
 	return r.HTMLlf("", "", data)
 }
@@ -267,48 +278,46 @@ func (r *Reply) HTMLf(filename string, data Data) *Reply {
 // HTMLlf method renders based on given layout, filename and data. Refer `Reply.HTML(...)`
 // method.
 func (r *Reply) HTMLlf(layout, filename string, data Data) *Reply {
-	html := acquireHTML()
-	html.Layout = layout
-	html.Filename = filename
-	html.ViewArgs = data
-	r.Rdr = html
 	r.ContentType(ahttp.ContentTypeHTML.String())
+	r.Render(&htmlRender{Layout: layout, Filename: filename, ViewArgs: data})
 	return r
 }
 
-// Redirect method redirect the to given redirect URL with status 302.
+// Redirect method redirects to given redirect URL with status 302.
 func (r *Reply) Redirect(redirectURL string) *Reply {
-	return r.RedirectSts(redirectURL, http.StatusFound)
+	return r.RedirectWithStatus(redirectURL, http.StatusFound)
 }
 
-// RedirectSts method redirect the to given redirect URL and status code.
-func (r *Reply) RedirectSts(redirectURL string, code int) *Reply {
+// RedirectWithStatus method redirects to given redirect URL and status code.
+func (r *Reply) RedirectWithStatus(redirectURL string, code int) *Reply {
 	r.redirect = true
 	r.Status(code)
 	r.path = redirectURL
 	return r
 }
 
-// Error method is used send an error reply, which is handled by centralized
-// error handler.
+// Error method is used send an error reply, which is handled by aah error handling
+// mechanism.
+//
+// More Info: https://docs.aahframework.org/error-handling.html
 func (r *Reply) Error(err *Error) *Reply {
 	r.err = err
 	return r
 }
 
-// Render method is used for custom rendering by implementing interface
-// `aah.Render`.
+// Render method is used render custom implementation using interface `aah.Render`.
 func (r *Reply) Render(rdr Render) *Reply {
 	r.Rdr = rdr
 	return r
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Reply methods
-//___________________________________
+//______________________________________________________________________________
 
 // Header method sets the given header and value for the response.
 // If value == "", then this method deletes the header.
+//
 // Note: It overwrites existing header value if it's present.
 func (r *Reply) Header(key, value string) *Reply {
 	if ess.IsStrEmpty(value) {
@@ -316,32 +325,35 @@ func (r *Reply) Header(key, value string) *Reply {
 			return r.ContentType("")
 		}
 
-		r.Hdr.Del(key)
+		r.ctx.Res.Header().Del(key)
 	} else {
 		if key == ahttp.HeaderContentType {
 			return r.ContentType(value)
 		}
 
-		r.Hdr.Set(key, value)
+		r.ctx.Res.Header().Set(key, value)
 	}
 
 	return r
 }
 
 // HeaderAppend method appends the given header and value for the response.
-// Note: It does not overwrite existing header, it just appends to it.
+//
+// Note: It just appends to it. It does not overwrite existing header.
 func (r *Reply) HeaderAppend(key, value string) *Reply {
 	if key == ahttp.HeaderContentType {
 		return r.ContentType(value)
 	}
 
-	r.Hdr.Add(key, value)
+	r.ctx.Res.Header().Add(key, value)
 	return r
 }
 
-// Done method indicates to framework and informing that reply has already
-// been sent via `aah.Context.Res` and that no further action is needed.
-// Framework doesn't intervene with response if this method called.
+// Done method is used to indicate response has already been written using
+// `aah.Context.Res` so no further action is needed from framework.
+//
+// Note: Framework doesn't intervene with response if this method called
+// by aah user.
 func (r *Reply) Done() *Reply {
 	r.done = true
 	return r
@@ -372,43 +384,32 @@ func (r *Reply) IsContentTypeSet() bool {
 }
 
 // Body method returns the response body buffer.
-// It might be nil if the -
-//    1) Response is written successfully on the wire
-//    2) Response is not yet rendered
-//    3) Static files, since response is written via `http.ServeContent`
+//
+//    It might be nil if the -
+//
+//      1) Response was written successfully on the wire
+//
+//      2) Response is not yet rendered
+//
+//      3) Static files, since response is written via `http.ServeContent`
 func (r *Reply) Body() *bytes.Buffer {
 	return r.body
 }
 
-// Reset method resets the instance values for repurpose.
-func (r *Reply) Reset() {
-	r.Code = http.StatusOK
-	r.ContType = ""
-	r.Hdr = http.Header{}
-	r.Rdr = nil
-	r.body = nil
-	r.cookies = make([]*http.Cookie, 0)
-	r.redirect = false
-	r.path = ""
-	r.done = false
-	r.gzip = true
-	r.err = nil
+func (r *Reply) isHTML() bool {
+	return ahttp.ContentTypeHTML.IsEqual(r.ContType)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
-//___________________________________
+//______________________________________________________________________________
 
-func acquireReply() *Reply {
-	return replyPool.Get().(*Reply)
-}
-
-func releaseReply(r *Reply) {
-	if r != nil {
-		releaseBuffer(r.body)
-		releaseRender(r.Rdr)
-		r.Reset()
-		replyPool.Put(r)
+// newReply method returns the new instance on reply builder.
+func newReply(ctx *Context) *Reply {
+	return &Reply{
+		Code: http.StatusOK,
+		gzip: true,
+		ctx:  ctx,
 	}
 }
 

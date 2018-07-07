@@ -1,248 +1,111 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
 
 import (
-	"sync"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"aahframework.org/test.v0/assert"
 )
 
-func TestOnInitEvent(t *testing.T) {
-	onInitFunc1 := func(e *Event) {
-		t.Log("onInitFunc1:", e)
+func TestAppEvents(t *testing.T) {
+	testcases := []string{
+		EventOnInit,
+		EventOnStart,
+		EventOnPreShutdown,
+		EventOnPostShutdown,
 	}
 
-	onInitFunc2 := func(e *Event) {
-		t.Log("onInitFunc2:", e)
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts := newTestServer(t, importPath)
+	defer ts.Close()
+
+	t.Logf("Test Server URL [App Events]: %s", ts.URL)
+	ts.app.eventStore.PublishSync(&Event{Name: EventOnStart})
+	ts.app.UnsubscribeEvent(EventOnStart, EventCallback{})
+
+	for _, event := range testcases {
+		t.Run(event+" test", func(t *testing.T) {
+			performEventTest(t, ts.app, event)
+		})
 	}
 
-	onInitFunc3 := func(e *Event) {
-		t.Log("onInitFunc3:", e)
+}
+
+func performEventTest(t *testing.T, a *app, eventName string) {
+	// declare functions
+	onFunc1 := func(e *Event) {
+		t.Log(eventName+" Func1:", e)
 	}
 
-	appEventStore = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
-	assert.False(t, AppEventStore().IsEventExists(EventOnInit))
+	onFunc2 := func(e *Event) {
+		t.Log(eventName+" Func2:", e)
+	}
 
-	OnInit(onInitFunc1)
-	assert.True(t, AppEventStore().IsEventExists(EventOnInit))
-	assert.Equal(t, 1, AppEventStore().SubscriberCount(EventOnInit))
+	onFunc3 := func(e *Event) {
+		t.Log(eventName+" Func3:", e)
+	}
 
-	OnInit(onInitFunc3, 4)
-	assert.Equal(t, 2, AppEventStore().SubscriberCount(EventOnInit))
+	es := a.eventStore
+	assert.False(t, es.IsEventExists(eventName))
 
-	OnInit(onInitFunc2, 2)
-	assert.Equal(t, 3, AppEventStore().SubscriberCount(EventOnInit))
+	addTestEvent(a, eventName, onFunc1)
+	assert.True(t, es.IsEventExists(eventName))
+	assert.Equal(t, 1, es.SubscriberCount(eventName))
+
+	addTestEvent(a, eventName, onFunc3, 4)
+	assert.Equal(t, 2, es.SubscriberCount(eventName))
+
+	addTestEvent(a, eventName, onFunc2, 2)
+	assert.Equal(t, 3, es.SubscriberCount(eventName))
 
 	// publish 1
-	AppEventStore().sortAndPublishSync(&Event{Name: EventOnInit, Data: "On Init event published 1"})
+	es.sortAndPublishSync(&Event{Name: eventName, Data: eventName + " event published 1"})
 
-	AppEventStore().Unsubscribe(EventOnInit, onInitFunc2)
-	assert.Equal(t, 2, AppEventStore().SubscriberCount(EventOnInit))
+	es.Unsubscribe(eventName, onFunc2)
+	assert.Equal(t, 2, es.SubscriberCount(eventName))
 
 	// publish 2
-	PublishEventSync(EventOnInit, "On Init event published 2")
+	a.PublishEventSync(eventName, eventName+" event published 2")
 
-	AppEventStore().Unsubscribe(EventOnInit, onInitFunc1)
-	assert.Equal(t, 1, AppEventStore().SubscriberCount(EventOnInit))
+	es.Unsubscribe(eventName, onFunc1)
+	assert.Equal(t, 1, es.SubscriberCount(eventName))
 
 	// publish 3
-	PublishEventSync(EventOnInit, "On Init event published 3")
-	PublishEventSync(EventOnStart, "On start not gonna fire")
+	a.PublishEventSync(eventName, eventName+" event published 3")
 
-	// event not exists
-	AppEventStore().Unsubscribe(EventOnStart, onInitFunc1)
-
-	AppEventStore().Unsubscribe(EventOnInit, onInitFunc3)
-	assert.Equal(t, 0, AppEventStore().SubscriberCount(EventOnInit))
-	assert.Equal(t, 0, AppEventStore().SubscriberCount(EventOnStart))
+	es.Unsubscribe(eventName, onFunc3)
+	assert.Equal(t, 0, es.SubscriberCount(eventName))
 
 	// EventOnInit not exists
-	AppEventStore().Unsubscribe(EventOnInit, onInitFunc3)
+	es.Unsubscribe(eventName, onFunc3)
 }
 
-func TestOnStartEvent(t *testing.T) {
-	onStartFunc1 := func(e *Event) {
-		t.Log("onStartFunc1:", e)
+func addTestEvent(a *app, eventName string, fn func(e *Event), priority ...int) {
+	switch eventName {
+	case EventOnInit:
+		a.OnInit(fn, priority...)
+	case EventOnStart:
+		a.OnStart(fn, priority...)
+	case EventOnPreShutdown:
+		a.OnPreShutdown(fn, priority...)
+	case EventOnPostShutdown:
+		a.OnPostShutdown(fn, priority...)
 	}
-
-	onStartFunc2 := func(e *Event) {
-		t.Log("onStartFunc2:", e)
-	}
-
-	onStartFunc3 := func(e *Event) {
-		t.Log("onStartFunc3:", e)
-	}
-
-	appEventStore = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
-	assert.False(t, AppEventStore().IsEventExists(EventOnStart))
-
-	OnStart(onStartFunc1)
-	assert.True(t, AppEventStore().IsEventExists(EventOnStart))
-	assert.Equal(t, 1, AppEventStore().SubscriberCount(EventOnStart))
-
-	OnStart(onStartFunc3, 4)
-	assert.Equal(t, 2, AppEventStore().SubscriberCount(EventOnStart))
-
-	OnStart(onStartFunc2, 2)
-	assert.Equal(t, 3, AppEventStore().SubscriberCount(EventOnStart))
-
-	// publish 1
-	AppEventStore().sortAndPublishSync(&Event{Name: EventOnStart, Data: "On start event published 1"})
-
-	AppEventStore().Unsubscribe(EventOnStart, onStartFunc2)
-	assert.Equal(t, 2, AppEventStore().SubscriberCount(EventOnStart))
-
-	// publish 2
-	PublishEventSync(EventOnStart, "On start event published 2")
-
-	AppEventStore().Unsubscribe(EventOnStart, onStartFunc1)
-	assert.Equal(t, 1, AppEventStore().SubscriberCount(EventOnStart))
-
-	// publish 3
-	AppEventStore().sortAndPublishSync(&Event{Name: EventOnStart, Data: "On start event published 3"})
-	PublishEventSync(EventOnInit, "On init not gonna fire")
-
-	// event not exists
-	AppEventStore().Unsubscribe(EventOnInit, onStartFunc1)
-
-	AppEventStore().Unsubscribe(EventOnStart, onStartFunc3)
-	assert.Equal(t, 0, AppEventStore().SubscriberCount(EventOnStart))
-	assert.Equal(t, 0, AppEventStore().SubscriberCount(EventOnInit))
-
-	// EventOnInit not exists
-	AppEventStore().Unsubscribe(EventOnStart, onStartFunc3)
 }
 
-func TestOnShutdownEvent(t *testing.T) {
-	onShutdownFunc1 := func(e *Event) {
-		t.Log("onShutdownFunc1:", e)
-	}
+func TestEventSubscribeAndUnsubscribeAndPublish(t *testing.T) {
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts := newTestServer(t, importPath)
+	defer ts.Close()
 
-	onShutdownFunc2 := func(e *Event) {
-		t.Log("onShutdownFunc2:", e)
-	}
+	t.Logf("Test Server URL [Event Publisher]: %s", ts.URL)
 
-	onShutdownFunc3 := func(e *Event) {
-		t.Log("onShutdownFunc3:", e)
-	}
-
-	appEventStore = &EventStore{subscribers: make(map[string]EventCallbacks), mu: &sync.Mutex{}}
-	assert.False(t, AppEventStore().IsEventExists(EventOnShutdown))
-
-	OnShutdown(onShutdownFunc1)
-	assert.True(t, AppEventStore().IsEventExists(EventOnShutdown))
-	assert.Equal(t, 1, AppEventStore().SubscriberCount(EventOnShutdown))
-
-	OnShutdown(onShutdownFunc3, 4)
-	assert.Equal(t, 2, AppEventStore().SubscriberCount(EventOnShutdown))
-
-	OnShutdown(onShutdownFunc2, 2)
-	assert.Equal(t, 3, AppEventStore().SubscriberCount(EventOnShutdown))
-
-	// publish 1
-	AppEventStore().sortAndPublishSync(&Event{Name: EventOnShutdown, Data: "On shutdown event published 1"})
-
-	AppEventStore().Unsubscribe(EventOnShutdown, onShutdownFunc2)
-	assert.Equal(t, 2, AppEventStore().SubscriberCount(EventOnShutdown))
-
-	// publish 2
-	PublishEventSync(EventOnShutdown, "On shutdown event published 2")
-
-	AppEventStore().Unsubscribe(EventOnShutdown, onShutdownFunc1)
-	assert.Equal(t, 1, AppEventStore().SubscriberCount(EventOnShutdown))
-
-	// publish 3
-	AppEventStore().sortAndPublishSync(&Event{Name: EventOnShutdown, Data: "On shutdown event published 3"})
-	PublishEventSync(EventOnShutdown, "On shutdown not gonna fire")
-
-	// event not exists
-	AppEventStore().Unsubscribe(EventOnShutdown, onShutdownFunc1)
-
-	AppEventStore().Unsubscribe(EventOnShutdown, onShutdownFunc3)
-	assert.Equal(t, 0, AppEventStore().SubscriberCount(EventOnShutdown))
-
-	// EventOnShutdown not exists
-	AppEventStore().Unsubscribe(EventOnShutdown, onShutdownFunc3)
-}
-
-func TestServerExtensionEvent(t *testing.T) {
-	// OnRequest
-	assert.Nil(t, onRequestFunc)
-	publishOnRequestEvent(&Context{})
-	OnRequest(func(e *Event) {
-		t.Log("OnRequest event func called")
-	})
-	assert.NotNil(t, onRequestFunc)
-
-	onRequestFunc(&Event{Name: EventOnRequest, Data: "request Data OnRequest"})
-	publishOnRequestEvent(&Context{})
-	OnRequest(func(e *Event) {
-		t.Log("OnRequest event func called 2")
-	})
-
-	// OnPreReply
-	assert.Nil(t, onPreReplyFunc)
-	publishOnPreReplyEvent(&Context{})
-	OnPreReply(func(e *Event) {
-		t.Log("OnPreReply event func called")
-	})
-	assert.NotNil(t, onPreReplyFunc)
-
-	onPreReplyFunc(&Event{Name: EventOnPreReply, Data: "Context Data OnPreReply"})
-	publishOnPreReplyEvent(&Context{})
-	OnPreReply(func(e *Event) {
-		t.Log("OnPreReply event func called 2")
-	})
-
-	// OnAfterReply
-	assert.Nil(t, onAfterReplyFunc)
-	publishOnAfterReplyEvent(&Context{})
-	OnAfterReply(func(e *Event) {
-		t.Log("OnAfterReply event func called")
-	})
-	assert.NotNil(t, onAfterReplyFunc)
-
-	onAfterReplyFunc(&Event{Name: EventOnAfterReply, Data: "Context Data OnAfterReply"})
-	publishOnAfterReplyEvent(&Context{})
-	OnAfterReply(func(e *Event) {
-		t.Log("OnAfterReply event func called 2")
-	})
-
-	// OnPreAuth
-	assert.Nil(t, onPreAuthFunc)
-	publishOnPreAuthEvent(&Context{})
-	OnPreAuth(func(e *Event) {
-		t.Log("OnPreAuth event func called")
-	})
-	assert.NotNil(t, onPreAuthFunc)
-
-	onPreAuthFunc(&Event{Name: EventOnPreAuth, Data: "Context Data OnPreAuth"})
-	publishOnPreAuthEvent(&Context{})
-	OnPreAuth(func(e *Event) {
-		t.Log("OnPreAuth event func called 2")
-	})
-
-	// OnPostAuth
-	assert.Nil(t, onPostAuthFunc)
-	publishOnPostAuthEvent(&Context{})
-	OnPostAuth(func(e *Event) {
-		t.Log("OnPostAuth event func called")
-	})
-	assert.NotNil(t, onPostAuthFunc)
-
-	onPostAuthFunc(&Event{Name: EventOnPostAuth, Data: "Context Data OnPostAuth"})
-	publishOnPostAuthEvent(&Context{})
-	OnPostAuth(func(e *Event) {
-		t.Log("OnPostAuth event func called 2")
-	})
-}
-
-func TestSubscribeAndUnsubscribeAndPublish(t *testing.T) {
+	// declare functions
 	myEventFunc1 := func(e *Event) {
 		t.Log("myEventFunc1:", e)
 	}
@@ -255,33 +118,34 @@ func TestSubscribeAndUnsubscribeAndPublish(t *testing.T) {
 		t.Log("myEventFunc3:", e)
 	}
 
+	es := ts.app.eventStore
+
 	ecb1 := EventCallback{Callback: myEventFunc1, CallOnce: true}
-	assert.Equal(t, 0, AppEventStore().SubscriberCount("myEvent1"))
-	SubscribeEvent("myEvent1", ecb1)
-	assert.Equal(t, 1, AppEventStore().SubscriberCount("myEvent1"))
+	assert.Equal(t, 0, es.SubscriberCount("myEvent1"))
+	ts.app.SubscribeEvent("myEvent1", ecb1)
+	assert.Equal(t, 1, es.SubscriberCount("myEvent1"))
 
-	SubscribeEvent("myEvent1", EventCallback{Callback: myEventFunc2})
-	SubscribeEventf("myEvent1", myEventFunc2)
-	assert.Equal(t, 3, AppEventStore().SubscriberCount("myEvent1"))
+	ts.app.SubscribeEvent("myEvent1", EventCallback{Callback: myEventFunc2})
+	assert.Equal(t, 2, es.SubscriberCount("myEvent1"))
 
-	assert.Equal(t, 0, AppEventStore().SubscriberCount("myEvent2"))
-	SubscribeEvent("myEvent2", EventCallback{Callback: myEventFunc3})
-	assert.Equal(t, 1, AppEventStore().SubscriberCount("myEvent2"))
+	assert.Equal(t, 0, es.SubscriberCount("myEvent2"))
+	ts.app.SubscribeEvent("myEvent2", EventCallback{Callback: myEventFunc3})
+	assert.Equal(t, 1, es.SubscriberCount("myEvent2"))
 
-	PublishEvent("myEvent2", "myEvent2 is fired async")
+	ts.app.PublishEvent("myEvent2", "myEvent2 is fired async")
 	time.Sleep(time.Millisecond * 100) // for goroutine to finish
 
-	UnsubscribeEvent("myEvent1", ecb1)
-	assert.Equal(t, 2, AppEventStore().SubscriberCount("myEvent1"))
+	ts.app.UnsubscribeEvent("myEvent1", ecb1)
+	assert.Equal(t, 1, es.SubscriberCount("myEvent1"))
 
-	PublishEvent("myEvent1", "myEvent1 is fired async")
+	ts.app.PublishEvent("myEvent1", "myEvent1 is fired async")
 	time.Sleep(time.Millisecond * 100) // for goroutine to finish
 
-	PublishEvent("myEventNotExists", nil)
+	ts.app.PublishEvent("myEventNotExists", nil)
 
-	SubscribeEvent("myEvent2", EventCallback{Callback: myEventFunc3, CallOnce: true})
-	PublishEvent("myEvent2", "myEvent2 is fired async")
+	ts.app.SubscribeEvent("myEvent2", EventCallback{Callback: myEventFunc3, CallOnce: true})
+	ts.app.PublishEvent("myEvent2", "myEvent2 is fired async")
 	time.Sleep(time.Millisecond * 100) // for goroutine to finish
 
-	PublishEventSync("myEvent2", "myEvent2 is fired sync")
+	ts.app.PublishEventSync("myEvent2", "myEvent2 is fired sync")
 }

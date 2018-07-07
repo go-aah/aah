@@ -1,11 +1,10 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
 
 import (
-	"html/template"
 	"io"
 	"net/http/httptest"
 	"path/filepath"
@@ -14,61 +13,24 @@ import (
 	"testing"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
+	"aahframework.org/ainsp.v0"
 	"aahframework.org/essentials.v0"
-	"aahframework.org/security.v0"
 	"aahframework.org/test.v0/assert"
 	"aahframework.org/view.v0"
 )
 
-func TestViewInit(t *testing.T) {
-	appCfg, _ := config.ParseString("")
-	viewDir := filepath.Join(getTestdataPath(), appViewsDir())
-	err := initViewEngine(viewDir, appCfg)
-	assert.Nil(t, err)
-	assert.NotNil(t, AppViewEngine())
-
-	// cleanup
-	appViewEngine = nil
-}
-
-func TestViewInitDirNotExists(t *testing.T) {
-	appCfg, _ := config.ParseString("")
-	viewDir := filepath.Join(getTestdataPath(), "views-not-exists")
-
-	err := initViewEngine(viewDir, appCfg)
-	assert.True(t, err == nil)
-	assert.Nil(t, AppViewEngine())
-}
-
-func TestViewInitEngineNotFound(t *testing.T) {
-	appCfg, _ := config.ParseString(`
-  view {
-    engine = "jade1"
-  }
-  `)
-	viewDir := filepath.Join(getTestdataPath(), appViewsDir())
-	err := initViewEngine(viewDir, appCfg)
-	assert.Equal(t, "view: named engine not found: jade1", err.Error())
-	assert.Nil(t, AppViewEngine())
-}
-
-func TestViewAddTemplateFunc(t *testing.T) {
-	AddTemplateFunc(template.FuncMap{
-		"join":     strings.Join,
-		"safeHTML": strings.Join, // for duplicate test, don't mind
-	})
-
-	_, found := view.TemplateFuncMap["join"]
-	assert.True(t, found)
-}
-
 func TestViewStore(t *testing.T) {
-	err := AddViewEngine("go", &view.GoViewEngine{})
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts := newTestServer(t, importPath)
+	defer ts.Close()
+
+	t.Logf("Test Server URL [View Store]: %s", ts.URL)
+
+	err := ts.app.AddViewEngine("go", &view.GoViewEngine{})
 	assert.NotNil(t, err)
 	assert.Equal(t, "view: engine name 'go' is already added, skip it", err.Error())
 
-	err = AddViewEngine("custom", nil)
+	err = ts.app.AddViewEngine("custom", nil)
 	assert.NotNil(t, err)
 	assert.Equal(t, "view: engine value is nil", err.Error())
 
@@ -82,144 +44,107 @@ func TestViewStore(t *testing.T) {
 }
 
 func TestViewResolveView(t *testing.T) {
-	defer ess.DeleteFiles("testapp.pid")
-	appCfg, _ := config.ParseString("")
-	e := newEngine(appCfg)
+	defer ess.DeleteFiles("webapp1.pid")
 
-	viewDir := filepath.Join(getTestdataPath(), appViewsDir())
-	err := initViewEngine(viewDir, appCfg)
-	assert.Nil(t, err)
-	assert.NotNil(t, AppViewEngine())
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts := newTestServer(t, importPath)
+	defer ts.Close()
 
-	req := httptest.NewRequest("GET", "http://localhost:8080/index.html", nil)
-	ctx := e.prepareContext(httptest.NewRecorder(), req)
+	t.Logf("Test Server URL [Resolve View]: %s", ts.URL)
+
+	vm := ts.app.viewMgr
+	assert.NotNil(t, vm)
+	assert.NotNil(t, vm.engine)
+	vm.setHotReload(false)
+
+	req := httptest.NewRequest(ahttp.MethodGet, ts.URL, nil)
+	ctx := newContext(httptest.NewRecorder(), req)
+	ctx.a = ts.app
 
 	type AppController struct{}
-	ctx.controller = &controllerInfo{Type: reflect.TypeOf(AppController{})}
-	ctx.action = &MethodInfo{
-		Name:       "Index",
-		Parameters: []*ParameterInfo{},
-	}
+	cType := reflect.TypeOf(AppController{})
+	ctx.controller = &ainsp.Target{Name: cType.Name(), Type: cType, NoSuffixName: "app"}
+	ctx.action = &ainsp.Method{Name: "Index", Parameters: []*ainsp.Parameter{}}
 	ctx.Reply().ContentType(ahttp.ContentTypeHTML.Raw())
 	ctx.AddViewArg("MyName", "aah framework")
 
-	e.resolveView(ctx)
-
+	t.Log("Template exists")
+	vm.resolve(ctx)
 	assert.NotNil(t, ctx.Reply().Rdr)
-	htmlRdr := ctx.Reply().Rdr.(*HTML)
-
+	htmlRdr := ctx.Reply().Rdr.(*htmlRender)
 	assert.Equal(t, "master.html", htmlRdr.Layout)
 	assert.Equal(t, "pages/app/index.html", htmlRdr.Template.Name())
 	assert.Equal(t, "http", htmlRdr.ViewArgs["Scheme"])
-	assert.Equal(t, "localhost:8080", htmlRdr.ViewArgs["Host"])
-	assert.Equal(t, "/index.html", htmlRdr.ViewArgs["RequestPath"])
+	assert.True(t, strings.Contains(ts.URL, htmlRdr.ViewArgs["Host"].(string)))
+	assert.Equal(t, "", htmlRdr.ViewArgs["RequestPath"])
 	assert.Equal(t, Version, htmlRdr.ViewArgs["AahVersion"])
 	assert.Equal(t, "aah framework", htmlRdr.ViewArgs["MyName"])
+	assert.True(t, htmlRdr.ViewArgs["ClientIP"].(string) != "")
 
 	// User provided template file
+	t.Log("User provided template file")
 	ctx.Reply().HTMLf("/admin/index.html", Data{})
-	e.resolveView(ctx)
-	htmlRdr = ctx.Reply().Rdr.(*HTML)
+	vm.resolve(ctx)
+	htmlRdr = ctx.Reply().Rdr.(*htmlRender)
 	assert.Equal(t, "/admin/index.html", htmlRdr.Filename)
 	assert.Equal(t, "View Not Found: views/pages/admin/index.html", htmlRdr.ViewArgs["ViewNotFound"])
 
 	// User provided template file with controller context
+	t.Log("User provided template file with controller context")
 	ctx.Reply().HTMLf("user/index.html", Data{})
-	e.resolveView(ctx)
-	htmlRdr = ctx.Reply().Rdr.(*HTML)
+	vm.resolve(ctx)
+	htmlRdr = ctx.Reply().Rdr.(*htmlRender)
 	assert.Equal(t, "user/index.html", htmlRdr.Filename)
 	assert.Equal(t, "View Not Found: views/pages/app/user/index.html", htmlRdr.ViewArgs["ViewNotFound"])
 
 	// Namespace/Sub-package
-	appIsProfileProd = true
-	ctx.controller = &controllerInfo{Type: reflect.TypeOf(AppController{}), Namespace: "frontend"}
+	t.Log("Namespace/Sub-package")
+	ts.app.envProfile = "prod"
+	ctx.controller = &ainsp.Target{Type: reflect.TypeOf(AppController{}), Namespace: "frontend"}
 	ctx.Reply().HTMLf("index.html", Data{})
-	e.resolveView(ctx)
-	htmlRdr = ctx.Reply().Rdr.(*HTML)
+	vm.resolve(ctx)
+	htmlRdr = ctx.Reply().Rdr.(*htmlRender)
 	assert.Equal(t, "index.html", htmlRdr.Filename)
 	assert.Equal(t, "View Not Found", htmlRdr.ViewArgs["ViewNotFound"])
-	appIsProfileProd = false
-
-	ctx.Req.AcceptContentType.Mime = ""
-	appConfig = appCfg
-	assert.Nil(t, identifyContentType(ctx))
-
-	// cleanup
-	appViewEngine = nil
-	appConfig = nil
+	ts.app.envProfile = "dev"
 }
 
-func TestViewResolveViewNotFound(t *testing.T) {
-	e := &engine{}
-	appConfig, _ = config.ParseString("")
-	viewDir := filepath.Join(getTestdataPath(), "idontknow")
-	appViewEngine = &view.GoViewEngine{}
-	appViewEngine.Init(appConfig, viewDir)
+func TestViewMinifier(t *testing.T) {
+	defer ess.DeleteFiles("webapp1.pid")
 
-	req := httptest.NewRequest("GET", "http://localhost:8080/index.html", nil)
-	type AppController struct{}
-	ctx := &Context{
-		Req:        ahttp.ParseRequest(req, &ahttp.Request{}),
-		controller: &controllerInfo{Type: reflect.TypeOf(AppController{}), Namespace: "site"},
-		action: &MethodInfo{
-			Name:       "Index",
-			Parameters: []*ParameterInfo{},
-		},
-		reply:   NewReply(),
-		subject: security.AcquireSubject(),
-	}
-	ctx.Reply().ContentType(ahttp.ContentTypeHTML.Raw())
-	appViewExt = ".html"
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts := newTestServer(t, importPath)
+	defer ts.Close()
 
-	e.resolveView(ctx)
+	t.Logf("Test Server URL [View Minifier]: %s", ts.URL)
 
-	assert.NotNil(t, ctx.Reply().Rdr)
-	htmlRdr := ctx.Reply().Rdr.(*HTML)
-	assert.NotNil(t, htmlRdr.Template)
+	assert.NotNil(t, ts.app.viewMgr)
+	assert.Nil(t, ts.app.viewMgr.minifier)
+	ts.app.SetMinifier(func(contentType string, w io.Writer, r io.Reader) error {
+		t.Log(contentType, w, r)
+		return nil
+	})
+	assert.NotNil(t, ts.app.viewMgr.minifier)
 
-	// cleanup
-	appViewEngine = nil
+	t.Log("Second set")
+	ts.app.SetMinifier(func(contentType string, w io.Writer, r io.Reader) error {
+		t.Log("this is second set", contentType, w, r)
+		return nil
+	})
 }
 
 func TestViewDefaultContentType(t *testing.T) {
-	appConfig, _ = config.ParseString("")
-	assert.Nil(t, defaultContentType())
+	assert.Nil(t, resolveDefaultContentType(""))
 
-	appConfig, _ = config.ParseString(`
-  render {
-    default = "html"
-  }
-  `)
-
-	v1 := defaultContentType()
+	v1 := resolveDefaultContentType("html")
 	assert.Equal(t, "text/html; charset=utf-8", v1.Raw())
 
-	AppConfig().SetString("render.default", "xml")
-	v2 := defaultContentType()
+	v2 := resolveDefaultContentType("xml")
 	assert.Equal(t, "application/xml; charset=utf-8", v2.Raw())
 
-	AppConfig().SetString("render.default", "json")
-	v3 := defaultContentType()
+	v3 := resolveDefaultContentType("json")
 	assert.Equal(t, "application/json; charset=utf-8", v3.Raw())
 
-	AppConfig().SetString("render.default", "text")
-	v4 := defaultContentType()
+	v4 := resolveDefaultContentType("text")
 	assert.Equal(t, "text/plain; charset=utf-8", v4.Raw())
-
-	// cleanup
-	appConfig = nil
-}
-
-func TestViewSetMinifier(t *testing.T) {
-	testMinifier := func(contentType string, w io.Writer, r io.Reader) error {
-		t.Log("called minifier func")
-		return nil
-	}
-
-	assert.Nil(t, minifier)
-	SetMinifier(testMinifier)
-	assert.NotNil(t, minifier)
-
-	SetMinifier(testMinifier)
-	assert.NotNil(t, minifier)
 }

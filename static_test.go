@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -7,139 +7,178 @@ package aah
 import (
 	"bytes"
 	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/router.v0"
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/test.v0/assert"
 )
 
-func TestStaticFileAndDirectoryListing(t *testing.T) {
-	appCfg, _ := config.ParseString("")
-	e := newEngine(appCfg)
+func TestStaticFilesDelivery(t *testing.T) {
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts := newTestServer(t, importPath)
+	defer ts.Close()
 
-	testStaticServe(t, e, "http://localhost:8080/static/css/aah\x00.css", "static", "css/aah\x00.css", "", "500 Internal Server Error", false)
+	t.Logf("Test Server URL [Static Files Delivery]: %s", ts.URL)
 
-	testStaticServe(t, e, "http://localhost:8080/static/", "static", "", "", `<title>Listing of /static/</title>`, true)
+	httpClient := new(http.Client)
 
-	testStaticServe(t, e, "http://localhost:8080/static", "static", "", "", "403 Directory listing not allowed", false)
-
-	testStaticServe(t, e, "http://localhost:8080/static", "static", "", "", `<a href="/static/">Moved Permanently</a>`, true)
-
-	testStaticServe(t, e, "http://localhost:8080/static/test.txt", "static", "test.txt", "", "This is file content of test.txt", false)
-
-	appIsProfileProd = true
-	testStaticServe(t, e, "http://localhost:8080/robots.txt", "static", "", "test.txt", "This is file content of test.txt", false)
-	appIsProfileProd = false
-}
-
-func TestStaticMisc(t *testing.T) {
-	// File extension check for gzip
-	v1 := checkGzipRequired("sample.css")
-	assert.True(t, v1)
-
-	v2 := checkGzipRequired("font.otf")
-	assert.True(t, v2)
-
-	// directoryList for read error
-	r1 := httptest.NewRequest("GET", "http://localhost:8080/assets/css/app.css", nil)
-	w1 := httptest.NewRecorder()
-	f, err := os.Open(filepath.Join(getTestdataPath(), "static", "test.txt"))
+	// Static File - /robots.txt
+	t.Log("Static File - /robots.txt")
+	resp, err := httpClient.Get(ts.URL + "/robots.txt")
 	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.True(t, strings.Contains(responseBody(resp), "User-agent: *"))
+	assert.Equal(t, "no-cache, no-store, must-revalidate", resp.Header.Get(ahttp.HeaderCacheControl))
 
-	directoryList(w1, r1, f)
-	assert.Equal(t, "Error reading directory", w1.Body.String())
+	// Static File - /assets/css/aah.css
+	t.Log("Static File - /assets/css/aah.css")
+	resp, err = httpClient.Get(ts.URL + "/assets/css/aah.css")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.True(t, strings.Contains(responseBody(resp), "Minimal aah framework application template CSS."))
+	assert.Equal(t, "no-cache, no-store, must-revalidate", resp.Header.Get(ahttp.HeaderCacheControl))
 
-	// cache bust filename parse
-	filename := parseCacheBustPart("aah-813e524.css", "813e524")
-	assert.Equal(t, "aah.css", filename)
-}
+	// Directory Listing - /assets
+	t.Log("Directory Listing - /assets")
+	resp, err = httpClient.Get(ts.URL + "/assets")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	body := responseBody(resp)
+	assert.True(t, strings.Contains(body, "<title>Listing of /assets/</title>"))
+	assert.True(t, strings.Contains(body, "<h1>Listing of /assets/</h1><hr>"))
+	assert.True(t, strings.Contains(body, `<a href="robots.txt">robots.txt</a>`))
+	assert.Equal(t, "", resp.Header.Get(ahttp.HeaderCacheControl))
 
-func TestParseStaticCacheMap(t *testing.T) {
-	appConfig, _ = config.ParseString(`
-		cache {
-		  static {
-		    default_cache_control = "public, max-age=31536000"
+	// Static File - /assets/img/aah-framework-logo.png
+	t.Log("Static File - /assets/img/aah-framework-logo.png")
+	resp, err = httpClient.Get(ts.URL + "/assets/img/aah-framework-logo.png")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, "image/png", resp.Header.Get(ahttp.HeaderContentType))
+	assert.Equal(t, "6990", resp.Header.Get(ahttp.HeaderContentLength))
+	assert.Equal(t, "no-cache, no-store, must-revalidate", resp.Header.Get(ahttp.HeaderCacheControl))
 
-				mime_types {
-		      css_js {
-		        mime = "text/css, application/javascript"
-		        cache_control = "public, max-age=2628000, must-revalidate, proxy-revalidate"
-		      }
-
-		      images {
-		        mime = "image/jpeg, image/png, image/gif, image/svg+xml, image/x-icon"
-		        cache_control = "public, max-age=2628000, must-revalidate, proxy-revalidate"
-		      }
-		    }
-		  }
-		}
-	`)
-
-	parseStaticMimeCacheMap(&Event{})
-	assert.Equal(t, "public, max-age=2628000, must-revalidate, proxy-revalidate", cacheHeader("image/png"))
-	assert.Equal(t, "public, max-age=31536000", cacheHeader("application/x-font-ttf"))
-	appConfig = nil
+	// Static File - /assets/img/notfound/file.txt
+	t.Log("Static File - /assets/img/notfound/file.txt")
+	resp, err = httpClient.Get(ts.URL + "/assets/img/notfound/file.txt")
+	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, "0", resp.Header.Get(ahttp.HeaderContentLength))
 }
 
 func TestStaticDetectContentType(t *testing.T) {
-	v, _ := detectFileContentType("image1.svg", nil)
-	assert.Equal(t, "image/svg+xml", v)
+	testcases := []struct {
+		label    string
+		filename string
+		result   string
+	}{
+		{
+			label:    "svg",
+			filename: "image1.svg",
+			result:   "image/svg+xml",
+		},
+		{
+			label:    "png",
+			filename: "image2.png",
+			result:   "image/png",
+		},
+		{
+			label:    "jpg",
+			filename: "image3.jpg",
+			result:   "image/jpeg",
+		},
+		{
+			label:    "jpeg",
+			filename: "image4.jpeg",
+			result:   "image/jpeg",
+		},
+		{
+			label:    "pdf",
+			filename: "file.pdf",
+			result:   "application/pdf",
+		},
+		{
+			label:    "javascript",
+			filename: "file.js",
+			result:   "application/javascript",
+		},
+		{
+			label:    "txt",
+			filename: "file.txt",
+			result:   "text/plain; charset=utf-8",
+		},
+		{
+			label:    "xml",
+			filename: "file.xml",
+			result:   "application/xml",
+		},
+		{
+			label:    "css",
+			filename: "file.css",
+			result:   "text/css; charset=utf-8",
+		},
+		{
+			label:    "html",
+			filename: "file.html",
+			result:   "text/html; charset=utf-8",
+		},
+	}
 
-	v, _ = detectFileContentType("image2.png", nil)
-	assert.Equal(t, "image/png", v)
+	for _, tc := range testcases {
+		t.Run(tc.label, func(t *testing.T) {
+			v, _ := detectFileContentType(tc.filename, nil)
+			assert.Equal(t, tc.result, v)
+		})
+	}
 
-	v, _ = detectFileContentType("image3.jpg", nil)
-	assert.Equal(t, "image/jpeg", v)
-
-	v, _ = detectFileContentType("image4.jpeg", nil)
-	assert.Equal(t, "image/jpeg", v)
-
-	v, _ = detectFileContentType("file.pdf", nil)
-	assert.Equal(t, "application/pdf", v)
-
-	v, _ = detectFileContentType("file.js", nil)
-	assert.Equal(t, "application/javascript", v)
-
-	v, _ = detectFileContentType("file.txt", nil)
-	assert.Equal(t, "text/plain; charset=utf-8", v)
-
-	v, _ = detectFileContentType("file.html", nil)
-	assert.Equal(t, "text/html; charset=utf-8", v)
-
-	v, _ = detectFileContentType("file.xml", nil)
-	assert.Equal(t, "application/xml", v)
-
-	v, _ = detectFileContentType("file.json", nil)
-	assert.Equal(t, "application/json", v)
-
-	v, _ = detectFileContentType("file.css", nil)
-	assert.Equal(t, "text/css; charset=utf-8", v)
-
-	content, _ := ioutil.ReadFile(filepath.Join(getTestdataPath(), "test-image.noext"))
-	v, _ = detectFileContentType("test-image.noext", bytes.NewReader(content))
+	content, _ := ioutil.ReadFile(filepath.Join(testdataBaseDir(), "test-image.noext"))
+	v, _ := detectFileContentType("test-image.noext", bytes.NewReader(content))
 	assert.Equal(t, "image/png", v)
 }
 
-func testStaticServe(t *testing.T, e *engine, reqURL, dir, filePath, file, result string, listDir bool) {
-	r := httptest.NewRequest("GET", reqURL, nil)
-	w := httptest.NewRecorder()
-	ctx := e.prepareContext(w, r)
-	ctx.route = &router.Route{IsStatic: true, Dir: dir, ListDir: listDir, File: file}
-	ctx.Req.Params.Path = map[string]string{
-		"filepath": filePath,
-	}
-	appBaseDir = getTestdataPath()
-	err := e.serveStatic(ctx)
-	appBaseDir = ""
-	assert.Nil(t, err)
-	if !strings.Contains(w.Body.String(), result) {
-		t.Log(w.Body.String(), result)
+func TestStaticCacheHeader(t *testing.T) {
+	sm := staticManager{
+		mimeCacheHdrMap: map[string]string{
+			"text/css":               "public, max-age=604800, proxy-revalidate",
+			"application/javascript": "public, max-age=604800, proxy-revalidate",
+			"image/png":              "public, max-age=604800, proxy-revalidate",
+		},
+		defaultCacheHdr: "public, max-age=31536000",
 	}
 
-	assert.True(t, strings.Contains(w.Body.String(), result))
+	str := sm.cacheHeader("application/json")
+	assert.Equal(t, "public, max-age=31536000", str)
+
+	str = sm.cacheHeader("image/png")
+	assert.Equal(t, "public, max-age=604800, proxy-revalidate", str)
+
+	str = sm.cacheHeader("application/json; charset=utf-8")
+	assert.Equal(t, "public, max-age=31536000", str)
+
+	str = sm.cacheHeader("text/css")
+	assert.Equal(t, "public, max-age=604800, proxy-revalidate", str)
+}
+
+func TestStaticWriteFileError(t *testing.T) {
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts := newTestServer(t, importPath)
+	defer ts.Close()
+
+	t.Logf("Test Server URL [Static Write File Error]: %s", ts.URL)
+
+	sm := ts.app.staticMgr
+	req := httptest.NewRequest(ahttp.MethodGet, "http://localhost:8080/assets/js/myfile.js", nil)
+
+	w1 := httptest.NewRecorder()
+	sm.writeError(ahttp.AcquireResponseWriter(w1), ahttp.AcquireRequest(req), os.ErrPermission)
+	assert.Equal(t, "403 Forbidden", responseBody(w1.Result()))
+
+	w2 := httptest.NewRecorder()
+	sm.writeError(ahttp.AcquireResponseWriter(w2), ahttp.AcquireRequest(req), nil)
+	assert.Equal(t, "500 Internal Server Error", responseBody(w2.Result()))
 }

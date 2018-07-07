@@ -1,116 +1,87 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
 
 import (
-	"crypto/tls"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"aahframework.org/config.v0"
 	"aahframework.org/essentials.v0"
 	"aahframework.org/test.v0/assert"
 )
 
-func TestServerStart1(t *testing.T) {
-	defer ess.DeleteFiles("testapp.pid")
-	// App Config
-	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
-	err := initConfig(cfgDir)
-	assert.Nil(t, err)
-	assert.NotNil(t, AppConfig())
+func TestServerStartHTTP(t *testing.T) {
+	defer ess.DeleteFiles("webapp1.pid")
 
-	AppConfig().SetString("env.dev.name", "testapp")
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts := newTestServer(t, importPath)
+	defer ts.Close()
 
-	err = initAppVariables()
-	assert.Nil(t, err)
-	appInitialized = true
-	Start()
+	t.Logf("Test Server URL [Server Start HTTP]: %s", ts.URL)
 
-	if aahServer != nil {
-		Shutdown()
-	}
-}
+	go ts.app.Start()
+	defer ts.app.Shutdown()
 
-func TestServerStart2(t *testing.T) {
-	defer ess.DeleteFiles("testapp.pid")
-
-	// App Config
-	cfgDir := filepath.Join(getTestdataPath(), appConfigDir())
-	err := initConfig(cfgDir)
-	assert.Nil(t, err)
-	assert.NotNil(t, AppConfig())
-
-	AppConfig().SetString("env.dev.name", "testapp")
-
-	err = initAppVariables()
-	assert.Nil(t, err)
-	appInitialized = true
-
-	// Router
-	err = initRoutes(cfgDir, AppConfig())
-	assert.Nil(t, err)
-	assert.NotNil(t, AppRouter())
-
-	// Security
-	err = initSecurity(AppConfig())
-	assert.Nil(t, err)
-
-	// i18n
-	i18nDir := filepath.Join(getTestdataPath(), appI18nDir())
-	err = initI18n(i18nDir)
-	assert.Nil(t, err)
-	assert.NotNil(t, AppI18n())
-
-	buildTime := time.Now().Format(time.RFC3339)
-	SetAppBuildInfo(&BuildInfo{
-		BinaryName: "testapp",
-		Date:       buildTime,
-		Version:    "1.0.0",
-	})
-	AppConfig().SetString("server.port", "80")
-	Start()
-
-	if aahServer != nil {
-		Shutdown()
-	}
-}
-
-func TestServerHTTPRedirect(t *testing.T) {
-	cfg, _ := config.ParseString("")
-
-	// redirect not enabled
-	startHTTPRedirect(cfg)
-
-	// redirect enabled but port not provided
-	cfg.SetBool("server.ssl.redirect_http.enable", true)
-	cfg.SetString("server.port", "8443")
-	startHTTPRedirect(cfg)
-
-	// redirect enabled with port
-	cfg.SetString("server.ssl.redirect_http.port", "8080")
-	go startHTTPRedirect(cfg)
-
-	// send request to redirect server
-	resp, err := http.Get("http://localhost:8080/contact-us.html?utm_source=footer")
-	assert.Nil(t, resp)
-	assert.True(t, strings.Contains(err.Error(), "localhost:8443"))
-}
-
-func TestServerTLSSettings(t *testing.T) {
-	tlsCfg := &tls.Config{}
-	AddServerTLSConfig(tlsCfg)
-	SetTLSConfig(tlsCfg)
+	time.Sleep(10 * time.Millisecond)
 }
 
 func TestServerStartUnix(t *testing.T) {
-	server := &http.Server{}
-	go startUnix(server, "unix:/tmp/testserver")
-	time.Sleep(5 * time.Millisecond)
-	_ = server.Close()
+	defer ess.DeleteFiles("webapp1.pid")
+
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts := newTestServer(t, importPath)
+	defer ts.Close()
+
+	t.Logf("Test Server URL [Server Start Unix]: %s", ts.URL)
+
+	ts.app.Config().SetString("server.address", "unix:/tmp/testserver")
+	go ts.app.Start()
+	defer ts.app.Shutdown()
+
+	time.Sleep(10 * time.Millisecond)
+}
+
+func TestServerHTTPRedirect(t *testing.T) {
+	defer ess.DeleteFiles("webapp1.pid")
+
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts1 := newTestServer(t, importPath)
+	defer ts1.Close()
+
+	t.Logf("Test Server URL [Redirect Server]: %s", ts1.URL)
+
+	// redirect not enabled
+	t.Log("redirect not enabled")
+	ts1.app.startHTTPRedirect()
+
+	// redirect enabled but port not provided
+	t.Log("redirect enabled but port not provided")
+	ts1.app.Config().SetBool("server.ssl.redirect_http.enable", true)
+	ts1.app.Config().SetString("server.port", "8443")
+	go ts1.app.startHTTPRedirect()
+	defer ts1.app.shutdownRedirectServer()
+
+	// redirect enabled with port
+	ts2 := newTestServer(t, importPath)
+	defer ts2.Close()
+
+	t.Logf("Test Server URL [Redirect Server]: %s", ts2.URL)
+
+	t.Log("redirect enabled with port")
+	ts2.app.Config().SetString("server.ssl.redirect_http.port", "8080")
+	go ts2.app.startHTTPRedirect()
+	defer ts2.app.shutdownRedirectServer()
+
+	// send request to redirect server
+	t.Log("send request to redirect server")
+	resp, err := http.Get("http://localhost:8080/contact-us.html?utm_source=footer")
+	assert.Nil(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, 307, resp.StatusCode)
+	assert.True(t, strings.Contains(responseBody(resp), "Temporary Redirect"))
 }

@@ -1,0 +1,27 @@
+#############################################
+# i18n messages for webapp1 application
+#
+# Complete configuration reference:
+#   https://docs.aahframework.org/i18n.html
+#############################################
+
+# This structure is example purpose
+# So choose your suitable structure for your application
+label {
+  pages {
+    app {
+      index {
+        title = "aah framework application - Home"
+      }
+    }
+  }
+}
+
+
+test {
+  text {
+    msg {
+      render = "This is text render response"
+    }
+  }
+}
