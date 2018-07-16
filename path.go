@@ -7,7 +7,7 @@
 // https://raw.githubusercontent.com/julienschmidt/httprouter/master/LICENSE &
 // https://raw.githubusercontent.com/golang/go/master/LICENSE
 //
-// From upstream updated as of last commit date Jun 08, 2014 git#9866532.
+// From upstream updated as of last commit date Jul 15, 2018 git#348b672cd90d8190f8240323e372ecd1e66b59dc.
 
 package router
 
@@ -49,7 +49,7 @@ func CleanPath(p string) string {
 		buf[0] = slashByte
 	}
 
-	trailing := n > 2 && p[n-1] == slashByte
+	trailing := n > 1 && p[n-1] == slashByte
 
 	// A bit more clunky without a 'lazybuf' like the path package, but the loop
 	// gets completely inlined (bufApp). So in contrast to the path package this
@@ -67,11 +67,11 @@ func CleanPath(p string) string {
 
 		case p[r] == dotByte && p[r+1] == slashByte:
 			// . element
-			r++
+			r += 2
 
 		case p[r] == dotByte && p[r+1] == dotByte && (r+2 == n || p[r+2] == slashByte):
 			// .. element: remove to last /
-			r += 2
+			r += 3
 
 			if w > 1 {
 				// can backtrack

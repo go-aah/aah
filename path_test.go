@@ -23,6 +23,7 @@ var cleanTests = []struct {
 }{
 	// Already clean
 	{"/", "/"},
+	{"a/", "/a/"},
 	{"/abc", "/abc"},
 	{"/a/b/c", "/a/b/c"},
 	{"/abc/", "/abc/"},
