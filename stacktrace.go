@@ -22,7 +22,7 @@ import (
 const (
 	createdByPrefix = "created by "
 	panicPrefix     = "panic("
-	basePathPrefix  = "#base-path#"
+	basePathPrefix  = "..."
 )
 
 type (
