@@ -40,7 +40,7 @@ type ConsoleReceiver struct {
 	flags        []ess.FmtFlagPart
 	isCallerInfo bool
 	isColor      bool
-	mu           *sync.Mutex
+	mu           sync.Mutex
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -61,7 +61,7 @@ func (c *ConsoleReceiver) Init(cfg *config.Config) error {
 		return fmt.Errorf("log: unsupported format '%s'", c.formatter)
 	}
 
-	c.mu = &sync.Mutex{}
+	c.mu = sync.Mutex{}
 
 	return nil
 }

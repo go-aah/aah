@@ -34,7 +34,7 @@ type FileReceiver struct {
 	flags        []ess.FmtFlagPart
 	isCallerInfo bool
 	stats        *receiverStats
-	mu           *sync.Mutex
+	mu           sync.Mutex
 	isClosed     bool
 	rotatePolicy string
 	openDay      int
@@ -85,7 +85,7 @@ func (f *FileReceiver) Init(cfg *config.Config) error {
 		f.maxSize = maxSize
 	}
 
-	f.mu = &sync.Mutex{}
+	f.mu = sync.Mutex{}
 
 	return nil
 }

@@ -26,18 +26,17 @@ type Fields map[string]interface{}
 // Entry represents a log entry and contains the timestamp when the entry
 // was created, level, etc.
 type Entry struct {
+	Level        level     `json:"-"`
+	Line         int       `json:"line,omitempty"`
 	AppName      string    `json:"app_name,omitempty"`
 	InstanceName string    `json:"instance_name,omitempty"`
 	RequestID    string    `json:"request_id,omitempty"`
 	Principal    string    `json:"principal,omitempty"`
-	Level        level     `json:"-"`
-	Time         time.Time `json:"-"`
 	Message      string    `json:"message,omitempty"`
 	File         string    `json:"file,omitempty"`
-	Line         int       `json:"line,omitempty"`
 	Fields       Fields    `json:"fields,omitempty"`
-
-	logger *Logger
+	Time         time.Time `json:"-"`
+	logger       *Logger
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -47,7 +46,7 @@ type Entry struct {
 // MarshalJSON method for formating entry to JSON.
 func (e *Entry) MarshalJSON() ([]byte, error) {
 	type alias Entry
-	ne := &struct {
+	ne := struct {
 		Level string `json:"level,omitempty"`
 		Time  string `json:"timestamp,omitempty"`
 		*alias
