@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/ahttp source code and usage is governed by a MIT style
+// aahframework.org/ahttp source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package ahttp
@@ -87,10 +87,8 @@ func (r *Response) BytesWritten() int {
 }
 
 // Close method closes the writer if possible.
+// TODO for removal
 func (r *Response) Close() error {
-	if w, ok := r.w.(io.Closer); ok {
-		return w.Close()
-	}
 	return nil
 }
 
@@ -148,7 +146,6 @@ func (r *Response) Reset() {
 
 // releaseResponse method puts response back to pool.
 func releaseResponse(r *Response) {
-	_ = r.Close()
 	r.Reset()
 	responsePool.Put(r)
 }
