@@ -161,7 +161,7 @@ func doFormAuth(authScheme scheme.Schemer, ctx *Context) flowResult {
 	ctx.e.publishOnPostAuthEvent(ctx)
 
 	rt := ctx.Req.FormValue("_rt") // redirect to requested URL
-	if formAuth.IsAlwaysToDefaultTarget || ess.IsStrEmpty(rt) {
+	if formAuth.IsAlwaysToDefaultTarget || len(rt) == 0 {
 		ctx.Reply().Redirect(formAuth.DefaultTargetURL)
 	} else {
 		ctx.Log().Debugf("Redirecting to URL found in param '_rt': %s", rt)
@@ -375,7 +375,7 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 			return
 		}
 
-		if ess.IsStrEmpty(referer.String()) {
+		if len(referer.String()) == 0 {
 			ctx.Log().Warnf("anticsrf: No referer %s", ctx.Req.Referer)
 			ctx.Reply().Forbidden().Error(newError(anticsrf.ErrNoReferer, http.StatusForbidden))
 			return

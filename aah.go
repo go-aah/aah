@@ -54,7 +54,6 @@ type BuildInfo struct {
 func newApp() *app {
 	aahApp := &app{
 		vfs: new(vfs.VFS),
-		mu:  new(sync.Mutex),
 	}
 
 	aahApp.he = &HTTPEngine{
@@ -70,7 +69,7 @@ func newApp() *app {
 	aahApp.eventStore = &EventStore{
 		a:           aahApp,
 		subscribers: make(map[string]EventCallbacks),
-		mu:          new(sync.Mutex),
+		mu:          sync.RWMutex{},
 	}
 
 	return aahApp
@@ -90,6 +89,7 @@ type app struct {
 	initialized            bool
 	hotReload              bool
 	authSchemeExists       bool
+	redirect               bool
 	pid                    int
 	httpMaxHdrBytes        int
 	importPath             string
@@ -128,8 +128,6 @@ type app struct {
 	logger    log.Loggerer
 	accessLog *accessLogger
 	dumpLog   *dumpLogger
-
-	mu *sync.Mutex
 }
 
 func (a *app) Init(importPath string) error {
@@ -283,8 +281,6 @@ func (a *app) Profile() string {
 }
 
 func (a *app) SetProfile(profile string) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
 	if err := a.Config().SetProfile(profilePrefix + profile); err != nil {
 		return err
 	}
@@ -335,8 +331,6 @@ func (a *app) NewChildLogger(fields log.Fields) log.Loggerer {
 }
 
 func (a *app) SetTLSConfig(tlsCfg *tls.Config) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
 	a.tlsCfg = tlsCfg
 }
 
@@ -433,6 +427,8 @@ func (a *app) initConfigValues() (err error) {
 	if err = a.SetProfile(a.Profile()); err != nil {
 		return err
 	}
+
+	a.redirect = cfg.BoolDefault("server.redirect.enable", false)
 
 	readTimeout := cfg.StringDefault("server.timeout.read", "90s")
 	writeTimeout := cfg.StringDefault("server.timeout.write", "90s")
@@ -589,7 +585,8 @@ func (a *app) aahRecover() {
 // ServeHTTP method implementation of http.Handler interface.
 func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer a.aahRecover()
-	if a.he.doRedirect(w, r) {
+	if a.redirect {
+		a.he.doRedirect(w, r)
 		return
 	}
 

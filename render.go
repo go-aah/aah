@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// aahframework.org/aah source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -83,13 +83,7 @@ type jsonRender struct {
 
 // Render method writes JSON into HTTP response.
 func (j jsonRender) Render(w io.Writer) error {
-	jsonBytes, err := JSONMarshal(j.Data)
-	if err != nil {
-		return err
-	}
-
-	_, err = w.Write(jsonBytes)
-	return err
+	return json.NewEncoder(w).Encode(j.Data)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -104,12 +98,12 @@ type jsonpRender struct {
 
 // Render method writes JSONP into HTTP response.
 func (j jsonpRender) Render(w io.Writer) error {
-	jsonBytes, err := JSONMarshal(j.Data)
+	jsonBytes, err := json.Marshal(j.Data)
 	if err != nil {
 		return err
 	}
 
-	if ess.IsStrEmpty(j.Callback) {
+	if len(j.Callback) == 0 {
 		_, err = w.Write(jsonBytes)
 	} else {
 		_, err = fmt.Fprintf(w, "%s(%s);", j.Callback, jsonBytes)
@@ -128,17 +122,10 @@ type secureJSONRender struct {
 }
 
 func (s secureJSONRender) Render(w io.Writer) error {
-	jsonBytes, err := JSONMarshal(s.Data)
-	if err != nil {
+	if _, err := w.Write([]byte(s.Prefix)); err != nil {
 		return err
 	}
-
-	if _, err = w.Write([]byte(s.Prefix)); err != nil {
-		return err
-	}
-
-	_, err = w.Write(jsonBytes)
-	return err
+	return json.NewEncoder(w).Encode(s.Data)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -152,17 +139,10 @@ type xmlRender struct {
 
 // Render method writes XML into HTTP response.
 func (x xmlRender) Render(w io.Writer) error {
-	xmlBytes, err := xml.Marshal(x.Data)
-	if err != nil {
+	if _, err := w.Write(xmlHeaderBytes); err != nil {
 		return err
 	}
-
-	if _, err = w.Write(xmlHeaderBytes); err != nil {
-		return err
-	}
-
-	_, err = w.Write(xmlBytes)
-	return err
+	return xml.NewEncoder(w).Encode(x.Data)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

@@ -229,7 +229,7 @@ func reason2String(reasons []*authz.Reason) string {
 
 // addQueryString method adds the given query string key value pair appropriately
 func addQueryString(u, k, v string) string {
-	if ess.IsStrEmpty(u) {
+	if len(u) == 0 {
 		return "?" + k + "=" + v
 	}
 	if idx := strings.IndexByte(u, '?'); idx == -1 {

@@ -228,7 +228,7 @@ func (al *accessLog) GetResponseHdr(hdrKey string) string {
 
 func (al *accessLog) GetQueryString() string {
 	queryStr := al.Request.URL().Query().Encode()
-	if ess.IsStrEmpty(queryStr) {
+	if len(queryStr) == 0 {
 		return "-"
 	}
 	return `"` + queryStr + `"`
