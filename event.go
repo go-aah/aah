@@ -177,7 +177,7 @@ func (a *app) EventStore() *EventStore {
 // EventStore type holds all the events belongs to aah application.
 type EventStore struct {
 	a           *app
-	mu          *sync.Mutex
+	mu          sync.RWMutex
 	subscribers map[string]EventCallbacks
 }
 

@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/essentials.v0"
 	"aahframework.org/security.v0"
 	"aahframework.org/view.v0"
 )
@@ -151,7 +150,7 @@ func (vm *viewManager) resolve(ctx *Context) {
 		return
 	}
 
-	if ess.IsStrEmpty(htmlRdr.Layout) && vm.defaultLayoutEnabled {
+	if len(htmlRdr.Layout) == 0 && vm.defaultLayoutEnabled {
 		htmlRdr.Layout = vm.defaultTmplLayout
 	}
 
@@ -172,7 +171,7 @@ func (vm *viewManager) resolve(ctx *Context) {
 	var tmplPath, tmplName string
 
 	// If user not provided the template info, auto resolve by convention
-	if ess.IsStrEmpty(htmlRdr.Filename) {
+	if len(htmlRdr.Filename) == 0 {
 		tmplName = ctx.action.Name + vm.fileExt
 		tmplPath = filepath.Join(ctx.controller.Namespace, ctx.controller.NoSuffixName)
 	} else {

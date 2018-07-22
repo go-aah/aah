@@ -50,7 +50,7 @@ func TestRenderJSON(t *testing.T) {
 	err := json1.Render(buf)
 	assert.FailOnError(t, err, "")
 	assert.Equal(t, `{"Name":"John","Age":28,"Address":"this is my street"}`,
-		buf.String())
+		strings.TrimSpace(buf.String()))
 }
 
 func TestRenderFailureXML(t *testing.T) {

@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/essentials.v0"
 )
 
 var (
@@ -144,7 +143,7 @@ func (r *Reply) ServiceUnavailable() *Reply {
 // By default aah framework try to determine response 'Content-Type' from
 // 'ahttp.Request.AcceptContentType()'.
 func (r *Reply) ContentType(contentType string) *Reply {
-	if ess.IsStrEmpty(r.ContType) {
+	if len(r.ContType) == 0 {
 		r.ContType = strings.ToLower(contentType)
 	}
 	return r
@@ -320,7 +319,7 @@ func (r *Reply) Render(rdr Render) *Reply {
 //
 // Note: It overwrites existing header value if it's present.
 func (r *Reply) Header(key, value string) *Reply {
-	if ess.IsStrEmpty(value) {
+	if len(value) == 0 {
 		if key == ahttp.HeaderContentType {
 			return r.ContentType("")
 		}
@@ -380,7 +379,7 @@ func (r *Reply) DisableGzip() *Reply {
 // IsContentTypeSet method returns true if Content-Type is set otherwise
 // false.
 func (r *Reply) IsContentTypeSet() bool {
-	return !ess.IsStrEmpty(r.ContType)
+	return len(r.ContType) > 0
 }
 
 // Body method returns the response body buffer.

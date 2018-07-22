@@ -14,7 +14,6 @@ import (
 	"aahframework.org/ahttp.v0"
 	"aahframework.org/ainsp.v0"
 	"aahframework.org/aruntime.v0"
-	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/authc"
@@ -73,13 +72,13 @@ func (e *HTTPEngine) Handle(w http.ResponseWriter, r *http.Request) {
 	ctx := e.ctxPool.Get().(*Context)
 	defer e.releaseContext(ctx)
 
-	ctx.Req, ctx.Res = ahttp.AcquireRequest(r), ahttp.AcquireResponseWriter(w)
-	ctx.Set(reqStartTimeKey, time.Now())
-
 	// Record access log
 	if e.a.accessLogEnabled {
+		ctx.Set(reqStartTimeKey, time.Now())
 		defer e.a.accessLog.Log(ctx)
 	}
+
+	ctx.Req, ctx.Res = ahttp.AcquireRequest(r), ahttp.AcquireResponseWriter(w)
 
 	// Recovery handling
 	defer e.handleRecovery(ctx)
@@ -319,7 +318,7 @@ func (e *HTTPEngine) writeReply(ctx *Context) {
 	}
 
 	// Check ContentType and detect it if need be
-	if ess.IsStrEmpty(re.ContType) {
+	if len(re.ContType) == 0 {
 		re.ContentType(ctx.detectContentType().String())
 	}
 	ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
@@ -433,12 +432,8 @@ const (
 	nonwww = "non-www"
 )
 
-func (e *HTTPEngine) doRedirect(w http.ResponseWriter, r *http.Request) bool {
+func (e *HTTPEngine) doRedirect(w http.ResponseWriter, r *http.Request) {
 	cfg := e.a.Config()
-	if !cfg.BoolDefault("server.redirect.enable", false) {
-		return false
-	}
-
 	redirectTo := cfg.StringDefault("server.redirect.to", nonwww)
 	redirectCode := cfg.IntDefault("server.redirect.code", http.StatusMovedPermanently)
 	host := ahttp.Host(r)
@@ -447,14 +442,10 @@ func (e *HTTPEngine) doRedirect(w http.ResponseWriter, r *http.Request) bool {
 	case www:
 		if host[:3] != www {
 			http.Redirect(w, r, ahttp.Scheme(r)+"://www."+host+r.URL.RequestURI(), redirectCode)
-			return true
 		}
 	case nonwww:
 		if host[:3] == www {
 			http.Redirect(w, r, ahttp.Scheme(r)+"://"+host[4:]+r.URL.RequestURI(), redirectCode)
-			return true
 		}
 	}
-
-	return false
 }

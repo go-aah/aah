@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/essentials.v0"
 	"aahframework.org/log.v0"
 	"aahframework.org/router.v0"
 	"aahframework.org/valpar.v0"
@@ -118,7 +117,7 @@ func handleCORSPreflight(ctx *Context) {
 		ctx.Reply().Header(ahttp.HeaderAccessControlAllowCredentials, "true")
 	}
 
-	if !ess.IsStrEmpty(cors.MaxAge) {
+	if len(cors.MaxAge) > 0 {
 		ctx.Reply().Header(ahttp.HeaderAccessControlMaxAge, cors.MaxAge)
 	}
 
@@ -198,17 +197,19 @@ func handleRoute(ctx *Context) flowResult {
 	}
 
 	// Apply route constraints
-	if errs := valpar.ValidateValues(ctx.Req.PathParams, ctx.route.Constraints); len(errs) > 0 {
-		ctx.Log().Errorf("Route constraints failed: %s", errs)
-		ctx.Reply().BadRequest().Error(newErrorWithData(router.ErrRouteConstraintFailed, http.StatusBadRequest, errs))
-		return flowAbort
+	if len(ctx.route.Constraints) > 0 {
+		if errs := valpar.ValidateValues(ctx.Req.PathParams, ctx.route.Constraints); len(errs) > 0 {
+			ctx.Log().Errorf("Route constraints failed: %s", errs)
+			ctx.Reply().BadRequest().Error(newErrorWithData(router.ErrRouteConstraintFailed, http.StatusBadRequest, errs))
+			return flowAbort
+		}
 	}
 
 	return flowCont
 }
 
 func appendAnchorLink(routePath, anchorLink string) string {
-	if ess.IsStrEmpty(anchorLink) {
+	if len(anchorLink) == 0 {
 		return routePath
 	}
 	return routePath + "#" + anchorLink
@@ -225,7 +226,7 @@ func getRouteNameAndAnchorLink(routeName string) (string, string) {
 }
 
 func composeRouteURL(domain *router.Domain, routePath, anchorLink string) string {
-	if ess.IsStrEmpty(domain.Port) {
+	if len(domain.Port) == 0 {
 		routePath = fmt.Sprintf("//%s%s", domain.Host, routePath)
 	} else {
 		routePath = fmt.Sprintf("//%s:%s%s", domain.Host, domain.Port, routePath)
@@ -327,7 +328,7 @@ func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
 }
 
 func processAllowedMethods(reply *Reply, allowed, prefix string) bool {
-	if !ess.IsStrEmpty(allowed) {
+	if len(allowed) > 0 {
 		allowed += ", " + ahttp.MethodOptions
 		reply.Header(ahttp.HeaderAllow, allowed)
 		reply.ctx.Log().Debugf("%sAllowed HTTP Methods: %s", prefix, allowed)

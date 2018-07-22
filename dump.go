@@ -77,7 +77,7 @@ func (d *dumpLogger) Dump(ctx *Context) {
 
 	// Request
 	uri := fmt.Sprintf("%s://%s%s", ctx.Req.Scheme, ctx.Req.Host, ctx.Req.Path)
-	if qs := ctx.Req.URL().RawQuery; !ess.IsStrEmpty(qs) {
+	if qs := ctx.Req.URL().RawQuery; len(qs) > 0 {
 		uri += "?" + qs
 	}
 

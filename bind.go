@@ -100,7 +100,7 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 		// Note: Query parameter takes precedence of all.
 		if locale := firstNonZeroString(
 			ctx.Req.QueryValue(ctx.a.bindMgr.keyQueryParamName),
-			ctx.Req.PathValue(ctx.a.bindMgr.keyPathParamName)); !ess.IsStrEmpty(locale) {
+			ctx.Req.PathValue(ctx.a.bindMgr.keyPathParamName)); len(locale) > 0 {
 			ctx.Req.SetLocale(ahttp.NewLocale(locale))
 		}
 	}

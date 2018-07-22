@@ -11,7 +11,6 @@ import (
 	"net/http"
 
 	"aahframework.org/ahttp.v0"
-	"aahframework.org/essentials.v0"
 )
 
 // aah errors
@@ -161,7 +160,7 @@ func (er *errorManager) Handle(ctx *Context) {
 // in the aah. It writes the response based on HTTP Content-Type.
 func (er *errorManager) DefaultHandler(ctx *Context, err *Error) bool {
 	ct := ctx.Reply().ContType
-	if ess.IsStrEmpty(ct) {
+	if len(ct) == 0 {
 		ct = ctx.detectContentType().Mime
 		if ctx.a.viewMgr == nil && ct == ahttp.ContentTypeHTML.Mime {
 			ct = ahttp.ContentTypePlainText.Mime
