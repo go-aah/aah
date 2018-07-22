@@ -5,4 +5,4 @@
 package ahttp
 
 // Version no. of aah framework ahttp library
-const Version = "0.11.0"
+const Version = "0.11.1"
