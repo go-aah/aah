@@ -246,9 +246,9 @@ func (a *app) findRouteURLDomain(host, routeName string) (*router.Domain, string
 		}
 
 		// Returning requested subdomain
-		for k, v := range a.Router().Domains {
-			if strings.HasPrefix(k, subDomain) && v.IsSubDomain {
-				return v, routeName[idx+1:]
+		for _, d := range a.Router().Domains {
+			if strings.HasPrefix(d.Key, subDomain) && d.IsSubDomain {
+				return d, routeName[idx+1:]
 			}
 		}
 	}
