@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"path"
 	"strings"
-
-	"aahframework.org/essentials.v0"
 )
 
 const (
@@ -18,7 +16,7 @@ const (
 )
 
 func suffixCommaValue(s, v string) string {
-	if ess.IsStrEmpty(s) {
+	if len(s) == 0 {
 		return v
 	}
 	return s + ", " + v

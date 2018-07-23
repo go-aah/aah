@@ -30,6 +30,7 @@ type Domain struct {
 	AutoOptions           bool
 	AntiCSRFEnabled       bool
 	CORSEnabled           bool
+	Key                   string
 	Name                  string
 	Host                  string
 	Port                  string
@@ -45,14 +46,21 @@ type Domain struct {
 func (d *Domain) Lookup(req *http.Request) (*Route, ahttp.PathParams, bool) {
 	// HTTP method override support
 	overrideMethod := req.Header.Get(ahttp.HeaderXHTTPMethodOverride)
-	if !ess.IsStrEmpty(overrideMethod) && req.Method == ahttp.MethodPost {
+	if len(overrideMethod) > 0 && req.Method == ahttp.MethodPost {
 		req.Method = overrideMethod
 	}
 
 	// get route tree for request method
-	tree, found := d.lookupRouteTree(req)
+	tree, found := d.trees[req.Method]
 	if !found {
-		return nil, nil, false
+		// get route tree for CORS access control method
+		if req.Method == ahttp.MethodOptions && d.CORSEnabled {
+			tree, found = d.trees[req.Header.Get(ahttp.HeaderAccessControlRequestMethod)]
+		}
+
+		if !found {
+			return nil, nil, false
+		}
 	}
 
 	route, pathParams, rts, err := tree.find(req.URL.Path)
@@ -147,7 +155,7 @@ func (d *Domain) RouteURLNamedArgs(routeName string, args map[string]interface{}
 	// compose URL with values
 	reverseURL := "/"
 	for _, segment := range strings.Split(route.Path, "/")[1:] {
-		if ess.IsStrEmpty(segment) {
+		if len(segment) == 0 {
 			continue
 		}
 
@@ -219,7 +227,7 @@ func (d *Domain) RouteURL(routeName string, args ...interface{}) string {
 	reverseURL := "/"
 	idx := 0
 	for _, segment := range strings.Split(route.Path, "/") {
-		if ess.IsStrEmpty(segment) {
+		if len(segment) == 0 {
 			continue
 		}
 
@@ -239,27 +247,12 @@ func (d *Domain) RouteURL(routeName string, args ...interface{}) string {
 // Domain unexpoted methods
 //___________________________________
 
-func (d *Domain) key() string {
-	if d.Port == "" {
-		return strings.ToLower(d.Host)
+func (d *Domain) inferKey() {
+	if len(d.Port) == 0 {
+		d.Key = strings.ToLower(d.Host)
+	} else {
+		d.Key = strings.ToLower(d.Host + ":" + d.Port)
 	}
-	return strings.ToLower(d.Host + ":" + d.Port)
-}
-
-func (d *Domain) lookupRouteTree(req *http.Request) (*node, bool) {
-	// get route tree for request method
-	if tree, found := d.trees[req.Method]; found {
-		return tree, true
-	}
-
-	// get route tree for CORS access control method
-	if req.Method == ahttp.MethodOptions && d.CORSEnabled {
-		if tree, found := d.trees[req.Header.Get(ahttp.HeaderAccessControlRequestMethod)]; found {
-			return tree, true
-		}
-	}
-
-	return nil, false
 }
 
 func (d *Domain) isAuthConfigured(secMgr *security.Manager) ([]string, bool) {

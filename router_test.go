@@ -92,7 +92,8 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	assert.True(t, strings.HasPrefix(err.Error(), "wildcard route ':user' conflicts"))
 
 	domain.Port = ""
-	assert.Equal(t, "localhost", domain.key())
+	domain.inferKey()
+	assert.Equal(t, "localhost", domain.Key)
 }
 
 func TestRouterWildcardSubdomain(t *testing.T) {
@@ -406,7 +407,7 @@ func TestRouterNamespaceConfig(t *testing.T) {
 	router, err := createRouter("routes-namespace.conf")
 	assert.FailNowOnError(t, err, "")
 
-	routes := router.Domains["localhost:8080"].routes
+	routes := router.Lookup("localhost:8080").routes
 	assert.NotNil(t, routes)
 	assert.Equal(t, 5, len(routes))
 	assert.Equal(t, "/v1/users", routes["create_user"].Path)
@@ -426,7 +427,7 @@ func TestRouterNamespaceSimplifiedConfig(t *testing.T) {
 	router, err := createRouter("routes-simplified.conf")
 	assert.FailNowOnError(t, err, "")
 
-	routes := router.Domains["localhost:8080"].routes
+	routes := router.Lookup("localhost:8080").routes
 	assert.NotNil(t, routes)
 	assert.Equal(t, 4, len(routes))
 
@@ -447,7 +448,7 @@ func TestRouterNamespaceSimplified2Config(t *testing.T) {
 	router, err := createRouter("routes-simplified-2.conf")
 	assert.FailNowOnError(t, err, "")
 
-	routes := router.Domains["localhost:8080"].routes
+	routes := router.Lookup("localhost:8080").routes
 	assert.NotNil(t, routes)
 	assert.Equal(t, 8, len(routes))
 
@@ -474,7 +475,7 @@ func TestRouterStaticSectionBaseDirForFilePaths(t *testing.T) {
 	assert.FailNowOnError(t, err, "")
 
 	// Assertion
-	routes := router.Domains["localhost:8080"].routes
+	routes := router.Lookup("localhost:8080").routes
 	assert.NotNil(t, routes)
 	assert.Equal(t, 5, len(routes))
 
@@ -500,7 +501,7 @@ func TestRouterWebSocketConfig(t *testing.T) {
 	router, err := createRouter("routes-websocket.conf")
 	assert.FailNowOnError(t, err, "")
 
-	routes := router.Domains["localhost:8080"].routes
+	routes := router.Lookup("localhost:8080").routes
 	assert.NotNil(t, routes)
 	assert.Equal(t, 10, len(routes))
 

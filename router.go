@@ -107,15 +107,13 @@ func IsDefaultAction(action string) bool {
 // Router is used to register all application routes and finds the appropriate
 // route information for incoming request path.
 type Router struct {
-	Domains map[string]*Domain
+	Domains []*Domain
 
-	configPath   string
-	addresses    []string
-	rootDomain   *Domain
-	singleDomain *Domain
-	app          application
-	config       *config.Config
-	aCfg         *config.Config // kept for backward purpose, to be removed in subsequent release
+	configPath string
+	rootDomain *Domain
+	app        application
+	config     *config.Config
+	aCfg       *config.Config // kept for backward purpose, to be removed in subsequent release
 }
 
 // Load method loads a configuration from given file e.g. `routes.conf` and
@@ -151,15 +149,13 @@ func (r *Router) FindDomain(req *ahttp.Request) *Domain {
 
 // Lookup method returns domain for given host otherwise nil.
 func (r *Router) Lookup(host string) *Domain {
-	if r.singleDomain != nil {
-		// only one domain scenario
-		return r.singleDomain
+	if len(r.Domains) == 1 {
+		return r.Domains[0] // only one domain scenario
 	}
-	host = strings.ToLower(host)
 
 	// Extact match of host value
 	// for e.g.: sample.com:8080, www.sample.com:8080, admin.sample.com:8080
-	if domain, found := r.Domains[host]; found {
+	if domain := r.findDomain(host); domain != nil {
 		return domain
 	}
 
@@ -167,9 +163,7 @@ func (r *Router) Lookup(host string) *Domain {
 	// for e.g.: router.conf value is `*.sample.com:8080` it matches
 	// {subdomain}.sample.com
 	if idx := strings.IndexByte(host, '.'); idx > 0 {
-		if domain, found := r.Domains[wildcardSubdomainPrefix+host[idx+1:]]; found {
-			return domain
-		}
+		return r.findDomain(wildcardSubdomainPrefix + host[idx+1:])
 	}
 
 	return nil
@@ -185,7 +179,11 @@ func (r *Router) RootDomain() *Domain {
 // DomainAddresses method returns domain addresses (host:port) from
 // routes configuration.
 func (r *Router) DomainAddresses() []string {
-	return r.addresses
+	var addresses []string
+	for _, d := range r.Domains {
+		addresses = append(addresses, d.Key)
+	}
+	return addresses
 }
 
 // RegisteredActions method returns all the controller name and it's actions
@@ -222,6 +220,16 @@ func (r *Router) RegisteredWSActions() map[string]map[string]uint8 {
 // Router unexpoted methods
 //______________________________________________________________________________
 
+func (r *Router) findDomain(key string) *Domain {
+	key = strings.ToLower(key)
+	for _, d := range r.Domains {
+		if d.Key == key {
+			return d
+		}
+	}
+	return nil
+}
+
 func (r *Router) isExists(name string) bool {
 	if r.app == nil {
 		return vfs.IsExists(nil, name)
@@ -245,10 +253,10 @@ func (r *Router) processRoutesConfig() (err error) {
 	_ = r.config.SetProfile("domains")
 
 	// allocate for no. of domains
-	r.Domains = make(map[string]*Domain)
+	r.Domains = make([]*Domain, len(domains))
 	log.Debugf("Domain count: %d", len(domains))
 
-	for _, key := range domains {
+	for idx, key := range domains {
 		domainCfg, _ := r.config.GetSubConfig(key)
 
 		// domain host name
@@ -304,8 +312,8 @@ func (r *Router) processRoutesConfig() (err error) {
 		}
 
 		// add domain routes
-		key := domain.key()
-		log.Debugf("Domain: %s, routes found: %d", key, len(domain.routes))
+		domain.inferKey()
+		log.Debugf("Domain: %s, routes found: %d", domain.Key, len(domain.routes))
 		if log.IsLevelTrace() { // process only if log level is trace
 			// Static Files routes
 			log.Trace("Routes: Static")
@@ -324,15 +332,8 @@ func (r *Router) processRoutesConfig() (err error) {
 			}
 		}
 
-		r.Domains[key] = domain
-		r.addresses = append(r.addresses, key)
-
+		r.Domains[idx] = domain
 	} // End of domains
-
-	// Only one domain scenario
-	if len(r.Domains) == 1 {
-		r.singleDomain = r.Domains[r.addresses[0]]
-	}
 
 	// find out root domain
 	// Note: Assuming of one domain and multiple sub-domains configured

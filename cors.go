@@ -127,7 +127,7 @@ func (c *CORS) SetAllowCredentials(b bool) *CORS {
 
 // IsOriginAllowed method check given origin is allowed or not.
 func (c *CORS) IsOriginAllowed(origin string) bool {
-	if ess.IsStrEmpty(origin) {
+	if len(origin) == 0 {
 		return false
 	}
 

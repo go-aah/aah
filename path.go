@@ -11,8 +11,6 @@
 
 package router
 
-import "aahframework.org/essentials.v0"
-
 // CleanPath is the URL version of path.Clean, it returns a canonical URL path
 // for p, eliminating . and .. elements.
 //
@@ -28,7 +26,7 @@ import "aahframework.org/essentials.v0"
 // If the result of this process is an empty string, "/" is returned
 func CleanPath(p string) string {
 	// Turn empty string into "/"
-	if ess.IsStrEmpty(p) {
+	if len(p) == 0 {
 		return "/"
 	}
 

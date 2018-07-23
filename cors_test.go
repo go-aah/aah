@@ -19,14 +19,14 @@ func TestRouterCORS1(t *testing.T) {
 	router, err := createRouter("routes-cors-1.conf")
 	assert.FailNowOnError(t, err, "")
 
-	domain := router.Domains["localhost:8080"]
+	domain := router.Lookup("localhost:8080")
 	assert.True(t, domain.CORS.IsOriginAllowed("*"))
 	assert.True(t, domain.CORS.IsHeadersAllowed("Accept, Origin"))
 	assert.True(t, domain.CORS.IsMethodAllowed("HEAD"))
 	assert.False(t, domain.CORS.AllowCredentials)
 	assert.False(t, domain.CORS.IsOriginAllowed(""))
 
-	routes := router.Domains["localhost:8080"].routes
+	routes := router.Lookup("localhost:8080").routes
 	assert.NotNil(t, routes)
 	assert.Equal(t, 8, len(routes))
 
@@ -53,7 +53,7 @@ func TestRouterCORS2(t *testing.T) {
 	router, err := createRouter("routes-cors-2.conf")
 	assert.FailNowOnError(t, err, "")
 
-	domain := router.Domains["localhost:8080"]
+	domain := router.Lookup("localhost:8080")
 	assert.True(t, domain.CORS.IsOriginAllowed("https://www.basemydomain.com"))
 	assert.True(t, domain.CORS.IsHeadersAllowed("X-Base-Test2"))
 	assert.True(t, domain.CORS.IsMethodAllowed("DELETE"))
@@ -61,7 +61,7 @@ func TestRouterCORS2(t *testing.T) {
 	assert.True(t, domain.CORS.AllowCredentials)
 	assert.Equal(t, "172800", domain.CORS.MaxAge)
 
-	routes := router.Domains["localhost:8080"].routes
+	routes := router.Lookup("localhost:8080").routes
 	assert.NotNil(t, routes)
 	assert.Equal(t, 8, len(routes))
 

@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
 	"aahframework.org/security.v0"
 	"aahframework.org/security.v0/authz"
 )
@@ -42,12 +41,12 @@ type Route struct {
 
 // IsDir method returns true if serving directory otherwise false.
 func (r *Route) IsDir() bool {
-	return !ess.IsStrEmpty(r.Dir) && ess.IsStrEmpty(r.File)
+	return len(r.Dir) > 0 && len(r.File) == 0
 }
 
 // IsFile method returns true if serving single file otherwise false.
 func (r *Route) IsFile() bool {
-	return !ess.IsStrEmpty(r.File)
+	return len(r.File) > 0
 }
 
 // HasAccess method does authorization check based on configured values at route
