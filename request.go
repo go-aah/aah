@@ -320,10 +320,10 @@ func (p PathParams) Len() int {
 
 func getReferer(hdr http.Header) string {
 	referer := hdr.Get(HeaderReferer)
-	if referer == "" {
-		return hdr.Get("Referrer")
+	if len(referer) > 0 {
+		return referer
 	}
-	return referer
+	return hdr.Get("Referrer")
 }
 
 func saveFile(r io.Reader, destFile string) (int64, error) {

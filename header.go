@@ -147,12 +147,7 @@ func NegotiateContentType(req *http.Request) *ContentType {
 	}
 
 	exts, _ := mime.ExtensionsByType(spec.Value)
-
-	return &ContentType{
-		Mime:   spec.Value,
-		Exts:   exts,
-		Params: spec.Params,
-	}
+	return newContentType(spec.Value, exts, spec.Params)
 }
 
 // NegotiateLocale method negotiates the `Accept-Language` from the given HTTP
@@ -340,10 +335,5 @@ func parseMediaType(value string) *ContentType {
 	}
 
 	exts, _ := mime.ExtensionsByType(ctype)
-
-	return &ContentType{
-		Mime:   ctype,
-		Exts:   exts,
-		Params: params,
-	}
+	return newContentType(ctype, exts, params)
 }

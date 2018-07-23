@@ -51,6 +51,7 @@ var (
 // ContentType is represents request and response content type values
 type ContentType struct {
 	Mime   string
+	raw    string
 	Exts   []string
 	Params map[string]string
 }
@@ -115,14 +116,18 @@ func (c *ContentType) GetParam(key string) string {
 // Raw method returns complete Content-Type composed.
 //    E.g.: application/json; charset=utf-8; version=2
 func (c *ContentType) Raw() string {
-	raw := c.Mime
-	for k, v := range c.Params {
-		raw += fmt.Sprintf("; %s=%s", k, v)
-	}
-	return raw
+	return c.raw
 }
 
 // String is stringer interface
 func (c ContentType) String() string {
-	return c.Raw()
+	return c.raw
+}
+
+func newContentType(ctype string, exts []string, params map[string]string) *ContentType {
+	raw := ctype
+	for k, v := range params {
+		raw += fmt.Sprintf("; %s=%s", k, v)
+	}
+	return &ContentType{Mime: ctype, Exts: exts, Params: params, raw: raw}
 }

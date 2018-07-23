@@ -109,11 +109,12 @@ func WrapGzipWriter(w io.Writer) ResponseWriter {
 //
 //  - returns `http`
 func Scheme(r *http.Request) string {
-	if scheme := r.Header.Get(HeaderXForwardedProto); scheme != "" {
+	var scheme string
+	if scheme = r.Header.Get(HeaderXForwardedProto); len(scheme) > 0 {
 		return scheme
 	}
 
-	if scheme := r.Header.Get(HeaderXForwardedProtocol); scheme != "" {
+	if scheme = r.Header.Get(HeaderXForwardedProtocol); len(scheme) > 0 {
 		return scheme
 	}
 
@@ -121,7 +122,7 @@ func Scheme(r *http.Request) string {
 		return "https"
 	}
 
-	if scheme := r.Header.Get(HeaderXUrlScheme); scheme != "" {
+	if scheme = r.Header.Get(HeaderXUrlScheme); len(scheme) > 0 {
 		return scheme
 	}
 
