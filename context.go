@@ -294,9 +294,10 @@ func (ctx *Context) setTarget(route *router.Route) error {
 	}
 
 	target := reflect.New(ctx.controller.Type)
+	ctx.target = target.Interface()
 
 	// check action method exists or not
-	ctx.actionrv = reflect.ValueOf(target.Interface()).MethodByName(ctx.action.Name)
+	ctx.actionrv = reflect.ValueOf(ctx.target).MethodByName(ctx.action.Name)
 	if !ctx.actionrv.IsValid() {
 		return errTargetNotFound
 	}
@@ -307,7 +308,6 @@ func (ctx *Context) setTarget(route *router.Route) error {
 		targetElem.FieldByIndex(index).Set(ctxrv)
 	}
 
-	ctx.target = target.Interface()
 	ctx.targetrv = reflect.ValueOf(ctx.target)
 	return nil
 }
@@ -386,21 +386,4 @@ func (ctx *Context) writeHeaders() {
 // route.
 func (ctx *Context) hasAccess() (bool, []*authz.Reason) {
 	return ctx.route.HasAccess(ctx.Subject())
-}
-
-// callAction method calls targed action method on the controller.
-func (ctx *Context) callAction() {
-	// Parse Action Parameters
-	actionArgs, err := ctx.parseParameters()
-	if err != nil { // Any error of parameter parsing result in 400 Bad Request
-		ctx.Reply().BadRequest().Error(err)
-		return
-	}
-
-	ctx.Log().Debugf("Calling action: %s.%s", ctx.controller.FqName, ctx.action.Name)
-	if ctx.actionrv.Type().IsVariadic() {
-		ctx.actionrv.CallSlice(actionArgs)
-	} else {
-		ctx.actionrv.Call(actionArgs)
-	}
 }

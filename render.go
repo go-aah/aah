@@ -63,7 +63,7 @@ type textRender struct {
 }
 
 // textRender method writes given text into HTTP response.
-func (t textRender) Render(w io.Writer) (err error) {
+func (t *textRender) Render(w io.Writer) (err error) {
 	if len(t.Values) > 0 {
 		_, err = fmt.Fprintf(w, t.Format, t.Values...)
 	} else {
@@ -82,7 +82,7 @@ type jsonRender struct {
 }
 
 // Render method writes JSON into HTTP response.
-func (j jsonRender) Render(w io.Writer) error {
+func (j *jsonRender) Render(w io.Writer) error {
 	return json.NewEncoder(w).Encode(j.Data)
 }
 
@@ -97,7 +97,7 @@ type jsonpRender struct {
 }
 
 // Render method writes JSONP into HTTP response.
-func (j jsonpRender) Render(w io.Writer) error {
+func (j *jsonpRender) Render(w io.Writer) error {
 	jsonBytes, err := json.Marshal(j.Data)
 	if err != nil {
 		return err
@@ -121,7 +121,7 @@ type secureJSONRender struct {
 	Data   interface{}
 }
 
-func (s secureJSONRender) Render(w io.Writer) error {
+func (s *secureJSONRender) Render(w io.Writer) error {
 	if _, err := w.Write([]byte(s.Prefix)); err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ type xmlRender struct {
 }
 
 // Render method writes XML into HTTP response.
-func (x xmlRender) Render(w io.Writer) error {
+func (x *xmlRender) Render(w io.Writer) error {
 	if _, err := w.Write(xmlHeaderBytes); err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ type binaryRender struct {
 }
 
 // Render method writes File into HTTP response.
-func (f binaryRender) Render(w io.Writer) error {
+func (f *binaryRender) Render(w io.Writer) error {
 	if f.Reader != nil {
 		defer ess.CloseQuietly(f.Reader)
 		_, err := io.Copy(w, f.Reader)
@@ -225,7 +225,7 @@ type htmlRender struct {
 }
 
 // Render method renders the HTML template into HTTP response.
-func (h htmlRender) Render(w io.Writer) error {
+func (h *htmlRender) Render(w io.Writer) error {
 	if h.Template == nil {
 		return errors.New("template is nil")
 	}

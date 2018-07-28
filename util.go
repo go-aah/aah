@@ -206,12 +206,6 @@ func wrapGzipWriter(res ahttp.ResponseWriter) ahttp.ResponseWriter {
 	return ahttp.WrapGzipWriter(res)
 }
 
-// IsWebSocket method returns true if request is WebSocket otherwise false.
-func isWebSocket(r *http.Request) bool {
-	return strings.ToLower(r.Header.Get(ahttp.HeaderUpgrade)) == "websocket" &&
-		strings.Contains(strings.ToLower(r.Header.Get(ahttp.HeaderConnection)), "upgrade")
-}
-
 func inferRedirectMode(redirectTo string) string {
 	if redirectTo == www {
 		return nonwww + " ==> " + www

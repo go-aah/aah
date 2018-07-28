@@ -55,8 +55,8 @@ func (a *app) Start() {
 	}
 
 	a.Log().Info("App Route Domains:")
-	for _, name := range a.Router().DomainAddresses() {
-		a.Log().Infof("      Host: %s, CORS Enabled: %t", name, a.Router().Domains[name].CORSEnabled)
+	for _, d := range a.Router().Domains {
+		a.Log().Infof("      Host: %s, CORS Enabled: %t", d.Name, d.CORSEnabled)
 	}
 
 	redirectEnabled := a.Config().BoolDefault("server.redirect.enable", false)
