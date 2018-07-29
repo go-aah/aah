@@ -77,10 +77,10 @@ func ReleaseSubject(s *Subject) {
 type (
 	// Manager holds aah security management and its implementation.
 	Manager struct {
+		IsSSLEnabled   bool
 		SessionManager *session.Manager
 		SecureHeaders  *SecureHeaders
 		AntiCSRF       *anticsrf.AntiCSRF
-		IsSSLEnabled   bool
 		appCfg         *config.Config
 		authSchemes    map[string]scheme.Schemer
 	}
@@ -88,17 +88,14 @@ type (
 	// SecureHeaders holds the composed values of HTTP security headers
 	// based on config `security.http_header.*` from `security.conf`.
 	SecureHeaders struct {
-		Common map[string]string
-
-		// Applied to all HTTPS response.
+		CSPReportOnly bool
+		PKPReportOnly bool
 		STS           string
 		PKP           string
-		PKPReportOnly bool
-
-		// Applied to all HTML Content-Type
 		XSSFilter     string
 		CSP           string
-		CSPReportOnly bool
+
+		Common map[string]string
 	}
 )
 

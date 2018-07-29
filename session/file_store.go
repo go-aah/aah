@@ -24,7 +24,7 @@ var _ Storer = (*FileStore)(nil)
 type FileStore struct {
 	path       string
 	filePrefix string
-	m          *sync.RWMutex
+	m          sync.RWMutex
 }
 
 // Init method initialize the file store using given application config.
@@ -53,7 +53,7 @@ func (f *FileStore) Init(cfg *config.Config) error {
 
 	// session file prefix
 	f.filePrefix = cfg.StringDefault("security.session.prefix", "aah") + "_session"
-	f.m = &sync.RWMutex{}
+	f.m = sync.RWMutex{}
 
 	log.Infof("Session file store is initialized at path: %v", filepath.FromSlash(f.path))
 	return nil

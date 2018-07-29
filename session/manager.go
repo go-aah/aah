@@ -128,10 +128,14 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 
 	// Schedule cleanup
 	if !m.IsCookieStore() {
-		time.AfterFunc(time.Duration(m.cleanupInterval)*time.Second, func() {
-			log.Infof("Running expired session cleanup at %v", time.Now())
-			m.store.Cleanup(m)
-		})
+		go func(sm *Manager) {
+			ticker := time.NewTicker(time.Duration(sm.cleanupInterval) * time.Second)
+			for {
+				<-ticker.C
+				log.Infof("Running expired session cleanup at %v", time.Now())
+				sm.store.Cleanup(sm)
+			}
+		}(m)
 	}
 
 	return m, nil
