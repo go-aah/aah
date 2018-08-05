@@ -232,7 +232,8 @@ func (e *Engine) connect(w http.ResponseWriter, r *http.Request, route *router.R
 	}
 
 	r.Method = ahttp.MethodGet // back to GET for upgrade
-	conn, _, hs, err := gws.UpgradeHTTP(r, w, ctx.Header)
+	u := gws.HTTPUpgrader{Header: ctx.Header}
+	conn, _, hs, err := u.Upgrade(r, w)
 	if err != nil {
 		ctx.Log().Errorf("WS: Unable establish a WebSocket connection for '%s'", ctx.Req.Path)
 		ctx.reason = ErrConnectFailed

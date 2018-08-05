@@ -5,4 +5,4 @@
 package ws
 
 // Version no. of WebSocket library by aah framework.
-const Version = "0.3.0"
+const Version = "0.4.0"
