@@ -71,7 +71,11 @@ type Request struct {
 	Header http.Header
 
 	// PathParams value is URL path parameters.
+	// Will be DEPRECATED in upcoming v0.12.0, use URLParams instead.
 	PathParams PathParams
+
+	// URLParams value is URL path parameters.
+	URLParams URLParams
 
 	// Referer value is HTTP 'Referrer' (or 'Referer') header.
 	Referer string
@@ -277,6 +281,7 @@ func (r *Request) Reset() {
 	r.Path = ""
 	r.Header = nil
 	r.PathParams = nil
+	r.URLParams = nil
 	r.Referer = ""
 	r.UserAgent = ""
 	r.IsGzipAccepted = false
@@ -292,6 +297,38 @@ func (r *Request) cleanupMutlipart() {
 	if r.Unwrap().MultipartForm != nil {
 		r.Unwrap().MultipartForm.RemoveAll()
 	}
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// URLParam
+//___________________________________
+
+// URLParam struct holds single URL parameter value.
+type URLParam struct {
+	Key   string
+	Value string
+}
+
+// URLParams type is slice of type URLParam.
+type URLParams []URLParam
+
+// Get method returns the value for the given key otherwise empty string.
+func (u URLParams) Get(key string) string {
+	for i := range u {
+		if u[i].Key == key {
+			return u[i].Value
+		}
+	}
+	return ""
+}
+
+// ToMap method returns URL parameters in type map.
+func (u URLParams) ToMap() map[string]string {
+	ps := make(map[string]string)
+	for _, p := range u {
+		ps[p.Key] = p.Value
+	}
+	return ps
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

@@ -263,6 +263,28 @@ func TestRequestSaveFileForExistingFile(t *testing.T) {
 	assert.Equal(t, int64(0), size)
 }
 
+func TestURLParams(t *testing.T) {
+	params := URLParams{
+		{
+			Key:   "test1",
+			Value: "value1",
+		},
+		{
+			Key:   "test2",
+			Value: "value2",
+		},
+		{
+			Key:   "test3",
+			Value: "value3",
+		},
+	}
+
+	assert.Equal(t, 3, len(params))
+	assert.Equal(t, "value2", params.Get("test2"))
+	assert.Equal(t, "", params.Get("not-exists"))
+	assert.Equal(t, map[string]string{"test1": "value1", "test2": "value2", "test3": "value3"}, params.ToMap())
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // test unexported methods
 //___________________________________
