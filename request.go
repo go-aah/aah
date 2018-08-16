@@ -71,7 +71,7 @@ type Request struct {
 	Header http.Header
 
 	// PathParams value is URL path parameters.
-	// Will be DEPRECATED in upcoming v0.12.0, use URLParams instead.
+	// Will be DEPRECATED in upcoming v0.12.0, URLParams will take place.
 	PathParams PathParams
 
 	// URLParams value is URL path parameters.
@@ -201,6 +201,9 @@ func (r *Request) URL() *url.URL {
 // PathValue method returns value for given Path param key otherwise empty string.
 // For eg.: /users/:userId => PathValue("userId")
 func (r *Request) PathValue(key string) string {
+	if v := r.URLParams.Get(key); len(v) > 0 {
+		return v
+	}
 	return r.PathParams.Get(key)
 }
 
