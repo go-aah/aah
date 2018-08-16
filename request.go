@@ -33,7 +33,7 @@ type Request struct {
 	// Header holds the values of HTTP headers when WebSocket connection made.
 	Header http.Header
 
-	pathParams ahttp.PathParams
+	pathParams ahttp.URLParams
 	raw        *http.Request
 }
 

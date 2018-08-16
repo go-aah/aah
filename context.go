@@ -209,8 +209,8 @@ func (ctx *Context) parseParameters() error {
 	}
 
 	params := make(url.Values)
-	for k, v := range ctx.Req.pathParams {
-		params.Set(k, v)
+	for _, p := range ctx.Req.pathParams {
+		params.Set(p.Key, p.Value)
 	}
 	for k, v := range ctx.Req.URL().Query() {
 		params[k] = v

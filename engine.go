@@ -186,11 +186,11 @@ func (e *Engine) Log() log.Loggerer {
 // Engine Unexported methods
 //______________________________________________________________________________
 
-func (e *Engine) connect(w http.ResponseWriter, r *http.Request, route *router.Route, pathParams ahttp.PathParams) (*Context, error) {
-	ctx := e.newContext(r, route, pathParams)
+func (e *Engine) connect(w http.ResponseWriter, r *http.Request, route *router.Route, params ahttp.URLParams) (*Context, error) {
+	ctx := e.newContext(r, route, params)
 
 	// Route constraints validation
-	if errs := valpar.ValidateValues(pathParams, route.Constraints); len(errs) > 0 {
+	if errs := valpar.ValidateValues(params.ToMap(), route.Constraints); len(errs) > 0 {
 		ctx.Log().Error("WS: Route constraints failed")
 		ctx.reason = router.ErrRouteConstraintFailed
 		e.publishOnErrorEvent(ctx)
@@ -252,7 +252,7 @@ func (e *Engine) connect(w http.ResponseWriter, r *http.Request, route *router.R
 	return ctx, nil
 }
 
-func (e *Engine) newContext(r *http.Request, route *router.Route, pathParams ahttp.PathParams) *Context {
+func (e *Engine) newContext(r *http.Request, route *router.Route, params ahttp.URLParams) *Context {
 	ctx := &Context{
 		e:      e,
 		Header: make(http.Header),
@@ -261,7 +261,7 @@ func (e *Engine) newContext(r *http.Request, route *router.Route, pathParams aht
 			Host:       ahttp.Host(r),
 			Path:       r.URL.Path,
 			Header:     r.Header,
-			pathParams: pathParams,
+			pathParams: params,
 			raw:        r,
 		},
 	}
