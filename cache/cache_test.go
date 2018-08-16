@@ -131,8 +131,8 @@ func (c *dummyCache) Get(k string) interface{} { return nil }
 
 // GetOrPut method returns the cached entry for given key if it exists otherwise
 // it adds the entry into cache store and returns the value.
-func (c *dummyCache) GetOrPut(k string, v interface{}, d time.Duration) interface{} {
-	return nil
+func (c *dummyCache) GetOrPut(k string, v interface{}, d time.Duration) (interface{}, error) {
+	return nil, nil
 }
 
 // Put method adds the cache entry with specified expiration. Returns error
@@ -140,9 +140,9 @@ func (c *dummyCache) GetOrPut(k string, v interface{}, d time.Duration) interfac
 func (c *dummyCache) Put(k string, v interface{}, d time.Duration) error { return nil }
 
 // Delete method deletes the cache entry from cache store.
-func (c *dummyCache) Delete(k string) {}
+func (c *dummyCache) Delete(k string) error { return nil }
 
 // Exists method checks given key exists in cache store and its not expried.
 func (c *dummyCache) Exists(k string) bool { return false }
 
-func (c *dummyCache) Flush() {}
+func (c *dummyCache) Flush() error { return nil }

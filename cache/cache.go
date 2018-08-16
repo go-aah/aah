@@ -39,20 +39,20 @@ type Cache interface {
 
 	// GetOrPut method returns the cached entry for the given key if it exists otherwise
 	// it puts the new entry into cache store and returns the value.
-	GetOrPut(k string, v interface{}, d time.Duration) interface{}
+	GetOrPut(k string, v interface{}, d time.Duration) (interface{}, error)
 
 	// Put method adds the cache entry with specified expiration. Returns error
 	// if cache entry exists.
 	Put(k string, v interface{}, d time.Duration) error
 
 	// Delete method deletes the cache entry from cache store.
-	Delete(k string)
+	Delete(k string) error
 
 	// Exists method checks given key exists in cache store and its not expried.
 	Exists(k string) bool
 
 	// Flush methods flushes(deletes) all the cache entries from cache.
-	Flush()
+	Flush() error
 }
 
 // Provider interface represents cache provider implementation.
