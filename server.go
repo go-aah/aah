@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 
+	"aahframework.org/ahttp.v0"
 	"aahframework.org/essentials.v0"
 )
 
@@ -175,31 +176,35 @@ func (a *app) startUnix() {
 }
 
 func (a *app) startHTTPS() {
-	// Assign user-defined TLS config if provided
-	if a.tlsCfg == nil {
-		a.server.TLSConfig = new(tls.Config)
-	} else {
-		a.Log().Info("Adding user provided TLS Config")
-		a.server.TLSConfig = a.tlsCfg
-	}
-
 	// Add cert, if let's encrypt enabled
 	if a.IsLetsEncryptEnabled() {
 		a.Log().Infof("Let's Encypyt CA Cert enabled")
-		a.server.TLSConfig.GetCertificate = a.autocertMgr.GetCertificate
+		a.server.TLSConfig = a.autocertMgr.TLSConfig()
+		a.sslCert, a.sslKey = "", ""
 	} else {
+		if a.tlsCfg != nil {
+			a.Log().Info("Adding user provided TLS Config")
+			a.server.TLSConfig = a.tlsCfg
+		}
 		a.Log().Infof("SSLCert: %s, SSLKey: %s", a.sslCert, a.sslKey)
 	}
 
-	// Enable & Disable HTTP/2
+	// Disable HTTP/2, if configured
 	if a.Config().BoolDefault("server.ssl.disable_http2", false) {
 		// To disable HTTP/2 is-
 		//  - Don't add "h2" to TLSConfig.NextProtos
 		//  - Initialize TLSNextProto with empty map
 		// Otherwise Go will enable HTTP/2 by default. It's not gonna listen to you :)
-		a.server.TLSNextProto = map[string]func(*http.Server, *tls.Conn, http.Handler){}
-	} else {
-		a.server.TLSConfig.NextProtos = append(a.server.TLSConfig.NextProtos, "h2")
+		if a.server.TLSConfig != nil {
+			var nextProtos []string
+			for _, p := range a.server.TLSConfig.NextProtos {
+				if p != "h2" {
+					nextProtos = append(nextProtos, p)
+				}
+			}
+			a.server.TLSConfig.NextProtos = nextProtos
+		}
+		a.server.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
 	}
 
 	// start HTTP redirect server if enabled
@@ -222,6 +227,11 @@ func (a *app) startHTTPRedirect() {
 	cfg := a.Config()
 	keyPrefix := "server.ssl.redirect_http"
 	if !cfg.BoolDefault(keyPrefix+".enable", false) {
+		if a.IsLetsEncryptEnabled() {
+			a.Log().Fatalf("Enable HTTP => HTTPS redirect (server.ssl.redirect_http), its required by Let's Encrypt. " +
+				" Read more https://community.letsencrypt.org/t/important-what-you-need-to-know-about-tls-sni-validation-issues/50811, " +
+				"https://github.com/golang/go/issues/21890")
+		}
 		return
 	}
 
@@ -238,10 +248,11 @@ func (a *app) startHTTPRedirect() {
 	a.redirectServer = &http.Server{
 		Addr: address + ":" + fromPort,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			target := "https://" + parseHost(r.Host, toPort) + r.URL.Path
-			if len(r.URL.RawQuery) > 0 {
-				target += "?" + r.URL.RawQuery
+			if r.Method != ahttp.MethodGet && r.Method != ahttp.MethodHead {
+				http.Error(w, "Use HTTPS", http.StatusBadRequest)
+				return
 			}
+			target := "https://" + parseHost(r.Host, toPort) + r.URL.RequestURI()
 			http.Redirect(w, r, target, redirectCode)
 		}),
 	}
