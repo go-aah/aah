@@ -586,8 +586,9 @@ func (a *app) aahRecover() {
 func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer a.aahRecover()
 	if a.redirect {
-		a.he.doRedirect(w, r)
-		return
+		if a.he.doRedirect(w, r) {
+			return
+		}
 	}
 
 	upgrade := r.Header.Get(ahttp.HeaderUpgrade)
