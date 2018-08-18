@@ -184,7 +184,7 @@ func handleRoute(ctx *Context) flowResult {
 		return flowAbort
 	}
 	ctx.route = route
-	ctx.Req.PathParams = pathParams
+	ctx.Req.URLParams = pathParams
 
 	// Serving static file
 	if route.IsStatic {

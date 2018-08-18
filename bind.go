@@ -300,8 +300,8 @@ func (ctx *Context) createParams() url.Values {
 	for _, priority := range ctx.a.bindMgr.autobindPriority {
 		switch priority {
 		case "P": // Path Values
-			for k, v := range ctx.Req.PathParams {
-				params.Set(k, v)
+			for _, p := range ctx.Req.URLParams {
+				params.Set(p.Key, p.Value)
 			}
 		case "F": // Form Values
 			for k, v := range ctx.Req.Unwrap().Form {
