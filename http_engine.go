@@ -432,7 +432,7 @@ const (
 	nonwww = "non-www"
 )
 
-func (e *HTTPEngine) doRedirect(w http.ResponseWriter, r *http.Request) {
+func (e *HTTPEngine) doRedirect(w http.ResponseWriter, r *http.Request) bool {
 	cfg := e.a.Config()
 	redirectTo := cfg.StringDefault("server.redirect.to", nonwww)
 	redirectCode := cfg.IntDefault("server.redirect.code", http.StatusMovedPermanently)
@@ -442,10 +442,14 @@ func (e *HTTPEngine) doRedirect(w http.ResponseWriter, r *http.Request) {
 	case www:
 		if host[:3] != www {
 			http.Redirect(w, r, ahttp.Scheme(r)+"://www."+host+r.URL.RequestURI(), redirectCode)
+			return true
 		}
+
 	case nonwww:
 		if host[:3] == www {
 			http.Redirect(w, r, ahttp.Scheme(r)+"://"+host[4:]+r.URL.RequestURI(), redirectCode)
+			return true
 		}
 	}
+	return false
 }
