@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/router source code and usage is governed by a MIT style
+// aahframework.org/router source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package router
@@ -58,14 +58,7 @@ func TestRouterLoadConfiguration(t *testing.T) {
 	assert.Equal(t, "cancel_booking", route.Name)
 	assert.Equal(t, "12345", pathParam.Get("id"))
 	assert.False(t, rts)
-	assert.Equal(t, 1, pathParam.Len())
-
-	// possible redirect trailing slash
-	reqCancelBooking2 := createHTTPRequest("localhost:8080", "/hotels/12345/cancel/")
-	reqCancelBooking2.Method = ahttp.MethodPost
-	domain = router.Lookup(reqCancelBooking2.Host)
-	_, _, rts = domain.Lookup(reqCancelBooking2)
-	assert.True(t, rts)
+	assert.Equal(t, 1, len(pathParam))
 
 	// Lookup by name
 	cancelBooking := domain.LookupByName("cancel_booking")
@@ -86,10 +79,10 @@ func TestRouterLoadConfiguration(t *testing.T) {
 
 	err = domain.AddRoute(&Route{
 		Name:   "ErrorRoute",
-		Path:   "/:user/test",
+		Path:   "/hotels/:user/test",
 		Method: "GET",
 	})
-	assert.True(t, strings.HasPrefix(err.Error(), "wildcard route ':user' conflicts"))
+	assert.Equal(t, errors.New("aah/router: parameter based edge already exists[/hotels/:id...] new[/hotels/:user...]"), err)
 
 	domain.Port = ""
 	domain.inferKey()
@@ -162,10 +155,26 @@ func TestRouterStaticLoadConfiguration(t *testing.T) {
 	assert.False(t, rts)
 	assert.True(t, route.IsStatic)
 	assert.Equal(t, "/public", route.Dir)
-	assert.Equal(t, "/img/aahframework.png", pathParam.Get("filepath"))
+	assert.Equal(t, "img/aahframework.png", pathParam.Get("filepath"))
 	assert.Equal(t, "", route.File)
 	assert.True(t, route.IsDir())
 	assert.False(t, route.IsFile())
+
+	// static
+	staticDirReq := createHTTPRequest("localhost:8080", "/static")
+	staticDirReq.Method = ahttp.MethodGet
+	route, params, rts := domain.Lookup(staticDirReq)
+	assert.True(t, rts)
+	assert.Nil(t, route)
+	assert.Nil(t, params)
+
+	notfoundMethod := createHTTPRequest("sample.localhost:8080", "/static")
+	notfoundMethod.Method = ahttp.MethodOptions
+	domain = router.Lookup(notfoundMethod.Host)
+	route, params, rts = domain.Lookup(notfoundMethod)
+	assert.False(t, rts)
+	assert.Nil(t, route)
+	assert.Nil(t, params)
 }
 
 func TestRouterErrorLoadConfiguration(t *testing.T) {
@@ -361,7 +370,7 @@ func TestRouterDomainRouteURL(t *testing.T) {
 func TestRouterDomainAddRoute(t *testing.T) {
 	domain := &Domain{
 		Host:   "aahframework.org",
-		trees:  make(map[string]*node),
+		trees:  make(map[string]*tree),
 		routes: make(map[string]*Route),
 	}
 
@@ -393,7 +402,7 @@ func TestRouterDomainAddRoute(t *testing.T) {
 		Action: "Index",
 	}
 	err = domain.AddRoute(routeError)
-	assert.True(t, strings.Contains(err.Error(), "value is already registered"))
+	assert.Equal(t, errNodeExists, err)
 }
 
 func TestRouterConfigNotExists(t *testing.T) {
@@ -604,6 +613,8 @@ func TestMiscRouter(t *testing.T) {
 	r = New("configPath", nil)
 	assert.NotNil(t, r)
 	assert.Nil(t, r.config)
+
+	addSlashPrefix("welcome")
 }
 
 type app struct {

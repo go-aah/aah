@@ -36,18 +36,19 @@ type Domain struct {
 	Port                  string
 	DefaultAuth           string
 	CORS                  *CORS
-	trees                 map[string]*node
+	trees                 map[string]*tree
 	routes                map[string]*Route
 }
 
 // Lookup method looks up route if found it returns route, path parameters,
 // redirect trailing slash indicator for given `ahttp.Request` by domain
 // and request URI otherwise returns nil and false.
-func (d *Domain) Lookup(req *http.Request) (*Route, ahttp.PathParams, bool) {
+func (d *Domain) Lookup(req *http.Request) (*Route, ahttp.URLParams, bool) {
 	// HTTP method override support
-	overrideMethod := req.Header.Get(ahttp.HeaderXHTTPMethodOverride)
-	if len(overrideMethod) > 0 && req.Method == ahttp.MethodPost {
-		req.Method = overrideMethod
+	if req.Method == ahttp.MethodPost {
+		if h := req.Header[ahttp.HeaderXHTTPMethodOverride]; len(h) > 0 {
+			req.Method = h[0]
+		}
 	}
 
 	// get route tree for request method
@@ -55,22 +56,16 @@ func (d *Domain) Lookup(req *http.Request) (*Route, ahttp.PathParams, bool) {
 	if !found {
 		// get route tree for CORS access control method
 		if req.Method == ahttp.MethodOptions && d.CORSEnabled {
-			tree, found = d.trees[req.Header.Get(ahttp.HeaderAccessControlRequestMethod)]
+			if h := req.Header[ahttp.HeaderAccessControlRequestMethod]; len(h) > 0 {
+				tree, found = d.trees[h[0]]
+			}
 		}
-
 		if !found {
 			return nil, nil, false
 		}
 	}
 
-	route, pathParams, rts, err := tree.find(req.URL.Path)
-	if route != nil && err == nil {
-		return route.(*Route), pathParams, rts
-	} else if rts { // possible Redirect Trailing Slash
-		return nil, nil, rts
-	}
-
-	return nil, nil, false
+	return tree.lookup(req.URL.Path)
 }
 
 // LookupByName method returns the route for given route name otherwise nil.
@@ -87,13 +82,13 @@ func (d *Domain) AddRoute(route *Route) error {
 		return errors.New("router: method value is empty")
 	}
 
-	tree := d.trees[route.Method]
-	if tree == nil {
-		tree = new(node)
-		d.trees[route.Method] = tree
+	t := d.trees[route.Method]
+	if t == nil {
+		t = &tree{root: new(node), tralingSlash: d.RedirectTrailingSlash}
+		d.trees[route.Method] = t
 	}
 
-	if err := tree.add(route.Path, route); err != nil {
+	if err := t.add(strings.ToLower(route.Path), route); err != nil {
 		return err
 	}
 
@@ -105,22 +100,19 @@ func (d *Domain) AddRoute(route *Route) error {
 func (d *Domain) Allowed(requestMethod, path string) (allowed string) {
 	if path == "*" { // server-wide
 		for method := range d.trees {
-			if method == ahttp.MethodOptions {
-				continue
+			if method != ahttp.MethodOptions {
+				// add request method to list of allowed methods
+				allowed = suffixCommaValue(allowed, method)
 			}
-
-			// add request method to list of allowed methods
-			allowed = suffixCommaValue(allowed, method)
 		}
-	} else { // specific path
-		for method := range d.trees {
-			// Skip the requested method - we already tried this one
-			if method == requestMethod || method == ahttp.MethodOptions {
-				continue
-			}
+		return
+	}
 
-			value, _, _, _ := d.trees[method].find(path)
-			if value != nil {
+	// specific path
+	for method := range d.trees {
+		// Skip the requested method - we already tried this one
+		if method != requestMethod && method != ahttp.MethodOptions {
+			if value, _, _ := d.trees[method].lookup(path); value != nil {
 				// add request method to list of allowed methods
 				allowed = suffixCommaValue(allowed, method)
 			}
