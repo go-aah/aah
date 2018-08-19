@@ -591,10 +591,11 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	upgrade := r.Header.Get(ahttp.HeaderUpgrade)
-	if upgrade == "websocket" || upgrade == "Websocket" {
-		a.wse.Handle(w, r)
-		return
+	if h := r.Header[ahttp.HeaderUpgrade]; len(h) > 0 {
+		if h[0] == "websocket" || h[0] == "Websocket" {
+			a.wse.Handle(w, r)
+			return
+		}
 	}
 
 	a.he.Handle(w, r)

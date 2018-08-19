@@ -44,15 +44,19 @@ func CORSMiddleware(ctx *Context, m *Middleware) {
 	ctx.Reply().HeaderAppend(ahttp.HeaderVary, ahttp.HeaderOrigin)
 
 	// CORS OPTIONS request
-	if ctx.Req.Method == ahttp.MethodOptions &&
-		ctx.Req.Header.Get(ahttp.HeaderAccessControlRequestMethod) != "" {
-		handleCORSPreflight(ctx)
-		return
+	if ctx.Req.Method == ahttp.MethodOptions {
+		if h := ctx.Req.Header[ahttp.HeaderAccessControlRequestMethod]; len(h) > 0 && len(h[0]) > 0 {
+			handleCORSPreflight(ctx)
+			return
+		}
 	}
 
 	// CORS headers
 	cors := ctx.route.CORS
-	origin := ctx.Req.Header.Get(ahttp.HeaderOrigin)
+	var origin string
+	if h := ctx.Req.Header[ahttp.HeaderOrigin]; len(h) > 0 {
+		origin = h[0]
+	}
 	if cors.IsOriginAllowed(origin) {
 		ctx.Reply().Header(ahttp.HeaderAccessControlAllowOrigin, origin)
 	}
@@ -79,7 +83,10 @@ func handleCORSPreflight(ctx *Context) {
 	cors := ctx.route.CORS
 
 	// Check Origin
-	origin := ctx.Req.Header.Get(ahttp.HeaderOrigin)
+	var origin string
+	if h := ctx.Req.Header[ahttp.HeaderOrigin]; len(h) > 0 {
+		origin = h[0]
+	}
 	if cors.IsOriginAllowed(origin) {
 		ctx.Reply().Header(ahttp.HeaderAccessControlAllowOrigin, origin)
 	} else {
@@ -90,7 +97,10 @@ func handleCORSPreflight(ctx *Context) {
 	}
 
 	// Check Method
-	method := ctx.Req.Header.Get(ahttp.HeaderAccessControlRequestMethod)
+	var method string
+	if h := ctx.Req.Header[ahttp.HeaderAccessControlRequestMethod]; len(h) > 0 {
+		method = h[0]
+	}
 	if cors.IsMethodAllowed(method) {
 		ctx.Reply().Header(ahttp.HeaderAccessControlAllowMethods, strings.Join(cors.AllowMethods, ", "))
 	} else {
@@ -101,7 +111,10 @@ func handleCORSPreflight(ctx *Context) {
 	}
 
 	// Check Headers
-	hdrs := ctx.Req.Header.Get(ahttp.HeaderAccessControlRequestHeaders)
+	var hdrs string
+	if h := ctx.Req.Header[ahttp.HeaderAccessControlRequestHeaders]; len(h) > 0 {
+		hdrs = h[0]
+	}
 	if cors.IsHeadersAllowed(hdrs) {
 		if len(cors.AllowHeaders) > 0 {
 			ctx.Reply().Header(ahttp.HeaderAccessControlAllowHeaders, strings.Join(cors.AllowHeaders, ", "))
@@ -165,17 +178,16 @@ func (a *app) initRouter() error {
 //  - flowCont
 //  - flowStop
 func handleRoute(ctx *Context) flowResult {
-	domain := ctx.a.Router().Lookup(ctx.Req.Host)
-	if domain == nil {
+	ctx.domain = ctx.a.Router().Lookup(ctx.Req.Host)
+	if ctx.domain == nil {
 		ctx.Log().Warnf("Domain not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 		ctx.Reply().NotFound().Error(newError(ErrDomainNotFound, http.StatusNotFound))
 		return flowAbort
 	}
-	ctx.domain = domain
 
-	route, pathParams, rts := domain.Lookup(ctx.Req.Unwrap())
+	route, pathParams, rts := ctx.domain.Lookup(ctx.Req.Unwrap())
 	if route == nil { // route not found
-		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
+		if err := handleRtsOptionsMna(ctx, rts); err == nil {
 			return flowAbort
 		}
 
@@ -279,18 +291,22 @@ func createRouteURL(l log.Loggerer, domain *router.Domain, routeName string, mar
 	return rURL.String()
 }
 
-// handleRtsOptionsMna method handles 1) Redirect Trailing Slash 2) Options
+// handleRtsOptionsMna method handles
+// 1) Redirect Trailing Slash
+// 2) Auto Options
 // 3) Method not allowed
-func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
+func handleRtsOptionsMna(ctx *Context, rts bool) error {
 	reqMethod := ctx.Req.Method
 	reqPath := ctx.Req.Path
 	reply := ctx.Reply()
+	domain := ctx.domain
 
 	// Redirect Trailing Slash
 	if reqMethod != ahttp.MethodConnect && reqPath != router.SlashString {
 		if rts && domain.RedirectTrailingSlash {
-			reply.MovedPermanently()
-			if reqMethod != ahttp.MethodGet {
+			if reqMethod == ahttp.MethodGet {
+				reply.MovedPermanently()
+			} else {
 				reply.TemporaryRedirect()
 			}
 

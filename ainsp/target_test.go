@@ -81,8 +81,8 @@ func TestTargetRegisterForTargets(t *testing.T) {
 	t.Log("target exists")
 	target := tr.Lookup("aahframework.org/ainsp.v0.Level3")
 	assert.NotNil(t, target)
-	assert.Equal(t, "aahframework.org/ainsp.v0/Level3", target.FqName)
-	assert.Equal(t, "aahframework.org/ainsp.v0", target.Namespace)
+	assert.Equal(t, "aahframework.org/aah.v0/ainsp/Level3", target.FqName)
+	assert.Equal(t, "aahframework.org/aah.v0/ainsp", target.Namespace)
 	assert.NotNil(t, target.Methods)
 	assert.Equal(t, "Level3", target.Name)
 

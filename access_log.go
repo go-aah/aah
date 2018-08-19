@@ -128,7 +128,11 @@ func (aal *accessLogger) Log(ctx *Context) {
 
 	req := *ctx.Req
 	al.Request = &req
-	al.RequestID = firstNonZeroString(req.Header.Get(aal.a.requestIDHeaderKey), "-")
+	if h := req.Header[aal.a.requestIDHeaderKey]; len(h) > 0 {
+		al.RequestID = h[0]
+	} else {
+		al.RequestID = "-"
+	}
 	al.ResStatus = ctx.Res.Status()
 	al.ResBytes = ctx.Res.BytesWritten()
 	al.ResHdr = ctx.Res.Header()

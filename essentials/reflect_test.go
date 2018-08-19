@@ -18,7 +18,7 @@ func TestGetFunctionInfo(t *testing.T) {
 	}
 
 	info := GetFunctionInfo(testFunc1)
-	assert.True(t, strings.Contains(info.QualifiedName, "aahframework.org/essentials"))
+	assert.True(t, strings.Contains(info.QualifiedName, "essentials.testFunc1"))
 	assert.True(t, strings.Contains(info.QualifiedName, "testFunc1"))
 
 	info = GetFunctionInfo(SampleStr{})
@@ -32,7 +32,7 @@ func TestGetFunctionInfo(t *testing.T) {
 func TestGetCallerInfo(t *testing.T) {
 	caller := GetCallerInfo()
 	assert.Equal(t, "TestGetCallerInfo", caller.FunctionName)
-	assert.True(t, strings.Contains(caller.QualifiedName, "aahframework.org/essentials"))
+	assert.True(t, strings.Contains(caller.QualifiedName, "essentials.TestGetCallerInfo"))
 	assert.True(t, strings.Contains(caller.QualifiedName, "TestGetCallerInfo"))
 	assert.Equal(t, "reflect_test.go", caller.FileName)
 }
