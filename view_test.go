@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// aahframework.org source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -15,8 +15,8 @@ import (
 	"aahframework.org/ahttp"
 	"aahframework.org/ainsp"
 	"aahframework.org/essentials"
-	"github.com/stretchr/testify/assert"
 	"aahframework.org/view"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestViewStore(t *testing.T) {

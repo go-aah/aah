@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// go-aah/valpar source code and usage is governed by a MIT style
+// aahframework.org/valpar source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package valpar
