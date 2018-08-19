@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"aahframework.org/ahttp.v0"
+	"aahframework.org/ahttp"
 )
 
 var (

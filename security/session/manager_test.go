@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/security.v0/cookie"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/security/cookie"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSessionEncodeAndDecodeNoSignEnc(t *testing.T) {
@@ -52,7 +52,7 @@ func TestSessionEncodeAndDecodeNoSignEnc(t *testing.T) {
 	gob.Register(map[interface{}]interface{}{})
 
 	encodedStr, err = m.Encode(session)
-	assert.FailNowOnError(t, err, "unexpected")
+	assert.Nil(t, err, "unexpected")
 	assert.Nil(t, err)
 	assert.False(t, encodedStr == "")
 
@@ -83,7 +83,7 @@ func TestSessionEncodeAndDecodeWithSignEnc(t *testing.T) {
 	gob.Register(map[interface{}]interface{}{})
 
 	encodedStr, err := m.Encode(session)
-	assert.FailNowOnError(t, err, "unexpected")
+	assert.Nil(t, err, "unexpected")
 	assert.Nil(t, err)
 	assert.False(t, encodedStr == "")
 
@@ -181,7 +181,7 @@ func assertSessionValue(t *testing.T, s *Session) {
 func createTestManager(t *testing.T, cfgStr string) *Manager {
 	cfg, _ := config.ParseString(cfgStr)
 	m, err := NewManager(cfg)
-	assert.FailNowOnError(t, err, "unexpected")
+	assert.Nil(t, err, "unexpected")
 	return m
 }
 

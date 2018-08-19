@@ -7,7 +7,7 @@ package authc
 import (
 	"testing"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAuthcAuthenticationToken(t *testing.T) {

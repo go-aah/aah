@@ -10,12 +10,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/ahttp"
+	"aahframework.org/ainsp"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLogInitRelativeFilePath(t *testing.T) {

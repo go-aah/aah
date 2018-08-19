@@ -14,10 +14,12 @@ go:
   - 1.x
   - tip
 
-go_import_path: aahframework.org/aah.v0
+go_import_path: aahframework.org
 
 before_install:
-  - bash <(curl -s https://aahframework.org/base-before-install)
+  - go get github.com/go-aah/forge
+  - cd $GOPATH/src/github.com/go-aah/forge && git checkout v0-edge
+  #- bash <(curl -s https://aahframework.org/base-before-install)
 
 install:
   - go get -t -v ./...

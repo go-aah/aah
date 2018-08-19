@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"testing"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMkDirAll(t *testing.T) {
@@ -16,13 +16,13 @@ func TestMkDirAll(t *testing.T) {
 	defer DeleteFiles(join(testdataPath, "path"))
 
 	err := MkDirAll(join(testdataPath, "path", "to", "create"), 0755)
-	assert.FailOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	err = MkDirAll(join(testdataPath, "path", "to", "create", "for", "test"), 0755)
-	assert.FailOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	err = MkDirAll(join(testdataPath, "path", "to", "create", "for", "test"), 0755)
-	assert.FailOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	if runtime.GOOS != "windows" {
 		err = MkDirAll("/var/testdata/[^[]", 0755)

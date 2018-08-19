@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 type (
@@ -79,10 +79,10 @@ func TestTargetRegisterForTargets(t *testing.T) {
 
 	// target exists
 	t.Log("target exists")
-	target := tr.Lookup("aahframework.org/ainsp.v0.Level3")
+	target := tr.Lookup("aahframework.org/ainsp.Level3")
 	assert.NotNil(t, target)
-	assert.Equal(t, "aahframework.org/aah.v0/ainsp/Level3", target.FqName)
-	assert.Equal(t, "aahframework.org/aah.v0/ainsp", target.Namespace)
+	assert.Equal(t, "aahframework.org/ainsp/Level3", target.FqName)
+	assert.Equal(t, "aahframework.org/ainsp", target.Namespace)
 	assert.NotNil(t, target.Methods)
 	assert.Equal(t, "Level3", target.Name)
 
@@ -97,7 +97,7 @@ func TestTargetRegisterForTargets(t *testing.T) {
 	t.Log("target not exists")
 	target = tr.Lookup("Level10NotExists")
 	assert.Nil(t, target)
-	target = tr.Lookup("aahframework.org/ainsp.v0/Level3")
+	target = tr.Lookup("aahframework.org/ainsp/Level3")
 
 	// method not exists
 	t.Log("method not exists")
@@ -117,6 +117,7 @@ func TestTypeEmbeddedIndexes(t *testing.T) {
 
 func testTypeEmbeddedIndexes(t *testing.T, c interface{}, expected [][]int) {
 	actual := FindFieldIndexes(reflect.TypeOf(c), ctxPtrType)
+	assert.Equalf(t, expected, actual, "Indexes do not match")
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("Indexes do not match. expected %v actual %v", expected, actual)
 	}

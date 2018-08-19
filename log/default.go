@@ -8,7 +8,7 @@ import (
 	"io"
 	slog "log"
 
-	"aahframework.org/config.v0"
+	"aahframework.org/config"
 )
 
 var dl *Logger

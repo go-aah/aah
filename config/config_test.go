@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/essentials.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/essentials"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestKeysAndKeysByPath(t *testing.T) {
@@ -316,7 +316,7 @@ prod {
 `)
 
 	err = cfg1.Merge(cfg2)
-	assert.FailNowOnError(t, err, "merge failed")
+	assert.NoErrorf(t, err, "merge failed")
 
 	_ = cfg1.SetProfile("prod")
 
@@ -341,7 +341,7 @@ func TestLoadFiles(t *testing.T) {
 		join(testdataPath, "test-2.cfg"),
 		join(testdataPath, "test-3.cfg"),
 	)
-	assert.FailNowOnError(t, err, "loading failed")
+	assert.NoErrorf(t, err, "loading failed")
 
 	assert.Equal(t, float32(10.5), cfg.Float32Default("subsection.sub_float", 0.0))
 	assert.Equal(t, float32(32.4), cfg.Float32Default("float32", 0.0))
@@ -372,7 +372,7 @@ func TestNestedKeyWithProfile(t *testing.T) {
 	testdataPath := testdataBaseDir()
 
 	cfg, err := LoadFiles(join(testdataPath, "test-4.cfg"))
-	assert.FailNowOnError(t, err, "loading failed")
+	assert.NoErrorf(t, err, "loading failed")
 
 	releases, found := cfg.StringList("docs.releases")
 	assert.True(t, found)
@@ -399,7 +399,7 @@ func TestNestedKeyWithProfile(t *testing.T) {
 func TestConfigSetValues(t *testing.T) {
 	testdataPath := testdataBaseDir()
 	cfg, err := LoadFiles(join(testdataPath, "test-4.cfg"))
-	assert.FailNowOnError(t, err, "loading failed")
+	assert.NoErrorf(t, err, "loading failed")
 
 	// env.active
 	assert.False(t, cfg.IsExists("env.active"))
@@ -419,20 +419,26 @@ func TestConfigSetValues(t *testing.T) {
 
 func initString(t *testing.T, configStr string) *Config {
 	cfg, err := ParseString(configStr)
-	assert.FailNowOnError(t, err, "")
+	if !assert.NoErrorf(t, err, "loading failed") {
+		assert.FailNow(t, "parse error")
+	}
 
 	return cfg
 }
 
 func initFile(t *testing.T, file string) *Config {
 	cfg, err := LoadFile(file)
-	assert.FailNowOnError(t, err, "")
+	if !assert.NoErrorf(t, err, "loading failed") {
+		assert.FailNow(t, "parse error")
+	}
 	return cfg
 }
 
 func setProfileForTest(t *testing.T, cfg *Config, profile string) {
 	err := cfg.SetProfile(profile)
-	assert.FailNowOnError(t, err, "")
+	if !assert.NoErrorf(t, err, "loading failed") {
+		assert.FailNow(t, "parse error")
+	}
 }
 
 func testdataBaseDir() string {

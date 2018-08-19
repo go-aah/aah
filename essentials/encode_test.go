@@ -7,7 +7,7 @@ package ess
 import (
 	"testing"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeBase64(t *testing.T) {

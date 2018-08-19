@@ -14,15 +14,15 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/security.v0"
-	"aahframework.org/security.v0/scheme"
-	"aahframework.org/test.v0/assert"
-	"aahframework.org/valpar.v0"
-	"aahframework.org/vfs.v0"
+	"aahframework.org/ahttp"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/log"
+	"aahframework.org/security"
+	"aahframework.org/security/scheme"
+	"github.com/stretchr/testify/assert"
+	"aahframework.org/valpar"
+	"aahframework.org/vfs"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -48,7 +48,7 @@ func TestRouterPathParamGet(t *testing.T) {
 
 func TestRouterLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	// After loading just couple of assertion
 	reqCancelBooking1 := createHTTPRequest("localhost:8080", "/hotels/12345/cancel")
@@ -91,7 +91,7 @@ func TestRouterLoadConfiguration(t *testing.T) {
 
 func TestRouterWildcardSubdomain(t *testing.T) {
 	router, err := createRouter("routes.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	reqCancelBooking := createHTTPRequest("localhost:8080", "/hotels/12345/cancel")
 	reqCancelBooking.Method = ahttp.MethodPost
@@ -129,7 +129,7 @@ func TestRouterWildcardSubdomain(t *testing.T) {
 
 func TestRouterStaticLoadConfiguration(t *testing.T) {
 	router, err := createRouter("routes.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	// After loading just couple assertion for static
 
@@ -248,7 +248,7 @@ func TestRouterNoDomainRoutesFound(t *testing.T) {
 
 func TestRouterDomainConfig(t *testing.T) {
 	router, err := createRouter("routes.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	domain := router.FindDomain(ahttp.AcquireRequest(createHTTPRequest("localhost:8080", "/")))
 	assert.NotNil(t, domain)
@@ -259,7 +259,7 @@ func TestRouterDomainConfig(t *testing.T) {
 
 func TestRouterDomainAddresses(t *testing.T) {
 	router, err := createRouter("routes.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	addresses := router.DomainAddresses()
 	assert.True(t, len(addresses) == 2)
@@ -267,7 +267,7 @@ func TestRouterDomainAddresses(t *testing.T) {
 
 func TestRouterRegisteredActions(t *testing.T) {
 	router, err := createRouter("routes.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	methods := router.RegisteredActions()
 	assert.NotNil(t, methods)
@@ -291,7 +291,7 @@ func TestRouterIsDefaultAction(t *testing.T) {
 
 func TestRouterDomainAllowed(t *testing.T) {
 	router, err := createRouter("routes.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	req := createHTTPRequest("localhost:8080", "/login")
 	domain := router.FindDomain(ahttp.AcquireRequest(req))
@@ -313,7 +313,7 @@ func TestRouterDomainAllowed(t *testing.T) {
 
 func TestRouterDomainRouteURL(t *testing.T) {
 	router, err := createRouter("routes.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	req := createHTTPRequest("localhost:8080", "/")
 	domain := router.Lookup(req.Host)
@@ -382,7 +382,7 @@ func TestRouterDomainAddRoute(t *testing.T) {
 		Action: "ShowProject",
 	}
 	err := domain.AddRoute(route1)
-	assert.FailNowOnError(t, err, "unexpected error")
+	assert.Nil(t, err, "unexpected error")
 
 	route2 := &Route{
 		Name:   "index",
@@ -392,7 +392,7 @@ func TestRouterDomainAddRoute(t *testing.T) {
 		Action: "Index",
 	}
 	err = domain.AddRoute(route2)
-	assert.FailNowOnError(t, err, "unexpected error")
+	assert.Nil(t, err, "unexpected error")
 
 	routeError := &Route{
 		Name:   "route_error",
@@ -414,7 +414,7 @@ func TestRouterConfigNotExists(t *testing.T) {
 
 func TestRouterNamespaceConfig(t *testing.T) {
 	router, err := createRouter("routes-namespace.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	routes := router.Lookup("localhost:8080").routes
 	assert.NotNil(t, routes)
@@ -434,7 +434,7 @@ func TestRouterNamespaceConfig(t *testing.T) {
 
 func TestRouterNamespaceSimplifiedConfig(t *testing.T) {
 	router, err := createRouter("routes-simplified.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	routes := router.Lookup("localhost:8080").routes
 	assert.NotNil(t, routes)
@@ -455,7 +455,7 @@ func TestRouterNamespaceSimplifiedConfig(t *testing.T) {
 
 func TestRouterNamespaceSimplified2Config(t *testing.T) {
 	router, err := createRouter("routes-simplified-2.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	routes := router.Lookup("localhost:8080").routes
 	assert.NotNil(t, routes)
@@ -481,7 +481,7 @@ func TestRouterNamespaceSimplified2Config(t *testing.T) {
 
 func TestRouterStaticSectionBaseDirForFilePaths(t *testing.T) {
 	router, err := createRouter("routes-static.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	// Assertion
 	routes := router.Lookup("localhost:8080").routes
@@ -508,7 +508,7 @@ func TestRouterStaticSectionBaseDirForFilePaths(t *testing.T) {
 
 func TestRouterWebSocketConfig(t *testing.T) {
 	router, err := createRouter("routes-websocket.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	routes := router.Lookup("localhost:8080").routes
 	assert.NotNil(t, routes)

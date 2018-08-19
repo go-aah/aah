@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLogDefault(t *testing.T) {

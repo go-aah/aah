@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/test.v0/assert"
-	"aahframework.org/view.v0"
+	"aahframework.org/ainsp"
+	"aahframework.org/log"
+	"github.com/stretchr/testify/assert"
+	"aahframework.org/view"
 )
 
 func TestDefaultApp(t *testing.T) {

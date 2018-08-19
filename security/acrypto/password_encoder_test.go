@@ -7,7 +7,7 @@ package acrypto
 import (
 	"testing"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCryptoPasswordAlgrothim(t *testing.T) {

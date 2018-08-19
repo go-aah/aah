@@ -7,8 +7,8 @@ package acrypto
 import (
 	"testing"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestScryptHashing(t *testing.T) {

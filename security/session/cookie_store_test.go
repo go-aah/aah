@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/ahttp"
+	"aahframework.org/essentials"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSessionCookieGet(t *testing.T) {

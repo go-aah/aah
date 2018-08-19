@@ -7,10 +7,10 @@ package scheme
 import (
 	"testing"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/authz"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/config"
+	"aahframework.org/security/authc"
+	"aahframework.org/security/authz"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSchemeBaseAuth(t *testing.T) {

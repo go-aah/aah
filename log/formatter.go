@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/essentials.v0"
+	"aahframework.org/essentials"
 )
 
 // Format flags used to define log message format for each log entry

@@ -15,8 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/essentials.v0"
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestVFSMountAdd(t *testing.T) {
@@ -75,7 +74,7 @@ func TestVFSWalk(t *testing.T) {
 		"/app/static/js/aah.js",
 		"/app/.gitignore",
 	} {
-		assert.True(t, ess.IsSliceContainsString(walkList, p))
+		assert.Contains(t, walkList, p)
 	}
 }
 
@@ -158,7 +157,7 @@ func TestVFSOpenAndReadFile(t *testing.T) {
 
 				sdata := string(data)
 				for _, sv := range tc.contains {
-					assert.True(t, strings.Contains(sdata, sv))
+					assert.Contains(t, sdata, sv)
 				}
 			}
 		})
@@ -168,7 +167,7 @@ func TestVFSOpenAndReadFile(t *testing.T) {
 	f, err := Open(fs, "/app/views/not-exists")
 	assert.NotNil(t, err)
 	assert.True(t, strings.HasPrefix(err.Error(), "lstat"))
-	assert.True(t, strings.Contains(err.Error(), "views/not-exists"))
+	assert.Contains(t, err.Error(), "views/not-exists")
 	assert.Nil(t, f)
 
 	t.Log("File string")
@@ -205,7 +204,7 @@ func TestVFSGlobAndIsExists(t *testing.T) {
 		"/app/config/env",
 	} {
 		assert.True(t, fs.IsExists(p))
-		assert.True(t, ess.IsSliceContainsString(names, p))
+		assert.Contains(t, names, p)
 	}
 }
 
@@ -226,7 +225,7 @@ func TestVFSDirsAndFiles(t *testing.T) {
 		"/app/config/env/prod.conf",
 		"/app/config/aah.conf",
 	} {
-		assert.True(t, ess.IsSliceContainsString(files, p))
+		assert.Contains(t, files, p)
 	}
 }
 

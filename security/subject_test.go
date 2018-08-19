@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/authz"
-	"aahframework.org/security.v0/session"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/config"
+	"aahframework.org/security/authc"
+	"aahframework.org/security/authz"
+	"aahframework.org/security/session"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSecuritySubject(t *testing.T) {
@@ -30,7 +30,7 @@ func TestSecuritySubject(t *testing.T) {
 		}
 		`)
 	sessionManager, err := session.NewManager(cfg)
-	assert.FailNowOnError(t, err, "unexpected")
+	assert.Nil(t, err, "unexpected")
 
 	sub := AcquireSubject()
 	sub.AuthenticationInfo = authcInfo

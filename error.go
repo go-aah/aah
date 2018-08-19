@@ -10,7 +10,7 @@ import (
 	"html/template"
 	"net/http"
 
-	"aahframework.org/ahttp.v0"
+	"aahframework.org/ahttp"
 )
 
 // aah errors

@@ -8,16 +8,16 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/essentials"
+	"aahframework.org/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRouterCORS1(t *testing.T) {
 	_ = log.SetLevel("TRACE")
 	log.SetWriter(ioutil.Discard)
 	router, err := createRouter("routes-cors-1.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	domain := router.Lookup("localhost:8080")
 	assert.True(t, domain.CORS.IsOriginAllowed("*"))
@@ -51,7 +51,7 @@ func TestRouterCORS2(t *testing.T) {
 	_ = log.SetLevel("TRACE")
 	log.SetWriter(ioutil.Discard)
 	router, err := createRouter("routes-cors-2.conf")
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	domain := router.Lookup("localhost:8080")
 	assert.True(t, domain.CORS.IsOriginAllowed("https://www.basemydomain.com"))

@@ -7,7 +7,7 @@ package ess
 import (
 	"testing"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStringEmptyNotEmpty(t *testing.T) {

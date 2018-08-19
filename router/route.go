@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"strings"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/security.v0"
-	"aahframework.org/security.v0/authz"
+	"aahframework.org/config"
+	"aahframework.org/security"
+	"aahframework.org/security/authz"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

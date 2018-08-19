@@ -12,11 +12,11 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/test.v0/assert"
-	"aahframework.org/view.v0"
+	"aahframework.org/ahttp"
+	"aahframework.org/ainsp"
+	"aahframework.org/essentials"
+	"github.com/stretchr/testify/assert"
+	"aahframework.org/view"
 )
 
 func TestViewStore(t *testing.T) {

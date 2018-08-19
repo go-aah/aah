@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"sync"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/security.v0/cookie"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/log"
+	"aahframework.org/security/cookie"
 )
 
 // Storer interface comply

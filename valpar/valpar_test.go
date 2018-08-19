@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 type testStruct struct{}

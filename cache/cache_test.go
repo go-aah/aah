@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCacheManager(t *testing.T) {

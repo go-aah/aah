@@ -9,11 +9,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/ahttp"
+	"aahframework.org/config"
+	"aahframework.org/log"
+	"aahframework.org/router"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestContextSubdomain(t *testing.T) {

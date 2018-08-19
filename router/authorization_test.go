@@ -8,10 +8,10 @@ import (
 	"errors"
 	"testing"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/security.v0"
-	"aahframework.org/security.v0/authz"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/config"
+	"aahframework.org/security"
+	"aahframework.org/security/authz"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRouteAuthorizationConfig(t *testing.T) {

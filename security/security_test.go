@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/security.v0/scheme"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/config"
+	"aahframework.org/security/scheme"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSecurityInit(t *testing.T) {

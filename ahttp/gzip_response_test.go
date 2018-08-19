@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/essentials.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/essentials"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTPGzipWriter(t *testing.T) {
@@ -95,7 +95,7 @@ func TestHTTPGzipHijack(t *testing.T) {
 		gw := WrapGzipWriter(AcquireResponseWriter(w))
 
 		con, rw, err := gw.(http.Hijacker).Hijack()
-		assert.FailOnError(t, err, "")
+		assert.Nil(t, err, "")
 		defer ess.CloseQuietly(con)
 
 		bytes := []byte("aah framework calling gzip hijack")

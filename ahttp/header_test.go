@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"testing"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTPParseAcceptHeaderLanguage(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"sort"
 	"sync"
 
-	"aahframework.org/log.v0"
+	"aahframework.org/log"
 )
 
 const (

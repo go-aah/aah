@@ -10,7 +10,7 @@ import (
 	"io"
 	"strings"
 
-	"aahframework.org/ahttp.v0"
+	"aahframework.org/ahttp"
 )
 
 var errNodeExists = errors.New("aah/router: node exists")

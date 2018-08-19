@@ -15,8 +15,8 @@ import (
 	"strings"
 	"time"
 
-	"aahframework.org/essentials.v0"
-	"aahframework.org/security.v0/acrypto"
+	"aahframework.org/essentials"
+	"aahframework.org/security/acrypto"
 )
 
 // Cookie errors

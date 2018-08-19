@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/ahttp"
+	"aahframework.org/router"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRouterTemplateFuncs(t *testing.T) {

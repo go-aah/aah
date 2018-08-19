@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/config"
+	"aahframework.org/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestViewAppPages(t *testing.T) {
@@ -34,7 +34,7 @@ func TestViewAppPages(t *testing.T) {
 
 	var buf bytes.Buffer
 	err = tmpl.ExecuteTemplate(&buf, "master.html", data)
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	htmlStr := buf.String()
 	t.Logf("HTML String: %s", htmlStr)
@@ -67,7 +67,7 @@ func TestViewUserPages(t *testing.T) {
 
 	var buf bytes.Buffer
 	err = tmpl.ExecuteTemplate(&buf, "master.html", data)
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	htmlStr := buf.String()
 	t.Logf("HTML String: %s", htmlStr)
@@ -100,7 +100,7 @@ func TestViewUserPagesNoLayout(t *testing.T) {
 
 	var buf bytes.Buffer
 	err = tmpl.Execute(&buf, data)
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	htmlStr := buf.String()
 	t.Logf("HTML String: %s", htmlStr)
@@ -183,7 +183,7 @@ func loadGoViewEngine(t *testing.T, cfg *config.Config, dir string, hotreload bo
 	ge := &GoViewEngine{}
 
 	err := ge.Init(newVFS(), cfg, viewsDir)
-	assert.FailNowOnError(t, err, "")
+	assert.Nil(t, err, "")
 	ge.hotReload = hotreload
 
 	assert.Equal(t, viewsDir, ge.BaseDir)

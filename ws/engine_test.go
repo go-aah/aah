@@ -14,13 +14,13 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/ahttp"
+	"aahframework.org/ainsp"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/log"
+	"aahframework.org/router"
+	"github.com/stretchr/testify/assert"
 
 	gws "github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
@@ -112,12 +112,12 @@ func TestEngineWSClient(t *testing.T) {
 					return
 				}
 			}
-			assert.FailNowOnError(t, err, "connection failure")
+			assert.Nil(t, err, "connection failure")
 
 			err = wsutil.WriteClientMessage(conn, tc.opCode, tc.content)
 			if err != nil {
 				if !strings.Contains(err.Error(), "broken pipe") {
-					assert.FailNowOnError(t, err, "Unable to send msg to ws server")
+					assert.Nil(t, err, "Unable to send msg to ws server")
 				}
 				return
 			}

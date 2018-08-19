@@ -7,7 +7,7 @@ package authz
 import (
 	"testing"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAuthPart(t *testing.T) {

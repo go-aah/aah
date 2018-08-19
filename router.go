@@ -12,10 +12,10 @@ import (
 	"path"
 	"strings"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/valpar.v0"
+	"aahframework.org/ahttp"
+	"aahframework.org/log"
+	"aahframework.org/router"
+	"aahframework.org/valpar"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

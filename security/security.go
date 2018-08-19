@@ -14,14 +14,14 @@ import (
 	"sync"
 	"time"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/security.v0/acrypto"
-	"aahframework.org/security.v0/anticsrf"
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/scheme"
-	"aahframework.org/security.v0/session"
+	"aahframework.org/ahttp"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/security/acrypto"
+	"aahframework.org/security/anticsrf"
+	"aahframework.org/security/authc"
+	"aahframework.org/security/scheme"
+	"aahframework.org/security/session"
 )
 
 var (

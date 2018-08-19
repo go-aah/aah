@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/essentials.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/essentials"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRenderText(t *testing.T) {
@@ -22,14 +22,14 @@ func TestRenderText(t *testing.T) {
 	}
 
 	err := text1.Render(buf)
-	assert.FailOnError(t, err, "")
+	assert.Nil(t, err, "")
 	assert.Equal(t, "welcome to aah framework", buf.String())
 
 	buf.Reset()
 	text2 := textRender{Format: "welcome to aah framework"}
 
 	err = text2.Render(buf)
-	assert.FailOnError(t, err, "")
+	assert.Nil(t, err, "")
 	assert.Equal(t, "welcome to aah framework", buf.String())
 }
 
@@ -48,7 +48,7 @@ func TestRenderJSON(t *testing.T) {
 
 	json1 := jsonRender{Data: data}
 	err := json1.Render(buf)
-	assert.FailOnError(t, err, "")
+	assert.Nil(t, err, "")
 	assert.Equal(t, `{"Name":"John","Age":28,"Address":"this is my street"}`,
 		strings.TrimSpace(buf.String()))
 }

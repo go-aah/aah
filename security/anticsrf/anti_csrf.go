@@ -9,10 +9,10 @@ import (
 	"errors"
 	"net/http"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/security.v0/cookie"
+	"aahframework.org/ahttp"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/security/cookie"
 )
 
 // Anti-CSRF errors

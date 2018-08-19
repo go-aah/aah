@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"strings"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/security.v0/acrypto"
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/authz"
+	"aahframework.org/ahttp"
+	"aahframework.org/config"
+	"aahframework.org/log"
+	"aahframework.org/security/acrypto"
+	"aahframework.org/security/authc"
+	"aahframework.org/security/authz"
 )
 
 // Schemer interface is used to create new Auth Scheme for aah framework.

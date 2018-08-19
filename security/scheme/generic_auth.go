@@ -7,9 +7,9 @@ package scheme
 import (
 	"net/http"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/security.v0/authc"
+	"aahframework.org/ahttp"
+	"aahframework.org/config"
+	"aahframework.org/security/authc"
 )
 
 var _ Schemer = (*GenericAuth)(nil)

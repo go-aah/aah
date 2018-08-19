@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/essentials.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/essentials"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTPResponseWriter(t *testing.T) {
@@ -65,7 +65,7 @@ func TestHTTPHijackCall(t *testing.T) {
 		writer := AcquireResponseWriter(w)
 
 		con, rw, err := writer.(http.Hijacker).Hijack()
-		assert.FailOnError(t, err, "")
+		assert.Nil(t, err, "")
 		defer ess.CloseQuietly(con)
 
 		bytes := []byte("aah framework calling hijack")

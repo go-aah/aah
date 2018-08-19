@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/ahttp"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTreeBasicUseCase(t *testing.T) {
@@ -38,7 +38,7 @@ func TestTreeBasicUseCase(t *testing.T) {
 
 	for _, tc := range testcases {
 		err := tt.add(tc.route, tc.result)
-		assert.FailOnError(t, err, "unexpected")
+		assert.Nil(t, err, "unexpected")
 	}
 	tt.root.inferwnode()
 
@@ -79,7 +79,7 @@ func TestTreeRouteParameters(t *testing.T) {
 
 	for _, route := range routes {
 		err := tt.add(route, &Route{Path: route})
-		assert.FailOnError(t, err, "unexpected")
+		assert.Nil(t, err, "unexpected")
 	}
 
 	tt.root.inferwnode()
@@ -194,7 +194,7 @@ func TestTreePyramidHierarchyURL(t *testing.T) {
 
 	for _, route := range routes {
 		err := tt.add(route, &Route{Path: route})
-		assert.FailOnError(t, err, "unexpected")
+		assert.Nil(t, err, "unexpected")
 	}
 	tt.root.inferwnode()
 
@@ -337,7 +337,7 @@ func TestTreeWildcardRoutes(t *testing.T) {
 	tt.tralingSlash = true
 	for _, route := range routes {
 		err := tt.add(route, &Route{Path: route})
-		assert.FailOnError(t, err, "unexpected")
+		assert.Nil(t, err, "unexpected")
 	}
 
 	tt.root.inferwnode()
@@ -383,7 +383,7 @@ func TestTreeRouteNotFound(t *testing.T) {
 	tt := &tree{root: new(node)}
 	for _, route := range routes {
 		err := tt.add(route, &Route{Path: route})
-		assert.FailOnError(t, err, "unexpected")
+		assert.Nil(t, err, "unexpected")
 	}
 
 	tt.root.inferwnode()
@@ -420,7 +420,7 @@ func TestTreeVariousRouteTypes(t *testing.T) {
 	tt := &tree{root: new(node)}
 	for _, route := range routes {
 		err := tt.add(route, &Route{Path: route})
-		assert.FailOnError(t, err, "unexpected")
+		assert.Nil(t, err, "unexpected")
 	}
 
 	tt.root.inferwnode()
@@ -534,7 +534,7 @@ func TestTreeCasesentiveCheck(t *testing.T) {
 	for _, tc := range testcases {
 		tt := newTree()
 		err := tt.add(tc.route, &Route{Path: tc.route})
-		assert.FailNowOnError(t, err, "unexpected")
+		assert.Nil(t, err, "unexpected")
 
 		tt.root.inferwnode()
 

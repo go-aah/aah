@@ -13,10 +13,10 @@ import (
 	"net/url"
 	"reflect"
 
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/valpar.v0"
+	"aahframework.org/ainsp"
+	"aahframework.org/log"
+	"aahframework.org/router"
+	"aahframework.org/valpar"
 
 	gws "github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"

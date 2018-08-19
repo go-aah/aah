@@ -13,10 +13,10 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/test.v0/assert"
-	"aahframework.org/vfs.v0"
+	"aahframework.org/config"
+	"aahframework.org/log"
+	"github.com/stretchr/testify/assert"
+	"aahframework.org/vfs"
 )
 
 func TestViewAddTemplateFunc(t *testing.T) {

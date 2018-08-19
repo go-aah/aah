@@ -14,8 +14,8 @@ import (
 	"fmt"
 	"strings"
 
-	"aahframework.org/forge.v0"
-	"aahframework.org/vfs.v0"
+	"aahframework.org/vfs"
+	"github.com/go-aah/forge"
 )
 
 var errKeyNotFound = errors.New("config: not found")

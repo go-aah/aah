@@ -6,8 +6,8 @@ import (
 	"go/token"
 	"path/filepath"
 
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
+	"aahframework.org/essentials"
+	"aahframework.org/log"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

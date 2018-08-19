@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsFileExists(t *testing.T) {
@@ -54,19 +54,19 @@ func TestApplyFileMode(t *testing.T) {
 
 	err := ioutil.WriteFile(fileName,
 		[]byte(`This file is for file permission testing`), 0700)
-	assert.FailOnError(t, err, "file permission issue")
+	assert.Nil(t, err, "file permission issue")
 
 	fileInfo, err := os.Stat(fileName)
-	assert.FailOnError(t, err, "couldn't to file stat")
+	assert.Nil(t, err, "couldn't to file stat")
 	if fileInfo.Mode() != os.FileMode(0700) {
 		t.Errorf("expected file mode: 0700 got %v", fileInfo.Mode())
 	}
 
 	err = ApplyFileMode(fileName, 0755)
-	assert.FailOnError(t, err, "couldn't apply file permission")
+	assert.Nil(t, err, "couldn't apply file permission")
 
 	fileInfo, err = os.Stat(fileName)
-	assert.FailOnError(t, err, "couldn't to file stat")
+	assert.Nil(t, err, "couldn't to file stat")
 	if fileInfo.Mode() != os.FileMode(0755) {
 		t.Errorf("expected file mode: 0755 got %v", fileInfo.Mode())
 	}
@@ -88,7 +88,7 @@ func TestLineCntByFilePath(t *testing.T) {
 
 func TestLineCntByReader(t *testing.T) {
 	file, err := os.Open(join(getTestdataPath(), "sample.txt"))
-	assert.FailOnError(t, err, "unable to open file")
+	assert.Nil(t, err, "unable to open file")
 	defer CloseQuietly(file)
 
 	assert.Equal(t, 20, LineCntr(file))
@@ -114,27 +114,27 @@ func TestWalk(t *testing.T) {
 
 	err := ioutil.WriteFile(fileName,
 		[]byte(`This file is for file permission testing 1`), 0755)
-	assert.FailOnError(t, err, "unable to create file")
+	assert.Nil(t, err, "unable to create file")
 
 	err = MkDirAll(join(testdataPath, "symlinkdata"), 0755)
-	assert.FailOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	err = ioutil.WriteFile(join(testdataPath, "symlinkdata", "file1.txt"),
 		[]byte(`This file is for file permission testing 2`), 0755)
-	assert.FailOnError(t, err, "unable to create file")
+	assert.Nil(t, err, "unable to create file")
 
 	// preparing symlink for test
 	err = os.Symlink(fileName, newName1)
-	assert.FailOnError(t, err, "unable to create symlink")
+	assert.Nil(t, err, "unable to create symlink")
 
 	err = os.Symlink(fileName, newName2)
-	assert.FailOnError(t, err, "unable to create symlink")
+	assert.Nil(t, err, "unable to create symlink")
 
 	err = os.Symlink(join(testdataPath, "symlinkdata"), newName3)
-	assert.FailOnError(t, err, "unable to create symlink")
+	assert.Nil(t, err, "unable to create symlink")
 
 	err = CopyDir(join(tmpDir, "symlinktest"), testdataPath, Excludes{})
-	assert.FailOnError(t, err, "")
+	assert.Nil(t, err, "")
 }
 
 func TestExcludes(t *testing.T) {
@@ -207,7 +207,7 @@ func TestCopyDir(t *testing.T) {
 
 	pwd, _ := os.Getwd()
 	err5 := CopyDir(join(tmpDir, "test1"), pwd, Excludes{"test*", "*conf", ".*"})
-	assert.FailNowOnError(t, err5, "copy directory failed")
+	assert.Nil(t, err5, "copy directory failed")
 }
 
 func TestStripExt(t *testing.T) {
@@ -240,7 +240,7 @@ func TestDirPaths(t *testing.T) {
 	_ = MkDirAll(path22, 0755)
 
 	dirs, err := DirsPath(join(testdataPath, "dirpaths"), true)
-	assert.FailOnError(t, err, "unable to get directory list")
+	assert.Nil(t, err, "unable to get directory list")
 	assert.True(t, IsSliceContainsString(dirs, path1))
 	assert.True(t, IsSliceContainsString(dirs, path11))
 	assert.True(t, IsSliceContainsString(dirs, path12))
@@ -249,13 +249,13 @@ func TestDirPaths(t *testing.T) {
 	assert.False(t, IsSliceContainsString(dirs, join(path22, "not-exists")))
 
 	dirs, err = DirsPath(join(testdataPath, "dirpaths", "level1"), false)
-	assert.FailOnError(t, err, "unable to get directory list")
+	assert.Nil(t, err, "unable to get directory list")
 	assert.True(t, IsSliceContainsString(dirs, path11))
 	assert.True(t, IsSliceContainsString(dirs, path12))
 	assert.False(t, IsSliceContainsString(dirs, join(path22, "not-exists")))
 
 	dirs, err = DirsPathExcludes(join(testdataPath, "dirpaths"), true, Excludes{"level1-2", "level2-2"})
-	assert.FailOnError(t, err, "unable to get directory list")
+	assert.Nil(t, err, "unable to get directory list")
 	assert.True(t, len(dirs) == 6)
 }
 

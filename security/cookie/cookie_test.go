@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/essentials.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/essentials"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCookieNew(t *testing.T) {

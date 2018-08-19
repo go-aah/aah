@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConsoleLoggerTextJSON(t *testing.T) {
@@ -108,7 +108,7 @@ func TestConsoleLoggerDefaults(t *testing.T) {
 func testConsoleLogger(t *testing.T, cfgStr string) {
 	cfg, _ := config.ParseString(cfgStr)
 	logger, err := New(cfg)
-	assert.FailNowOnError(t, err, "unexpected error")
+	assert.Nil(t, err, "unexpected error")
 
 	logger.Trace("I shoudn't see this msg, because standard logger level is DEBUG")
 	logger.Tracef("I shoudn't see this msg, because standard logger level is DEBUG: %v", 4)

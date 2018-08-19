@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestValidatorValidate(t *testing.T) {

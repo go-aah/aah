@@ -7,7 +7,7 @@ package aah
 import (
 	"path"
 
-	"aahframework.org/i18n.v0"
+	"aahframework.org/i18n"
 )
 
 const keyLocale = "Locale"

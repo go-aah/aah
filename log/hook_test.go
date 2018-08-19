@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLogAddHook(t *testing.T) {
@@ -46,7 +46,7 @@ func TestLogHook(t *testing.T) {
   `
 	cfg, _ := config.ParseString(configStr)
 	logger, err := New(cfg)
-	assert.FailNowOnError(t, err, "unexpected error")
+	assert.Nil(t, err, "unexpected error")
 
 	// Add hook
 	_ = logger.AddHook("hook1", func(e Entry) {

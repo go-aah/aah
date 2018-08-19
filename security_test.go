@@ -15,17 +15,17 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/security.v0"
-	"aahframework.org/security.v0/anticsrf"
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/authz"
-	"aahframework.org/security.v0/scheme"
-	"aahframework.org/security.v0/session"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/ahttp"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/router"
+	"aahframework.org/security"
+	"aahframework.org/security/anticsrf"
+	"aahframework.org/security/authc"
+	"aahframework.org/security/authz"
+	"aahframework.org/security/scheme"
+	"aahframework.org/security/session"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/publicsuffix"
 	"golang.org/x/oauth2"
 )
@@ -285,7 +285,7 @@ security {
 	err = ts.app.initSecurity()
 	assert.Nil(t, err)
 	err = ts.app.initRouter()
-	assert.FailNowOnError(t, err, "router init issue")
+	assert.Nil(t, err, "router init issue")
 
 	ots := createOAuth2TestServer()
 	defer ots.Close()

@@ -8,16 +8,16 @@ import (
 	"crypto/tls"
 	"html/template"
 
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/i18n.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/security.v0"
-	"aahframework.org/security.v0/session"
-	"aahframework.org/vfs.v0"
-	"aahframework.org/view.v0"
-	"aahframework.org/ws.v0"
+	"aahframework.org/ainsp"
+	"aahframework.org/config"
+	"aahframework.org/i18n"
+	"aahframework.org/log"
+	"aahframework.org/router"
+	"aahframework.org/security"
+	"aahframework.org/security/session"
+	"aahframework.org/vfs"
+	"aahframework.org/view"
+	"aahframework.org/ws"
 )
 
 var defaultApp = newApp()

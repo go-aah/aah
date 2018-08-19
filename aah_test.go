@@ -20,12 +20,12 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/ahttp"
+	"aahframework.org/ainsp"
+	"aahframework.org/config"
+	"aahframework.org/essentials"
+	"aahframework.org/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAahApp(t *testing.T) {
@@ -284,10 +284,10 @@ func newTestApp(t *testing.T, importPath string) *app {
 	})
 
 	err := a.VFS().AddMount(a.VirtualBaseDir(), importPath)
-	assert.FailNowOnError(t, err, "not expecting any error")
+	assert.Nil(t, err, "not expecting any error")
 
 	err = a.Init(importPath)
-	assert.FailNowOnError(t, err, "app init failure")
+	assert.Nil(t, err, "app init failure")
 
 	return a
 }

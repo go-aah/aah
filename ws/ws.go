@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"aahframework.org/ainsp.v0"
+	"aahframework.org/ainsp"
 )
 
 // New method creates aah WebSocket engine with given aah application instance :)

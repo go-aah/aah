@@ -11,12 +11,12 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/security.v0/acrypto"
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/authz"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/ahttp"
+	"aahframework.org/config"
+	"aahframework.org/security/acrypto"
+	"aahframework.org/security/authc"
+	"aahframework.org/security/authz"
+	"github.com/stretchr/testify/assert"
 )
 
 type testFormAuthentication struct {

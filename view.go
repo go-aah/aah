@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/security.v0"
-	"aahframework.org/view.v0"
+	"aahframework.org/ahttp"
+	"aahframework.org/security"
+	"aahframework.org/view"
 )
 
 const (

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"reflect"
 
-	"aahframework.org/log.v0"
+	"aahframework.org/log"
 )
 
 const (

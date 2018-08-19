@@ -8,8 +8,8 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"aahframework.org/config.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFileLoggerRotation(t *testing.T) {
@@ -153,7 +153,7 @@ func TestFileLoggerIncorrectSizeValue(t *testing.T) {
 func testFileLogger(t *testing.T, cfgStr string, loop int) {
 	cfg, _ := config.ParseString(cfgStr)
 	logger, err := New(cfg)
-	assert.FailNowOnError(t, err, "unexpected error")
+	assert.Nil(t, err, "unexpected error")
 
 	for i := 0; i < loop; i++ {
 		logger.Trace("I shoudn't see this msg, because standard logger level is DEBUG")

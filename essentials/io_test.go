@@ -8,13 +8,13 @@ import (
 	"os"
 	"testing"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCloseQuietly(t *testing.T) {
 	file, err := os.Open("testdata/sample.txt")
 
-	assert.FailOnError(t, err, "")
+	assert.Nil(t, err, "")
 
 	CloseQuietly(file, nil)
 }

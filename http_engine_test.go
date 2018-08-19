@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframework.org/ahttp"
+	"aahframework.org/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTPEngineTestRequests(t *testing.T) {
