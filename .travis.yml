@@ -17,8 +17,8 @@ go:
 go_import_path: aahframework.org
 
 before_install:
-  - go get github.com/go-aah/forge
-  - cd $GOPATH/src/github.com/go-aah/forge && git checkout v0-edge
+  #- go get github.com/go-aah/forge
+  #- cd $GOPATH/src/github.com/go-aah/forge && git checkout v0-edge
   #- bash <(curl -s https://aahframework.org/base-before-install)
 
 install:
