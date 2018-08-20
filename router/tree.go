@@ -127,7 +127,7 @@ walk:
 }
 
 func (t *tree) add(p string, r *Route) error {
-	fullPath := p
+	fp := p
 	p = strings.ToLower(p)
 	var err error
 	maxParams := countParams(p)
@@ -142,12 +142,12 @@ func (t *tree) add(p string, r *Route) error {
 			for i < l && p[i] != slashByte {
 				i++
 			}
-			arg := p[j:i]
+			arg := fp[j:i]
 			if err = checkParameter(p, arg); err != nil {
 				return err
 			}
 
-			p = p[:j] + p[i:]
+			p, fp = p[:j]+p[i:], fp[:j]+fp[i:]
 			i, l = j, len(p)
 			if i == l {
 				return t.insertEdge(paramNode, p[:i], arg, r)
@@ -158,12 +158,12 @@ func (t *tree) add(p string, r *Route) error {
 		case wildByte:
 			if idx := strings.IndexByte(p[i+1:], slashByte); idx > 0 {
 				return fmt.Errorf("incorrect use of wildcard URL param [%s]."+
-					" It should come as last param [%s]", fullPath, fullPath[:i+idx+1])
-			} else if err = checkParameter(p, p[i+1:]); err != nil {
+					" It should come as last param [%s]", fp, fp[:i+idx+1])
+			} else if err = checkParameter(p, fp[i+1:]); err != nil {
 				return err
 			}
 			_ = t.insertEdge(staticNode, p[:i], "", nil)
-			return t.insertEdge(wildcardNode, p[:i+1], p[i+1:], r)
+			return t.insertEdge(wildcardNode, p[:i+1], fp[i+1:], r)
 		}
 	}
 	return t.insertEdge(staticNode, p, "", r)

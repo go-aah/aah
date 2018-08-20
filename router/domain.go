@@ -88,7 +88,7 @@ func (d *Domain) AddRoute(route *Route) error {
 		d.trees[route.Method] = t
 	}
 
-	if err := t.add(strings.ToLower(route.Path), route); err != nil {
+	if err := t.add(route.Path, route); err != nil {
 		return err
 	}
 
