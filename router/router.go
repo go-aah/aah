@@ -17,13 +17,13 @@ import (
 	"regexp"
 	"strings"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
-	"aahframework.org/security"
-	"aahframework.org/security/scheme"
-	"aahframework.org/vfs"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/log"
+	"aahframe.work/aah/security"
+	"aahframe.work/aah/security/scheme"
+	"aahframe.work/aah/vfs"
 )
 
 const (
@@ -287,6 +287,7 @@ func (r *Router) processRoutesConfig() (err error) {
 			DefaultAuth:           domainCfg.StringDefault("default_auth", ""),
 			AntiCSRFEnabled:       domainCfg.BoolDefault("anti_csrf_check", true),
 			CORSEnabled:           domainCfg.BoolDefault("cors.enable", false),
+			CatchAllEnabled:       domainCfg.BoolDefault("catch_all", false),
 			trees:                 make(map[string]*tree),
 			routes:                make(map[string]*Route),
 		}
