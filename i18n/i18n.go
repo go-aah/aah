@@ -35,11 +35,11 @@ import (
 	"regexp"
 	"strings"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
-	"aahframework.org/vfs"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/log"
+	"aahframe.work/aah/vfs"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

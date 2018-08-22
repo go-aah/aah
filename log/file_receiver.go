@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"aahframework.org/config"
-	"aahframework.org/essentials"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/essentials"
 )
 
 const defaultRotatePolicy = "daily"

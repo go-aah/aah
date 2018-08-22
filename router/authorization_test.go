@@ -8,9 +8,9 @@ import (
 	"errors"
 	"testing"
 
-	"aahframework.org/config"
-	"aahframework.org/security"
-	"aahframework.org/security/authz"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/security"
+	"aahframe.work/aah/security/authz"
 	"github.com/stretchr/testify/assert"
 )
 

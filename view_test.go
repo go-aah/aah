@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/ainsp"
-	"aahframework.org/essentials"
-	"aahframework.org/view"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/ainsp"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/view"
 	"github.com/stretchr/testify/assert"
 )
 

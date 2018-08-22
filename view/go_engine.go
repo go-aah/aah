@@ -12,9 +12,9 @@ import (
 	"strings"
 	"sync"
 
-	"aahframework.org/config"
-	"aahframework.org/log"
-	"aahframework.org/vfs"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/log"
+	"aahframe.work/aah/vfs"
 )
 
 const noLayout = "nolayout"

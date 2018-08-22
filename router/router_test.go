@@ -14,15 +14,15 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
-	"aahframework.org/security"
-	"aahframework.org/security/scheme"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/log"
+	"aahframe.work/aah/security"
+	"aahframe.work/aah/security/scheme"
 	"github.com/stretchr/testify/assert"
-	"aahframework.org/valpar"
-	"aahframework.org/vfs"
+	"aahframe.work/aah/valpar"
+	"aahframe.work/aah/vfs"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -369,7 +369,7 @@ func TestRouterDomainRouteURL(t *testing.T) {
 
 func TestRouterDomainAddRoute(t *testing.T) {
 	domain := &Domain{
-		Host:   "aahframework.org",
+		Host:   "aahframe.work/aah",
 		trees:  make(map[string]*tree),
 		routes: make(map[string]*Route),
 	}

@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"reflect"
 
-	"aahframework.org/essentials"
+	"aahframe.work/aah/essentials"
 )
 
 var (

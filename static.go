@@ -18,9 +18,9 @@ import (
 	"sort"
 	"strings"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/essentials"
-	"aahframework.org/vfs"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/vfs"
 )
 
 var (

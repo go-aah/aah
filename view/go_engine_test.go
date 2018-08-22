@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/config"
-	"aahframework.org/log"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/log"
 	"github.com/stretchr/testify/assert"
 )
 

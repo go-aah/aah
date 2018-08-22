@@ -13,9 +13,9 @@ import (
 	"regexp"
 	"strings"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/essentials"
-	"aahframework.org/valpar"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/valpar"
 	"gopkg.in/go-playground/validator.v9"
 )
 

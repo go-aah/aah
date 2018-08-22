@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/essentials"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/essentials"
 )
 
 var (

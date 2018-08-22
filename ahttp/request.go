@@ -15,7 +15,7 @@ import (
 	"strings"
 	"sync"
 
-	"aahframework.org/essentials"
+	"aahframe.work/aah/essentials"
 )
 
 const (

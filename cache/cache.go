@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"aahframework.org/config"
-	"aahframework.org/log"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/log"
 )
 
 // Cache errors

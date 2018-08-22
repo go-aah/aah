@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/config"
-	"aahframework.org/security/authc"
-	"aahframework.org/security/authz"
-	"aahframework.org/security/session"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/security/authc"
+	"aahframe.work/aah/security/authz"
+	"aahframe.work/aah/security/session"
 	"github.com/stretchr/testify/assert"
 )
 

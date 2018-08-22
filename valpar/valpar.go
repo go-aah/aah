@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/log"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/log"
 )
 
 var (

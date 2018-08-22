@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/log"
 )
 
 const allowAll = "*"

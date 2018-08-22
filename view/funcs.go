@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframework.org/log"
+	"aahframe.work/aah/log"
 )
 
 // tmplSafeHTML method outputs given HTML as-is, use it with care.

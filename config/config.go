@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"strings"
 
-	"aahframework.org/vfs"
+	"aahframe.work/aah/vfs"
 	"github.com/go-aah/forge"
 )
 

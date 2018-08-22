@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"aahframework.org/essentials"
+	"aahframe.work/aah/essentials"
 	"golang.org/x/crypto/scrypt"
 )
 

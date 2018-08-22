@@ -11,14 +11,14 @@ import (
 	"reflect"
 	"strings"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/ainsp"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
-	"aahframework.org/router"
-	"aahframework.org/security"
-	"aahframework.org/security/authz"
-	"aahframework.org/security/session"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/ainsp"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/log"
+	"aahframe.work/aah/router"
+	"aahframe.work/aah/security"
+	"aahframe.work/aah/security/authz"
+	"aahframe.work/aah/security/session"
 )
 
 var (

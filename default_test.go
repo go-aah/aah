@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/ainsp"
-	"aahframework.org/log"
-	"aahframework.org/view"
+	"aahframe.work/aah/ainsp"
+	"aahframe.work/aah/log"
+	"aahframe.work/aah/view"
 	"github.com/stretchr/testify/assert"
 )
 

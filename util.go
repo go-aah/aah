@@ -16,9 +16,9 @@ import (
 	"sort"
 	"strings"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/essentials"
-	"aahframework.org/security/authz"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/security/authz"
 )
 
 func isValidTimeUnit(str string, units ...string) bool {

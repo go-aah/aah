@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"strings"
 
-	"aahframework.org/config"
-	"aahframework.org/log"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/log"
 )
 
 const hashDelim = "$"

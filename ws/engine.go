@@ -11,13 +11,13 @@ import (
 	"net/url"
 	"strings"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/ainsp"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
-	"aahframework.org/router"
-	"aahframework.org/valpar"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/ainsp"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/log"
+	"aahframe.work/aah/router"
+	"aahframe.work/aah/valpar"
 
 	gws "github.com/gobwas/ws"
 )

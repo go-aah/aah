@@ -5,10 +5,10 @@
 package scheme
 
 import (
-	"aahframework.org/ahttp"
-	"aahframework.org/config"
-	"aahframework.org/log"
-	"aahframework.org/security/authc"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/log"
+	"aahframe.work/aah/security/authc"
 )
 
 var _ Schemer = (*FormAuth)(nil)

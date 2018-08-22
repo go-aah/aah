@@ -7,9 +7,9 @@ package scheme
 import (
 	"testing"
 
-	"aahframework.org/config"
-	"aahframework.org/security/authc"
-	"aahframework.org/security/authz"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/security/authc"
+	"aahframe.work/aah/security/authz"
 	"github.com/stretchr/testify/assert"
 )
 

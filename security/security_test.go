@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframework.org/config"
-	"aahframework.org/security/scheme"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/security/scheme"
 	"github.com/stretchr/testify/assert"
 )
 

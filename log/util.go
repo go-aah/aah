@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"aahframework.org/essentials"
+	"aahframe.work/aah/essentials"
 )
 
 var (
@@ -80,7 +80,7 @@ func fetchCallerInfo() (string, int) {
 		frame, _ := frames.Next()
 
 		// Unwinding for aah log pkg otherwise stop.
-		if strings.Contains(frame.File, "aahframework.org/log") {
+		if strings.Contains(frame.File, "aahframe.work/aah/log") {
 			continue
 		}
 

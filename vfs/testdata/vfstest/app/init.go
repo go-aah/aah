@@ -5,7 +5,7 @@ package main
 
 import (
 
-	"aahframework.org/aah.v0"
+	"aahframe.work/aah/aah.v0"
 
 	// Registering HTML minifier for web application
 	_ "github.com/aah-cb/minify"

@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/ainsp"
-	"aahframework.org/aruntime"
-	"aahframework.org/log"
-	"aahframework.org/security"
-	"aahframework.org/security/authc"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/ainsp"
+	"aahframe.work/aah/aruntime"
+	"aahframe.work/aah/log"
+	"aahframe.work/aah/security"
+	"aahframe.work/aah/security/authc"
 )
 
 const (

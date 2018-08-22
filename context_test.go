@@ -9,10 +9,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/config"
-	"aahframework.org/log"
-	"aahframework.org/router"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/log"
+	"aahframe.work/aah/router"
 	"github.com/stretchr/testify/assert"
 )
 

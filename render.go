@@ -14,7 +14,7 @@ import (
 	"os"
 	"strings"
 
-	"aahframework.org/essentials"
+	"aahframe.work/aah/essentials"
 )
 
 const (

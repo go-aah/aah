@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/log"
 )
 
 const vendorTreePrefix = "vnd."

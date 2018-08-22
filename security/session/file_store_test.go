@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/essentials"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/essentials"
 	"github.com/stretchr/testify/assert"
 )
 

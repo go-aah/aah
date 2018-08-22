@@ -7,13 +7,13 @@ package scheme
 import (
 	"fmt"
 
-	"aahframework.org/ahttp"
-	"aahframework.org/config"
-	"aahframework.org/essentials"
-	"aahframework.org/log"
-	"aahframework.org/security/acrypto"
-	"aahframework.org/security/authc"
-	"aahframework.org/security/authz"
+	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/config"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/log"
+	"aahframe.work/aah/security/acrypto"
+	"aahframe.work/aah/security/authc"
+	"aahframe.work/aah/security/authz"
 )
 
 var _ Schemer = (*BaseAuth)(nil)

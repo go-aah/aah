@@ -7,8 +7,8 @@ package aah
 import (
 	"path/filepath"
 
-	"aahframework.org/essentials"
-	"aahframework.org/log"
+	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/log"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
