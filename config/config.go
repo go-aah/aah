@@ -1,5 +1,5 @@
-// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/config source code and usage is governed by a MIT style
+// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 // Package config is nice and handy layer built around `forge` config syntax;

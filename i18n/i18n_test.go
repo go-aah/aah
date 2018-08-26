@@ -1,5 +1,5 @@
-// Copyright (c) Jeevanandam M (https://github.com/jeevatkm)
-// aahframework.org/i18n source code and usage is governed by a MIT style
+// Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package i18n

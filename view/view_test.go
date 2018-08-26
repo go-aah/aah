@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/view source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package view
@@ -15,8 +15,8 @@ import (
 
 	"aahframe.work/aah/config"
 	"aahframe.work/aah/log"
-	"github.com/stretchr/testify/assert"
 	"aahframe.work/aah/vfs"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestViewAddTemplateFunc(t *testing.T) {
