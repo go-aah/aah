@@ -225,7 +225,11 @@ func getRouteNameAndAnchorLink(routeName string) (string, string) {
 	return routeName, anchorLink
 }
 
-func composeRouteURL(domain *router.Domain, routePath, anchorLink string) string {
+func composeRouteURL(host string, domain *router.Domain, routePath, anchorLink string) string {
+	if domain.Host == "localhost" {
+		return appendAnchorLink("//"+host+routePath, anchorLink)
+	}
+
 	if len(domain.Port) == 0 {
 		routePath = fmt.Sprintf("//%s%s", domain.Host, routePath)
 	} else {
@@ -257,9 +261,9 @@ func (a *app) findRouteURLDomain(host, routeName string) (*router.Domain, string
 	return a.Router().RootDomain(), routeName
 }
 
-func createRouteURL(l log.Loggerer, domain *router.Domain, routeName string, margs map[string]interface{}, args ...interface{}) string {
+func createRouteURL(l log.Loggerer, host string, domain *router.Domain, routeName string, margs map[string]interface{}, args ...interface{}) string {
 	if routeName == "host" {
-		return composeRouteURL(domain, "", "")
+		return composeRouteURL(host, domain, "", "")
 	}
 
 	routeName, anchorLink := getRouteNameAndAnchorLink(routeName)
@@ -271,7 +275,7 @@ func createRouteURL(l log.Loggerer, domain *router.Domain, routeName string, mar
 	}
 
 	// URL escapes
-	rURL, err := url.Parse(composeRouteURL(domain, routePath, anchorLink))
+	rURL, err := url.Parse(composeRouteURL(host, domain, routePath, anchorLink))
 	if err != nil {
 		l.Error(err)
 		return ""

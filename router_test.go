@@ -51,7 +51,7 @@ func TestRouterTemplateFuncs(t *testing.T) {
 
 func TestRouterMisc(t *testing.T) {
 	domain := &router.Domain{Host: "localhost"}
-	result := composeRouteURL(domain, "/path", "my-head")
+	result := composeRouteURL("localhost", domain, "/path", "my-head")
 	assert.Equal(t, "//localhost/path#my-head", result)
 }
 
