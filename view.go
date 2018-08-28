@@ -324,17 +324,19 @@ func (vm *viewManager) tmplURL(viewArgs map[string]interface{}, args ...interfac
 		vm.a.Log().Errorf("router: template 'rurl' - route name is empty: %v", args)
 		return template.URL("#")
 	}
-	domain, routeName := vm.a.findRouteURLDomain(viewArgs["Host"].(string), args[0].(string))
+	host := viewArgs["Host"].(string)
+	domain, routeName := vm.a.findRouteURLDomain(host, args[0].(string))
 	/* #nosec */
-	return template.URL(createRouteURL(vm.a.Log(), domain, routeName, nil, args[1:]...))
+	return template.URL(createRouteURL(vm.a.Log(), host, domain, routeName, nil, args[1:]...))
 }
 
 // tmplURLm method returns reverse URL by given route name and
 // map[string]interface{}. Mapped to Go template func.
 func (vm *viewManager) tmplURLm(viewArgs map[string]interface{}, routeName string, args map[string]interface{}) template.URL {
-	domain, rn := vm.a.findRouteURLDomain(viewArgs["Host"].(string), routeName)
+	host := viewArgs["Host"].(string)
+	domain, rn := vm.a.findRouteURLDomain(host, routeName)
 	/* #nosec */
-	return template.URL(createRouteURL(vm.a.Log(), domain, rn, args))
+	return template.URL(createRouteURL(vm.a.Log(), host, domain, rn, args))
 }
 
 //
