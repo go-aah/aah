@@ -182,15 +182,17 @@ func ActionMiddleware(ctx *Context, m *Middleware) {
 		}
 	}
 
-	// Parse Action Parameters
-	actionArgs, err := ctx.parseParameters()
-	if err != nil { // Any error of parameter parsing result in 400 Bad Request
-		ctx.Reply().BadRequest().Error(err)
-		return
-	}
+	if !ctx.abort {
+		// Parse Action Parameters
+		actionArgs, err := ctx.parseParameters()
+		if err != nil { // Any error of parameter parsing result in 400 Bad Request
+			ctx.Reply().BadRequest().Error(err)
+			return
+		}
 
-	ctx.Log().Debugf("Calling action: %s.%s", ctx.controller.FqName, ctx.action.Name)
-	ctx.actionrv.Call(actionArgs)
+		ctx.Log().Debugf("Calling action: %s.%s", ctx.controller.FqName, ctx.action.Name)
+		ctx.actionrv.Call(actionArgs)
+	}
 
 	// After action method
 	if !ctx.abort {

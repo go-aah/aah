@@ -333,9 +333,11 @@ func (ctx *Context) writeCookies() {
 		http.SetCookie(ctx.Res, c)
 	}
 
-	if ctx.a.SessionManager().IsStateful() && ctx.subject != nil && ctx.subject.Session != nil {
-		if err := ctx.a.SessionManager().SaveSession(ctx.Res, ctx.subject.Session); err != nil {
-			ctx.Log().Error(err)
+	if ctx.a.SessionManager().IsStateful() && ctx.a.SessionManager().IsPath(ctx.Req.Path) {
+		if ctx.subject != nil && ctx.subject.Session != nil {
+			if err := ctx.a.SessionManager().SaveSession(ctx.Res, ctx.subject.Session); err != nil {
+				ctx.Log().Error(err)
+			}
 		}
 	}
 }

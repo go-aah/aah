@@ -42,6 +42,8 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 	req.UserAgent = r.Header.Get(HeaderUserAgent)
 	req.IsGzipAccepted = strings.Contains(r.Header.Get(HeaderAcceptEncoding), "gzip")
 	req.raw = r
+	req.raw.URL.Scheme = req.Scheme
+	req.raw.URL.Host = req.Host
 	return req
 }
 

@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -147,13 +148,13 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 
 // Manager is a session manager to manage sessions.
 type Manager struct {
-	cfg             *config.Config
-	mode            string
-	store           Storer
-	storeName       string
-	cookieMgr       *cookie.Manager
 	idLength        int
 	cleanupInterval int64
+	mode            string
+	storeName       string
+	store           Storer
+	cfg             *config.Config
+	cookieMgr       *cookie.Manager
 }
 
 // NewSession method creates a new session for the request.
@@ -311,6 +312,11 @@ func (m *Manager) IsStateful() bool {
 // IsCookieStore method returns true if session store is cookie otherwise false.
 func (m *Manager) IsCookieStore() bool {
 	return m.storeName == "cookie"
+}
+
+// IsPath method returns true if session cookie config 'path' is prefix of request path.
+func (m *Manager) IsPath(p string) bool {
+	return strings.HasPrefix(p, m.cookieMgr.Options.Path)
 }
 
 // ReleaseSession method puts session object back to pool.

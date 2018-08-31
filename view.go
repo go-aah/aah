@@ -422,7 +422,9 @@ func (vm *viewManager) tmplIsPermittedAll(viewArgs map[string]interface{}, permi
 // if enabled otherwise empty string.
 func (vm *viewManager) tmplAntiCSRFToken(viewArgs map[string]interface{}) string {
 	if vm.a.SecurityManager().AntiCSRF.Enabled {
-		return vm.a.SecurityManager().AntiCSRF.SaltCipherSecret(viewArgs[keyAntiCSRF].([]byte))
+		if cs, found := viewArgs[keyAntiCSRF]; found {
+			return vm.a.SecurityManager().AntiCSRF.SaltCipherSecret(cs.([]byte))
+		}
 	}
 	return ""
 }

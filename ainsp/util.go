@@ -249,7 +249,7 @@ func targetKeyAndNamespace(ttyp reflect.Type) (string, string) {
 		return strings.ToLower(ttyp.Name()), ""
 	}
 
-	namespace = strings.TrimPrefix(namespace, string(filepath.Separator))
+	namespace = strings.TrimPrefix(namespace, "/")
 	return strings.ToLower(path.Join(namespace, ttyp.Name())), namespace
 }
 

@@ -11,6 +11,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -223,6 +224,7 @@ func reason2String(reasons []*authz.Reason) string {
 
 // addQueryString method adds the given query string key value pair appropriately
 func addQueryString(u, k, v string) string {
+	v = url.QueryEscape(v)
 	if len(u) == 0 {
 		return "?" + k + "=" + v
 	}
