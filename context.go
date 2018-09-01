@@ -256,7 +256,7 @@ func (ctx *Context) Get(key string) interface{} {
 // the logger.
 func (ctx *Context) Log() log.Loggerer {
 	if ctx.logger == nil {
-		if h := ctx.Req.Header[ctx.a.requestIDHeaderKey]; len(h) > 0 {
+		if h := ctx.Req.Header[ctx.a.settings.RequestIDHeaderKey]; len(h) > 0 {
 			ctx.logger = ctx.a.Log().WithFields(log.Fields{
 				"reqid": h[0],
 			})
@@ -272,11 +272,11 @@ func (ctx *Context) Log() log.Loggerer {
 //______________________________________________________________________________
 
 func (ctx *Context) setRequestID() {
-	h := ctx.Req.Header[ctx.a.requestIDHeaderKey]
+	h := ctx.Req.Header[ctx.a.settings.RequestIDHeaderKey]
 	if len(h) == 0 {
 		guid := ess.NewGUID()
-		ctx.Req.Header.Set(ctx.a.requestIDHeaderKey, guid)
-		ctx.Reply().Header(ctx.a.requestIDHeaderKey, guid)
+		ctx.Req.Header.Set(ctx.a.settings.RequestIDHeaderKey, guid)
+		ctx.Reply().Header(ctx.a.settings.RequestIDHeaderKey, guid)
 		return
 	}
 	ctx.Log().Debugf("Request already has traceability ID: %v", h[0])
@@ -316,14 +316,14 @@ func (ctx *Context) setTarget(route *router.Route) error {
 	return nil
 }
 
-func (ctx *Context) detectContentType() *ahttp.ContentType {
+func (ctx *Context) detectContentType() string {
 	// based on HTTP Header 'Accept'
 	acceptContType := ctx.Req.AcceptContentType()
 	if acceptContType.Mime == "" || acceptContType.Mime == "*/*" {
 		// as per 'render.default' from aah.conf
-		return ctx.a.defaultContentType
+		return ctx.a.settings.DefaultContentType
 	}
-	return acceptContType
+	return acceptContType.String()
 }
 
 // writeCookies method writes the user provided cookies and session cookie; also
@@ -343,13 +343,13 @@ func (ctx *Context) writeCookies() {
 }
 
 func (ctx *Context) writeHeaders() {
-	if ctx.a.serverHeaderEnabled {
-		ctx.Res.Header().Set(ahttp.HeaderServer, ctx.a.serverHeader)
+	if ctx.a.settings.ServerHeaderEnabled {
+		ctx.Res.Header().Set(ahttp.HeaderServer, ctx.a.settings.ServerHeader)
 	}
 
 	// Write application security headers with many safe defaults and
 	// configured header values.
-	if ctx.a.secureHeadersEnabled {
+	if ctx.a.settings.SecureHeadersEnabled {
 		secureHeaders := ctx.a.SecurityManager().SecureHeaders
 		// Write common secure headers for all request
 		for header, value := range secureHeaders.Common {

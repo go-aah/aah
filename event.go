@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/internal/util"
 	"aahframe.work/aah/log"
 )
 
@@ -267,7 +268,7 @@ func (es *EventStore) Unsubscribe(event string, callback EventCallbackFunc) {
 
 	for idx := len(es.subscribers[event]) - 1; idx >= 0; idx-- {
 		ec := es.subscribers[event][idx]
-		if funcEqual(ec.Callback, callback) {
+		if util.FuncEqual(ec.Callback, callback) {
 			es.subscribers[event] = append(es.subscribers[event][:idx], es.subscribers[event][idx+1:]...)
 			es.a.Log().Debugf("Callback: %s, unsubscribed from event: %s", ess.GetFunctionInfo(callback).QualifiedName, event)
 			return
@@ -287,7 +288,8 @@ func (es *EventStore) SubscriberCount(eventName string) int {
 
 func (es *EventStore) sortEventSubscribers(eventName string) {
 	if es.IsEventExists(eventName) {
-		sort.Sort(es.subscribers[eventName])
+		ec := es.subscribers[eventName]
+		sort.Slice(ec, func(i, j int) bool { return ec[i].priority < ec[j].priority })
 	}
 }
 
@@ -296,11 +298,10 @@ func (es *EventStore) sortAndPublishSync(e *Event) {
 	es.PublishSync(e)
 }
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// EventCallbacks methods
-//______________________________________________________________________________
-
-// Sort interface for EventCallbacks
-func (ec EventCallbacks) Len() int           { return len(ec) }
-func (ec EventCallbacks) Less(i, j int) bool { return ec[i].priority < ec[j].priority }
-func (ec EventCallbacks) Swap(i, j int)      { ec[i], ec[j] = ec[j], ec[i] }
+func parsePriority(priority []int) int {
+	pr := 1 // default priority is 1
+	if len(priority) > 0 && priority[0] > 0 {
+		pr = priority[0]
+	}
+	return pr
+}

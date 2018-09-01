@@ -74,7 +74,7 @@ func (e *HTTPEngine) Handle(w http.ResponseWriter, r *http.Request) {
 	defer e.releaseContext(ctx)
 
 	// Record access log
-	if e.a.accessLogEnabled {
+	if e.a.settings.AccessLogEnabled {
 		ctx.Set(reqStartTimeKey, time.Now())
 		defer e.a.accessLog.Log(ctx)
 	}
@@ -84,7 +84,7 @@ func (e *HTTPEngine) Handle(w http.ResponseWriter, r *http.Request) {
 	// Recovery handling
 	defer e.handleRecovery(ctx)
 
-	if e.a.requestIDEnabled {
+	if e.a.settings.RequestIDEnabled {
 		ctx.setRequestID()
 	}
 
@@ -321,7 +321,7 @@ func (e *HTTPEngine) writeReply(ctx *Context) {
 	// Check ContentType and detect it if need be
 	if len(re.ContType) == 0 {
 		if _, ok := re.Rdr.(*binaryRender); !ok {
-			re.ContentType(ctx.detectContentType().String())
+			re.ContentType(ctx.detectContentType())
 		}
 	}
 	if len(re.ContType) > 0 {
@@ -345,7 +345,7 @@ func (e *HTTPEngine) writeReply(ctx *Context) {
 	e.publishOnPostReplyEvent(ctx)
 
 	// Dump request and response
-	if e.a.dumpLogEnabled {
+	if e.a.settings.DumpLogEnabled {
 		e.a.dumpLog.Dump(ctx)
 	}
 }
@@ -377,7 +377,7 @@ func (e *HTTPEngine) writeOnWire(ctx *Context) {
 	var w io.Writer = ctx.Res
 
 	// If response dump log enabled with response body
-	if e.a.dumpLogEnabled && e.a.dumpLog.logResponseBody {
+	if e.a.settings.DumpLogEnabled && e.a.dumpLog.logResponseBody {
 		resBuf := acquireBuffer()
 		w = io.MultiWriter([]io.Writer{w, resBuf}...)
 		ctx.Set(keyAahResponseBodyBuf, resBuf)
@@ -419,7 +419,7 @@ func (e *HTTPEngine) minifierExists() bool {
 }
 
 func (e *HTTPEngine) qualifyGzip(ctx *Context) bool {
-	return e.a.gzipEnabled && ctx.Req.IsGzipAccepted && ctx.Reply().gzip
+	return e.a.settings.GzipEnabled && ctx.Req.IsGzipAccepted && ctx.Reply().gzip
 }
 
 func (e *HTTPEngine) releaseContext(ctx *Context) {
@@ -457,4 +457,20 @@ func (e *HTTPEngine) doRedirect(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 	return false
+}
+
+// bodyAllowedForStatus reports whether a given response status code
+// permits a body. See RFC 2616, section 4.4.
+//
+// This method taken from https://golang.org/src/net/http/transfer.go#bodyAllowedForStatus
+func bodyAllowedForStatus(status int) bool {
+	switch {
+	case status >= 100 && status <= 199:
+		return false
+	case status == 204: // Status NoContent
+		return false
+	case status == 304: // Status NotModified
+		return false
+	}
+	return true
 }

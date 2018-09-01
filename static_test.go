@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/internal/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -131,13 +132,13 @@ func TestStaticDetectContentType(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.label, func(t *testing.T) {
-			v, _ := detectFileContentType(tc.filename, nil)
+			v, _ := util.DetectFileContentType(tc.filename, nil)
 			assert.Equal(t, tc.result, v)
 		})
 	}
 
 	content, _ := ioutil.ReadFile(filepath.Join(testdataBaseDir(), "test-image.noext"))
-	v, _ := detectFileContentType("test-image.noext", bytes.NewReader(content))
+	v, _ := util.DetectFileContentType("test-image.noext", bytes.NewReader(content))
 	assert.Equal(t, "image/png", v)
 }
 

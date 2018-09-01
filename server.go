@@ -18,6 +18,7 @@ import (
 
 	"aahframe.work/aah/ahttp"
 	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/internal/settings"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -27,7 +28,7 @@ import (
 func (a *app) Start() {
 	defer a.aahRecover()
 
-	if !a.initialized {
+	if !a.settings.Initialized {
 		a.Log().Fatal("aah application is not initialized, call `aah.Init` before the `aah.Start`.")
 	}
 
@@ -72,12 +73,12 @@ func (a *app) Start() {
 	if a.Log().IsLevelDebug() {
 		for event := range a.EventStore().subscribers {
 			for _, c := range a.EventStore().subscribers[event] {
-				a.Log().Debugf("Callback: %s, subscribed to event: %s", ess.GetFunctionInfo(c.Callback).QualifiedName, event)
+				a.Log().Debugf("Event: %s (callback=%s priority=%v)", event, ess.GetFunctionInfo(c.Callback).QualifiedName, c.priority)
 			}
 		}
 	}
 
-	a.Log().Infof("App Shutdown Grace Timeout: %s", a.shutdownGraceTimeStr)
+	a.Log().Infof("App Shutdown Grace Timeout: %s", a.settings.ShutdownGraceTimeStr)
 
 	// Publish `OnStart` event
 	a.EventStore().sortAndPublishSync(&Event{Name: EventOnStart})
@@ -87,9 +88,9 @@ func (a *app) Start() {
 
 	a.server = &http.Server{
 		Handler:        a,
-		ReadTimeout:    a.httpReadTimeout,
-		WriteTimeout:   a.httpWriteTimeout,
-		MaxHeaderBytes: a.httpMaxHdrBytes,
+		ReadTimeout:    a.settings.HTTPReadTimeout,
+		WriteTimeout:   a.settings.HTTPWriteTimeout,
+		MaxHeaderBytes: a.settings.HTTPMaxHdrBytes,
 		ErrorLog:       hl,
 	}
 
@@ -120,10 +121,10 @@ func (a *app) Shutdown() {
 	// Publish `OnPreShutdown` event
 	a.EventStore().sortAndPublishSync(&Event{Name: EventOnPreShutdown})
 
-	ctx, cancel := context.WithTimeout(context.Background(), a.shutdownGraceTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), a.settings.ShutdownGraceTimeout)
 	defer cancel()
 
-	a.Log().Warn("aah go server graceful shutdown triggered with timeout of ", a.shutdownGraceTimeStr)
+	a.Log().Warn("aah go server graceful shutdown triggered with timeout of ", a.settings.ShutdownGraceTimeStr)
 	if err := a.server.Shutdown(ctx); err != nil && err != http.ErrServerClosed {
 		a.Log().Error(err)
 	}
@@ -140,7 +141,7 @@ func (a *app) Shutdown() {
 
 func (a *app) writePID() {
 	// Get the application PID
-	a.pid = os.Getpid()
+	a.settings.Pid = os.Getpid()
 
 	pidFile := a.Config().StringDefault("pid_file", "")
 	if ess.IsStrEmpty(pidFile) {
@@ -151,7 +152,7 @@ func (a *app) writePID() {
 		pidFile += ".pid"
 	}
 
-	if err := ioutil.WriteFile(pidFile, []byte(strconv.Itoa(a.pid)), 0644); err != nil {
+	if err := ioutil.WriteFile(pidFile, []byte(strconv.Itoa(a.settings.Pid)), 0644); err != nil {
 		a.Log().Error(err)
 	}
 }
@@ -180,13 +181,13 @@ func (a *app) startHTTPS() {
 	if a.IsLetsEncryptEnabled() {
 		a.Log().Infof("Let's Encypyt CA Cert enabled")
 		a.server.TLSConfig = a.autocertMgr.TLSConfig()
-		a.sslCert, a.sslKey = "", ""
+		a.settings.SSLCert, a.settings.SSLKey = "", ""
 	} else {
 		if a.tlsCfg != nil {
 			a.Log().Info("Adding user provided TLS Config")
 			a.server.TLSConfig = a.tlsCfg
 		}
-		a.Log().Infof("SSLCert: %s, SSLKey: %s", a.sslCert, a.sslKey)
+		a.Log().Infof("SSLCert: %s, SSLKey: %s", a.settings.SSLCert, a.settings.SSLKey)
 	}
 
 	// Disable HTTP/2, if configured
@@ -211,7 +212,7 @@ func (a *app) startHTTPS() {
 	go a.startHTTPRedirect()
 
 	a.printStartupNote()
-	if err := a.server.ListenAndServeTLS(a.sslCert, a.sslKey); err != nil && err != http.ErrServerClosed {
+	if err := a.server.ListenAndServeTLS(a.settings.SSLCert, a.settings.SSLKey); err != nil && err != http.ErrServerClosed {
 		a.Log().Error(err)
 	}
 }
@@ -236,7 +237,7 @@ func (a *app) startHTTPRedirect() {
 	}
 
 	address := a.HTTPAddress()
-	toPort := a.parsePort(cfg.StringDefault("server.port", defaultHTTPPort))
+	toPort := a.parsePort(cfg.StringDefault("server.port", settings.DefaultHTTPPort))
 	fromPort, found := cfg.String(keyPrefix + ".port")
 	if !found {
 		a.Log().Errorf("'%s.port' is required value, unable to start redirect server", keyPrefix)
@@ -270,7 +271,36 @@ func (a *app) shutdownRedirectServer() {
 
 func (a *app) printStartupNote() {
 	port := firstNonZeroString(
-		a.Config().StringDefault("server.port", defaultHTTPPort),
+		a.Config().StringDefault("server.port", settings.DefaultHTTPPort),
 		a.Config().StringDefault("server.proxyport", ""))
 	a.Log().Infof("aah go server running on %s:%s", a.HTTPAddress(), a.parsePort(port))
+}
+
+func parseHost(address, toPort string) string {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return address
+	}
+
+	if ess.IsStrEmpty(toPort) {
+		return host
+	}
+	return host + ":" + toPort
+}
+
+func firstNonZeroString(values ...string) string {
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if len(v) > 0 {
+			return v
+		}
+	}
+	return ""
+}
+
+func inferRedirectMode(redirectTo string) string {
+	if redirectTo == www {
+		return nonwww + " ==> " + www
+	}
+	return www + " ==> " + nonwww
 }

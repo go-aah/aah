@@ -13,6 +13,7 @@ import (
 
 	"aahframe.work/aah/ahttp"
 	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/internal/util"
 	"aahframe.work/aah/security"
 	"aahframe.work/aah/view"
 )
@@ -273,11 +274,11 @@ func (vm *viewManager) tmplRequestParameters(viewArgs map[string]interface{}, fn
 	req := viewArgs[KeyViewArgRequest].(*ahttp.Request)
 	switch fn {
 	case "Q":
-		return sanatizeValue(req.QueryValue(key))
+		return util.SanitizeValue(req.QueryValue(key))
 	case "F":
-		return sanatizeValue(req.FormValue(key))
+		return util.SanitizeValue(req.FormValue(key))
 	case "P":
-		return sanatizeValue(req.PathValue(key))
+		return util.SanitizeValue(req.PathValue(key))
 	}
 	return ""
 }
@@ -289,7 +290,7 @@ func (vm *viewManager) tmplRequestParameters(viewArgs map[string]interface{}, fn
 // tmplConfig method provides access to application config on templates.
 func (vm *viewManager) tmplConfig(key string) interface{} {
 	if value, found := vm.a.Config().Get(key); found {
-		return sanatizeValue(value)
+		return util.SanitizeValue(value)
 	}
 	vm.a.Log().Warnf("Configuration key not found: '%s'", key)
 	return ""
@@ -308,7 +309,7 @@ func (vm *viewManager) tmplI18n(viewArgs map[string]interface{}, key string, arg
 
 		sanatizeArgs := make([]interface{}, 0)
 		for _, value := range args {
-			sanatizeArgs = append(sanatizeArgs, sanatizeValue(value))
+			sanatizeArgs = append(sanatizeArgs, util.SanitizeValue(value))
 		}
 		return vm.a.I18n().Lookup(locale, key, sanatizeArgs...)
 	}
@@ -349,7 +350,7 @@ func (vm *viewManager) tmplSessionValue(viewArgs map[string]interface{}, key str
 	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
 		if sub.Session != nil {
 			value := sub.Session.Get(key)
-			return sanatizeValue(value)
+			return util.SanitizeValue(value)
 		}
 	}
 	return nil
@@ -360,7 +361,7 @@ func (vm *viewManager) tmplSessionValue(viewArgs map[string]interface{}, key str
 func (vm *viewManager) tmplFlashValue(viewArgs map[string]interface{}, key string) interface{} {
 	if sub := vm.getSubjectFromViewArgs(viewArgs); sub != nil {
 		if sub.Session != nil {
-			return sanatizeValue(sub.Session.GetFlash(key))
+			return util.SanitizeValue(sub.Session.GetFlash(key))
 		}
 	}
 	return nil

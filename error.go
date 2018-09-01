@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 
 	"aahframe.work/aah/ahttp"
 	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/internal/util"
 )
 
 // aah errors
@@ -162,13 +164,13 @@ func (er *errorManager) Handle(ctx *Context) {
 func (er *errorManager) DefaultHandler(ctx *Context, err *Error) bool {
 	ct := ctx.Reply().ContType
 	if len(ct) == 0 {
-		ct = ctx.detectContentType().Mime
-		if ctx.a.viewMgr == nil && ct == ahttp.ContentTypeHTML.Mime {
+		ct = ctx.detectContentType()
+		if ctx.a.viewMgr == nil && strings.HasPrefix(ct, ahttp.ContentTypeHTML.Mime) {
 			ct = ahttp.ContentTypePlainText.Mime
 		}
 	}
 
-	ct = stripCharset(ct)
+	ct = util.OnlyMIME(ct)
 
 	// Set HTTP response code
 	ctx.Reply().Status(err.Code)

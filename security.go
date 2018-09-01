@@ -11,10 +11,12 @@ import (
 
 	"aahframe.work/aah/ahttp"
 	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/internal/util"
 	"aahframe.work/aah/security"
 	"aahframe.work/aah/security/acrypto"
 	"aahframe.work/aah/security/anticsrf"
 	"aahframe.work/aah/security/authc"
+	"aahframe.work/aah/security/authz"
 	"aahframe.work/aah/security/scheme"
 	"aahframe.work/aah/security/session"
 )
@@ -77,7 +79,7 @@ func (a *app) initSecurity() error {
 	}
 
 	a.securityMgr = asecmgr
-	a.authSchemeExists = len(a.securityMgr.AuthSchemes()) > 0
+	a.settings.AuthSchemeExists = len(a.securityMgr.AuthSchemes()) > 0
 	return nil
 }
 
@@ -90,7 +92,7 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 	// Continue with the flow, if -
 	// 		- Auth scheme is not defined in `security.conf`
 	// 		- Route auth is `anonymous`
-	if !ctx.a.authSchemeExists || ctx.route.Auth == "anonymous" {
+	if !ctx.a.settings.AuthSchemeExists || ctx.route.Auth == "anonymous" {
 		m.Next(ctx)
 		return
 	}
@@ -143,7 +145,7 @@ func doFormAuth(authScheme scheme.Schemer, ctx *Context) flowResult {
 	if formAuth.LoginSubmitURL != ctx.route.Path && ctx.Req.Method != ahttp.MethodPost {
 		loginURL := formAuth.LoginURL
 		if formAuth.LoginURL != ctx.Req.Path {
-			loginURL = addQueryString(loginURL, "_rt", ctx.Req.URL().String())
+			loginURL = util.AddQueryString(loginURL, "_rt", ctx.Req.URL().String())
 		}
 		ctx.Reply().Redirect(loginURL)
 		return flowAbort
@@ -267,7 +269,7 @@ func doAuthentication(authScheme scheme.Schemer, ctx *Context) flowResult {
 			switch sa := authScheme.(type) {
 			case *scheme.FormAuth:
 				ctx.Log().Infof("%s: Authentication is failed, sending to login failure URL", authScheme.Key())
-				ctx.Reply().Redirect(addQueryString(sa.LoginFailureURL, "_rt", ctx.Req.FormValue("_rt")))
+				ctx.Reply().Redirect(util.AddQueryString(sa.LoginFailureURL, "_rt", ctx.Req.FormValue("_rt")))
 			case *scheme.BasicAuth:
 				ctx.Log().Infof("%s: Authentication is failed", authScheme.Key())
 				ctx.Reply().Header(ahttp.HeaderWWWAuthenticate, `Basic realm="`+sa.RealmName+`"`)
@@ -406,4 +408,12 @@ func writeAntiCSRFCookie(ctx *Context, secret []byte) {
 	if err := ctx.a.SecurityManager().AntiCSRF.SetCookie(ctx.Res, secret); err != nil {
 		ctx.Log().Error("anticsrf: Unable to write cookie")
 	}
+}
+
+func reason2String(reasons []*authz.Reason) string {
+	var str string
+	for _, r := range reasons {
+		str += " " + r.String()
+	}
+	return str
 }

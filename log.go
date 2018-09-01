@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"aahframe.work/aah/ahttp"
 	"aahframe.work/aah/config"
 	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/internal/util"
 	"aahframe.work/aah/log"
 )
 
@@ -126,7 +128,7 @@ func (aal *accessLogger) Log(ctx *Context) {
 
 	req := *ctx.Req
 	al.Request = &req
-	if h := req.Header[aal.a.requestIDHeaderKey]; len(h) > 0 {
+	if h := req.Header[aal.a.settings.RequestIDHeaderKey]; len(h) > 0 {
 		al.RequestID = h[0]
 	} else {
 		al.RequestID = "-"
@@ -241,14 +243,14 @@ func (al *accessLog) Reset() {
 	al.ResHdr = nil
 }
 
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Dump logger Definitions
+//______________________________________________________________________________
+
 const (
 	keyAahRequestBodyBuf  = "_aahRequestBodyBuf"
 	keyAahResponseBodyBuf = "_aahResponseBodyBuf"
 )
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Dump logger Definitions
-//______________________________________________________________________________
 
 func (a *app) initDumpLog() error {
 	// log file configuration
@@ -335,7 +337,7 @@ func (d *dumpLogger) writeBody(key, ct string, w *bytes.Buffer, ctx *Context) {
 	}
 
 	b := cbuf.(*bytes.Buffer)
-	switch stripCharset(ct) {
+	switch util.OnlyMIME(ct) {
 	case ahttp.ContentTypeHTML.Mime, ahttp.ContentTypeForm.Mime,
 		ahttp.ContentTypeMultipartForm.Mime, ahttp.ContentTypePlainText.Mime:
 		_, _ = b.WriteTo(w)
@@ -354,4 +356,13 @@ func (d *dumpLogger) composeHeaders(hdrs http.Header) string {
 		str = append(str, fmt.Sprintf("    %s: %s", k, strings.Join(hdrs[k], ", ")))
 	}
 	return strings.Join(str, "\n")
+}
+
+func sortHeaderKeys(hdrs http.Header) []string {
+	var keys []string
+	for key := range hdrs {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }

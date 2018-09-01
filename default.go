@@ -101,13 +101,13 @@ func AppIsSSLEnabled() bool {
 // AppSSLCert method returns SSL cert filpath if its configured in aah.conf
 // otherwise empty string.
 func AppSSLCert() string {
-	return defaultApp.sslCert
+	return defaultApp.settings.SSLCert
 }
 
 // AppSSLKey method returns SSL key filepath if its configured in aah.conf
 // otherwise empty string.
 func AppSSLKey() string {
-	return defaultApp.sslKey
+	return defaultApp.settings.SSLKey
 }
 
 // SetAppProfile method sets given profile as current aah application profile.

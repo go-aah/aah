@@ -20,6 +20,7 @@ import (
 
 	"aahframe.work/aah/ahttp"
 	"aahframe.work/aah/essentials"
+	"aahframe.work/aah/internal/util"
 )
 
 var (
@@ -170,7 +171,7 @@ func (r *Reply) JSON(data interface{}) *Reply {
 // See config `render.secure_json.prefix`.
 func (r *Reply) JSONSecure(data interface{}) *Reply {
 	r.ContentType(ahttp.ContentTypeJSON.String())
-	r.Render(&secureJSONRender{Data: data, Prefix: r.ctx.a.secureJSONPrefix})
+	r.Render(&secureJSONRender{Data: data, Prefix: r.ctx.a.settings.SecureJSONPrefix})
 	return r
 }
 
@@ -222,7 +223,7 @@ func (r *Reply) File(file string) *Reply {
 	if !filepath.IsAbs(file) {
 		file = filepath.Join(r.ctx.a.BaseDir(), file)
 	}
-	r.gzip = gzipRequired(file)
+	r.gzip = util.IsGzipWorthForFile(file)
 	r.Render(&binaryRender{Path: file})
 	return r
 }

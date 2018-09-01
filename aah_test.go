@@ -186,7 +186,7 @@ func TestAppMisc(t *testing.T) {
 	// simualate CLI call
 	t.Log("simualate CLI call")
 	a.SetBuildInfo(nil)
-	a.packagedMode = false
+	a.settings.PackagedMode = false
 	err := a.Init(importPath)
 	assert.Nil(t, err)
 
@@ -195,14 +195,14 @@ func TestAppMisc(t *testing.T) {
 	a.SetTLSConfig(nil)
 	a.Config().SetBool("server.ssl.enable", true)
 	a.Config().SetBool("server.ssl.lets_encrypt.enable", true)
-	err = a.checkSSLConfigValues()
+	err = a.settings.Refresh(a.Config())
 	assert.Nil(t, err)
 	err = a.initAutoCertManager()
 	assert.Nil(t, err)
 
 	// simulate import path
 	t.Log("simulate import path")
-	a.importPath = "github.com/jeevatkm/noapp"
+	a.settings.ImportPath = "github.com/jeevatkm/noapp"
 	err = a.initPath()
 	assert.True(t, strings.HasPrefix(err.Error(), "import path does not exists:"))
 

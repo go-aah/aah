@@ -131,7 +131,7 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 		ctx.Req.Unwrap().Body = http.MaxBytesReader(ctx.Res, ctx.Req.Body(), ctx.route.MaxBodySize)
 
 		// Set the tee reader if dump log enabled with request body enabled
-		if ctx.a.dumpLogEnabled && ctx.a.dumpLog.logRequestBody {
+		if ctx.a.settings.DumpLogEnabled && ctx.a.dumpLog.logRequestBody {
 			reqBuf := acquireBuffer()
 			ctx.Req.Unwrap().Body = ioutil.NopCloser(io.TeeReader(ctx.Req.Body(), reqBuf))
 			ctx.Set(keyAahRequestBodyBuf, reqBuf)
@@ -314,4 +314,11 @@ func (ctx *Context) createParams() url.Values {
 		}
 	}
 	return params
+}
+
+func reverseSlice(s []string) []string {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+	return s
 }

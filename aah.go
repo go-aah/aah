@@ -16,7 +16,6 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -27,18 +26,13 @@ import (
 	"aahframe.work/aah/config"
 	"aahframe.work/aah/essentials"
 	"aahframe.work/aah/i18n"
+	"aahframe.work/aah/internal/settings"
 	"aahframe.work/aah/log"
 	"aahframe.work/aah/router"
 	"aahframe.work/aah/security"
 	"aahframe.work/aah/vfs"
 	"aahframe.work/aah/ws"
 	"golang.org/x/crypto/acme/autocert"
-)
-
-const (
-	defaultEnvProfile = "dev"
-	profilePrefix     = "env."
-	defaultHTTPPort   = "8080"
 )
 
 // BuildInfo holds the aah application build information; such as BinaryName,
@@ -55,7 +49,8 @@ type BuildInfo struct {
 
 func newApp() *app {
 	aahApp := &app{
-		vfs: new(vfs.VFS),
+		vfs:      new(vfs.VFS),
+		settings: new(settings.Settings),
 	}
 
 	aahApp.he = &HTTPEngine{
@@ -79,36 +74,8 @@ func newApp() *app {
 
 // app struct represents aah application.
 type app struct {
-	physicalPathMode       bool
-	packagedMode           bool
-	serverHeaderEnabled    bool
-	requestIDEnabled       bool
-	gzipEnabled            bool
-	secureHeadersEnabled   bool
-	accessLogEnabled       bool
-	staticAccessLogEnabled bool
-	dumpLogEnabled         bool
-	initialized            bool
-	hotReload              bool
-	authSchemeExists       bool
-	redirect               bool
-	pid                    int
-	httpMaxHdrBytes        int
-	importPath             string
-	baseDir                string
-	envProfile             string
-	sslCert                string
-	sslKey                 string
-	serverHeader           string
-	requestIDHeaderKey     string
-	secureJSONPrefix       string
-	shutdownGraceTimeStr   string
-	httpReadTimeout        time.Duration
-	httpWriteTimeout       time.Duration
-	shutdownGraceTimeout   time.Duration
-	buildInfo              *BuildInfo
-	defaultContentType     *ahttp.ContentType
-
+	buildInfo      *BuildInfo
+	settings       *settings.Settings
 	cfg            *config.Config
 	vfs            *vfs.VFS
 	tlsCfg         *tls.Config
@@ -126,14 +93,13 @@ type app struct {
 	staticMgr      *staticManager
 	errorMgr       *errorManager
 	sc             chan os.Signal
-
-	logger    log.Loggerer
-	accessLog *accessLogger
-	dumpLog   *dumpLogger
+	logger         log.Loggerer
+	accessLog      *accessLogger
+	dumpLog        *dumpLogger
 }
 
 func (a *app) Init(importPath string) error {
-	a.importPath = path.Clean(importPath)
+	a.settings.ImportPath = path.Clean(importPath)
 	var err error
 
 	if a.buildInfo == nil {
@@ -145,7 +111,7 @@ func (a *app) Init(importPath string) error {
 		if err = a.initConfig(); err != nil {
 			return err
 		}
-		if err = a.initConfigValues(); err != nil {
+		if err = a.settings.Refresh(a.Config()); err != nil {
 			return err
 		}
 		if err = a.initRouter(); err != nil {
@@ -153,6 +119,10 @@ func (a *app) Init(importPath string) error {
 		}
 		_ = log.SetLevel("debug")
 	} else {
+		for event := range a.EventStore().subscribers {
+			a.EventStore().sortEventSubscribers(event)
+		}
+
 		if err = a.initPath(); err != nil {
 			return err
 		}
@@ -161,9 +131,9 @@ func (a *app) Init(importPath string) error {
 		}
 
 		// publish `OnInit` server event
-		a.EventStore().sortAndPublishSync(&Event{Name: EventOnInit})
+		a.EventStore().PublishSync(&Event{Name: EventOnInit})
 
-		if err = a.initConfigValues(); err != nil {
+		if err = a.settings.Refresh(a.Config()); err != nil {
 			return err
 		}
 		if err = a.initLog(); err != nil {
@@ -190,12 +160,12 @@ func (a *app) Init(importPath string) error {
 		if err = a.initError(); err != nil {
 			return err
 		}
-		if a.accessLogEnabled {
+		if a.settings.AccessLogEnabled {
 			if err = a.initAccessLog(); err != nil {
 				return err
 			}
 		}
-		if a.dumpLogEnabled {
+		if a.settings.DumpLogEnabled {
 			if err = a.initDumpLog(); err != nil {
 				return err
 			}
@@ -207,7 +177,7 @@ func (a *app) Init(importPath string) error {
 		}
 	}
 
-	a.initialized = true
+	a.settings.Initialized = true
 	return nil
 }
 
@@ -230,7 +200,7 @@ func (a *app) Desc() string {
 }
 
 func (a *app) BaseDir() string {
-	return a.baseDir
+	return a.settings.BaseDir
 }
 
 func (a *app) VirtualBaseDir() string {
@@ -238,7 +208,7 @@ func (a *app) VirtualBaseDir() string {
 }
 
 func (a *app) ImportPath() string {
-	return a.importPath
+	return a.settings.ImportPath
 }
 
 func (a *app) HTTPAddress() string {
@@ -248,7 +218,7 @@ func (a *app) HTTPAddress() string {
 func (a *app) HTTPPort() string {
 	port := firstNonZeroString(
 		a.Config().StringDefault("server.proxyport", ""),
-		a.Config().StringDefault("server.port", defaultHTTPPort),
+		a.Config().StringDefault("server.port", settings.DefaultHTTPPort),
 	)
 	return a.parsePort(port)
 }
@@ -262,12 +232,12 @@ func (a *app) SetBuildInfo(bi *BuildInfo) {
 }
 
 func (a *app) IsPackaged() bool {
-	return a.packagedMode
+	return a.settings.PackagedMode
 }
 
 // TODO remove pack parameter
 func (a *app) SetPackaged(pack bool) {
-	a.packagedMode = pack
+	a.settings.PackagedMode = pack
 }
 
 func (a *app) IsEmbeddedMode() bool {
@@ -279,16 +249,11 @@ func (a *app) SetEmbeddedMode() {
 }
 
 func (a *app) Profile() string {
-	return a.envProfile
+	return a.settings.EnvProfile
 }
 
 func (a *app) SetProfile(profile string) error {
-	if err := a.Config().SetProfile(profilePrefix + profile); err != nil {
-		return err
-	}
-
-	a.envProfile = profile
-	return nil
+	return a.settings.SetProfile(profile)
 }
 
 func (a *app) IsProfile(profile string) bool {
@@ -388,12 +353,12 @@ func (a *app) initPath() error {
 		}
 
 		if a.IsEmbeddedMode() {
-			a.baseDir = filepath.Dir(ep)
-		} else if a.baseDir, err = inferBaseDir(ep); err != nil {
+			a.settings.BaseDir = filepath.Dir(ep)
+		} else if a.settings.BaseDir, err = inferBaseDir(ep); err != nil {
 			return err
 		}
 
-		a.baseDir = filepath.Clean(a.baseDir)
+		a.settings.BaseDir = filepath.Clean(a.settings.BaseDir)
 		return nil
 	}
 
@@ -409,115 +374,17 @@ func (a *app) initPath() error {
 			return fmt.Errorf("path does not exists: %s", a.ImportPath())
 		}
 
-		a.baseDir = filepath.Clean(a.ImportPath())
-		a.physicalPathMode = true
+		a.settings.BaseDir = filepath.Clean(a.ImportPath())
+		a.settings.PhysicalPathMode = true
 		return nil
 	}
 
 	// Import path mode
-	a.baseDir = filepath.Join(gopath, "src", filepath.FromSlash(a.ImportPath()))
+	a.settings.BaseDir = filepath.Join(gopath, "src", filepath.FromSlash(a.ImportPath()))
 	if !ess.IsFileExists(a.BaseDir()) {
 		return fmt.Errorf("import path does not exists: %s", a.ImportPath())
 	}
 
-	return nil
-}
-
-func (a *app) initConfigValues() (err error) {
-	cfg := a.Config()
-	a.envProfile = cfg.StringDefault("env.active", defaultEnvProfile)
-	if err = a.SetProfile(a.Profile()); err != nil {
-		return err
-	}
-
-	a.redirect = cfg.BoolDefault("server.redirect.enable", false)
-
-	readTimeout := cfg.StringDefault("server.timeout.read", "90s")
-	writeTimeout := cfg.StringDefault("server.timeout.write", "90s")
-	if !isValidTimeUnit(readTimeout, "s", "m") || !isValidTimeUnit(writeTimeout, "s", "m") {
-		return errors.New("'server.timeout.{read|write}' value is not a valid time unit")
-	}
-
-	if a.httpReadTimeout, err = time.ParseDuration(readTimeout); err != nil {
-		return fmt.Errorf("'server.timeout.read': %s", err)
-	}
-
-	if a.httpWriteTimeout, err = time.ParseDuration(writeTimeout); err != nil {
-		return fmt.Errorf("'server.timeout.write': %s", err)
-	}
-
-	maxHdrBytesStr := cfg.StringDefault("server.max_header_bytes", "1mb")
-	if maxHdrBytes, er := ess.StrToBytes(maxHdrBytesStr); er == nil {
-		a.httpMaxHdrBytes = int(maxHdrBytes)
-	} else {
-		return errors.New("'server.max_header_bytes' value is not a valid size unit")
-	}
-
-	a.sslCert = cfg.StringDefault("server.ssl.cert", "")
-	a.sslKey = cfg.StringDefault("server.ssl.key", "")
-	if err = a.checkSSLConfigValues(); err != nil {
-		return err
-	}
-
-	if err = a.initAutoCertManager(); err != nil {
-		return err
-	}
-
-	if a.Type() != "websocket" {
-		if _, err = ess.StrToBytes(cfg.StringDefault("request.max_body_size", "5mb")); err != nil {
-			return errors.New("'request.max_body_size' value is not a valid size unit")
-		}
-
-		a.serverHeader = cfg.StringDefault("server.header", "")
-		a.serverHeaderEnabled = !ess.IsStrEmpty(a.serverHeader)
-		a.requestIDEnabled = cfg.BoolDefault("request.id.enable", true)
-		a.requestIDHeaderKey = cfg.StringDefault("request.id.header", ahttp.HeaderXRequestID)
-		a.secureHeadersEnabled = cfg.BoolDefault("security.http_header.enable", true)
-		a.gzipEnabled = cfg.BoolDefault("render.gzip.enable", true)
-		a.accessLogEnabled = cfg.BoolDefault("server.access_log.enable", false)
-		a.staticAccessLogEnabled = cfg.BoolDefault("server.access_log.static_file", true)
-		a.dumpLogEnabled = cfg.BoolDefault("server.dump_log.enable", false)
-		a.defaultContentType = resolveDefaultContentType(a.Config().StringDefault("render.default", ""))
-		if a.defaultContentType == nil {
-			return errors.New("'render.default' config value is not defined")
-		}
-
-		a.secureJSONPrefix = cfg.StringDefault("render.secure_json.prefix", defaultSecureJSONPrefix)
-
-		ahttp.GzipLevel = cfg.IntDefault("render.gzip.level", 4)
-		if !(ahttp.GzipLevel >= 1 && ahttp.GzipLevel <= 9) {
-			return fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel)
-		}
-	}
-
-	a.shutdownGraceTimeStr = cfg.StringDefault("server.timeout.grace_shutdown", "60s")
-	if !(strings.HasSuffix(a.shutdownGraceTimeStr, "s") || strings.HasSuffix(a.shutdownGraceTimeStr, "m")) {
-		log.Warn("'server.timeout.grace_shutdown' value is not a valid time unit, assigning default value 60s")
-		a.shutdownGraceTimeStr = "60s"
-	}
-	a.shutdownGraceTimeout, _ = time.ParseDuration(a.shutdownGraceTimeStr)
-
-	return nil
-}
-
-func (a *app) checkSSLConfigValues() error {
-	if a.IsSSLEnabled() {
-		if !a.IsLetsEncryptEnabled() && (ess.IsStrEmpty(a.sslCert) || ess.IsStrEmpty(a.sslKey)) {
-			return errors.New("SSL config is incomplete; either enable 'server.ssl.lets_encrypt.enable' or provide 'server.ssl.cert' & 'server.ssl.key' value")
-		} else if !a.IsLetsEncryptEnabled() {
-			if !ess.IsFileExists(a.sslCert) {
-				return fmt.Errorf("SSL cert file not found: %s", a.sslCert)
-			}
-
-			if !ess.IsFileExists(a.sslKey) {
-				return fmt.Errorf("SSL key file not found: %s", a.sslKey)
-			}
-		}
-	}
-
-	if a.IsLetsEncryptEnabled() && !a.IsSSLEnabled() {
-		return errors.New("let's encrypt enabled, however SSL 'server.ssl.enable' is not enabled for application")
-	}
 	return nil
 }
 
@@ -685,7 +552,7 @@ func (a *app) initI18n() error {
 // ServeHTTP method implementation of http.Handler interface.
 func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer a.aahRecover()
-	if a.redirect {
+	if a.settings.Redirect {
 		if a.he.doRedirect(w, r) {
 			return
 		}
@@ -706,7 +573,7 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //______________________________________________________________________________
 
 func (a *app) listenForHotReload() {
-	if a.IsProfile(defaultEnvProfile) || !a.IsPackaged() {
+	if a.IsProfile(settings.DefaultEnvProfile) || !a.IsPackaged() {
 		return
 	}
 
@@ -720,8 +587,8 @@ func (a *app) listenForHotReload() {
 }
 
 func (a *app) performHotReload() {
-	a.hotReload = true
-	defer func() { a.hotReload = false }()
+	a.settings.HotReload = true
+	defer func() { a.settings.HotReload = false }()
 
 	activeProfile := a.Profile()
 
@@ -737,8 +604,8 @@ func (a *app) performHotReload() {
 	// Set activeProfile into reloaded configuration
 	a.Config().SetString("env.active", activeProfile)
 
-	if err = a.initConfigValues(); err != nil {
-		a.Log().Errorf("Unable to reinitialize aah application variables: %v", err)
+	if err = a.settings.Refresh(a.Config()); err != nil {
+		a.Log().Errorf("Unable to reinitialize aah application settings: %v", err)
 		return
 	}
 	a.Log().Info("Configuration values reinitialize succeeded")
@@ -777,7 +644,7 @@ func (a *app) performHotReload() {
 	}
 	a.Log().Info("Security reinitialize succeeded")
 
-	if a.accessLogEnabled {
+	if a.settings.AccessLogEnabled {
 		if err = a.initAccessLog(); err != nil {
 			a.Log().Errorf("Unable to reinitialize application access log: %v", err)
 			return
@@ -785,7 +652,7 @@ func (a *app) performHotReload() {
 		a.Log().Info("Access logging reinitialize succeeded")
 	}
 
-	if a.dumpLogEnabled {
+	if a.settings.DumpLogEnabled {
 		if err = a.initDumpLog(); err != nil {
 			a.Log().Errorf("Unable to reinitialize application dump log: %v", err)
 			return
@@ -794,4 +661,17 @@ func (a *app) performHotReload() {
 	}
 
 	a.Log().Info("Application hot-reload and reinitialization was successful")
+}
+
+func inferBaseDir(p string) (string, error) {
+	for {
+		p = filepath.Dir(p)
+		if p == "/" || p == "." || len(p) == 3 {
+			break
+		}
+		if ess.IsFileExists(filepath.Join(p, "config")) {
+			return p, nil
+		}
+	}
+	return "", errors.New("aah: config directory not found in parent directories")
 }
