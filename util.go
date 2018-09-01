@@ -117,8 +117,8 @@ func parseCacheBustPart(name, part string) string {
 // gzipRequired method return for static which requires gzip response.
 func gzipRequired(file string) bool {
 	switch filepath.Ext(file) {
-	case ".css", ".js", ".html", ".htm", ".json", ".svg",
-		".ttf", ".otf", ".xml", ".txt", ".csv":
+	case ".css", ".js", ".html", ".htm", ".json", ".ico", ".svg",
+		".eot", ".ttf", ".otf", ".xml", ".rss", ".txt", ".csv":
 		return true
 	default:
 		return false
@@ -147,11 +147,15 @@ func detectFileContentType(file string, content io.ReadSeeker) (string, error) {
 func mimeTypeByExtension(ext string) string {
 	switch ext {
 	case ".htm", ".html":
-		return "text/html; charset=utf-8"
+		return ahttp.ContentTypeHTML.String()
 	case ".css":
-		return "text/css; charset=utf-8"
+		return ahttp.ContentTypeCSSText.String()
 	case ".js":
-		return "application/javascript"
+		return ahttp.ContentTypeJavascript.String()
+	case ".json":
+		return ahttp.ContentTypeJSON.String()
+	case ".xml":
+		return ahttp.ContentTypeXML.String()
 	default:
 		return mime.TypeByExtension(ext)
 	}
@@ -175,12 +179,6 @@ func funcEqual(a, b interface{}) bool {
 	av := reflect.ValueOf(&a).Elem()
 	bv := reflect.ValueOf(&b).Elem()
 	return av.InterfaceData() == bv.InterfaceData()
-}
-
-// funcName method to get callback function name.
-func funcName(f interface{}) string {
-	fi := ess.GetFunctionInfo(f)
-	return fi.Name
 }
 
 func parsePriority(priority []int) int {

@@ -105,7 +105,7 @@ func TestStaticDetectContentType(t *testing.T) {
 		{
 			label:    "javascript",
 			filename: "file.js",
-			result:   "application/javascript",
+			result:   "application/javascript; charset=utf-8",
 		},
 		{
 			label:    "txt",
@@ -115,7 +115,7 @@ func TestStaticDetectContentType(t *testing.T) {
 		{
 			label:    "xml",
 			filename: "file.xml",
-			result:   "application/xml",
+			result:   "application/xml; charset=utf-8",
 		},
 		{
 			label:    "css",

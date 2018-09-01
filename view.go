@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/essentials"
 	"aahframe.work/aah/security"
 	"aahframe.work/aah/view"
 )
@@ -46,7 +47,8 @@ func (a *app) SetMinifier(fn MinifierFunc) {
 	}
 
 	if a.viewMgr.minifier != nil {
-		a.Log().Warnf("Changing Minifier from: '%s'  to '%s'", funcName(a.viewMgr.minifier), funcName(fn))
+		a.Log().Warnf("Changing Minifier from: '%s'  to '%s'",
+			ess.GetFunctionInfo(a.viewMgr.minifier).QualifiedName, ess.GetFunctionInfo(fn).QualifiedName)
 	}
 	a.viewMgr.minifier = fn
 }

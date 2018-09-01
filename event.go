@@ -8,6 +8,7 @@ import (
 	"sort"
 	"sync"
 
+	"aahframe.work/aah/essentials"
 	"aahframe.work/aah/log"
 )
 
@@ -268,12 +269,12 @@ func (es *EventStore) Unsubscribe(event string, callback EventCallbackFunc) {
 		ec := es.subscribers[event][idx]
 		if funcEqual(ec.Callback, callback) {
 			es.subscribers[event] = append(es.subscribers[event][:idx], es.subscribers[event][idx+1:]...)
-			es.a.Log().Debugf("Callback: %s, unsubscribed from event: %s", funcName(callback), event)
+			es.a.Log().Debugf("Callback: %s, unsubscribed from event: %s", ess.GetFunctionInfo(callback).QualifiedName, event)
 			return
 		}
 	}
 
-	es.a.Log().Warnf("Given callback: %s, not found in eventStore for event: %s", funcName(callback), event)
+	es.a.Log().Warnf("Given callback: %s, not found in eventStore for event: %s", ess.GetFunctionInfo(callback).QualifiedName, event)
 }
 
 // SubscriberCount method returns subscriber count for given event name.

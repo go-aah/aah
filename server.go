@@ -72,7 +72,7 @@ func (a *app) Start() {
 	if a.Log().IsLevelDebug() {
 		for event := range a.EventStore().subscribers {
 			for _, c := range a.EventStore().subscribers[event] {
-				a.Log().Debugf("Callback: %s, subscribed to event: %s", funcName(c.Callback), event)
+				a.Log().Debugf("Callback: %s, subscribed to event: %s", ess.GetFunctionInfo(c.Callback).QualifiedName, event)
 			}
 		}
 	}

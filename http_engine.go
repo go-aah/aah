@@ -14,6 +14,7 @@ import (
 	"aahframe.work/aah/ahttp"
 	"aahframe.work/aah/ainsp"
 	"aahframe.work/aah/aruntime"
+	"aahframe.work/aah/essentials"
 	"aahframe.work/aah/log"
 	"aahframe.work/aah/security"
 	"aahframe.work/aah/security/authc"
@@ -134,7 +135,7 @@ func (e *HTTPEngine) Log() log.Loggerer {
 func (e *HTTPEngine) OnRequest(sef EventCallbackFunc) {
 	if e.onRequestFunc != nil {
 		e.Log().Warnf("Changing 'OnRequest' server extension from '%s' to '%s'",
-			funcName(e.onRequestFunc), funcName(sef))
+			ess.GetFunctionInfo(e.onRequestFunc).QualifiedName, ess.GetFunctionInfo(sef).QualifiedName)
 	}
 	e.onRequestFunc = sef
 }
@@ -152,7 +153,7 @@ func (e *HTTPEngine) OnRequest(sef EventCallbackFunc) {
 func (e *HTTPEngine) OnPreReply(sef EventCallbackFunc) {
 	if e.onPreReplyFunc != nil {
 		e.Log().Warnf("Changing 'OnPreReply' server extension from '%s' to '%s'",
-			funcName(e.onPreReplyFunc), funcName(sef))
+			ess.GetFunctionInfo(e.onPreReplyFunc).QualifiedName, ess.GetFunctionInfo(sef).QualifiedName)
 	}
 	e.onPreReplyFunc = sef
 }
@@ -170,7 +171,7 @@ func (e *HTTPEngine) OnPreReply(sef EventCallbackFunc) {
 func (e *HTTPEngine) OnHeaderReply(sef EventCallbackFunc) {
 	if e.onHeaderReplyFunc != nil {
 		e.Log().Warnf("Changing 'OnHeaderReply' server extension from '%s' to '%s'",
-			funcName(e.onHeaderReplyFunc), funcName(sef))
+			ess.GetFunctionInfo(e.onHeaderReplyFunc).QualifiedName, ess.GetFunctionInfo(sef).QualifiedName)
 	}
 	e.onHeaderReplyFunc = sef
 }
@@ -188,7 +189,7 @@ func (e *HTTPEngine) OnHeaderReply(sef EventCallbackFunc) {
 func (e *HTTPEngine) OnPostReply(sef EventCallbackFunc) {
 	if e.onPostReplyFunc != nil {
 		e.Log().Warnf("Changing 'OnPostReply' server extension from '%s' to '%s'",
-			funcName(e.onPostReplyFunc), funcName(sef))
+			ess.GetFunctionInfo(e.onPostReplyFunc).QualifiedName, ess.GetFunctionInfo(sef).QualifiedName)
 	}
 	e.onPostReplyFunc = sef
 }
@@ -199,7 +200,7 @@ func (e *HTTPEngine) OnPostReply(sef EventCallbackFunc) {
 func (e *HTTPEngine) OnPreAuth(sef EventCallbackFunc) {
 	if e.onPreAuthFunc != nil {
 		e.Log().Warnf("Changing 'OnPreAuth' server extension from '%s' to '%s'",
-			funcName(e.onPreAuthFunc), funcName(sef))
+			ess.GetFunctionInfo(e.onPreAuthFunc).QualifiedName, ess.GetFunctionInfo(sef).QualifiedName)
 	}
 	e.onPreAuthFunc = sef
 }
@@ -210,7 +211,7 @@ func (e *HTTPEngine) OnPreAuth(sef EventCallbackFunc) {
 func (e *HTTPEngine) OnPostAuth(sef EventCallbackFunc) {
 	if e.onPostAuthFunc != nil {
 		e.Log().Warnf("Changing 'OnPostAuth' server extension from '%s' to '%s'",
-			funcName(e.onPostAuthFunc), funcName(sef))
+			ess.GetFunctionInfo(e.onPostAuthFunc).QualifiedName, ess.GetFunctionInfo(sef).QualifiedName)
 	}
 	e.onPostAuthFunc = sef
 }
@@ -319,9 +320,13 @@ func (e *HTTPEngine) writeReply(ctx *Context) {
 
 	// Check ContentType and detect it if need be
 	if len(re.ContType) == 0 {
-		re.ContentType(ctx.detectContentType().String())
+		if _, ok := re.Rdr.(*binaryRender); !ok {
+			re.ContentType(ctx.detectContentType().String())
+		}
 	}
-	ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+	if len(re.ContType) > 0 {
+		ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+	}
 
 	// 'OnHeaderReply' HTTP event
 	e.publishOnHeaderReplyEvent(ctx.Res.Header())

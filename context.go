@@ -272,14 +272,14 @@ func (ctx *Context) Log() log.Loggerer {
 //______________________________________________________________________________
 
 func (ctx *Context) setRequestID() {
-	if h := ctx.Req.Header[ctx.a.requestIDHeaderKey]; len(h) == 0 {
+	h := ctx.Req.Header[ctx.a.requestIDHeaderKey]
+	if len(h) == 0 {
 		guid := ess.NewGUID()
 		ctx.Req.Header.Set(ctx.a.requestIDHeaderKey, guid)
 		ctx.Reply().Header(ctx.a.requestIDHeaderKey, guid)
 		return
-	} else {
-		ctx.Log().Debugf("Request already has traceability ID: %v", h[0])
 	}
+	ctx.Log().Debugf("Request already has traceability ID: %v", h[0])
 }
 
 // setTarget method sets contoller, action, embedded context into

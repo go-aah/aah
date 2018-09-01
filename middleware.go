@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"reflect"
 
+	"aahframe.work/aah/essentials"
 	"aahframe.work/aah/log"
 )
 
@@ -51,7 +52,7 @@ func ToMiddleware(handler interface{}) MiddlewareFunc {
 	case func(http.ResponseWriter, *http.Request):
 		return ToMiddleware(http.HandlerFunc(handler.(func(http.ResponseWriter, *http.Request))))
 	default:
-		log.Errorf("Not a vaild handler: %s", funcName(handler))
+		log.Errorf("Not a vaild handler: %s", ess.GetFunctionInfo(handler).QualifiedName)
 		return nil
 	}
 }

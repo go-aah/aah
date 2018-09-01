@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"aahframe.work/aah/ahttp"
+	"aahframe.work/aah/essentials"
 )
 
 // aah errors
@@ -127,7 +128,7 @@ type errorManager struct {
 func (er *errorManager) SetHandler(handlerFn ErrorHandlerFunc) {
 	if handlerFn != nil {
 		er.handlerFunc = handlerFn
-		er.a.Log().Infof("Custom centralized application error handler is registered with: %v", funcName(handlerFn))
+		er.a.Log().Infof("Custom centralized application error handler is registered with: %v", ess.GetFunctionInfo(handlerFn).QualifiedName)
 	}
 }
 

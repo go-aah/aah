@@ -46,7 +46,7 @@ func GetFunctionInfo(f interface{}) (fi *FunctionInfo) {
 	idx := strings.LastIndexByte(info, '.')
 	fi = &FunctionInfo{
 		Name:          info[idx+1:],
-		Package:       info[:idx-1],
+		Package:       info[:idx],
 		QualifiedName: info,
 	}
 

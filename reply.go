@@ -215,6 +215,7 @@ func (r *Reply) File(file string) *Reply {
 	if !filepath.IsAbs(file) {
 		file = filepath.Join(r.ctx.a.BaseDir(), file)
 	}
+	r.gzip = gzipRequired(file)
 	r.Render(&binaryRender{Path: file})
 	return r
 }
