@@ -96,7 +96,7 @@ func (a *app) Start() {
 	a.server.SetKeepAlivesEnabled(a.Config().BoolDefault("server.keep_alive", true))
 	a.writePID()
 
-	go a.listenForHotConfigReload()
+	go a.listenForHotReload()
 
 	// Unix Socket
 	if strings.HasPrefix(a.HTTPAddress(), "unix") {

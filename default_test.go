@@ -153,5 +153,5 @@ func TestHotAppReload(t *testing.T) {
 
 	t.Logf("Test Server URL [Hot Reload]: %s", ts.URL)
 
-	ts.app.hotReloadConfig()
+	ts.app.performHotReload()
 }

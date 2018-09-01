@@ -13,10 +13,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"aahframe.work/aah/ahttp"
@@ -579,6 +581,71 @@ func (a *app) aahRecover() {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Config Definitions
+//______________________________________________________________________________
+
+func (a *app) Config() *config.Config {
+	return a.cfg
+}
+
+func (a *app) initConfig() error {
+	cfg, err := config.VFSLoadFile(a.VFS(), path.Join(a.VirtualBaseDir(), "config", "aah.conf"))
+	if err != nil {
+		return fmt.Errorf("aah.conf: %s", err)
+	}
+
+	a.cfg = cfg
+	return nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// Log Definitions
+//______________________________________________________________________________
+
+// Log method returns app logger instance.
+func (a *app) Log() log.Loggerer {
+	return a.logger
+}
+
+// AddLoggerHook method adds given logger into aah application default logger.
+func (a *app) AddLoggerHook(name string, hook log.HookFunc) error {
+	return a.Log().(*log.Logger).AddHook(name, hook)
+}
+
+func (a *app) initLog() error {
+	if !a.Config().IsExists("log") {
+		log.Warn("Section 'log { ... }' configuration does not exists, initializing app logger with default values.")
+	}
+
+	if a.Config().StringDefault("log.receiver", "") == "file" {
+		file := a.Config().StringDefault("log.file", "")
+		if ess.IsStrEmpty(file) {
+			a.Config().SetString("log.file", filepath.Join(a.logsDir(), a.binaryFilename()+".log"))
+		} else if !filepath.IsAbs(file) {
+			a.Config().SetString("log.file", filepath.Join(a.logsDir(), file))
+		}
+	}
+
+	if !a.Config().IsExists("log.pattern") {
+		a.Config().SetString("log.pattern", "%time:2006-01-02 15:04:05.000 %level:-5 %appname %insname %reqid %principal %message %fields")
+	}
+
+	al, err := log.New(a.Config())
+	if err != nil {
+		return err
+	}
+
+	al.AddContext(log.Fields{
+		"appname": a.Name(),
+		"insname": a.InstanceName(),
+	})
+
+	a.logger = al
+	log.SetDefaultLogger(al)
+	return nil
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // i18n Definitions
 //______________________________________________________________________________
 
@@ -632,4 +699,99 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.he.Handle(w, r)
+}
+
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+// HotReload Definitions for Prod profile
+//______________________________________________________________________________
+
+func (a *app) listenForHotReload() {
+	if a.IsProfile(defaultEnvProfile) || !a.IsPackaged() {
+		return
+	}
+
+	a.sc = make(chan os.Signal, 2)
+	signal.Notify(a.sc, syscall.SIGHUP)
+	for {
+		<-a.sc
+		a.Log().Warn("Hangup signal (SIGHUP) received")
+		a.performHotReload()
+	}
+}
+
+func (a *app) performHotReload() {
+	a.hotReload = true
+	defer func() { a.hotReload = false }()
+
+	activeProfile := a.Profile()
+
+	a.Log().Info("Application hot-reload and reinitialization starts ...")
+	var err error
+
+	if err = a.initConfig(); err != nil {
+		a.Log().Errorf("Unable to reload aah.conf: %v", err)
+		return
+	}
+	a.Log().Info("Configuration files reload succeeded")
+
+	// Set activeProfile into reloaded configuration
+	a.Config().SetString("env.active", activeProfile)
+
+	if err = a.initConfigValues(); err != nil {
+		a.Log().Errorf("Unable to reinitialize aah application variables: %v", err)
+		return
+	}
+	a.Log().Info("Configuration values reinitialize succeeded")
+
+	if err = a.initLog(); err != nil {
+		a.Log().Errorf("Unable to reinitialize application logger: %v", err)
+		return
+	}
+	a.Log().Info("Logging reinitialize succeeded")
+
+	if err = a.initI18n(); err != nil {
+		a.Log().Errorf("Unable to reinitialize application i18n: %v", err)
+		return
+	}
+	if a.Type() == "web" {
+		a.Log().Info("I18n reinitialize succeeded")
+	}
+
+	if err = a.initRouter(); err != nil {
+		a.Log().Errorf("Unable to reinitialize application %v", err)
+		return
+	}
+	a.Log().Info("Router reinitialize succeeded")
+
+	if err = a.initView(); err != nil {
+		a.Log().Errorf("Unable to reinitialize application views: %v", err)
+		return
+	}
+	if a.Type() == "web" {
+		a.Log().Info("View engine reinitialize succeeded")
+	}
+
+	if err = a.initSecurity(); err != nil {
+		a.Log().Errorf("Unable to reinitialize application security manager: %v", err)
+		return
+	}
+	a.Log().Info("Security reinitialize succeeded")
+
+	if a.accessLogEnabled {
+		if err = a.initAccessLog(); err != nil {
+			a.Log().Errorf("Unable to reinitialize application access log: %v", err)
+			return
+		}
+		a.Log().Info("Access logging reinitialize succeeded")
+	}
+
+	if a.dumpLogEnabled {
+		if err = a.initDumpLog(); err != nil {
+			a.Log().Errorf("Unable to reinitialize application dump log: %v", err)
+			return
+		}
+		a.Log().Info("Server dump logging reinitialize succeeded")
+	}
+
+	a.Log().Info("Application hot-reload and reinitialization was successful")
 }
