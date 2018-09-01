@@ -339,7 +339,7 @@ func checkParameter(p, arg string) error {
 		return fmt.Errorf("aah/router: parameter name required: '%s'", p)
 	}
 	if strings.IndexByte(arg, ':') > 0 || strings.IndexByte(arg, '*') > 0 {
-		return fmt.Errorf("aah/router: only one paramter allowed in the path segment: '%s'", p)
+		return fmt.Errorf("aah/router: only one parameter allowed in the path segment: '%s'", p)
 	}
 	return nil
 }

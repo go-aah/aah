@@ -281,15 +281,15 @@ security {
 		})
 	}
 
-	result, err := oauth.Principal("local_auth", nil)
-	assert.Equal(t, errors.New("oauth2: 'security.auth_schemes.local_auth.provider.principal' not configured properly"), err)
+	result1, err1 := oauth.Principal("local_auth", nil)
+	assert.Equal(t, errors.New("oauth2: 'security.auth_schemes.local_auth.provider.principal' not configured properly"), err1)
 
 	oauth.SetPrincipalProvider(&principalprovider{})
-	result, err = oauth.Principal("local_auth", nil)
-	assert.Nil(t, err)
-	assert.True(t, result[0].IsPrimary)
-	assert.Equal(t, "Email", result[0].Claim)
-	assert.Equal(t, "test@test.com", result[0].Value)
+	result1, err1 = oauth.Principal("local_auth", nil)
+	assert.Nil(t, err1)
+	assert.True(t, result1[0].IsPrimary)
+	assert.Equal(t, "Email", result1[0].Claim)
+	assert.Equal(t, "test@test.com", result1[0].Value)
 }
 
 func TestOAuth2InferEndpoint(t *testing.T) {

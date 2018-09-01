@@ -258,6 +258,7 @@ func createVFS(t *testing.T) *VFS {
 				_, err = io.Copy(gw, bytes.NewReader(data))
 				assert.Nil(t, err)
 				err = gw.Close()
+				assert.Nil(t, err)
 				data = buf.Bytes()
 			}
 
@@ -266,6 +267,7 @@ func createVFS(t *testing.T) *VFS {
 				Path:     m.toVirtualPath(fpath),
 				Time:     info.ModTime(),
 			}, data)
+			assert.Nil(t, err)
 		}
 		return nil
 	})

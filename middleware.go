@@ -30,7 +30,7 @@ type MiddlewareFunc func(ctx *Context, m *Middleware)
 // ToMiddleware method expands the possibilities. It helps aah users to
 // register the third-party or your own net/http middleware into `aah.MiddlewareFunc`.
 //
-// It is highly recommened refactored to `aah.MiddlewareFunc`.
+// It is highly recommended to refactored to `aah.MiddlewareFunc`.
 //
 //    You can register below handler types:
 //

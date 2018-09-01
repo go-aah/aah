@@ -54,12 +54,12 @@ func TestRouteAuthorizationConfigParentRoute(t *testing.T) {
 		AuthorizationInfo: &authorizationInfo{
 			Satisfy: "either",
 			Roles: map[string][]string{
-				"hasrole":    []string{"manager"},
-				"hasanyrole": []string{"role1", "role2", "role3"},
+				"hasrole":    {"manager"},
+				"hasanyrole": {"role1", "role2", "role3"},
 			},
 			Permissions: map[string][]string{
-				"ispermitted":    []string{"newsletter:read,write"},
-				"ispermittedall": []string{"newsletter:read,write", "newsletter:12345"},
+				"ispermitted":    {"newsletter:read,write"},
+				"ispermittedall": {"newsletter:read,write", "newsletter:12345"},
 			},
 		},
 	})

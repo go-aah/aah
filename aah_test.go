@@ -302,7 +302,7 @@ type testResult struct {
 // TestServer provides capabilities to test aah application end-to-end.
 //
 // Note: after sometime I will expose this test server, I'm not fully satisfied with
-// the implementation yet! Becuase there are short comings in the test server....
+// the implementation yet! Because there are short comings in the test server....
 type testServer struct {
 	URL    string
 	app    *app

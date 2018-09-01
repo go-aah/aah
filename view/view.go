@@ -289,7 +289,7 @@ func (eb *EngineBase) Get(layout, tpath, tmplName string) (*template.Template, e
 	return nil, ErrTemplateNotFound
 }
 
-// SetHotReload method set teh view engine mode into hot reload without watcher.
+// SetHotReload method set the view engine mode into hot reload without watcher.
 func (eb *EngineBase) SetHotReload(r bool) {
 	eb.hotReload = r
 }

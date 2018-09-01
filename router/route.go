@@ -56,7 +56,7 @@ func (r *Route) HasAccess(subject *security.Subject) (bool, []*authz.Reason) {
 	var reasons []*authz.Reason
 	if r.authorizationInfo == nil || (len(r.authorizationInfo.Roles) == 0 &&
 		len(r.authorizationInfo.Permissions) == 0) {
-		// Possibly aah User might be doing authroization at controller manually
+		// Possibly aah User might be doing authorization at controller manually
 		return true, reasons
 	}
 
@@ -257,7 +257,7 @@ func parseAuthorizationValues(srcValues []string, delim, errPrefix string) (map[
 				errPrefix, pos+1, srcValue)
 		}
 
-		// Check input param count for certian methods
+		// Check input param count for certain methods
 		fnName := srcValue[:start]
 		if (fnName == "hasrole" || fnName == "ispermitted") && len(values) > 1 {
 			return nil, fmt.Errorf("%v at index %v have func '%v' supports only one input param",

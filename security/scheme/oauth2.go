@@ -64,6 +64,7 @@ var (
 // OAuth2 Auth Scheme
 //______________________________________________________________________________
 
+// OAuth2 auth scheme implementation for the aah framework.
 type OAuth2 struct {
 	BaseAuth
 	LoginURL    string
@@ -84,7 +85,7 @@ func (o *OAuth2) Init(appCfg *config.Config, keyName string) error {
 	o.KeyPrefix = "security.auth_schemes." + o.KeyName
 	o.Name, _ = o.AppConfig.String(o.ConfigKey("scheme"))
 
-	clientId, found := o.AppConfig.String(o.ConfigKey("client.id"))
+	clientID, found := o.AppConfig.String(o.ConfigKey("client.id"))
 	if !found {
 		return o.ConfigError("client.id")
 	}
@@ -98,7 +99,7 @@ func (o *OAuth2) Init(appCfg *config.Config, keyName string) error {
 	o.signKey = []byte(o.AppConfig.StringDefault(o.ConfigKey("client.sign_key"), ess.SecureRandomString(32)))
 
 	o.oauthCfg = &oauth2.Config{
-		ClientID:     clientId,
+		ClientID:     clientID,
 		ClientSecret: clientSecret,
 	}
 

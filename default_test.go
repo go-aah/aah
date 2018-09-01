@@ -89,7 +89,7 @@ func TestDefaultApp(t *testing.T) {
 	AddController(reflect.ValueOf(testSiteController{}), make([]*ainsp.Method, 0))
 
 	SetErrorHandler(func(ctx *Context, e *Error) bool {
-		t.Log("Error hanlder")
+		t.Log("Error handler")
 		return true
 	})
 

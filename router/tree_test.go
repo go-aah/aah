@@ -477,7 +477,7 @@ func TestTreeDoubleParameters(t *testing.T) {
 
 	for _, route := range routes {
 		err := tt.add(route, nil)
-		assert.Equal(t, fmt.Errorf("aah/router: only one paramter allowed in the path segment: '%s'", route), err)
+		assert.Equal(t, fmt.Errorf("aah/router: only one parameter allowed in the path segment: '%s'", route), err)
 	}
 }
 
