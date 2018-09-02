@@ -197,8 +197,6 @@ func TestAppMisc(t *testing.T) {
 	a.Config().SetBool("server.ssl.lets_encrypt.enable", true)
 	err = a.settings.Refresh(a.Config())
 	assert.Nil(t, err)
-	err = a.initAutoCertManager()
-	assert.Nil(t, err)
 
 	// simulate import path
 	t.Log("simulate import path")

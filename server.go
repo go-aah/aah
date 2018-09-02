@@ -180,7 +180,7 @@ func (a *app) startHTTPS() {
 	// Add cert, if let's encrypt enabled
 	if a.IsLetsEncryptEnabled() {
 		a.Log().Infof("Let's Encypyt CA Cert enabled")
-		a.server.TLSConfig = a.autocertMgr.TLSConfig()
+		a.server.TLSConfig = a.settings.Autocert.TLSConfig()
 		a.settings.SSLCert, a.settings.SSLKey = "", ""
 	} else {
 		if a.tlsCfg != nil {

@@ -7,6 +7,7 @@ package settings
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"aahframe.work/aah/essentials"
 	"aahframe.work/aah/internal/util"
 	"aahframe.work/aah/log"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 // Constants
@@ -46,6 +48,7 @@ type Settings struct {
 	HTTPMaxHdrBytes        int
 	ImportPath             string
 	BaseDir                string
+	VirtualBaseDir         string
 	Type                   string
 	EnvProfile             string
 	SSLCert                string
@@ -58,6 +61,7 @@ type Settings struct {
 	HTTPReadTimeout        time.Duration
 	HTTPWriteTimeout       time.Duration
 	ShutdownGraceTimeout   time.Duration
+	Autocert               *autocert.Manager
 
 	cfg *config.Config
 }
@@ -105,10 +109,28 @@ func (s *Settings) Refresh(cfg *config.Config) error {
 		return errors.New("'server.max_header_bytes' value is not a valid size unit")
 	}
 
-	s.SSLCert = cfg.StringDefault("server.ssl.cert", "")
-	s.SSLKey = cfg.StringDefault("server.ssl.key", "")
+	s.SSLCert = s.cfg.StringDefault("server.ssl.cert", "")
+	s.SSLKey = s.cfg.StringDefault("server.ssl.key", "")
 	if err = s.checkSSLConfigValues(); err != nil {
 		return err
+	}
+	if s.SSLEnabled && s.LetsEncryptEnabled {
+		cfgKeyPrefix := "server.ssl.lets_encrypt"
+		hostPolicy, found := s.cfg.StringList(cfgKeyPrefix + ".host_policy")
+		if !found || len(hostPolicy) == 0 {
+			return errors.New("'server.ssl.lets_encrypt.host_policy' is empty, provide at least one hostname")
+		}
+
+		renewBefore := time.Duration(s.cfg.IntDefault(cfgKeyPrefix+".renew_before", 10))
+		s.Autocert = &autocert.Manager{
+			Prompt:      autocert.AcceptTOS,
+			HostPolicy:  autocert.HostWhitelist(hostPolicy...),
+			RenewBefore: time.Hour * (24 * renewBefore),
+			Email:       s.cfg.StringDefault(cfgKeyPrefix+".email", ""),
+		}
+
+		cacheDir := s.cfg.StringDefault(cfgKeyPrefix+".cache_dir", filepath.Join(s.BaseDir, "autocert"))
+		s.Autocert.Cache = autocert.DirCache(cacheDir)
 	}
 
 	s.Type = s.cfg.StringDefault("type", "")

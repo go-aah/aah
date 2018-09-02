@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
-	"time"
 
 	"aahframe.work/aah/ahttp"
 	"aahframe.work/aah/ainsp"
@@ -33,7 +32,6 @@ import (
 	"aahframe.work/aah/security"
 	"aahframe.work/aah/vfs"
 	"aahframe.work/aah/ws"
-	"golang.org/x/crypto/acme/autocert"
 )
 
 // BuildInfo holds the aah application build information; such as BinaryName,
@@ -50,9 +48,11 @@ type BuildInfo struct {
 
 func newApp() *app {
 	aahApp := &app{
-		RWMutex:  sync.RWMutex{},
-		vfs:      new(vfs.VFS),
-		settings: new(settings.Settings),
+		RWMutex: sync.RWMutex{},
+		vfs:     new(vfs.VFS),
+		settings: &settings.Settings{
+			VirtualBaseDir: "/app",
+		},
 		cacheMgr: cache.NewManager(),
 	}
 
@@ -87,7 +87,6 @@ type app struct {
 	wse            *ws.Engine
 	server         *http.Server
 	redirectServer *http.Server
-	autocertMgr    *autocert.Manager
 	router         *router.Router
 	eventStore     *EventStore
 	bindMgr        *bindManager
@@ -210,7 +209,7 @@ func (a *app) BaseDir() string {
 }
 
 func (a *app) VirtualBaseDir() string {
-	return "/app"
+	return a.settings.VirtualBaseDir
 }
 
 func (a *app) ImportPath() string {
@@ -292,11 +291,11 @@ func (a *app) AllProfiles() []string {
 }
 
 func (a *app) IsSSLEnabled() bool {
-	return a.cfg.BoolDefault("server.ssl.enable", false)
+	return a.settings.SSLEnabled
 }
 
 func (a *app) IsLetsEncryptEnabled() bool {
-	return a.cfg.BoolDefault("server.ssl.lets_encrypt.enable", false)
+	return a.settings.LetsEncryptEnabled
 }
 
 func (a *app) IsWebSocketEnabled() bool {
@@ -397,34 +396,6 @@ func (a *app) initPath() error {
 	a.settings.BaseDir = filepath.Join(gopath, "src", filepath.FromSlash(a.ImportPath()))
 	if !ess.IsFileExists(a.BaseDir()) {
 		return fmt.Errorf("import path does not exists: %s", a.ImportPath())
-	}
-
-	return nil
-}
-
-func (a *app) initAutoCertManager() error {
-	if !a.IsSSLEnabled() || !a.IsLetsEncryptEnabled() {
-		return nil
-	}
-
-	cfgKeyPrefix := "server.ssl.lets_encrypt"
-	hostPolicy, found := a.cfg.StringList(cfgKeyPrefix + ".host_policy")
-	if !found || len(hostPolicy) == 0 {
-		return errors.New("'server.ssl.lets_encrypt.host_policy' is empty, provide at least one hostname")
-	}
-
-	renewBefore := time.Duration(a.cfg.IntDefault(cfgKeyPrefix+".renew_before", 10))
-
-	a.autocertMgr = &autocert.Manager{
-		Prompt:      autocert.AcceptTOS,
-		HostPolicy:  autocert.HostWhitelist(hostPolicy...),
-		RenewBefore: 24 * renewBefore * time.Hour,
-		ForceRSA:    a.cfg.BoolDefault(cfgKeyPrefix+".force_rsa", false),
-		Email:       a.cfg.StringDefault(cfgKeyPrefix+".email", ""),
-	}
-
-	if cacheDir := a.cfg.StringDefault(cfgKeyPrefix+".cache_dir", ""); !ess.IsStrEmpty(cacheDir) {
-		a.autocertMgr.Cache = autocert.DirCache(cacheDir)
 	}
 
 	return nil
