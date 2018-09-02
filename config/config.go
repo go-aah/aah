@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	"aahframe.work/aah/vfs"
 	"github.com/go-aah/forge"
@@ -38,12 +39,15 @@ func NewEmpty() *Config {
 // merge, etc. Also it provide nice and handly methods for accessing config values.
 // Internally `aah config` uses `forge syntax` developed by `https://github.com/brettlangdon`.
 type Config struct {
+	sync.RWMutex
 	profile string
 	cfg     *forge.Section
 }
 
 // Profile returns current active profile
 func (c *Config) Profile() string {
+	c.RLock()
+	defer c.RUnlock()
 	return c.profile
 }
 
@@ -53,14 +57,18 @@ func (c *Config) SetProfile(profile string) error {
 		return fmt.Errorf("profile doesn't exists: %v", profile)
 	}
 
+	c.Lock()
 	c.profile = profile
+	c.Unlock()
 
 	return nil
 }
 
 // ClearProfile clears currently active configuration `Profile`
 func (c *Config) ClearProfile() {
+	c.Lock()
 	c.profile = ""
+	c.Unlock()
 }
 
 // HasProfile checks given configuration profile is exists or not
@@ -74,6 +82,8 @@ func (c *Config) IsProfileEnabled() bool {
 	if c == nil {
 		return false
 	}
+	c.RLock()
+	defer c.RUnlock()
 	return len(c.profile) > 0
 }
 
@@ -91,7 +101,7 @@ func (c *Config) GetSubConfig(key string) (*Config, bool) {
 	}
 
 	if s, ok := v.(*forge.Section); ok {
-		return &Config{cfg: s}, true
+		return newConfig(s), true
 	}
 	return nil, false
 }
@@ -374,6 +384,8 @@ func (c *Config) Merge(source *Config) error {
 	if source == nil {
 		return errors.New("source is nil")
 	}
+	c.Lock()
+	defer c.Unlock()
 	return c.cfg.Merge(source.cfg)
 }
 
@@ -385,6 +397,8 @@ func (c *Config) IsExists(key string) bool {
 
 // ToJSON method returns the configuration values as JSON string.
 func (c *Config) ToJSON() string {
+	c.RLock()
+	defer c.RUnlock()
 	if b, err := c.cfg.ToJSON(); err == nil {
 		return string(b)
 	}
@@ -403,7 +417,7 @@ func LoadFile(file string) (*Config, error) {
 // VFSLoadFile loads the configuration from given vfs and config file.
 func VFSLoadFile(fs *vfs.VFS, file string) (*Config, error) {
 	setting, err := loadFile(fs, file)
-	return &Config{cfg: setting}, err
+	return newConfig(setting), err
 }
 
 // LoadFiles loads the configuration from given config files.
@@ -427,7 +441,7 @@ func VFSLoadFiles(fs *vfs.VFS, files ...string) (*Config, error) {
 		}
 	}
 
-	return &Config{cfg: settings}, nil
+	return newConfig(settings), nil
 }
 
 // ParseString parses the configuration values from string
@@ -436,7 +450,7 @@ func ParseString(cfg string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Config{cfg: setting}, nil
+	return newConfig(setting), nil
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -488,6 +502,8 @@ func (c *Config) getraw(key string) (forge.Value, bool) {
 	if c == nil || c.cfg == nil {
 		return nil, false
 	}
+	c.RLock()
+	defer c.RUnlock()
 
 	v, err := c.cfg.Resolve(key)
 	if err != nil {
@@ -504,6 +520,8 @@ func (c *Config) updateValue(key string, value interface{}) error {
 }
 
 func (c *Config) getSection(parts []string) *forge.Section {
+	c.RLock()
+	defer c.RUnlock()
 	current := c.cfg
 	for _, part := range parts {
 		if nc, err := current.GetSection(part); err == nil { // exists
@@ -521,4 +539,8 @@ func (c *Config) addValue(key string, value forge.Value) {
 		section := c.getSection(parts[:len(parts)-1])
 		section.Set(parts[len(parts)-1], value)
 	}
+}
+
+func newConfig(sec *forge.Section) *Config {
+	return &Config{RWMutex: sync.RWMutex{}, cfg: sec}
 }
