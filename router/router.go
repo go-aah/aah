@@ -287,7 +287,6 @@ func (r *Router) processRoutesConfig() (err error) {
 			DefaultAuth:           domainCfg.StringDefault("default_auth", ""),
 			AntiCSRFEnabled:       domainCfg.BoolDefault("anti_csrf_check", true),
 			CORSEnabled:           domainCfg.BoolDefault("cors.enable", false),
-			CatchAllEnabled:       domainCfg.BoolDefault("catch_all", false),
 			trees:                 make(map[string]*tree),
 			routes:                make(map[string]*Route),
 		}
@@ -296,6 +295,34 @@ func (r *Router) processRoutesConfig() (err error) {
 		if domain.CORSEnabled {
 			baseCORSCfg, _ := domainCfg.GetSubConfig("cors")
 			domain.CORS = processBaseCORSSection(baseCORSCfg)
+		}
+
+		// Catch All route
+		if domainCfg.IsExists("catch_all") {
+			catchAllRoute := &Route{
+				Path:   "*",
+				Method: "*",
+				Target: domainCfg.StringDefault("catch_all.controller", ""),
+				Action: domainCfg.StringDefault("catch_all.action", ""),
+				Auth:   domainCfg.StringDefault("catch_all.auth", ""),
+			}
+			if ess.IsStrEmpty(catchAllRoute.Target) || ess.IsStrEmpty(catchAllRoute.Action) {
+				err = fmt.Errorf("catch_all.controller and catch_all.action values are required")
+				return
+			}
+
+			maxBodySizeStr := r.appConfig().StringDefault("request.max_body_size", "5mb")
+			routeMaxBodySize, er := ess.StrToBytes(domainCfg.StringDefault("catch_all.max_body_size", maxBodySizeStr))
+			if er != nil {
+				r.app.Log().Warn("'catch_all.max_body_size' value is not a valid size unit, fallback to global limit")
+			}
+			catchAllRoute.MaxBodySize = routeMaxBodySize
+			catchAllRoute.IsAntiCSRFCheck = domainCfg.BoolDefault("catch_all.anti_csrf_check", false)
+
+			if corsCfg, found := domainCfg.GetSubConfig("catch_all.cors"); found {
+				catchAllRoute.CORS = processCORSSection(corsCfg, domain.CORS)
+			}
+			domain.CatchAllRoute = catchAllRoute
 		}
 
 		// Not Found route support is removed in aah v0.8 release,

@@ -245,6 +245,10 @@ func processBaseCORSSection(cfg *config.Config) *CORS {
 
 func processCORSSection(cfg *config.Config, parent *CORS) *CORS {
 	cors := &CORS{}
+	if parent == nil {
+		log.Warn("It seems CORS is not enabled for the domain, refer to https://docs.aahframework.org/cors.html")
+		return nil
+	}
 
 	// Access-Control-Allow-Origin
 	if origins, found := cfg.StringList("allow_origins"); found {

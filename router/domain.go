@@ -30,14 +30,13 @@ type Domain struct {
 	AutoOptions           bool
 	AntiCSRFEnabled       bool
 	CORSEnabled           bool
-	CatchAllEnabled       bool
 	Key                   string
 	Name                  string
 	Host                  string
 	Port                  string
 	DefaultAuth           string
 	CORS                  *CORS
-	catchAllRoute         *Route
+	CatchAllRoute         *Route
 	trees                 map[string]*tree
 	routes                map[string]*Route
 }
@@ -70,9 +69,8 @@ func (d *Domain) Lookup(req *http.Request) (*Route, ahttp.URLParams, bool) {
 	route, urlParams, rts := tree.lookup(req.URL.Path)
 
 	// Catch All
-	if route == nil && !rts && d.CatchAllEnabled {
-		urlParams = ahttp.URLParams{ahttp.URLParam{Key: d.catchAllRoute.Path[2:], Value: req.URL.Path}}
-		return d.catchAllRoute, urlParams, rts
+	if route == nil && !rts && d.CatchAllRoute != nil {
+		return d.CatchAllRoute, nil, false
 	}
 
 	return route, urlParams, rts
@@ -103,15 +101,6 @@ func (d *Domain) AddRoute(route *Route) error {
 	}
 
 	d.routes[route.Name] = route
-
-	// Catch All route
-	if d.CatchAllEnabled && route.Path[:2] == "/*" {
-		if d.catchAllRoute == nil {
-			d.catchAllRoute = route
-		} else {
-			return fmt.Errorf("aah/router: catch-all route named '%s' is already defined", d.catchAllRoute.Name)
-		}
-	}
 	return nil
 }
 
