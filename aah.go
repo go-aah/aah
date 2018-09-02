@@ -23,6 +23,7 @@ import (
 	"aahframe.work/aah/ahttp"
 	"aahframe.work/aah/ainsp"
 	"aahframe.work/aah/aruntime"
+	"aahframe.work/aah/cache"
 	"aahframe.work/aah/config"
 	"aahframe.work/aah/essentials"
 	"aahframe.work/aah/i18n"
@@ -49,8 +50,10 @@ type BuildInfo struct {
 
 func newApp() *app {
 	aahApp := &app{
+		RWMutex:  sync.RWMutex{},
 		vfs:      new(vfs.VFS),
 		settings: new(settings.Settings),
+		cacheMgr: cache.NewManager(),
 	}
 
 	aahApp.he = &HTTPEngine{
@@ -74,6 +77,7 @@ func newApp() *app {
 
 // app struct represents aah application.
 type app struct {
+	sync.RWMutex
 	buildInfo      *BuildInfo
 	settings       *settings.Settings
 	cfg            *config.Config
@@ -92,6 +96,7 @@ type app struct {
 	viewMgr        *viewManager
 	staticMgr      *staticManager
 	errorMgr       *errorManager
+	cacheMgr       *cache.Manager
 	sc             chan os.Signal
 	logger         log.Loggerer
 	accessLog      *accessLogger
@@ -187,6 +192,7 @@ func (a *app) Name() string {
 	}
 	return a.Config().StringDefault("name", a.BuildInfo().BinaryName)
 }
+
 func (a *app) InstanceName() string {
 	return a.Config().StringDefault("instance_name", "")
 }
@@ -249,10 +255,14 @@ func (a *app) SetEmbeddedMode() {
 }
 
 func (a *app) Profile() string {
+	a.RLock()
+	defer a.RUnlock()
 	return a.settings.EnvProfile
 }
 
 func (a *app) SetProfile(profile string) error {
+	a.Lock()
+	defer a.Unlock()
 	return a.settings.SetProfile(profile)
 }
 
@@ -323,6 +333,10 @@ func (a *app) WSEngine() *ws.Engine {
 
 func (a *app) VFS() *vfs.VFS {
 	return a.vfs
+}
+
+func (a *app) CacheManager() *cache.Manager {
+	return a.cacheMgr
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

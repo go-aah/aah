@@ -66,6 +66,7 @@ func TestDefaultApp(t *testing.T) {
 	assert.NotNil(t, AppSecurityManager())
 	assert.NotNil(t, AppSessionManager())
 	assert.NotNil(t, AppVFS())
+	assert.NotNil(t, AppCacheManager())
 
 	// Default App Start and Shutdown
 	t.Log("Default App Start and Shutdown")
@@ -143,7 +144,7 @@ func TestDefaultApp(t *testing.T) {
 		{Name: "Binary", Parameters: []*ainsp.Parameter{{Name: "encoding", Type: reflect.TypeOf((*string)(nil))}}},
 	})
 
-	// assert.Nil(t, SetAppProfile("dev"))
+	assert.Nil(t, SetAppProfile("dev"))
 }
 
 func TestHotAppReload(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"html/template"
 
 	"aahframe.work/aah/ainsp"
+	"aahframe.work/aah/cache"
 	"aahframe.work/aah/config"
 	"aahframe.work/aah/i18n"
 	"aahframe.work/aah/log"
@@ -225,6 +226,11 @@ func AppWSEngine() *ws.Engine {
 // AppVFS method returns aah Virtual FileSystem instance.
 func AppVFS() *vfs.VFS {
 	return defaultApp.VFS()
+}
+
+// AppCacheManager returns aah application cache manager.
+func AppCacheManager() *cache.Manager {
+	return defaultApp.CacheManager()
 }
 
 // AddController method adds given controller into controller registory.
