@@ -90,7 +90,7 @@ func TestHTTPParseContentType(t *testing.T) {
 	req3 := createRawHTTPRequest(HeaderContentType, "application/json")
 	contentType = ParseContentType(req3)
 	assert.Equal(t, "application/json", contentType.Mime)
-	assert.Equal(t, "application/json", contentType.String())
+	assert.Equal(t, "application/json", contentType.Raw())
 	assert.Equal(t, "", contentType.Charset(""))
 
 	req4 := createRawHTTPRequest(HeaderContentType, "")
@@ -102,6 +102,6 @@ func TestHTTPParseContentType(t *testing.T) {
 	req5 := createRawHTTPRequest(HeaderContentType, "text/html;charset")
 	contentType = ParseContentType(req5)
 	assert.True(t, (contentType.Mime == "" || contentType.Mime == "text/html"))
-	assert.True(t, (contentType.String() == "" || contentType.String() == "text/html"))
+	assert.True(t, (contentType.Raw() == "" || contentType.String() == "text/html"))
 	assert.Equal(t, "iso-8859-1", contentType.Charset("iso-8859-1"))
 }

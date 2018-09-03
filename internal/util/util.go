@@ -58,7 +58,7 @@ func DetectFileContentType(file string, content io.ReadSeeker) (string, error) {
 // it better to have some basic measure
 func MimeTypeByExtension(ext string) string {
 	switch ext {
-	case ".htm", ".html":
+	case ".html", ".htm":
 		return ahttp.ContentTypeHTML.String()
 	case ".css":
 		return ahttp.ContentTypeCSSText.String()
@@ -68,7 +68,7 @@ func MimeTypeByExtension(ext string) string {
 		return ahttp.ContentTypeJSON.String()
 	case ".xml":
 		return ahttp.ContentTypeXML.String()
-	case ".text":
+	case ".txt", ".text":
 		return ahttp.ContentTypePlainText.String()
 	default:
 		return mime.TypeByExtension(ext)

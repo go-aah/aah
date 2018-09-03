@@ -8,12 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"path"
 	"strings"
 
 	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/log"
 	"aahframe.work/aah/router"
 	"aahframe.work/aah/valpar"
 )
@@ -172,7 +170,7 @@ func (a *app) initRouter() error {
 //  - auto options
 //  - route not found
 //  - if route found then it sets targeted controller into context
-//  - adds the pathParams into context if present
+//  - adds the url path params into context if present
 //
 // Returns status as-
 //  - flowCont
@@ -185,7 +183,7 @@ func handleRoute(ctx *Context) flowResult {
 		return flowAbort
 	}
 
-	route, pathParams, rts := ctx.domain.Lookup(ctx.Req.Unwrap())
+	route, urlParams, rts := ctx.domain.Lookup(ctx.Req.Unwrap())
 	if route == nil { // route not found
 		if err := handleRtsOptionsMna(ctx, rts); err == nil {
 			return flowAbort
@@ -196,7 +194,7 @@ func handleRoute(ctx *Context) flowResult {
 		return flowAbort
 	}
 	ctx.route = route
-	ctx.Req.URLParams = pathParams
+	ctx.Req.URLParams = urlParams
 
 	// Serving static file
 	if route.IsStatic {
@@ -210,7 +208,7 @@ func handleRoute(ctx *Context) flowResult {
 
 	// Apply route constraints
 	if len(ctx.route.Constraints) > 0 {
-		if errs := valpar.ValidateValues(ctx.Req.PathParams, ctx.route.Constraints); len(errs) > 0 {
+		if errs := valpar.ValidateValues(ctx.Req.URLParams.ToMap(), ctx.route.Constraints); len(errs) > 0 {
 			ctx.Log().Errorf("Route constraints failed: %s", errs)
 			ctx.Reply().BadRequest().Error(newErrorWithData(router.ErrRouteConstraintFailed, http.StatusBadRequest, errs))
 			return flowAbort
@@ -218,77 +216,6 @@ func handleRoute(ctx *Context) flowResult {
 	}
 
 	return flowCont
-}
-
-func appendAnchorLink(routePath, anchorLink string) string {
-	if len(anchorLink) == 0 {
-		return routePath
-	}
-	return routePath + "#" + anchorLink
-}
-
-func getRouteNameAndAnchorLink(routeName string) (string, string) {
-	anchorLink := ""
-	hashIdx := strings.IndexByte(routeName, '#')
-	if hashIdx > 0 {
-		anchorLink = routeName[hashIdx+1:]
-		routeName = routeName[:hashIdx]
-	}
-	return routeName, anchorLink
-}
-
-func composeRouteURL(domain *router.Domain, routePath, anchorLink string) string {
-	if len(domain.Port) == 0 {
-		routePath = fmt.Sprintf("//%s%s", domain.Host, routePath)
-	} else {
-		routePath = fmt.Sprintf("//%s:%s%s", domain.Host, domain.Port, routePath)
-	}
-
-	return appendAnchorLink(routePath, anchorLink)
-}
-
-func (a *app) findRouteURLDomain(host, routeName string) (*router.Domain, string) {
-	idx := strings.IndexByte(routeName, '.')
-	if idx > 0 {
-		subDomain := routeName[:idx]
-
-		// Returning current subdomain
-		if strings.HasPrefix(host, subDomain) {
-			return a.Router().Lookup(host), routeName[idx+1:]
-		}
-
-		// Returning requested subdomain
-		for _, d := range a.Router().Domains {
-			if strings.HasPrefix(d.Key, subDomain) && d.IsSubDomain {
-				return d, routeName[idx+1:]
-			}
-		}
-	}
-
-	// return root domain
-	return a.Router().RootDomain(), routeName
-}
-
-func createRouteURL(l log.Loggerer, domain *router.Domain, routeName string, margs map[string]interface{}, args ...interface{}) string {
-	if routeName == "host" {
-		return composeRouteURL(domain, "", "")
-	}
-
-	routeName, anchorLink := getRouteNameAndAnchorLink(routeName)
-	var routePath string
-	if margs == nil {
-		routePath = domain.RouteURL(routeName, args...)
-	} else {
-		routePath = domain.RouteURLNamedArgs(routeName, margs)
-	}
-
-	// URL escapes
-	rURL, err := url.Parse(composeRouteURL(domain, routePath, anchorLink))
-	if err != nil {
-		l.Error(err)
-		return ""
-	}
-	return rURL.String()
 }
 
 // handleRtsOptionsMna method handles

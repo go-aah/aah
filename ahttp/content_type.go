@@ -47,25 +47,6 @@ var (
 	ContentTypeCSSText = parseMediaType("text/css; charset=utf-8")
 )
 
-// InferContentTypeByName method returns the Content-Type based on given
-// name input.
-func InferContentTypeByName(name string) *ContentType {
-	switch name {
-	case "html":
-		return ContentTypeHTML
-	case "json":
-		return ContentTypeJSON
-	case "xml":
-		return ContentTypeXML
-	case "text":
-		return ContentTypePlainText
-	case "js":
-		return ContentTypeJavascript
-	default:
-		return nil
-	}
-}
-
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Content-Type
 //___________________________________

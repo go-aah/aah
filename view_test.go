@@ -132,19 +132,3 @@ func TestViewMinifier(t *testing.T) {
 		return nil
 	})
 }
-
-// func TestViewDefaultContentType(t *testing.T) {
-// 	assert.Nil(t, resolveDefaultContentType(""))
-
-// 	v1 := resolveDefaultContentType("html")
-// 	assert.Equal(t, "text/html; charset=utf-8", v1.Raw())
-
-// 	v2 := resolveDefaultContentType("xml")
-// 	assert.Equal(t, "application/xml; charset=utf-8", v2.Raw())
-
-// 	v3 := resolveDefaultContentType("json")
-// 	assert.Equal(t, "application/json; charset=utf-8", v3.Raw())
-
-// 	v4 := resolveDefaultContentType("text")
-// 	assert.Equal(t, "text/plain; charset=utf-8", v4.Raw())
-// }

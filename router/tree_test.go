@@ -19,7 +19,7 @@ func TestTreeBasicUseCase(t *testing.T) {
 	testcases := []struct {
 		route        string
 		result       *Route
-		resultParams ahttp.PathParams
+		resultParams ahttp.URLParams
 	}{
 		{route: "/hi", result: &Route{Path: "/hi"}},
 		{route: "/contact", result: &Route{Path: "/contact"}},

@@ -116,8 +116,7 @@ func TestHTTPRequestParams(t *testing.T) {
 	req1.URL, _ = url.Parse("http://localhost:8080/welcome1.html?_ref=true&names=Test1&names=Test%202")
 
 	aahReq1 := AcquireRequest(req1)
-	aahReq1.PathParams = PathParams{}
-	aahReq1.PathParams["userId"] = "100001"
+	aahReq1.URLParams = URLParams{{Key: "userId", Value: "100001"}}
 
 	assert.Equal(t, "true", aahReq1.QueryValue("_ref"))
 	assert.Equal(t, "Test1", aahReq1.QueryArrayValue("names")[0])
@@ -125,7 +124,7 @@ func TestHTTPRequestParams(t *testing.T) {
 	assert.True(t, len(aahReq1.QueryArrayValue("not-exists")) == 0)
 	assert.Equal(t, "100001", aahReq1.PathValue("userId"))
 	assert.Equal(t, "", aahReq1.PathValue("accountId"))
-	assert.Equal(t, 1, aahReq1.PathParams.Len())
+	assert.Equal(t, 1, len(aahReq1.URLParams))
 
 	// Form value
 	form := url.Values{}
@@ -144,7 +143,7 @@ func TestHTTPRequestParams(t *testing.T) {
 	assert.Equal(t, "Test1", aahReq2.FormArrayValue("names")[0])
 	assert.Equal(t, "Test 2 value", aahReq2.FormArrayValue("names")[1])
 	assert.True(t, len(aahReq2.FormArrayValue("not-exists")) == 0)
-	assert.Equal(t, 0, aahReq2.PathParams.Len())
+	assert.Equal(t, 0, len(aahReq2.URLParams))
 	ReleaseRequest(aahReq2)
 
 	// File value
@@ -231,7 +230,7 @@ func TestRequestSaveFileFailsValidation(t *testing.T) {
 	assert.Equal(t, "ahttp: key or dstFile is empty", err.Error())
 
 	// If "path" is a directory, it should error out
-	_, err = aahReq.SaveFile("framework", "testdata")
+	_, err = aahReq.SaveFile("framework", ".testdata")
 	assert.NotNil(t, err)
 	assert.Equal(t, "ahttp: dstFile should not be a directory", err.Error())
 }
@@ -257,9 +256,9 @@ func TestRequestSaveFileCannotCreateFile(t *testing.T) {
 func TestRequestSaveFileForExistingFile(t *testing.T) {
 	var buf bytes.Buffer
 
-	size, err := saveFile(&buf, "testdata/file1.txt")
+	size, err := saveFile(&buf, ".testdata/file1.txt")
 	assert.NotNil(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "ahttp: open testdata/file1.txt:"))
+	assert.True(t, strings.HasPrefix(err.Error(), "ahttp: open .testdata/file1.txt:"))
 	assert.Equal(t, int64(0), size)
 }
 
@@ -312,7 +311,7 @@ func setUpRequestSaveFile(t *testing.T) (*Request, string, func()) {
 	aahReq.Unwrap().MultipartForm.File = make(map[string][]*multipart.FileHeader)
 	aahReq.Unwrap().MultipartForm.File["framework"] = []*multipart.FileHeader{header}
 
-	path := "testdata/aah.txt"
+	path := ".testdata/aah.txt"
 
 	return aahReq, path, func() {
 		_ = os.Remove(path) //Teardown

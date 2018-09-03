@@ -206,15 +206,15 @@ func (d *Domain) RouteURL(routeName string, args ...interface{}) string {
 
 	// too many arguments
 	if argsLen > int(pathParamCnt) {
-		log.Errorf("too many arguments, path: '%v' params count: %v, suppiled values count: %v",
-			route.Path, pathParamCnt, argsLen)
+		log.Errorf("too many arguments routename: %s, path: '%v' params count: %v, suppiled values count: %v",
+			routeName, route.Path, pathParamCnt, argsLen)
 		return ""
 	}
 
 	// not enough arguments
 	if argsLen < int(pathParamCnt) {
-		log.Errorf("not enough arguments, path: '%v' params count: %v, suppiled values count: %v",
-			route.Path, pathParamCnt, argsLen)
+		log.Errorf("not enough arguments routename: %s, path: '%v' params count: %v, suppiled values count: %v",
+			routeName, route.Path, pathParamCnt, argsLen)
 		return ""
 	}
 

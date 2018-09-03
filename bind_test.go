@@ -111,8 +111,7 @@ func TestBindParamTemplateFuncs(t *testing.T) {
 	_ = req1.ParseForm()
 
 	aahReq1 := ahttp.ParseRequest(req1, &ahttp.Request{})
-	aahReq1.PathParams = ahttp.PathParams{}
-	aahReq1.PathParams["userId"] = "100001"
+	aahReq1.URLParams = ahttp.URLParams{{Key: "userId", Value: "100001"}}
 
 	viewArgs := map[string]interface{}{}
 	viewArgs[KeyViewArgRequest] = aahReq1

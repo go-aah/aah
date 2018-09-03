@@ -30,9 +30,9 @@ import (
 //___________________________________
 
 func TestRouterPathParamGet(t *testing.T) {
-	pathParameters := ahttp.PathParams{
-		"dir":      "js",
-		"filepath": "/inc/framework.js",
+	pathParameters := ahttp.URLParams{
+		{Key: "dir", Value: "js"},
+		{Key: "filepath", Value: "/inc/framework.js"},
 	}
 
 	fp := pathParameters.Get("filepath")
@@ -125,6 +125,9 @@ func TestRouterWildcardSubdomain(t *testing.T) {
 	assert.Equal(t, "index", route2.Name)
 	assert.Equal(t, "wildcard/AppController", route2.Target)
 	assert.Equal(t, "/", route2.Path)
+
+	result := router.CreateRouteURL("sample.localhost:8080", "sample.index", nil)
+	assert.Equal(t, "//sample.localhost:8080/", result)
 }
 
 func TestRouterStaticLoadConfiguration(t *testing.T) {
@@ -250,10 +253,10 @@ func TestRouterDomainConfig(t *testing.T) {
 	router, err := createRouter("routes.conf")
 	assert.Nil(t, err, "")
 
-	domain := router.FindDomain(ahttp.AcquireRequest(createHTTPRequest("localhost:8080", "/")))
+	domain := router.Lookup("localhost:8080")
 	assert.NotNil(t, domain)
 
-	domain = router.FindDomain(ahttp.AcquireRequest(createHTTPRequest("www.aahframework.org", "/")))
+	domain = router.Lookup("www.aahframework.org")
 	assert.Nil(t, domain)
 }
 
@@ -294,12 +297,12 @@ func TestRouterDomainAllowed(t *testing.T) {
 	assert.Nil(t, err, "")
 
 	req := createHTTPRequest("localhost:8080", "/login")
-	domain := router.FindDomain(ahttp.AcquireRequest(req))
+	domain := router.Lookup(req.Host)
 	allow := domain.Allowed(ahttp.MethodGet, "/login")
 	assert.NotNil(t, allow)
 	assert.False(t, ess.IsStrEmpty(allow))
 
-	domain = router.FindDomain(ahttp.AcquireRequest(req))
+	domain = router.Lookup(req.Host)
 	allow = domain.Allowed(ahttp.MethodPost, "*")
 	assert.NotNil(t, allow)
 	assert.True(t, strings.Contains(allow, ahttp.MethodPost))
@@ -365,6 +368,23 @@ func TestRouterDomainRouteURL(t *testing.T) {
 
 	bookingURL = domain.RouteURL("book_hotels", 12345678, "param1value", "param2value")
 	assert.Equal(t, "", bookingURL)
+
+	// Route URLs
+	result := router.CreateRouteURL("localhost:8080", "host", nil)
+	assert.Equal(t, "//localhost:8080", result)
+
+	result = router.CreateRouteURL("localhost:8080", "app_index#welcome", nil)
+	assert.Equal(t, "//localhost:8080/#welcome", result)
+
+	result = router.CreateRouteURL("localhost:8080", "book_hotels", map[string]interface{}{
+		"id":     "12345678",
+		"param1": "param1value",
+		"param2": "param2value",
+	})
+	assert.Equal(t, "//localhost:8080/hotels/12345678/booking?param1=param1value&param2=param2value", result)
+
+	result = router.CreateRouteURL("localhost:8080", "book_hotels", nil, 12345678)
+	assert.Equal(t, "//localhost:8080/hotels/12345678/booking", result)
 }
 
 func TestRouterDomainAddRoute(t *testing.T) {
@@ -665,8 +685,8 @@ func createHTTPRequest(host, path string) *http.Request {
 
 func testdataBaseDir() string {
 	wd, _ := os.Getwd()
-	if idx := strings.Index(wd, "testdata"); idx > 0 {
+	if idx := strings.Index(wd, ".testdata"); idx > 0 {
 		wd = wd[:idx]
 	}
-	return filepath.Join(wd, "testdata")
+	return filepath.Join(wd, ".testdata")
 }

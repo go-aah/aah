@@ -243,11 +243,10 @@ func processBaseCORSSection(cfg *config.Config) *CORS {
 	return cors
 }
 
-func processCORSSection(cfg *config.Config, parent *CORS) *CORS {
+func processCORSSection(cfg *config.Config, parent *CORS) (*CORS, error) {
 	cors := &CORS{}
 	if parent == nil {
-		log.Warn("It seems CORS is not enabled for the domain, refer to https://docs.aahframework.org/cors.html")
-		return nil
+		return nil, errors.New("It seems CORS is not enabled for the domain, refer to https://docs.aahframework.org/cors.html")
 	}
 
 	// Access-Control-Allow-Origin
@@ -285,5 +284,5 @@ func processCORSSection(cfg *config.Config, parent *CORS) *CORS {
 	cors.maxAgeStr = cfg.StringDefault("max_age", parent.maxAgeStr)
 	cors.SetMaxAge(cors.maxAgeStr)
 
-	return cors
+	return cors, nil
 }

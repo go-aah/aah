@@ -96,15 +96,13 @@ func (ctx *Context) AddViewArg(key string, value interface{}) *Context {
 // RouteURL method returns the URL for given route name and args.
 // See `router.Domain.RouteURL` for more information.
 func (ctx *Context) RouteURL(routeName string, args ...interface{}) string {
-	domain, rn := ctx.a.findRouteURLDomain(ctx.Req.Host, routeName)
-	return createRouteURL(ctx.Log(), domain, rn, nil, args...)
+	return ctx.a.Router().CreateRouteURL(ctx.Req.Host, routeName, nil, args...)
 }
 
 // RouteURLNamedArgs method returns the URL for given route name and key-value paris.
 // See `router.Domain.RouteURLNamedArgs` for more information.
 func (ctx *Context) RouteURLNamedArgs(routeName string, args map[string]interface{}) string {
-	domain, rn := ctx.a.findRouteURLDomain(ctx.Req.Host, routeName)
-	return createRouteURL(ctx.Log(), domain, rn, args)
+	return ctx.a.Router().CreateRouteURL(ctx.Req.Host, routeName, args)
 }
 
 // Msg method returns the i18n value for given key otherwise empty string returned.

@@ -72,10 +72,6 @@ type Request struct {
 	// Header is request HTTP headers
 	Header http.Header
 
-	// PathParams value is URL path parameters.
-	// Will be DEPRECATED in upcoming v0.12.0, URLParams will take place.
-	PathParams PathParams
-
 	// URLParams value is URL path parameters.
 	URLParams URLParams
 
@@ -203,10 +199,7 @@ func (r *Request) URL() *url.URL {
 // PathValue method returns value for given Path param key otherwise empty string.
 // For eg.: /users/:userId => PathValue("userId")
 func (r *Request) PathValue(key string) string {
-	if v := r.URLParams.Get(key); len(v) > 0 {
-		return v
-	}
-	return r.PathParams.Get(key)
+	return r.URLParams.Get(key)
 }
 
 // QueryValue method returns value for given URL query param key
@@ -285,7 +278,6 @@ func (r *Request) Reset() {
 	r.Method = ""
 	r.Path = ""
 	r.Header = nil
-	r.PathParams = nil
 	r.URLParams = nil
 	r.Referer = ""
 	r.UserAgent = ""
@@ -334,26 +326,6 @@ func (u URLParams) ToMap() map[string]string {
 		ps[p.Key] = p.Value
 	}
 	return ps
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// PathParams
-//___________________________________
-
-// PathParams struct holds the path parameter key and values.
-type PathParams map[string]string
-
-// Get method returns the value for the given key otherwise empty string.
-func (p PathParams) Get(key string) string {
-	if value, found := p[key]; found {
-		return value
-	}
-	return ""
-}
-
-// Len method returns count of total no. of values.
-func (p PathParams) Len() int {
-	return len(p)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

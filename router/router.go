@@ -140,13 +140,6 @@ func (r *Router) Load() (err error) {
 	return
 }
 
-// FindDomain returns domain routes configuration based on http request
-// otherwise nil.
-func (r *Router) FindDomain(req *ahttp.Request) *Domain {
-	// DEPRECATED to be removed in v1.0 release
-	return r.Lookup(req.Host)
-}
-
 // Lookup method returns domain for given host otherwise nil.
 func (r *Router) Lookup(host string) *Domain {
 	if len(r.Domains) == 1 {
@@ -216,6 +209,26 @@ func (r *Router) RegisteredWSActions() map[string]map[string]uint8 {
 	return methods
 }
 
+// CreateRouteURL ...
+func (r *Router) CreateRouteURL(host, routeName string, margs map[string]interface{}, args ...interface{}) string {
+	var domain *Domain
+	domain, routeName = r.lookupRouteURLDomain(host, routeName)
+	if routeName == "host" {
+		return r.composeRouteURL(domain, host, "", "")
+	}
+
+	anchor := ""
+	if i := strings.IndexByte(routeName, '#'); i > 0 {
+		anchor = routeName[i+1:]
+		routeName = routeName[:i]
+	}
+
+	if margs == nil {
+		return r.composeRouteURL(domain, host, domain.RouteURL(routeName, args...), anchor)
+	}
+	return r.composeRouteURL(domain, host, domain.RouteURLNamedArgs(routeName, margs), anchor)
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Router unexpoted methods
 //______________________________________________________________________________
@@ -242,6 +255,58 @@ func (r *Router) readConfig(name string) (*config.Config, error) {
 		return config.LoadFile(name)
 	}
 	return config.VFSLoadFile(r.app.VFS(), r.configPath)
+}
+
+func (r *Router) lookupRouteURLDomain(host, routeName string) (*Domain, string) {
+	i := strings.IndexByte(routeName, '.')
+	if i > 0 {
+		subDomain := routeName[:i]
+
+		// Returning current subdomain
+		if strings.HasPrefix(host, subDomain+".") {
+			return r.Lookup(host), routeName[i+1:]
+		}
+
+		// Return requested subdomain
+		for _, d := range r.Domains {
+			if strings.HasPrefix(d.Key, subDomain) && d.IsSubDomain {
+				return d, routeName[i+1:]
+			}
+		}
+
+		// Return wild card sub-domain
+		for _, d := range r.Domains {
+			if strings.HasPrefix(d.Host, "*.") {
+				return d, routeName[i+1:]
+			}
+		}
+	}
+
+	// return root domain
+	return r.rootDomain, routeName
+}
+
+func (r *Router) composeRouteURL(d *Domain, host, routePath, anchor string) string {
+	switch {
+	case len(r.Domains) == 1 && d.Host == "localhost":
+		routePath = "//" + host + routePath
+	case len(d.Port) == 0:
+		routePath = "//" + inferHost(host, d.Host) + routePath
+	default:
+		routePath = "//" + inferHost(host, d.Host) + ":" + d.Port + routePath
+	}
+
+	if anchor == "" {
+		return routePath
+	}
+	return routePath + "#" + anchor
+}
+
+func inferHost(hosta, hostb string) string {
+	if strings.HasPrefix(hostb, "*.") {
+		return hosta[:strings.IndexByte(hosta, ':')]
+	}
+	return hostb
 }
 
 func (r *Router) processRoutesConfig() (err error) {
@@ -320,7 +385,9 @@ func (r *Router) processRoutesConfig() (err error) {
 			catchAllRoute.IsAntiCSRFCheck = domainCfg.BoolDefault("catch_all.anti_csrf_check", false)
 
 			if corsCfg, found := domainCfg.GetSubConfig("catch_all.cors"); found {
-				catchAllRoute.CORS = processCORSSection(corsCfg, domain.CORS)
+				if catchAllRoute.CORS, err = processCORSSection(corsCfg, domain.CORS); err != nil {
+					return
+				}
 			}
 			domain.CatchAllRoute = catchAllRoute
 		}
@@ -556,7 +623,9 @@ func parseSectionRoutes(cfg *config.Config, routeInfo *parentRouteInfo) (routes 
 		if routeInfo.CORSEnabled && routeMethod != methodWebSocket {
 			if corsCfg, found := cfg.GetSubConfig(routeName + ".cors"); found {
 				if corsCfg.BoolDefault("enable", true) {
-					cors = processCORSSection(corsCfg, routeInfo.CORS)
+					if cors, err = processCORSSection(corsCfg, routeInfo.CORS); err != nil {
+						return
+					}
 				}
 			} else {
 				cors = routeInfo.CORS

@@ -49,12 +49,6 @@ func TestRouterTemplateFuncs(t *testing.T) {
 	assert.Equal(t, "//localhost:8080", string(url4))
 }
 
-func TestRouterMisc(t *testing.T) {
-	domain := &router.Domain{Host: "localhost"}
-	result := composeRouteURL(domain, "/path", "my-head")
-	assert.Equal(t, "//localhost/path#my-head", result)
-}
-
 func TestRouterCORS(t *testing.T) {
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
 	ts := newTestServer(t, importPath)
