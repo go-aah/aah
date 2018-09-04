@@ -375,6 +375,16 @@ func (a *app) initPath() error {
 		return nil
 	}
 
+	if ess.IsFileExists("go.mod") {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		a.settings.BaseDir = cwd
+		fmt.Println("basedir", a.settings.BaseDir)
+		return nil
+	}
+
 	// If not packaged, get the GOPATH
 	gopath, err := ess.GoPath()
 	if err != nil {

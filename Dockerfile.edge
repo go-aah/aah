@@ -10,15 +10,15 @@ RUN apt-get update
 RUN rm -rf $GOPATH/src
 
 RUN git clone https://github.com/go-aah/aah.git $GOPATH/src/aahframe.work/aah && \
-    git clone https://github.com/go-aah/tools.git $GOPATH/src/aahframe.work/cli
+    git clone https://github.com/go-aah/tools.git $GOPATH/src/aahframe.work/cmd
 
 RUN go get aahframe.work/aah/... && go get aahframe.work/cli/aah/...
 
-RUN cd $GOPATH/src/aahframe.work/cli/aah && go install
+RUN cd $GOPATH/src/aahframe.work/cmd/aah && go install
 
 RUN aah --version
 
 # Get aah libraries
-RUN go get github.com/aah-cb/minify
+#RUN go get github.com/aah-cb/minify
 
 WORKDIR $GOPATH/src

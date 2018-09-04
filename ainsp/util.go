@@ -65,8 +65,11 @@ func isTypeTok(decl *ast.GenDecl) bool {
 }
 
 func stripGoPath(pkgFilePath string) string {
-	idx := strings.Index(pkgFilePath, "src")
-	return filepath.Clean(pkgFilePath[idx+4:])
+	i := strings.Index(pkgFilePath, "src")
+	if i > 0 {
+		return filepath.Clean(pkgFilePath[i+4:])
+	}
+	return pkgFilePath
 }
 
 func isPkgAliasExists(importPaths map[string]string, pkgAlias string) bool {
@@ -133,6 +136,7 @@ func processMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, 
 	if ty := pkg.Types[controllerName]; ty == nil {
 		pos := pkg.Fset.Position(decl.Pos())
 		filename := stripGoPath(pos.Filename)
+		fmt.Println("filename", filename, "pos.Filename", pos.Filename)
 		log.Errorf("AST: Method '%s' has incorrect struct recevier '%s' on file [%s] at line #%d",
 			actionName, controllerName, filename, pos.Line)
 	} else {

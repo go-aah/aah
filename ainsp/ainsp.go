@@ -16,8 +16,10 @@ import (
 	"go/scanner"
 	"go/token"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"aahframe.work/aah/essentials"
 )
@@ -60,14 +62,14 @@ var (
 
 // Inspect method processes the Go source code for the given directory and its
 // sub-directories.
-func Inspect(path string, excludes ess.Excludes, registeredActions map[string]map[string]uint8) (*Program, []error) {
+func Inspect(dir, importPath string, excludes ess.Excludes, registeredActions map[string]map[string]uint8) (*Program, []error) {
 	prg := &Program{
-		Path:              path,
+		Path:              dir,
 		Packages:          []*packageInfo{},
 		RegisteredActions: registeredActions,
 	}
 
-	if err := validateInput(path); err != nil {
+	if err := validateInput(dir); err != nil {
 		return prg, append([]error{}, err)
 	}
 
@@ -76,7 +78,7 @@ func Inspect(path string, excludes ess.Excludes, registeredActions map[string]ma
 		errs []error
 	)
 
-	err := ess.Walk(path, func(srcPath string, info os.FileInfo, err error) error {
+	err := ess.Walk(dir, func(srcPath string, info os.FileInfo, err error) error {
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -121,9 +123,13 @@ func Inspect(path string, excludes ess.Excludes, registeredActions map[string]ma
 		}
 
 		if pkg != nil {
+			pkgImportPath := filepath.ToSlash(srcPath)
+			i := strings.LastIndex(pkgImportPath, "app/")
+			pkgImportPath = filepath.ToSlash(path.Clean(path.Join(importPath, srcPath[i:])))
+
 			pkg.Fset = pfset
 			pkg.FilePath = srcPath
-			pkg.ImportPath = stripGoPath(srcPath)
+			pkg.ImportPath = pkgImportPath
 			prg.Packages = append(prg.Packages, pkg)
 		}
 
