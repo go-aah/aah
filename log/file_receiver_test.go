@@ -6,6 +6,7 @@ package log
 
 import (
 	"io/ioutil"
+	"os"
 	"testing"
 
 	"aahframe.work/aah/config"
@@ -97,7 +98,7 @@ func TestFileLoggerFileOpenError(t *testing.T) {
 	cfg, _ := config.ParseString(fileConfigStr)
 	logger, err := New(cfg)
 	assert.Nil(t, logger)
-	assert.Equal(t, "open : no such file or directory", err.Error())
+	assert.True(t, os.IsNotExist(err))
 }
 
 func TestFileLoggerUnsupportedFormat(t *testing.T) {

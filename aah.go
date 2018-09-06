@@ -381,7 +381,6 @@ func (a *app) initPath() error {
 			return err
 		}
 		a.settings.BaseDir = cwd
-		fmt.Println("basedir", a.settings.BaseDir)
 		return nil
 	}
 
