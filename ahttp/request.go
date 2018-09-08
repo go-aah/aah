@@ -38,9 +38,9 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 	req.Method = r.Method
 	req.Path = r.URL.Path
 	req.Header = r.Header
-	req.Referer = getReferer(r.Header)
-	req.UserAgent = r.Header.Get(HeaderUserAgent)
-	req.IsGzipAccepted = strings.Contains(r.Header.Get(HeaderAcceptEncoding), "gzip")
+	if h := r.Header[HeaderAcceptEncoding]; len(h) > 0 {
+		req.IsGzipAccepted = strings.Index(h[0], "gzip") >= 0
+	}
 	req.raw = r
 	req.raw.URL.Scheme = req.Scheme
 	req.raw.URL.Host = req.Host
@@ -74,12 +74,6 @@ type Request struct {
 
 	// URLParams value is URL path parameters.
 	URLParams URLParams
-
-	// Referer value is HTTP 'Referrer' (or 'Referer') header.
-	Referer string
-
-	// UserAgent value is HTTP 'User-Agent' header.
-	UserAgent string
 
 	// IsGzipAccepted is true if the HTTP client accepts Gzip response,
 	// otherwise false.
@@ -196,6 +190,22 @@ func (r *Request) URL() *url.URL {
 	return r.Unwrap().URL
 }
 
+// Referer method returns value of HTTP 'Referrer' (or 'Referer') header.
+func (r *Request) Referer() string {
+	if h := r.Header[HeaderReferer]; len(h) > 0 {
+		return h[0]
+	}
+	if h := r.Header["Referrer"]; len(h) > 0 {
+		return h[0]
+	}
+	return ""
+}
+
+// UserAgent method returns value of HTTP 'User-Agent' header.
+func (r *Request) UserAgent() string {
+	return r.Header.Get(HeaderUserAgent)
+}
+
 // PathValue method returns value for given Path param key otherwise empty string.
 // For eg.: /users/:userId => PathValue("userId")
 func (r *Request) PathValue(key string) string {
@@ -279,8 +289,6 @@ func (r *Request) Reset() {
 	r.Path = ""
 	r.Header = nil
 	r.URLParams = nil
-	r.Referer = ""
-	r.UserAgent = ""
 	r.IsGzipAccepted = false
 
 	r.raw = nil
@@ -331,14 +339,6 @@ func (u URLParams) ToMap() map[string]string {
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Unexported methods
 //___________________________________
-
-func getReferer(hdr http.Header) string {
-	referer := hdr.Get(HeaderReferer)
-	if len(referer) > 0 {
-		return referer
-	}
-	return hdr.Get("Referrer")
-}
 
 func saveFile(r io.Reader, destFile string) (int64, error) {
 	f, err := os.OpenFile(destFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)

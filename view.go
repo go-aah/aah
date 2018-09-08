@@ -228,7 +228,7 @@ func (vm *viewManager) addFrameworkValuesIntoViewArgs(ctx *Context) {
 	html.ViewArgs["ClientIP"] = ctx.Req.ClientIP()
 	html.ViewArgs["IsJSONP"] = ctx.Req.IsJSONP()
 	html.ViewArgs["IsAJAX"] = ctx.Req.IsAJAX()
-	html.ViewArgs["HTTPReferer"] = ctx.Req.Referer
+	html.ViewArgs["HTTPReferer"] = ctx.Req.Referer()
 	html.ViewArgs["AahVersion"] = Version
 	html.ViewArgs[KeyViewArgRequest] = ctx.Req
 	if ctx.subject != nil {

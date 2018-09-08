@@ -44,11 +44,11 @@ func TestHTTPClientIP(t *testing.T) {
 
 func TestHTTPGetReferer(t *testing.T) {
 	req1 := createRawHTTPRequest(HeaderReferer, "http://localhost:8080/welcome1.html")
-	referer := getReferer(req1.Header)
+	referer := AcquireRequest(req1).Referer()
 	assert.Equal(t, "http://localhost:8080/welcome1.html", referer)
 
 	req2 := createRawHTTPRequest("Referrer", "http://localhost:8080/welcome2.html")
-	referer = getReferer(req2.Header)
+	referer = AcquireRequest(req2).Referer()
 	assert.Equal(t, "http://localhost:8080/welcome2.html", referer)
 }
 
@@ -72,7 +72,7 @@ func TestHTTPParseRequest(t *testing.T) {
 	assert.Equal(t, "en-gb;leve=1;q=0.8, da, en;level=2;q=0.7, en-us;q=gg", aahReq.Header.Get(HeaderAcceptLanguage))
 	assert.Equal(t, "application/json; charset=utf-8", aahReq.ContentType().String())
 	assert.Equal(t, "192.168.0.1", aahReq.ClientIP())
-	assert.Equal(t, "http://localhost:8080/home.html", aahReq.Referer)
+	assert.Equal(t, "http://localhost:8080/home.html", aahReq.Referer())
 
 	// Query Value
 	assert.Equal(t, "true", aahReq.QueryValue("_ref"))
@@ -106,7 +106,7 @@ func TestHTTPParseRequest(t *testing.T) {
 	ReleaseRequest(aahReq)
 	assert.Nil(t, aahReq.Header)
 	assert.Nil(t, aahReq.raw)
-	assert.True(t, aahReq.UserAgent == "")
+	assert.True(t, aahReq.UserAgent() == "")
 }
 
 func TestHTTPRequestParams(t *testing.T) {

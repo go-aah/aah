@@ -441,13 +441,15 @@ func TestSecurityAntiCSRF(t *testing.T) {
 
 	// https: malformed URL
 	t.Log("https: malformed URL")
-	ctx1.Req.Referer = ":host:8080"
+	r1.Header.Set("Referer", ":host:8080")
+	ctx1.Req = ahttp.AcquireRequest(r1)
 	AntiCSRFMiddleware(ctx1, &Middleware{})
 	assert.Equal(t, anticsrf.ErrMalformedReferer, ctx1.reply.err.Reason)
 
 	// Bad referer
 	t.Log("Bad referer")
-	ctx1.Req.Referer = "https:::"
+	r1.Header.Set("Referer", "https:::")
+	ctx1.Req = ahttp.AcquireRequest(r1)
 	AntiCSRFMiddleware(ctx1, &Middleware{})
 	assert.Equal(t, anticsrf.ErrBadReferer, ctx1.reply.err.Reason)
 

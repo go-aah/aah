@@ -370,21 +370,21 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// same-domain requests in only about 0.2% of cases or less, so
 	// we can use strict Referer checking.
 	if ctx.Req.Scheme == ahttp.SchemeHTTPS {
-		referer, err := url.Parse(ctx.Req.Referer)
+		referer, err := url.Parse(ctx.Req.Referer())
 		if err != nil {
-			ctx.Log().Warnf("anticsrf: Malformed referer %s", ctx.Req.Referer)
+			ctx.Log().Warnf("anticsrf: Malformed referer %s", ctx.Req.Referer())
 			ctx.Reply().Forbidden().Error(newError(anticsrf.ErrMalformedReferer, http.StatusForbidden))
 			return
 		}
 
 		if len(referer.String()) == 0 {
-			ctx.Log().Warnf("anticsrf: No referer %s", ctx.Req.Referer)
+			ctx.Log().Warnf("anticsrf: No referer %s", ctx.Req.Referer())
 			ctx.Reply().Forbidden().Error(newError(anticsrf.ErrNoReferer, http.StatusForbidden))
 			return
 		}
 
 		if !anticsrf.IsSameOrigin(ctx.Req.URL(), referer) {
-			ctx.Log().Warnf("anticsrf: Bad referer %s", ctx.Req.Referer)
+			ctx.Log().Warnf("anticsrf: Bad referer %s", ctx.Req.Referer())
 			ctx.Reply().Forbidden().Error(newError(anticsrf.ErrBadReferer, http.StatusForbidden))
 			return
 		}
