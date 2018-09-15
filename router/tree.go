@@ -220,7 +220,8 @@ func (t *tree) insertEdge(typ nodeType, p, arg string, r *Route) error {
 		default:
 			if r != nil {
 				if sn.value != nil {
-					return errNodeExists
+					return fmt.Errorf("same route path '%s' exists on both routes named '%s', '%s' for method '%s'",
+						r.Path, r.Name, sn.value.Name, r.Method)
 				}
 				sn.value = r
 			}
