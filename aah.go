@@ -375,6 +375,17 @@ func (a *app) initPath() error {
 		return nil
 	}
 
+	// If its a physical location, we got the app base directory
+	if filepath.IsAbs(a.ImportPath()) {
+		if !ess.IsFileExists(a.ImportPath()) {
+			return fmt.Errorf("path does not exists: %s", a.ImportPath())
+		}
+
+		a.settings.BaseDir = filepath.Clean(a.ImportPath())
+		a.settings.PhysicalPathMode = true
+		return nil
+	}
+
 	if ess.IsFileExists("go.mod") {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -388,17 +399,6 @@ func (a *app) initPath() error {
 	gopath, err := ess.GoPath()
 	if err != nil {
 		return err
-	}
-
-	// If its a physical location, we got the app base directory
-	if filepath.IsAbs(a.ImportPath()) {
-		if !ess.IsFileExists(a.ImportPath()) {
-			return fmt.Errorf("path does not exists: %s", a.ImportPath())
-		}
-
-		a.settings.BaseDir = filepath.Clean(a.ImportPath())
-		a.settings.PhysicalPathMode = true
-		return nil
 	}
 
 	// Import path mode
