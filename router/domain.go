@@ -66,7 +66,7 @@ func (d *Domain) Lookup(req *http.Request) (*Route, ahttp.URLParams, bool) {
 		}
 	}
 
-	route, urlParams, rts := tree.lookup(req.URL.Path)
+	route, urlParams, rts := tree.lookup(req.URL.EscapedPath())
 
 	// Catch All
 	if route == nil && !rts && d.CatchAllRoute != nil {

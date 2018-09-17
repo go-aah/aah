@@ -422,7 +422,7 @@ func TestRouterDomainAddRoute(t *testing.T) {
 		Action: "Index",
 	}
 	err = domain.AddRoute(routeError)
-	assert.Equal(t, errNodeExists, err)
+	assert.Equal(t, errors.New("same route path '/' exists on both routes named 'route_error', 'index' for method 'GET'"), err)
 }
 
 func TestRouterConfigNotExists(t *testing.T) {

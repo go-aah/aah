@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 
 	"aahframe.work/aah/ahttp"
@@ -75,7 +76,8 @@ walk:
 			j := len(params)
 			params = params[:j+1]
 			params[j].Key = sn.arg
-			params[j].Value = p[:i]
+			v, _ := url.PathUnescape(p[:i])
+			params[j].Value = v
 		} else if sn.typ == wildcardNode {
 			if params == nil {
 				params = make(ahttp.URLParams, 0, t.maxParams)
@@ -83,7 +85,8 @@ walk:
 			j := len(params)
 			params = params[:j+1]
 			params[j].Key = sn.arg
-			params[j].Value = p[i:]
+			v, _ := url.PathUnescape(p[i:])
+			params[j].Value = v
 			r = sn.value
 			return
 		}

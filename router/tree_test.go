@@ -270,7 +270,8 @@ func TestTreeRoutesAddErrors(t *testing.T) {
 		{route: "/cmd/:tool/:sub"},
 		{route: "/assets/*filepath"},
 		{route: "/:id"},
-		{route: "/cmd/:tool/:sub", err: errNodeExists},
+		{route: "/cmd/:tool/:sub",
+			err: errors.New("same route path '/cmd/:tool/:sub' exists on both routes named '', '' for method ''")},
 		{
 			route: "/cmd/*tool",
 			err:   errors.New("aah/router: parameter based edge already exists[/cmd/:tool...] new[/cmd/*tool...]"),
