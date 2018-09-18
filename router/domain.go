@@ -162,7 +162,7 @@ func (d *Domain) RouteURLNamedArgs(routeName string, args map[string]interface{}
 		if segment[0] == paramByte || segment[0] == wildByte {
 			argName := segment[1:]
 			if arg, found := args[argName]; found {
-				reverseURL = path.Join(reverseURL, fmt.Sprintf("%v", arg))
+				reverseURL = path.Join(reverseURL, url.PathEscape(fmt.Sprintf("%v", arg)))
 				delete(args, argName)
 				continue
 			}
@@ -220,7 +220,7 @@ func (d *Domain) RouteURL(routeName string, args ...interface{}) string {
 
 	var values []string
 	for _, v := range args {
-		values = append(values, fmt.Sprintf("%v", v))
+		values = append(values, url.PathEscape(fmt.Sprintf("%v", v)))
 	}
 
 	// compose URL with values
