@@ -270,7 +270,7 @@ func (e *HTTPEngine) newContext() *Context {
 // Panic gets translated into HTTP Internal Server Error (Status 500).
 func (e *HTTPEngine) handleRecovery(ctx *Context) {
 	if r := recover(); r != nil {
-		ctx.Log().Errorf("Internal Server Error on %s", ctx.Req.Path)
+		ctx.Log().Errorf("Internal Server Error on %s", ctx.Req.URL().RequestURI())
 
 		st := aruntime.NewStacktrace(r, e.a.Config())
 		buf := acquireBuffer()
