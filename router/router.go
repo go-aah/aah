@@ -130,7 +130,7 @@ func (r *Router) Load() (err error) {
 
 	// apply aah.conf env variables
 	if envRoutesValues, found := r.appConfig().GetSubConfig("routes"); found {
-		log.Debug("env routes {...} values found, applying it")
+		log.Debug("Env profile 'routes { ... }' values found, applying it")
 		if err = r.config.Merge(envRoutesValues); err != nil {
 			return fmt.Errorf("router: routes.conf: %s", err)
 		}

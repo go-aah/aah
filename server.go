@@ -56,10 +56,11 @@ func (a *app) Start() {
 		a.Log().Infof("App Anti-CSRF Enabled: %t", a.SecurityManager().AntiCSRF.Enabled)
 	}
 
-	a.Log().Info("App Route Domains:")
+	var routeDomains []string
 	for _, d := range a.Router().Domains {
-		a.Log().Infof("      Host: %s, CORS Enabled: %t", d.Name, d.CORSEnabled)
+		routeDomains = append(routeDomains, d.Key)
 	}
+	a.Log().Info("App Route Domains: ", strings.Join(routeDomains, ", "))
 
 	redirectEnabled := a.Config().BoolDefault("server.redirect.enable", false)
 	if redirectEnabled {

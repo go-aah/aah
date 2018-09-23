@@ -5,6 +5,7 @@
 package config
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -51,6 +52,9 @@ func TestGetSubConfig(t *testing.T) {
 	value, f := subsection.Float32("sub_float")
 	assert.True(t, f)
 	assert.Equal(t, float32(100.5), value)
+
+	assert.NotNil(t, NewEmpty())
+	assert.True(t, len(cfg.ToJSON()) > 0)
 
 	cfg.ClearProfile()
 
@@ -317,6 +321,17 @@ prod {
 
 	err = cfg1.Merge(cfg2)
 	assert.NoErrorf(t, err, "merge failed")
+
+	t.Log("Merge2Section test")
+	if tocfg, found := cfg1.GetSubConfig("prod"); found {
+		err = cfg2.Merge2Section("new.prod", tocfg)
+		assert.Nil(t, err)
+		assert.Equal(t, 500, cfg2.IntDefault("new.prod.integer", 0))
+	}
+	err = cfg1.Merge2Section("", nil)
+	assert.Equal(t, errors.New("source is nil"), err)
+	err = cfg1.Merge2Section("", cfg2)
+	assert.Equal(t, errors.New("key is empty"), err)
 
 	_ = cfg1.SetProfile("prod")
 

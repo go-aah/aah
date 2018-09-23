@@ -380,6 +380,8 @@ func (c *Config) SetBool(key string, value bool) {
 
 // Merge merges the given section to current section. Settings from source
 // section overwites the values in the current section
+//
+// NOTE: It does not affect physical config file.
 func (c *Config) Merge(source *Config) error {
 	if source == nil {
 		return errors.New("source is nil")
@@ -387,6 +389,24 @@ func (c *Config) Merge(source *Config) error {
 	c.Lock()
 	defer c.Unlock()
 	return c.cfg.Merge(source.cfg)
+}
+
+// Merge2Section method allows to merge config into existing config section.
+// Source config becomes child of target section config.
+//
+// NOTE: It does not affect physical config file.
+func (c *Config) Merge2Section(key string, source *Config) error {
+	if source == nil {
+		return errors.New("source is nil")
+	}
+	if len(strings.TrimSpace(key)) == 0 {
+		return errors.New("key is empty")
+	}
+	parts := strings.Split(c.prepareKey(key), ".")
+	sec := c.getSection(parts)
+	c.Lock()
+	defer c.Unlock()
+	return sec.Merge(source.cfg)
 }
 
 // IsExists returns true if given is exists in the config otherwise returns false
@@ -465,7 +485,7 @@ func loadFile(fs *vfs.VFS, file string) (*forge.Section, error) {
 }
 
 func (c *Config) prepareKey(key string) string {
-	if c.IsProfileEnabled() {
+	if c.IsProfileEnabled() && !strings.HasPrefix(key, c.profile+".") {
 		return fmt.Sprintf("%s.%s", c.profile, key)
 	}
 	return key
