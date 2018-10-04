@@ -386,7 +386,7 @@ func (a *app) initPath() error {
 		return nil
 	}
 
-	if ess.IsFileExists("go.mod") {
+	if ess.IsFileExists("go.mod") || ess.IsFileExists("aah.project") {
 		cwd, err := os.Getwd()
 		if err != nil {
 			return err

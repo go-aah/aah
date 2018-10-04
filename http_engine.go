@@ -338,6 +338,7 @@ func (e *HTTPEngine) writeReply(ctx *Context) {
 
 		e.writeOnWire(ctx)
 	} else {
+		ctx.Res.Header().Del(ahttp.HeaderContentType)
 		ctx.Res.WriteHeader(re.Code)
 	}
 
