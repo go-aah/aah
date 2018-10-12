@@ -12,8 +12,8 @@ import (
 	"runtime"
 	"sync"
 
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/essentials"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
 )
 
 var (

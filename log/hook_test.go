@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"aahframe.work/aah/config"
+	"aahframe.work/config"
 	"github.com/stretchr/testify/assert"
 )
 

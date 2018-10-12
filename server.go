@@ -16,9 +16,9 @@ import (
 	"strconv"
 	"strings"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/internal/settings"
+	"aahframe.work/ahttp"
+	"aahframe.work/essentials"
+	"aahframe.work/internal/settings"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

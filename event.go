@@ -8,9 +8,9 @@ import (
 	"sort"
 	"sync"
 
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/internal/util"
-	"aahframe.work/aah/log"
+	"aahframe.work/essentials"
+	"aahframe.work/internal/util"
+	"aahframe.work/log"
 )
 
 const (

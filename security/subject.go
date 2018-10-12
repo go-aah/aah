@@ -7,9 +7,9 @@ package security
 import (
 	"fmt"
 
-	"aahframe.work/aah/security/authc"
-	"aahframe.work/aah/security/authz"
-	"aahframe.work/aah/security/session"
+	"aahframe.work/security/authc"
+	"aahframe.work/security/authz"
+	"aahframe.work/security/session"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

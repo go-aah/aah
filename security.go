@@ -9,16 +9,16 @@ import (
 	"net/url"
 	"strings"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/internal/util"
-	"aahframe.work/aah/security"
-	"aahframe.work/aah/security/acrypto"
-	"aahframe.work/aah/security/anticsrf"
-	"aahframe.work/aah/security/authc"
-	"aahframe.work/aah/security/authz"
-	"aahframe.work/aah/security/scheme"
-	"aahframe.work/aah/security/session"
+	"aahframe.work/ahttp"
+	"aahframe.work/essentials"
+	"aahframe.work/internal/util"
+	"aahframe.work/security"
+	"aahframe.work/security/acrypto"
+	"aahframe.work/security/anticsrf"
+	"aahframe.work/security/authc"
+	"aahframe.work/security/authz"
+	"aahframe.work/security/scheme"
+	"aahframe.work/security/session"
 )
 
 const (

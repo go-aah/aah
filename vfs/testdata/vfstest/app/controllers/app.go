@@ -1,7 +1,7 @@
 package controllers
 
 import (
-  "aahframe.work/aah/aah.v0"
+  "aahframe.work/aah.v0"
 
   "vfstest/app/models"
 )

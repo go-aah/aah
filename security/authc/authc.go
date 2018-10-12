@@ -7,8 +7,8 @@ package authc
 import (
 	"errors"
 
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/essentials"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
 )
 
 var (

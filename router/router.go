@@ -17,13 +17,13 @@ import (
 	"regexp"
 	"strings"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/log"
-	"aahframe.work/aah/security"
-	"aahframe.work/aah/security/scheme"
-	"aahframe.work/aah/vfs"
+	"aahframe.work/ahttp"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
+	"aahframe.work/security"
+	"aahframe.work/security/scheme"
+	"aahframe.work/vfs"
 )
 
 const (

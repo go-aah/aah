@@ -14,9 +14,9 @@ import (
 	"strconv"
 	"strings"
 
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/log"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
 )
 
 const (

@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/log"
+	"aahframe.work/ahttp"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"strings"
 
-	"aahframe.work/aah/essentials"
+	"aahframe.work/essentials"
 )
 
 var (

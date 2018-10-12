@@ -26,7 +26,7 @@ import (
 	"strings"
 	"sync"
 
-	"aahframe.work/aah/config"
+	"aahframe.work/config"
 )
 
 // Level type definition

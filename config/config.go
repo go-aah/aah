@@ -15,7 +15,7 @@ import (
 	"strings"
 	"sync"
 
-	"aahframe.work/aah/vfs"
+	"aahframe.work/vfs"
 	"github.com/go-aah/forge"
 )
 

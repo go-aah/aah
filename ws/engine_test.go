@@ -18,12 +18,12 @@ import (
 	"strings"
 	"testing"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/ainsp"
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/log"
-	"aahframe.work/aah/router"
+	"aahframe.work/ahttp"
+	"aahframe.work/ainsp"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
+	"aahframe.work/router"
 	"github.com/stretchr/testify/assert"
 
 	gws "github.com/gobwas/ws"

@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/router"
+	"aahframe.work/ahttp"
+	"aahframe.work/router"
 	"github.com/stretchr/testify/assert"
 )
 

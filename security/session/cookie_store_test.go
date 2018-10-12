@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/essentials"
+	"aahframe.work/ahttp"
+	"aahframe.work/essentials"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -11,11 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/internal/util"
-	"aahframe.work/aah/security"
-	"aahframe.work/aah/view"
+	"aahframe.work/ahttp"
+	"aahframe.work/essentials"
+	"aahframe.work/internal/util"
+	"aahframe.work/security"
+	"aahframe.work/view"
 )
 
 const (

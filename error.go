@@ -11,9 +11,9 @@ import (
 	"net/http"
 	"strings"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/internal/util"
+	"aahframe.work/ahttp"
+	"aahframe.work/essentials"
+	"aahframe.work/internal/util"
 )
 
 // aah errors

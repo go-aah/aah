@@ -14,8 +14,8 @@ import (
 	"reflect"
 	"strings"
 
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/log"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
 )
 
 func validateInput(path string) error {

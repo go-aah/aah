@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"aahframe.work/aah/essentials"
+	"aahframe.work/essentials"
 	"golang.org/x/crypto/pbkdf2"
 )
 

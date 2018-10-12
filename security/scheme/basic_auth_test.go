@@ -11,11 +11,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/security/acrypto"
-	"aahframe.work/aah/security/authc"
-	"aahframe.work/aah/security/authz"
+	"aahframe.work/ahttp"
+	"aahframe.work/config"
+	"aahframe.work/security/acrypto"
+	"aahframe.work/security/authc"
+	"aahframe.work/security/authz"
 	"github.com/stretchr/testify/assert"
 )
 

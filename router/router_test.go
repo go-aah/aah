@@ -14,14 +14,14 @@ import (
 	"strings"
 	"testing"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/log"
-	"aahframe.work/aah/security"
-	"aahframe.work/aah/security/scheme"
-	"aahframe.work/aah/valpar"
-	"aahframe.work/aah/vfs"
+	"aahframe.work/ahttp"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
+	"aahframe.work/security"
+	"aahframe.work/security/scheme"
+	"aahframe.work/valpar"
+	"aahframe.work/vfs"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -389,7 +389,7 @@ func TestRouterDomainRouteURL(t *testing.T) {
 
 func TestRouterDomainAddRoute(t *testing.T) {
 	domain := &Domain{
-		Host:   "aahframe.work/aah",
+		Host:   "aahframe.work",
 		trees:  make(map[string]*tree),
 		routes: make(map[string]*Route),
 	}

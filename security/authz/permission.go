@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"aahframe.work/aah/essentials"
+	"aahframe.work/essentials"
 )
 
 const (

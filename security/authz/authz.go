@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/security/authc"
+	"aahframe.work/config"
+	"aahframe.work/security/authc"
 )
 
 var (

@@ -18,10 +18,10 @@ import (
 	"sort"
 	"strings"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/internal/util"
-	"aahframe.work/aah/vfs"
+	"aahframe.work/ahttp"
+	"aahframe.work/essentials"
+	"aahframe.work/internal/util"
+	"aahframe.work/vfs"
 )
 
 var (

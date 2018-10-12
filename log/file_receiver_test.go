@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	"aahframe.work/aah/config"
+	"aahframe.work/config"
 	"github.com/stretchr/testify/assert"
 )
 

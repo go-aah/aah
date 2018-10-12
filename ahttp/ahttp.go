@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"strings"
 
-	"aahframe.work/aah/essentials"
+	"aahframe.work/essentials"
 )
 
 // HTTP Method names

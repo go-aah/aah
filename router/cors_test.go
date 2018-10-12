@@ -8,8 +8,8 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/log"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
 	"github.com/stretchr/testify/assert"
 )
 

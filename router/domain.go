@@ -12,10 +12,10 @@ import (
 	"path"
 	"strings"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/log"
-	"aahframe.work/aah/security"
+	"aahframe.work/ahttp"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
+	"aahframe.work/security"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

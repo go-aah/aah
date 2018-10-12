@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/security/cookie"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/security/cookie"
 	"github.com/stretchr/testify/assert"
 )
 

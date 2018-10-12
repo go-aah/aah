@@ -79,10 +79,10 @@ func TestTargetRegisterForTargets(t *testing.T) {
 
 	// target exists
 	t.Log("target exists")
-	target := tr.Lookup("aahframe.work/aah/ainsp.Level3")
+	target := tr.Lookup("aahframe.work/ainsp.Level3")
 	assert.NotNil(t, target)
-	assert.Equal(t, "aahframe.work/aah/ainsp/Level3", target.FqName)
-	assert.Equal(t, "aahframe.work/aah/ainsp", target.Namespace)
+	assert.Equal(t, "aahframe.work/ainsp/Level3", target.FqName)
+	assert.Equal(t, "aahframe.work/ainsp", target.Namespace)
 	assert.NotNil(t, target.Methods)
 	assert.Equal(t, "Level3", target.Name)
 
@@ -97,7 +97,7 @@ func TestTargetRegisterForTargets(t *testing.T) {
 	t.Log("target not exists")
 	target = tr.Lookup("Level10NotExists")
 	assert.Nil(t, target)
-	target = tr.Lookup("aahframe.work/aah/ainsp/Level3")
+	target = tr.Lookup("aahframe.work/ainsp/Level3")
 
 	// method not exists
 	t.Log("method not exists")

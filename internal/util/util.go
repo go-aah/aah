@@ -15,7 +15,7 @@ import (
 	"reflect"
 	"strings"
 
-	"aahframe.work/aah/ahttp"
+	"aahframe.work/ahttp"
 )
 
 var (

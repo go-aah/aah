@@ -16,11 +16,11 @@ import (
 	"testing"
 	"time"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/config"
-	"aahframe.work/aah/essentials"
-	"aahframe.work/aah/security/acrypto"
-	"aahframe.work/aah/security/authc"
+	"aahframe.work/ahttp"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/security/acrypto"
+	"aahframe.work/security/authc"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/oauth2"
 )

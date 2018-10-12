@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"aahframe.work/aah/ahttp"
-	"aahframe.work/aah/internal/util"
+	"aahframe.work/ahttp"
+	"aahframe.work/internal/util"
 	"github.com/stretchr/testify/assert"
 )
 

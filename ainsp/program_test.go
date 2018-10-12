@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframe.work/aah/essentials"
+	"aahframe.work/essentials"
 	"github.com/stretchr/testify/assert"
 )
 
