@@ -14,6 +14,8 @@ import (
 	"aahframe.work/log"
 )
 
+const aahImportPath = "aahframe.work"
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // PackageInfo struct and its methods
 //______________________________________________________________________________
@@ -72,8 +74,12 @@ func (p *packageInfo) processTypes(decl ast.Decl, imports map[string]string) {
 		if ess.IsStrEmpty(fPkgName) {
 			eTypeImportPath = ty.ImportPath
 		} else {
-			var found bool
-			if eTypeImportPath, found = imports[fPkgName]; !found {
+			pImportPath, found := imports[fPkgName]
+			if found {
+				eTypeImportPath = pImportPath
+			} else if fPkgName == "aah" && fTypeName == "Context" {
+				eTypeImportPath = aahImportPath
+			} else {
 				log.Errorf("AST: Unable to find import path for %s.%s", fPkgName, fTypeName)
 				continue
 			}
