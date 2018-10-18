@@ -11,6 +11,7 @@ require (
 	github.com/gobwas/ws v1.0.0
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/testify v1.2.2
+	github.com/urfave/cli v1.20.0
 	golang.org/x/crypto v0.0.0-20181012144002-a92615f3c490
 	golang.org/x/net v0.0.0-20181011144130-49bb7cea24b1
 	golang.org/x/oauth2 v0.0.0-20181003184128-c57b0facaced
