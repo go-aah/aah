@@ -9,8 +9,14 @@ RUN apt-get update
 
 RUN rm -rf $GOPATH/src
 
-RUN go get aahframe.work/cmd/aah
+RUN go get aahframe.work/cli/aah
 
 RUN aah -v
+
+# Fetching addon and extensions aah libraries
+RUN go get aahframe.work/minify/html && \
+    go get aahframe.work/cache/provider/inmemory && \
+    go get aahframe.work/cache/provider/memcache && \
+    go get aahframe.work/cache/provider/redis 
 
 WORKDIR $GOPATH/src
