@@ -124,10 +124,12 @@ func (st *Stacktrace) Parse() {
 					ln = ln[:idx]
 				}
 
-				// Strip base path i.e. before `.../src/`
+				// Strip base path i.e. prefix by delimiter `.../src/` and `.../mod/`
 				if st.StripSrcBase {
-					if idx := strings.Index(ln, "src"); idx > 0 {
-						ln = basePathPrefix + ln[idx+3:]
+					if i := strings.Index(ln, "src"); i > 0 {
+						ln = basePathPrefix + ln[i+3:]
+					} else if i := strings.Index(ln, "mod"); i > 0 {
+						ln = basePathPrefix + ln[i+3:]
 					}
 				}
 

@@ -387,9 +387,12 @@ func (e *HTTPEngine) writeOnWire(ctx *Context) {
 	// currently write error on wire is not propagated to error
 	// since we can't do anything after that.
 	// It could be network error, client is gone, etc.
-	if re.isHTML() && e.minifierExists() {
-		// HTML Minifier configured
-		if err := e.a.viewMgr.minifier(re.ContType, w, re.body); err != nil {
+	if re.isHTML() {
+		if e.a.IsProfileDev() || !e.minifierExists() {
+			if _, err := re.body.WriteTo(w); err != nil {
+				ctx.Log().Error(err)
+			}
+		} else if err := e.a.viewMgr.minifier(re.ContType, w, re.body); err != nil {
 			ctx.Log().Error(err)
 		}
 	} else if _, err := re.body.WriteTo(w); err != nil {
