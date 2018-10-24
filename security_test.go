@@ -31,11 +31,12 @@ import (
 )
 
 func TestSecuritySessionStore(t *testing.T) {
-	err := AddSessionStore("file", &session.FileStore{})
+	app := newApp()
+	err := app.AddSessionStore("file", &session.FileStore{})
 	assert.NotNil(t, err)
 	assert.Equal(t, "session: store name 'file' is already added, skip it", err.Error())
 
-	err = AddSessionStore("custom", nil)
+	err = app.AddSessionStore("custom", nil)
 	assert.NotNil(t, err)
 	assert.Equal(t, errors.New("security/session: store value is nil"), err)
 }
@@ -464,6 +465,6 @@ func TestSecurityAntiCSRF(t *testing.T) {
 
 	// Password Encoder
 	t.Log("Password Encoder")
-	err = AddPasswordAlgorithm("mypass", nil)
+	err = ts.app.AddPasswordAlgorithm("mypass", nil)
 	assert.NotNil(t, err)
 }

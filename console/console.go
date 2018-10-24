@@ -10,14 +10,14 @@ import (
 	"github.com/urfave/cli"
 )
 
-// NOTE: console package type alias declarations using library `github.com/urfave/cli`.
-// It keeps decoupled from thrid party library for aah user and also opens up avenue
-// for smooth migration to new library if need be.
+// NOTE: console package type aliases declared using library `github.com/urfave/cli`.
+// To keep decoupled from thrid party library for aah user and also opens up avenue
+// for smooth migration to new library if need be or bringing home grown module later.
 
 type (
-	// App is the main structure of a console application.
+	// Application is the main structure of a console application.
 	// It is recommended that an app be created with the func `console.NewApp()`.
-	App = cli.App
+	Application = cli.App
 
 	// Command returns the named command on App. Returns nil if the command
 	// does not exist
@@ -59,18 +59,23 @@ type (
 	// Author represents someone who has contributed to a console project.
 	Author = cli.Author
 
-	// FlagsByName is to sorter interface for flags
+	// FlagsByName is a sorter interface for flags.
 	FlagsByName = cli.FlagsByName
+
+	// CommandsByName is a sorter interface for commands.
+	CommandsByName = cli.CommandsByName
 )
 
 // NewApp creates a new console Application with some reasonable
 // defaults for Name, Usage, Version and Action.
-func NewApp() *App {
-	return cli.NewApp()
+func NewApp() *Application {
+	a := cli.NewApp()
+	a.Usage = "A console application"
+	return a
 }
 
 // NewContext creates a new context. For use in when invoking an App or Command action.
-func NewContext(app *App, set *flag.FlagSet, parentCtx *Context) *Context {
+func NewContext(app *Application, set *flag.FlagSet, parentCtx *Context) *Context {
 	return cli.NewContext(app, set, parentCtx)
 }
 
@@ -109,41 +114,93 @@ func VersionFlag(f BoolFlag) {
 	cli.VersionFlag = f
 }
 
+// HelpFlag method customized flag name, desc for HelpFlag.
+func HelpFlag(f BoolFlag) {
+	cli.HelpFlag = f
+}
+
 // VersionPrinter method set custom func for version printer.
 func VersionPrinter(vp func(*Context)) {
 	cli.VersionPrinter = vp
 }
 
+// AppHelpTemplate method sets the custom text/template for application help.
+// Console uses text/template to render templates.
+func AppHelpTemplate(t string) {
+	cli.AppHelpTemplate = t
+}
+
+// CommandHelpTemplate method sets the custom text/template for command help.
+// Console uses text/template to render templates.
+func CommandHelpTemplate(t string) {
+	cli.CommandHelpTemplate = t
+}
+
+// SubcommandHelpTemplate method sets the custom text/template for sub-command help.
+// Console uses text/template to render templates.
+func SubcommandHelpTemplate(t string) {
+	cli.SubcommandHelpTemplate = t
+}
+
 func init() {
-	cli.HelpFlag = cli.BoolFlag{
-		Name:  "h, help",
-		Usage: "Shows help",
-	}
+	AppHelpTemplate(`Name:
+	{{.Name}}{{if .Usage}} - {{.Usage}}{{end}}
+	
+ Usage:
+	{{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}{{if .Version}}{{if not .HideVersion}}
 
-	cli.AppHelpTemplate = `Usage:
-  {{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}
-{{if .Commands}}
-Commands:
-{{range .Commands}}{{if not .HideHelp}}  {{join .Names ", "}}{{ "\t   " }}{{.Usage}}{{ "\n" }}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
-Global Options:
-  {{range .VisibleFlags}}{{.}}
-  {{end}}{{end}}
-`
+ Version:
+	{{.Version}}{{end}}{{end}}{{if .Description}}
 
-	cli.CommandHelpTemplate = `Name:
-  {{.HelpName}} - {{.Usage}}
+ Description:
+	{{.Description}}{{end}}{{if len .Authors}}
 
-Usage:
-  {{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{if .Category}}
+ Author{{with $length := len .Authors}}{{if ne 1 $length}}S{{end}}{{end}}:
+	{{range $index, $author := .Authors}}{{if $index}}
+	{{end}}{{$author}}{{end}}{{end}}{{if .VisibleCommands}}
 
-Category:
-  {{.Category}}{{end}}{{if .Description}}
+ Commands:{{range .VisibleCategories}}{{if .Name}}
+	{{.Name}}:{{end}}{{range .VisibleCommands}}
+	  {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
 
-Description:
-  {{.Description}}{{end}}{{if .VisibleFlags}}
+ Global Options:
+	{{range $index, $option := .VisibleFlags}}{{if $index}}
+	{{end}}{{$option}}{{end}}{{end}}{{if .Copyright}}
 
-Options:
-   {{range .VisibleFlags}}{{.}}
-   {{end}}{{end}}
-`
+ Copyrights:
+	{{.Copyright}}{{end}}
+ `)
+
+	CommandHelpTemplate(`Name:
+	{{.HelpName}} - {{.Usage}}
+
+ Usage:
+	{{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}{{if .Category}}
+
+ Category:
+	{{.Category}}{{end}}{{if .Description}}
+
+ Description:
+	{{.Description}}{{end}}{{if .VisibleFlags}}
+
+ Options:
+	{{range .VisibleFlags}}{{.}}
+	{{end}}{{end}}
+ `)
+
+	SubcommandHelpTemplate(`Name:
+	{{.HelpName}} - {{if .Description}}{{.Description}}{{else}}{{.Usage}}{{end}}
+
+ Usage:
+	{{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}} command{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}
+
+ Commands:{{range .VisibleCategories}}{{if .Name}}
+	{{.Name}}:{{end}}{{range .VisibleCommands}}
+	  {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}
+ {{end}}{{if .VisibleFlags}}
+
+ Options:
+	{{range .VisibleFlags}}{{.}}
+	{{end}}{{end}}
+ `)
 }

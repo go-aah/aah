@@ -15,6 +15,7 @@ import (
 	"aahframe.work/ainsp"
 	"aahframe.work/aruntime"
 	"aahframe.work/essentials"
+	"aahframe.work/internal/settings"
 	"aahframe.work/log"
 	"aahframe.work/security"
 	"aahframe.work/security/authc"
@@ -53,7 +54,7 @@ type (
 // HTTPEngine holds the implementation handling HTTP request, response,
 // middlewares, interceptors, etc.
 type HTTPEngine struct {
-	a        *app
+	a        *Application
 	ctxPool  *sync.Pool
 	mwStack  []MiddlewareFunc
 	mwChain  []*Middleware
@@ -388,7 +389,7 @@ func (e *HTTPEngine) writeOnWire(ctx *Context) {
 	// since we can't do anything after that.
 	// It could be network error, client is gone, etc.
 	if re.isHTML() {
-		if e.a.IsProfileDev() || !e.minifierExists() {
+		if e.a.IsProfile(settings.DefaultEnvProfile) || !e.minifierExists() {
 			if _, err := re.body.WriteTo(w); err != nil {
 				ctx.Log().Error(err)
 			}

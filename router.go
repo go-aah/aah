@@ -136,18 +136,10 @@ func handleCORSPreflight(ctx *Context) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// app methods
-//______________________________________________________________________________
-
-func (a *app) Router() *router.Router {
-	return a.router
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) initRouter() error {
+func (a *Application) initRouter() error {
 	rtr, err := router.NewWithApp(a,
 		path.Join(a.VirtualBaseDir(), "config", "routes.conf"))
 	if err != nil {

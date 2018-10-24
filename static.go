@@ -32,7 +32,7 @@ var (
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) initStatic() error {
+func (a *Application) initStatic() error {
 	a.staticMgr = &staticManager{
 		a:                     a,
 		mimeCacheHdrMap:       make(map[string]string),
@@ -60,7 +60,7 @@ func (a *app) initStatic() error {
 }
 
 type staticManager struct {
-	a                     *app
+	a                     *Application
 	defaultCacheHdr       string
 	noCacheHdrValue       string
 	dirListDateTimeFormat string
@@ -110,7 +110,7 @@ func (s *staticManager) Serve(ctx *Context) error {
 			ctx.Res.Header().Set(ahttp.HeaderContentType, contentType)
 
 			// apply cache header if environment profile is `prod`
-			if s.a.IsProfileProd() {
+			if s.a.IsProfile("prod") {
 				ctx.Res.Header().Set(ahttp.HeaderCacheControl, s.cacheHeader(contentType))
 			} else { // for static files hot-reload
 				ctx.Res.Header().Set(ahttp.HeaderExpires, "0")

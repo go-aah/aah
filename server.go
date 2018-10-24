@@ -22,10 +22,11 @@ import (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// app methods
+// Application methods
 //______________________________________________________________________________
 
-func (a *app) Start() {
+// Start method starts the Go HTTP server based on aah config "server.*".
+func (a *Application) Start() {
 	defer a.aahRecover()
 
 	if !a.settings.Initialized {
@@ -40,9 +41,9 @@ func (a *app) Start() {
 	a.Log().Infof("App Base Directory: %s", a.BaseDir())
 	a.Log().Infof("App Virtual Base Directory: %s", a.VirtualBaseDir())
 	a.Log().Infof("App Name: %s", a.Name())
-	a.Log().Infof("App Version: %s", a.BuildInfo().Version)
-	a.Log().Infof("App Build Date: %s", a.BuildInfo().Date)
-	a.Log().Infof("App Single Binary Mode: %v", a.IsEmbeddedMode())
+	a.Log().Infof("App Build Version: %s", a.BuildInfo().Version)
+	a.Log().Infof("App Build Timestamp: %s", a.BuildInfo().Timestamp)
+	a.Log().Infof("App Single Binary Mode: %v", a.VFS().IsEmbeddedMode())
 	a.Log().Infof("App Profile: %s", a.Profile())
 	a.Log().Infof("App TLS/SSL Enabled: %t", a.IsSSLEnabled())
 
@@ -118,7 +119,14 @@ func (a *app) Start() {
 	a.startHTTP()
 }
 
-func (a *app) Shutdown() {
+// Shutdown method allows aah server to shutdown gracefully with given timeout
+// in seconds. It's invoked on OS signal `SIGINT` and `SIGTERM`.
+//
+// Method performs:
+//    - Graceful server shutdown with timeout by `server.timeout.grace_shutdown`
+//    - Publishes `OnPostShutdown` event
+//    - Exits program with code 0
+func (a *Application) Shutdown() {
 	// Publish `OnPreShutdown` event
 	a.EventStore().sortAndPublishSync(&Event{Name: EventOnPreShutdown})
 
@@ -140,7 +148,7 @@ func (a *app) Shutdown() {
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) writePID() {
+func (a *Application) writePID() {
 	// Get the application PID
 	a.settings.Pid = os.Getpid()
 
@@ -158,7 +166,7 @@ func (a *app) writePID() {
 	}
 }
 
-func (a *app) startUnix() {
+func (a *Application) startUnix() {
 	sockFile := a.HTTPAddress()[5:]
 	if err := os.Remove(sockFile); !os.IsNotExist(err) {
 		a.Log().Fatal(err)
@@ -177,7 +185,7 @@ func (a *app) startUnix() {
 	}
 }
 
-func (a *app) startHTTPS() {
+func (a *Application) startHTTPS() {
 	// Add cert, if let's encrypt enabled
 	if a.IsLetsEncryptEnabled() {
 		a.Log().Infof("Let's Encypyt CA Cert enabled")
@@ -218,14 +226,14 @@ func (a *app) startHTTPS() {
 	}
 }
 
-func (a *app) startHTTP() {
+func (a *Application) startHTTP() {
 	a.printStartupNote()
 	if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		a.Log().Error(err)
 	}
 }
 
-func (a *app) startHTTPRedirect() {
+func (a *Application) startHTTPRedirect() {
 	cfg := a.Config()
 	keyPrefix := "server.ssl.redirect_http"
 	if !cfg.BoolDefault(keyPrefix+".enable", false) {
@@ -264,13 +272,13 @@ func (a *app) startHTTPRedirect() {
 	}
 }
 
-func (a *app) shutdownRedirectServer() {
+func (a *Application) shutdownRedirectServer() {
 	if a.redirectServer != nil {
 		_ = a.redirectServer.Close()
 	}
 }
 
-func (a *app) printStartupNote() {
+func (a *Application) printStartupNote() {
 	port := firstNonZeroString(
 		a.Config().StringDefault("server.port", settings.DefaultHTTPPort),
 		a.Config().StringDefault("server.proxyport", ""))

@@ -7,6 +7,7 @@ package aah
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -177,7 +178,6 @@ func TestAppMisc(t *testing.T) {
 	assert.False(t, a.IsPackaged())
 	a.SetPackaged(true)
 	assert.True(t, a.IsPackaged())
-	assert.True(t, a.IsProfileDev())
 	assert.True(t, strings.Contains(strings.Join(a.AllProfiles(), " "), "prod"))
 
 	ll := a.NewChildLogger(log.Fields{"key1": "value1"})
@@ -213,9 +213,9 @@ func TestAppMisc(t *testing.T) {
 	pa.initPath()
 
 	// App embedded mode
-	assert.False(t, pa.IsEmbeddedMode())
-	pa.SetEmbeddedMode()
-	assert.True(t, pa.IsEmbeddedMode())
+	assert.False(t, pa.VFS().IsEmbeddedMode())
+	pa.VFS().SetEmbeddedMode()
+	assert.True(t, pa.VFS().IsEmbeddedMode())
 	pa.initPath()
 
 	// App WS engine
@@ -232,7 +232,101 @@ func TestAppRecover(t *testing.T) {
 	panicTest(a)
 }
 
-func panicTest(a *app) {
+func TestHotAppReload(t *testing.T) {
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts := newTestServer(t, importPath)
+	defer ts.Close()
+
+	t.Logf("Test Server URL [Hot Reload]: %s", ts.URL)
+
+	ts.app.performHotReload()
+}
+
+func TestLogInitRelativeFilePath(t *testing.T) {
+	logPath := filepath.Join(testdataBaseDir(), "sample-test-app.log")
+	defer ess.DeleteFiles(logPath)
+
+	// Relative path file
+	a := newApp()
+	cfg, _ := config.ParseString(`log {
+    receiver = "file"
+    file = "sample-test-app.log"
+  }`)
+	a.cfg = cfg
+
+	err := a.initLog()
+	assert.Nil(t, err)
+
+	a.AddLoggerHook("myapphook", func(e log.Entry) {
+		t.Logf("%v", e)
+	})
+}
+
+func TestLogInitNoFilePath(t *testing.T) {
+	// No file input - auto location
+	logPath := filepath.Join(testdataBaseDir(), "wepapp1.log")
+	defer ess.DeleteFiles(logPath)
+
+	// Relative path file
+	a := newApp()
+	cfg, _ := config.ParseString(`log {
+    receiver = "file"
+  }`)
+	a.cfg = cfg
+
+	err := a.initLog()
+	assert.Nil(t, err)
+
+	a.AddLoggerHook("myapphook", func(e log.Entry) {
+		t.Logf("%v", e)
+	})
+}
+
+func TestAccessLogInitAbsPath(t *testing.T) {
+	logPath := filepath.Join(testdataBaseDir(), "sample-test-access.log")
+	defer ess.DeleteFiles(logPath)
+
+	a := newApp()
+	cfg, _ := config.ParseString(fmt.Sprintf(`server {
+    access_log {
+      file = "%s"
+    }
+  }`, filepath.ToSlash(logPath)))
+	a.cfg = cfg
+
+	err := a.initAccessLog()
+	assert.Nil(t, err)
+}
+
+type testErrorController1 struct {
+}
+
+func (tec *testErrorController1) HandleError(err *Error) bool {
+	log.Info("I have handled it at controller level")
+	return true
+}
+
+func TestErrorCallControllerHandler(t *testing.T) {
+	req, err := http.NewRequest(ahttp.MethodGet, "http://localhost:8080", nil)
+	assert.Nil(t, err)
+	ctx := &Context{
+		Req:        ahttp.AcquireRequest(req),
+		controller: &ainsp.Target{FqName: "testErrorController1"},
+		target:     &testErrorController1{},
+	}
+
+	l, err := log.New(config.NewEmpty())
+	assert.Nil(t, err)
+	ctx.logger = l
+
+	ctx.Reply().ContentType("application/json")
+	ctx.Reply().BadRequest().Error(newError(nil, http.StatusBadRequest))
+
+	em := new(errorManager)
+	em.Handle(ctx)
+}
+
+func panicTest(a *Application) {
 	defer a.aahRecover()
 	panic("test panic")
 }
@@ -273,11 +367,11 @@ func newTestServer(t *testing.T, importPath string) *testServer {
 	return ts
 }
 
-func newTestApp(t *testing.T, importPath string) *app {
+func newTestApp(t *testing.T, importPath string) *Application {
 	a := newApp()
 	a.SetBuildInfo(&BuildInfo{
 		BinaryName: filepath.Base(importPath),
-		Date:       time.Now().Format(time.RFC3339),
+		Timestamp:  time.Now().Format(time.RFC3339),
 		Version:    "1.0.0",
 	})
 
@@ -303,7 +397,7 @@ type testResult struct {
 // the implementation yet! Because there are short comings in the test server....
 type testServer struct {
 	URL    string
-	app    *app
+	app    *Application
 	server *httptest.Server
 }
 
