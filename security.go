@@ -13,12 +13,10 @@ import (
 	"aahframe.work/essentials"
 	"aahframe.work/internal/util"
 	"aahframe.work/security"
-	"aahframe.work/security/acrypto"
 	"aahframe.work/security/anticsrf"
 	"aahframe.work/security/authc"
 	"aahframe.work/security/authz"
 	"aahframe.work/security/scheme"
-	"aahframe.work/security/session"
 )
 
 const (
@@ -37,41 +35,10 @@ const (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//______________________________________________________________________________
-
-// AddSessionStore method allows you to add custom session store which
-// implements `session.Storer` interface. The `name` parameter is used in
-// aah.conf on `session.store.type = "name"`.
-func AddSessionStore(name string, store session.Storer) error {
-	return session.AddStore(name, store)
-}
-
-// AddPasswordAlgorithm method adds given password algorithm to encoders list.
-// Implementation have to implement interface `PasswordEncoder`.
-//
-// Then you can use it `security.auth_schemes.*`.
-func AddPasswordAlgorithm(name string, encoder acrypto.PasswordEncoder) error {
-	return acrypto.AddPasswordAlgorithm(name, encoder)
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// app methods
-//______________________________________________________________________________
-
-func (a *app) SecurityManager() *security.Manager {
-	return a.securityMgr
-}
-
-func (a *app) SessionManager() *session.Manager {
-	return a.SecurityManager().SessionManager
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) initSecurity() error {
+func (a *Application) initSecurity() error {
 	asecmgr := security.New()
 	asecmgr.IsSSLEnabled = a.IsSSLEnabled()
 	if err := asecmgr.Init(a.Config()); err != nil {

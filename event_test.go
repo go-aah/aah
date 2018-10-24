@@ -36,7 +36,7 @@ func TestAppEvents(t *testing.T) {
 
 }
 
-func performEventTest(t *testing.T, a *app, eventName string) {
+func performEventTest(t *testing.T, a *Application, eventName string) {
 	// declare functions
 	onFunc1 := func(e *Event) {
 		t.Log(eventName+" Func1:", e)
@@ -85,7 +85,7 @@ func performEventTest(t *testing.T, a *app, eventName string) {
 	es.Unsubscribe(eventName, onFunc3)
 }
 
-func addTestEvent(a *app, eventName string, fn func(e *Event), priority ...int) {
+func addTestEvent(a *Application, eventName string, fn func(e *Event), priority ...int) {
 	switch eventName {
 	case EventOnInit:
 		a.OnInit(fn, priority...)

@@ -116,23 +116,34 @@ type (
 // app event methods
 //______________________________________________________________________________
 
-func (a *app) OnInit(ecb EventCallbackFunc, priority ...int) {
+// OnInit method is to subscribe to aah application `OnInit` event. `OnInit`
+// event published right after the aah application configuration `aah.conf`
+// initialized.
+func (a *Application) OnInit(ecb EventCallbackFunc, priority ...int) {
 	a.subcribeAppEvent(EventOnInit, ecb, priority)
 }
 
-func (a *app) OnStart(ecb EventCallbackFunc, priority ...int) {
+// OnStart method is to subscribe to aah application `OnStart` event. `OnStart`
+// event pubished right before the aah server starts listening to the request.
+func (a *Application) OnStart(ecb EventCallbackFunc, priority ...int) {
 	a.subcribeAppEvent(EventOnStart, ecb, priority)
 }
 
-func (a *app) OnPreShutdown(ecb EventCallbackFunc, priority ...int) {
+// OnPreShutdown method is to subscribe to aah application `OnPreShutdown` event.
+// `OnPreShutdown` event pubished right before the triggering aah server graceful
+// shutdown.
+func (a *Application) OnPreShutdown(ecb EventCallbackFunc, priority ...int) {
 	a.subcribeAppEvent(EventOnPreShutdown, ecb, priority)
 }
 
-func (a *app) OnPostShutdown(ecb EventCallbackFunc, priority ...int) {
+// OnPostShutdown method is to subscribe to aah application `OnPostShutdown` event.
+// `OnPostShutdown` event pubished right the successful grace shutdown
+// of aah server.
+func (a *Application) OnPostShutdown(ecb EventCallbackFunc, priority ...int) {
 	a.subcribeAppEvent(EventOnPostShutdown, ecb, priority)
 }
 
-func (a *app) subcribeAppEvent(eventName string, ecb EventCallbackFunc, priority []int) {
+func (a *Application) subcribeAppEvent(eventName string, ecb EventCallbackFunc, priority []int) {
 	a.SubscribeEvent(eventName, EventCallback{
 		Callback: ecb,
 		CallOnce: true,
@@ -140,36 +151,39 @@ func (a *app) subcribeAppEvent(eventName string, ecb EventCallbackFunc, priority
 	})
 }
 
-func (a *app) PublishEvent(eventName string, data interface{}) {
+// PublishEvent method publishes events to subscribed callbacks asynchronously.
+// It means each subscribed callback executed via goroutine.
+func (a *Application) PublishEvent(eventName string, data interface{}) {
 	a.eventStore.Publish(&Event{Name: eventName, Data: data})
 }
 
-func (a *app) PublishEventSync(eventName string, data interface{}) {
+// PublishEventSync method publishes events to subscribed callbacks
+// synchronously.
+func (a *Application) PublishEventSync(eventName string, data interface{}) {
 	a.eventStore.PublishSync(&Event{Name: eventName, Data: data})
 }
 
-func (a *app) SubscribeEvent(eventName string, ec EventCallback) {
+// SubscribeEvent method is to subscribe to new or existing event.
+func (a *Application) SubscribeEvent(eventName string, ec EventCallback) {
 	a.eventStore.Subscribe(eventName, ec)
 }
 
-func (a *app) SubscribeEventFunc(eventName string, ecf EventCallbackFunc) {
+// SubscribeEventFunc method is to subscribe to new or existing event
+// by `EventCallbackFunc`.
+func (a *Application) SubscribeEventFunc(eventName string, ecf EventCallbackFunc) {
 	a.eventStore.Subscribe(eventName, EventCallback{Callback: ecf})
 }
 
-func (a *app) UnsubscribeEvent(eventName string, ec EventCallback) {
+// UnsubscribeEvent method is to unsubscribe by event name and `EventCallback`
+// from app event store.
+func (a *Application) UnsubscribeEvent(eventName string, ec EventCallback) {
 	a.UnsubscribeEventFunc(eventName, ec.Callback)
 }
 
-func (a *app) UnsubscribeEventFunc(eventName string, ecf EventCallbackFunc) {
+// UnsubscribeEventFunc method is to unsubscribe by event name and
+// `EventCallbackFunc` from app event store.
+func (a *Application) UnsubscribeEventFunc(eventName string, ecf EventCallbackFunc) {
 	a.eventStore.Unsubscribe(eventName, ecf)
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// app methods
-//______________________________________________________________________________
-
-func (a *app) EventStore() *EventStore {
-	return a.eventStore
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -178,7 +192,7 @@ func (a *app) EventStore() *EventStore {
 
 // EventStore type holds all the events belongs to aah application.
 type EventStore struct {
-	a           *app
+	a           *Application
 	mu          sync.RWMutex
 	subscribers map[string]EventCallbacks
 }

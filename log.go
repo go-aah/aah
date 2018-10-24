@@ -63,7 +63,7 @@ var (
 	reqStartTimeKey         = "_appReqStartTimeKey"
 )
 
-func (a *app) initAccessLog() error {
+func (a *Application) initAccessLog() error {
 	// log file configuration
 	cfg := config.NewEmpty()
 	file := a.Config().StringDefault("server.access_log.file", "")
@@ -111,7 +111,7 @@ func (a *app) initAccessLog() error {
 }
 
 type accessLogger struct {
-	a        *app
+	a        *Application
 	logger   *log.Logger
 	fmtFlags []ess.FmtFlagPart
 	logChan  chan *accessLog
@@ -252,7 +252,7 @@ const (
 	keyAahResponseBodyBuf = "_aahResponseBodyBuf"
 )
 
-func (a *app) initDumpLog() error {
+func (a *Application) initDumpLog() error {
 	// log file configuration
 	cfg := config.NewEmpty()
 	file := a.Config().StringDefault("server.dump_log.file", "")
@@ -286,7 +286,7 @@ func (a *app) initDumpLog() error {
 }
 
 type dumpLogger struct {
-	a               *app
+	a               *Application
 	logger          *log.Logger
 	logRequestBody  bool
 	logResponseBody bool

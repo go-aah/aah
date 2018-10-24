@@ -11,11 +11,13 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"os"
 	"os/signal"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"syscall"
 
@@ -30,8 +32,14 @@ import (
 	"aahframe.work/log"
 	"aahframe.work/router"
 	"aahframe.work/security"
+	"aahframe.work/security/acrypto"
+	"aahframe.work/security/session"
+	"aahframe.work/valpar"
 	"aahframe.work/vfs"
+	"aahframe.work/view"
 	"aahframe.work/ws"
+
+	"gopkg.in/go-playground/validator.v9"
 )
 
 // BuildInfo holds the aah application build information; such as BinaryName,
@@ -39,15 +47,24 @@ import (
 type BuildInfo struct {
 	BinaryName string
 	Version    string
-	Date       string
+	Timestamp  string
+	AahVersion string // introduced in v0.12.0
+	GoVersion  string // introduced in v0.12.0
+}
+
+var defaultApp = newApp()
+
+// App method returns the aah application instance.
+func App() *Application {
+	return defaultApp
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // aah application instance
 //______________________________________________________________________________
 
-func newApp() *app {
-	aahApp := &app{
+func newApp() *Application {
+	aahApp := &Application{
 		RWMutex: sync.RWMutex{},
 		vfs:     new(vfs.VFS),
 		settings: &settings.Settings{
@@ -75,8 +92,8 @@ func newApp() *app {
 	return aahApp
 }
 
-// app struct represents aah application.
-type app struct {
+// Application struct represents aah application.
+type Application struct {
 	sync.RWMutex
 	buildInfo      *BuildInfo
 	settings       *settings.Settings
@@ -102,7 +119,9 @@ type app struct {
 	dumpLog        *dumpLogger
 }
 
-func (a *app) Init(importPath string) error {
+// Init method initializes `aah` application, if anything goes wrong during
+// an initialize process, it will log it as fatal msg and exit.
+func (a *Application) Init(importPath string) error {
 	a.settings.ImportPath = path.Clean(importPath)
 	var err error
 
@@ -123,6 +142,7 @@ func (a *app) Init(importPath string) error {
 		}
 		_ = log.SetLevel("debug")
 	} else {
+		log.Infof("aah framework v%s, requires >= go1.11", a.BuildInfo().AahVersion)
 		for event := range a.EventStore().subscribers {
 			a.EventStore().sortEventSubscribers(event)
 		}
@@ -185,42 +205,62 @@ func (a *app) Init(importPath string) error {
 	return nil
 }
 
-func (a *app) Name() string {
+// Name method returns aah application name from app config `name` otherwise
+// app name of the base directory.
+func (a *Application) Name() string {
 	if a.BuildInfo() == nil {
 		return a.Config().StringDefault("name", path.Base(a.ImportPath()))
 	}
 	return a.Config().StringDefault("name", a.BuildInfo().BinaryName)
 }
 
-func (a *app) InstanceName() string {
+// InstanceName method returns aah application instane name from app config
+// `instance_name` otherwise empty string.
+func (a *Application) InstanceName() string {
 	return a.Config().StringDefault("instance_name", "")
 }
 
-func (a *app) Type() string {
+// Type method returns aah application type info e.g.: web, api, websocket.
+func (a *Application) Type() string {
 	return a.Config().StringDefault("type", "")
 }
 
-func (a *app) Desc() string {
+// Desc method returns aah application friendly description from app config
+// otherwise empty string.
+func (a *Application) Desc() string {
 	return a.Config().StringDefault("desc", "")
 }
 
-func (a *app) BaseDir() string {
+// BaseDir method returns the application base or binary's base directory
+// 	For e.g.:
+// 		$GOPATH/src/github.com/user/myproject
+// 		<path/to/the/aah/myproject>
+// 		<app/binary/path/base/directory>
+func (a *Application) BaseDir() string {
 	return a.settings.BaseDir
 }
 
-func (a *app) VirtualBaseDir() string {
+// VirtualBaseDir method returns "/app". In `v0.11.0` Virtual FileSystem (VFS)
+// introduced in aah to provide single binary build packaging and provides
+// seamless experience of Read-Only access to application directory and its sub-tree
+// across OS platforms via `aah.App().VFS()`.
+func (a *Application) VirtualBaseDir() string {
 	return a.settings.VirtualBaseDir
 }
 
-func (a *app) ImportPath() string {
+// ImportPath method returns the application Go import path.
+func (a *Application) ImportPath() string {
 	return a.settings.ImportPath
 }
 
-func (a *app) HTTPAddress() string {
+// HTTPAddress method returns aah application HTTP address otherwise empty string
+func (a *Application) HTTPAddress() string {
 	return a.Config().StringDefault("server.address", "")
 }
 
-func (a *app) HTTPPort() string {
+// HTTPPort method returns aah application HTTP port number based on `server.port`
+// value. Possible outcomes are user-defined port, `80`, `443` and `8080`.
+func (a *Application) HTTPPort() string {
 	port := firstNonZeroString(
 		a.Config().StringDefault("server.proxyport", ""),
 		a.Config().StringDefault("server.port", settings.DefaultHTTPPort),
@@ -228,56 +268,55 @@ func (a *app) HTTPPort() string {
 	return a.parsePort(port)
 }
 
-func (a *app) BuildInfo() *BuildInfo {
+// BuildInfo method return user application version no.
+func (a *Application) BuildInfo() *BuildInfo {
 	return a.buildInfo
 }
 
-func (a *app) SetBuildInfo(bi *BuildInfo) {
+// SetBuildInfo method sets the user application build info into aah instance.
+func (a *Application) SetBuildInfo(bi *BuildInfo) {
 	a.buildInfo = bi
 }
 
-func (a *app) IsPackaged() bool {
+// IsPackaged method returns true when application built for deployment.
+func (a *Application) IsPackaged() bool {
 	return a.settings.PackagedMode
 }
 
-// TODO remove pack parameter
-func (a *app) SetPackaged(pack bool) {
+// SetPackaged method sets the info of binary is packaged or not.
+//
+// It is used by framework during application startup. IT'S NOT FOR AAH USER(S).
+func (a *Application) SetPackaged(pack bool) {
 	a.settings.PackagedMode = pack
 }
 
-func (a *app) IsEmbeddedMode() bool {
-	return a.VFS().IsEmbeddedMode()
-}
-
-func (a *app) SetEmbeddedMode() {
-	a.VFS().SetEmbeddedMode()
-}
-
-func (a *app) Profile() string {
+// Profile returns aah application configuration profile name
+// For e.g.: dev, prod, etc. Default is `dev`
+func (a *Application) Profile() string {
 	a.RLock()
 	defer a.RUnlock()
 	return a.settings.EnvProfile
 }
 
-func (a *app) SetProfile(profile string) error {
+// SetProfile method sets given profile as current aah application profile.
+//		For Example:
+//
+//		aah.SetAppProfile("prod")
+//		aah.SetAppProfile("stage1")
+func (a *Application) SetProfile(profile string) error {
 	a.Lock()
 	defer a.Unlock()
 	return a.settings.SetProfile(profile)
 }
 
-func (a *app) IsProfile(profile string) bool {
+// IsProfile method returns to if given profile matches with active profile
+// otherwise false.
+func (a *Application) IsProfile(profile string) bool {
 	return a.Profile() == profile
 }
 
-func (a *app) IsProfileDev() bool {
-	return a.IsProfile("dev")
-}
-
-func (a *app) IsProfileProd() bool {
-	return a.IsProfile("prod")
-}
-
-func (a *app) AllProfiles() []string {
+// AllProfiles method returns all the aah application available environment profile names.
+func (a *Application) AllProfiles() []string {
 	var profiles []string
 
 	for _, v := range a.Config().KeysByPath("env") {
@@ -290,39 +329,47 @@ func (a *app) AllProfiles() []string {
 	return profiles
 }
 
-func (a *app) IsSSLEnabled() bool {
+// IsSSLEnabled method returns true if aah application is enabled with SSL
+// otherwise false.
+func (a *Application) IsSSLEnabled() bool {
 	return a.settings.SSLEnabled
 }
 
-func (a *app) IsLetsEncryptEnabled() bool {
+// IsLetsEncryptEnabled method returns true if aah application is enabled with
+// Let's Encrypt certs otherwise false.
+func (a *Application) IsLetsEncryptEnabled() bool {
 	return a.settings.LetsEncryptEnabled
 }
 
-func (a *app) IsWebSocketEnabled() bool {
+// IsWebSocketEnabled method returns to true if aah application enabled with
+// WebSocket feature.
+func (a *Application) IsWebSocketEnabled() bool {
 	return a.cfg.BoolDefault("server.websocket.enable", false)
 }
 
-func (a *app) NewChildLogger(fields log.Fields) log.Loggerer {
+// NewChildLogger method create a child logger from aah application default logger.
+func (a *Application) NewChildLogger(fields log.Fields) log.Loggerer {
 	return a.Log().WithFields(fields)
 }
 
-func (a *app) SetTLSConfig(tlsCfg *tls.Config) {
+// SetTLSConfig method is used to set custom TLS config for aah server.
+// Note: if `server.ssl.lets_encrypt.enable=true` then framework sets the
+// `GetCertificate` from autocert manager.
+//
+// Use `aah.OnInit` or `func init() {...}` to assign your custom TLS Config.
+func (a *Application) SetTLSConfig(tlsCfg *tls.Config) {
 	a.tlsCfg = tlsCfg
 }
 
-func (a *app) AddController(c interface{}, methods []*ainsp.Method) {
-	a.HTTPEngine().registry.Add(c, methods)
-}
-
-func (a *app) AddWebSocket(w interface{}, methods []*ainsp.Method) {
-	a.WSEngine().AddWebSocket(w, methods)
-}
-
-func (a *app) HTTPEngine() *HTTPEngine {
+// HTTPEngine method returns aah HTTP engine.
+func (a *Application) HTTPEngine() *HTTPEngine {
 	return a.he
 }
 
-func (a *app) WSEngine() *ws.Engine {
+// WSEngine method returns aah WebSocket engine.
+//
+// Note: It could be nil if WebSocket is not enabled.
+func (a *Application) WSEngine() *ws.Engine {
 	if a.wse == nil {
 		a.Log().Warn("It seems WebSocket is not enabled, set 'server.websocket.enable' to true." +
 			" Refer to https://docs.aahframework.org/websocket.html")
@@ -330,23 +377,158 @@ func (a *app) WSEngine() *ws.Engine {
 	return a.wse
 }
 
-func (a *app) VFS() *vfs.VFS {
+// VFS method returns aah Virtual FileSystem instance.
+func (a *Application) VFS() *vfs.VFS {
 	return a.vfs
 }
 
-func (a *app) CacheManager() *cache.Manager {
+// CacheManager returns aah application cache manager.
+func (a *Application) CacheManager() *cache.Manager {
 	return a.cacheMgr
+}
+
+// EventStore method returns aah application event store.
+func (a *Application) EventStore() *EventStore {
+	return a.eventStore
+}
+
+// Router method returns aah application router instance.
+func (a *Application) Router() *router.Router {
+	return a.router
+}
+
+// SecurityManager method returns the application security instance,
+// which manages the Session, CORS, CSRF, Security Headers, etc.
+func (a *Application) SecurityManager() *security.Manager {
+	return a.securityMgr
+}
+
+// SessionManager method returns the application session manager.
+// By default session is stateless.
+func (a *Application) SessionManager() *session.Manager {
+	return a.SecurityManager().SessionManager
+}
+
+// ViewEngine method returns aah application view Engine instance.
+func (a *Application) ViewEngine() view.Enginer {
+	if a.viewMgr == nil {
+		return nil
+	}
+	return a.viewMgr.engine
+}
+
+// Validator method return the default validator of aah framework.
+//
+// Refer to https://godoc.org/gopkg.in/go-playground/validator.v9 for detailed
+// documentation.
+func (a *Application) Validator() *validator.Validate {
+	return valpar.Validator()
+}
+
+// SetMinifier method sets the given minifier func into aah framework.
+// Note: currently minifier is called only for HTML contentType.
+func (a *Application) SetMinifier(fn MinifierFunc) {
+	if a.viewMgr == nil {
+		a.viewMgr = &viewManager{a: a}
+	}
+
+	if a.viewMgr.minifier != nil {
+		a.Log().Warnf("Changing Minifier from: '%s'  to '%s'",
+			ess.GetFunctionInfo(a.viewMgr.minifier).QualifiedName, ess.GetFunctionInfo(fn).QualifiedName)
+	}
+	a.viewMgr.minifier = fn
+}
+
+// SetErrorHandler method is used to register custom centralized application
+// error handler. If custom handler is not then default error handler takes place.
+func (a *Application) SetErrorHandler(handlerFunc ErrorHandlerFunc) {
+	a.errorMgr.SetHandler(handlerFunc)
+}
+
+// AddController method adds given controller into controller registory.
+func (a *Application) AddController(c interface{}, methods []*ainsp.Method) {
+	a.HTTPEngine().registry.Add(c, methods)
+}
+
+// AddWebSocket method adds given WebSocket into WebSocket registry.
+func (a *Application) AddWebSocket(w interface{}, methods []*ainsp.Method) {
+	a.WSEngine().AddWebSocket(w, methods)
+}
+
+// AddTemplateFunc method adds template func map into view engine.
+func (a *Application) AddTemplateFunc(funcs template.FuncMap) {
+	view.AddTemplateFunc(funcs)
+}
+
+// AddViewEngine method adds the given name and view engine to view store.
+func (a *Application) AddViewEngine(name string, engine view.Enginer) error {
+	return view.AddEngine(name, engine)
+}
+
+// AddSessionStore method allows you to add custom session store which
+// implements `session.Storer` interface. Then configure `name` parameter in the
+// configfuration as `session.store.type = "name"`.
+func (a *Application) AddSessionStore(name string, store session.Storer) error {
+	return session.AddStore(name, store)
+}
+
+// AddPasswordAlgorithm method adds given password algorithm to encoders list.
+// Implementation have to implement interface `PasswordEncoder`.
+//
+// Then you can use it in the configuration `security.auth_schemes.*`.
+func (a *Application) AddPasswordAlgorithm(name string, encoder acrypto.PasswordEncoder) error {
+	return acrypto.AddPasswordAlgorithm(name, encoder)
+}
+
+// AddValueParser method adds given custom value parser for the `reflect.Type`
+func (a *Application) AddValueParser(typ reflect.Type, parser valpar.Parser) error {
+	return valpar.AddValueParser(typ, parser)
+}
+
+// Validate method is to validate struct via underneath validator.
+//
+// Returns:
+//
+//  - For validation errors: returns `validator.ValidationErrors` and nil
+//
+//  - For invalid input: returns nil, error (invalid input such as nil, non-struct, etc.)
+//
+//  - For no validation errors: nil, nil
+func (a *Application) Validate(s interface{}) (validator.ValidationErrors, error) {
+	return valpar.Validate(s)
+}
+
+// ValidateValue method is to validate individual value on demand.
+//
+// Returns -
+//
+//  - true: validation passed
+//
+//  - false: validation failed
+//
+// For example:
+//
+// 	i := 15
+// 	result := valpar.ValidateValue(i, "gt=1,lt=10")
+//
+// 	emailAddress := "sample@sample"
+// 	result := valpar.ValidateValue(emailAddress, "email")
+//
+// 	numbers := []int{23, 67, 87, 23, 90}
+// 	result := valpar.ValidateValue(numbers, "unique")
+func (a *Application) ValidateValue(v interface{}, rules string) bool {
+	return valpar.ValidateValue(v, rules)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) logsDir() string {
+func (a *Application) logsDir() string {
 	return filepath.Join(a.BaseDir(), "logs")
 }
 
-func (a *app) initPath() error {
+func (a *Application) initPath() error {
 	defer func() {
 		if err := a.VFS().AddMount(a.VirtualBaseDir(), a.BaseDir()); err != nil {
 			if perr, ok := err.(*os.PathError); ok && perr == vfs.ErrMountExists {
@@ -365,7 +547,7 @@ func (a *app) initPath() error {
 			return err
 		}
 
-		if a.IsEmbeddedMode() {
+		if a.VFS().IsEmbeddedMode() {
 			a.settings.BaseDir = filepath.Dir(ep)
 		} else if a.settings.BaseDir, err = inferBaseDir(ep); err != nil {
 			return err
@@ -410,14 +592,14 @@ func (a *app) initPath() error {
 	return nil
 }
 
-func (a *app) binaryFilename() string {
+func (a *Application) binaryFilename() string {
 	if a.buildInfo == nil {
 		return ""
 	}
 	return ess.StripExt(a.BuildInfo().BinaryName)
 }
 
-func (a *app) parsePort(port string) string {
+func (a *Application) parsePort(port string) string {
 	if !ess.IsStrEmpty(port) {
 		return port
 	}
@@ -429,7 +611,7 @@ func (a *app) parsePort(port string) string {
 	return "80"
 }
 
-func (a *app) aahRecover() {
+func (a *Application) aahRecover() {
 	if r := recover(); r != nil {
 		strace := aruntime.NewStacktrace(r, a.Config())
 		buf := acquireBuffer()
@@ -445,11 +627,12 @@ func (a *app) aahRecover() {
 // Config Definitions
 //______________________________________________________________________________
 
-func (a *app) Config() *config.Config {
+// Config method returns aah application configuration instance.
+func (a *Application) Config() *config.Config {
 	return a.cfg
 }
 
-func (a *app) initConfig() error {
+func (a *Application) initConfig() error {
 	cfg, err := config.VFSLoadFile(a.VFS(), path.Join(a.VirtualBaseDir(), "config", "aah.conf"))
 	if err != nil {
 		return fmt.Errorf("aah.conf: %s", err)
@@ -464,16 +647,16 @@ func (a *app) initConfig() error {
 //______________________________________________________________________________
 
 // Log method returns app logger instance.
-func (a *app) Log() log.Loggerer {
+func (a *Application) Log() log.Loggerer {
 	return a.logger
 }
 
 // AddLoggerHook method adds given logger into aah application default logger.
-func (a *app) AddLoggerHook(name string, hook log.HookFunc) error {
+func (a *Application) AddLoggerHook(name string, hook log.HookFunc) error {
 	return a.Log().(*log.Logger).AddHook(name, hook)
 }
 
-func (a *app) initLog() error {
+func (a *Application) initLog() error {
 	if !a.Config().IsExists("log") {
 		log.Warn("Section 'log { ... }' configuration does not exists, initializing app logger with default values.")
 	}
@@ -512,17 +695,18 @@ func (a *app) initLog() error {
 
 const keyLocale = "Locale"
 
-func (a *app) I18n() *i18n.I18n {
+// I18n method returns aah application I18n store instance.
+func (a *Application) I18n() *i18n.I18n {
 	return a.i18n
 }
 
 // DefaultI18nLang method returns application i18n default language if
 // configured otherwise framework defaults to "en".
-func (a *app) DefaultI18nLang() string {
+func (a *Application) DefaultI18nLang() string {
 	return a.Config().StringDefault("i18n.default", "en")
 }
 
-func (a *app) initI18n() error {
+func (a *Application) initI18n() error {
 	i18nPath := path.Join(a.VirtualBaseDir(), "i18n")
 	if !a.VFS().IsExists(i18nPath) {
 		// i18n directory not exists, scenario could be only API application
@@ -544,7 +728,7 @@ func (a *app) initI18n() error {
 //______________________________________________________________________________
 
 // ServeHTTP method implementation of http.Handler interface.
-func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer a.aahRecover()
 	if a.settings.Redirect {
 		if a.he.doRedirect(w, r) {
@@ -566,12 +750,12 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // HotReload Definitions for Prod profile
 //______________________________________________________________________________
 
-func (a *app) listenForHotReload() {
+func (a *Application) listenForHotReload() {
 	if a.IsProfile(settings.DefaultEnvProfile) || !a.IsPackaged() {
 		return
 	}
 
-	a.sc = make(chan os.Signal, 2)
+	a.sc = make(chan os.Signal, 1)
 	signal.Notify(a.sc, syscall.SIGHUP)
 	for {
 		<-a.sc
@@ -580,7 +764,7 @@ func (a *app) listenForHotReload() {
 	}
 }
 
-func (a *app) performHotReload() {
+func (a *Application) performHotReload() {
 	a.settings.HotReload = true
 	defer func() { a.settings.HotReload = false }()
 

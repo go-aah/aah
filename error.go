@@ -111,7 +111,7 @@ type ErrorHandler interface {
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) initError() error {
+func (a *Application) initError() error {
 	a.errorMgr = &errorManager{
 		a: a,
 	}
@@ -123,7 +123,7 @@ func (a *app) initError() error {
 //______________________________________________________________________________
 
 type errorManager struct {
-	a           *app
+	a           *Application
 	handlerFunc ErrorHandlerFunc
 }
 

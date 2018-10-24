@@ -60,7 +60,8 @@ func TestBindParamContentNegotiation(t *testing.T) {
 }
 
 func TestBindAddValueParser(t *testing.T) {
-	err := AddValueParser(reflect.TypeOf(time.Time{}), func(key string, typ reflect.Type, params url.Values) (reflect.Value, error) {
+	app := newApp()
+	err := app.AddValueParser(reflect.TypeOf(time.Time{}), func(key string, typ reflect.Type, params url.Values) (reflect.Value, error) {
 		return reflect.Value{}, nil
 	})
 	assert.NotNil(t, err)
@@ -68,32 +69,33 @@ func TestBindAddValueParser(t *testing.T) {
 }
 
 func TestBindValidatorWithValue(t *testing.T) {
-	assert.NotNil(t, Validator())
+	app := newApp()
+	assert.NotNil(t, app.Validator())
 
 	// Validation failed
 	i := 15
-	result := ValidateValue(i, "gt=1,lt=10")
+	result := app.ValidateValue(i, "gt=1,lt=10")
 	assert.False(t, result)
 
 	emailAddress := "sample@sample"
-	result = ValidateValue(emailAddress, "required,email")
+	result = app.ValidateValue(emailAddress, "required,email")
 	assert.False(t, result)
 
 	numbers := []int{23, 67, 87, 23, 90}
-	result = ValidateValue(numbers, "unique")
+	result = app.ValidateValue(numbers, "unique")
 	assert.False(t, result)
 
 	// validation pass
 	i = 9
-	result = ValidateValue(i, "gt=1,lt=10")
+	result = app.ValidateValue(i, "gt=1,lt=10")
 	assert.True(t, result)
 
 	emailAddress = "sample@sample.com"
-	result = ValidateValue(emailAddress, "required,email")
+	result = app.ValidateValue(emailAddress, "required,email")
 	assert.True(t, result)
 
 	numbers = []int{23, 67, 87, 56, 90}
-	result = ValidateValue(numbers, "unique")
+	result = app.ValidateValue(numbers, "unique")
 	assert.True(t, result)
 }
 

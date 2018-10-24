@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"aahframe.work/ahttp"
-	"aahframe.work/essentials"
+	"aahframe.work/internal/settings"
 	"aahframe.work/internal/util"
 	"aahframe.work/security"
 	"aahframe.work/view"
@@ -24,41 +24,10 @@ const (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// app methods
-//______________________________________________________________________________
-
-func (a *app) ViewEngine() view.Enginer {
-	if a.viewMgr == nil {
-		return nil
-	}
-	return a.viewMgr.engine
-}
-
-func (a *app) AddTemplateFunc(funcs template.FuncMap) {
-	view.AddTemplateFunc(funcs)
-}
-
-func (a *app) AddViewEngine(name string, engine view.Enginer) error {
-	return view.AddEngine(name, engine)
-}
-
-func (a *app) SetMinifier(fn MinifierFunc) {
-	if a.viewMgr == nil {
-		a.viewMgr = &viewManager{a: a}
-	}
-
-	if a.viewMgr.minifier != nil {
-		a.Log().Warnf("Changing Minifier from: '%s'  to '%s'",
-			ess.GetFunctionInfo(a.viewMgr.minifier).QualifiedName, ess.GetFunctionInfo(fn).QualifiedName)
-	}
-	a.viewMgr.minifier = fn
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) initView() error {
+func (a *Application) initView() error {
 	viewsDir := path.Join(a.VirtualBaseDir(), "views")
 	if !a.VFS().IsExists(viewsDir) {
 		// view directory not exists, scenario could be API, WebSocket application
@@ -115,7 +84,7 @@ func (a *app) initView() error {
 
 	a.viewMgr = viewMgr
 	a.SecurityManager().AntiCSRF.Enabled = true
-	a.viewMgr.setHotReload(a.IsProfileDev() && !a.IsPackaged())
+	a.viewMgr.setHotReload(a.IsProfile(settings.DefaultEnvProfile) && !a.IsPackaged())
 
 	return nil
 }
@@ -125,7 +94,7 @@ func (a *app) initView() error {
 //______________________________________________________________________________
 
 type viewManager struct {
-	a                     *app
+	a                     *Application
 	engineName            string
 	engine                view.Enginer
 	fileExt               string
@@ -205,7 +174,7 @@ func (vm *viewManager) resolve(ctx *Context) {
 			}
 
 			ctx.Log().Errorf("template not found: %s", tmplFile)
-			if vm.a.IsProfileProd() {
+			if vm.a.IsProfile("prod") {
 				htmlRdr.ViewArgs["ViewNotFound"] = "View Not Found"
 			} else {
 				htmlRdr.ViewArgs["ViewNotFound"] = "View Not Found: " + tmplFile
