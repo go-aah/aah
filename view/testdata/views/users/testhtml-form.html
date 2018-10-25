@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+      <title>pageTitle</title>
+      <script type='text/javascript'>
+          if (foo) {
+              bar(1 + 5)
+          }
+      </script>
+  </head>
+  <body>
+      <h1>node template engine</h1>
+      <form action="{{ rurl . "form_auth_login_submit__aah" }}" class="" method="post">
+        <div id="container" class="col">
+            {{ if .Welcome }}
+                <p>You are amazing</p>
+            {{ else }}
+                <p>Get on it!</p>
+            {{ end }}
+            <p>
+                one is <a terse="terse">terse</a> and simple
+                templating language with a
+                <strong>focus</strong> on performance
+                and powerful features.
+        </div>
+      </form>
+  </body>
+</html>

@@ -2,4 +2,5 @@
 
 {{ define "body" -}}
     <h1>Welcome to {{ .GreetName }} {{ .PageName }}.</h1>
+    {{ include "/users/testhtml-form.html" . }}
 {{- end }}
