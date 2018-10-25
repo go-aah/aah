@@ -5,11 +5,14 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ template "title" . }}</title>
-    {{ import "head_tags.html" . -}}
+    {{ include "head_tags.html" . -}}
+    {{ include "level1/head_tags.html" . -}}
   </head>
   <body>
     {{ template "body" . }}
-    {{ import "footer_scripts.html" . -}}
-    {{ import "not_found.html" . }}
+    {{ include "footer_scripts.html" . -}}
+    {{ include "common/level1/footer_scripts.html" . -}}
+    {{ include "not_found.html" . }}
+    {{ include "" . }}
   </body>
 </html>
