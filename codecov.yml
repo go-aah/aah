@@ -1,0 +1,3 @@
+ignore:
+  - "aruntime/diagnosis"
+  - "internal/**/*"
