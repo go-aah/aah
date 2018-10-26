@@ -2,6 +2,10 @@
 // Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
+// Package diagnosis brings feature of aah application profiling to do various diagnosis.
+// It support HTTP and File (upcoming) modes.
+//
+// Documentation and sample config refer to https://docs.aahframework.org/diagnosis.html
 package diagnosis
 
 import (
@@ -43,7 +47,7 @@ func New(appName string, diagnosisCfg *config.Config, al log.Loggerer) (*Diagnos
 	return d, nil
 }
 
-// Diagnosis brings feature of aah application profiling for various diagnosis.
+// Diagnosis brings feature of aah application profiling to do various diagnosis.
 // It support HTTP and File (upcoming) modes.
 //
 // Documentation and sample config refer to https://docs.aahframework.org/diagnosis.html
