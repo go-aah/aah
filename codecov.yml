@@ -1,3 +1,4 @@
 ignore:
-  - "aruntime/diagnosis"
+  - "ainsp"
+  - "aruntime/diagnosis"  
   - "internal/**/*"
