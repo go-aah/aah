@@ -2,6 +2,8 @@
 // Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
+// Package console provides a feature to implementation CLI commands into your 
+// aah application easily and manageable.
 package console
 
 import (

@@ -2,6 +2,11 @@
 // Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
+// Package cache provides simple and extensible cache feature for aah application.
+//
+// OOTB aah pluggable implementation of cache stores In-memory, Redis and Memcache.
+// Refer to documentation for configuration and usage
+// https://docs.aahframework.org/cache.html
 package cache
 
 import (
