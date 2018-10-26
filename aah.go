@@ -26,6 +26,7 @@ import (
 	"aahframe.work/aruntime"
 	"aahframe.work/cache"
 	"aahframe.work/config"
+	"aahframe.work/console"
 	"aahframe.work/essentials"
 	"aahframe.work/i18n"
 	"aahframe.work/internal/settings"
@@ -66,6 +67,7 @@ func App() *Application {
 func newApp() *Application {
 	aahApp := &Application{
 		RWMutex: sync.RWMutex{},
+		cli:     console.NewApp(),
 		vfs:     new(vfs.VFS),
 		settings: &settings.Settings{
 			VirtualBaseDir: "/app",
@@ -97,6 +99,7 @@ type Application struct {
 	sync.RWMutex
 	buildInfo      *BuildInfo
 	settings       *settings.Settings
+	cli            *console.Application
 	cfg            *config.Config
 	vfs            *vfs.VFS
 	tlsCfg         *tls.Config
@@ -199,9 +202,26 @@ func (a *Application) Init(importPath string) error {
 				return err
 			}
 		}
+		if err := a.CacheManager().InitProviders(a.Config(), a.Log()); err != nil {
+			return err
+		}
+		a.cli.Name = a.BuildInfo().BinaryName
+		a.cli.Usage = a.Desc()
+		a.cli.Version = a.BuildInfo().Version
 	}
 
 	a.settings.Initialized = true
+	return nil
+}
+
+// Run ...
+func (a *Application) Run(args []string) error {
+	a.cli.Commands = []console.Command{
+		a.cliCmdRun(),
+	}
+
+	err := a.cli.Run(args)
+	fmt.Println("run err", err)
 	return nil
 }
 
