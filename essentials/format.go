@@ -55,3 +55,31 @@ func StrToBytes(value string) (int64, error) {
 
 	return bytes, nil
 }
+
+// BytesToStr method return given bytes size into readable string format.
+//    For e.g.:
+//      2097152 bytes ==> 2MB
+func BytesToStr(value int64) string {
+	var rs string
+	switch {
+	case value > TeraByteSize:
+		m := value / TeraByteSize
+		r := value % TeraByteSize
+		rs = fmt.Sprintf("%.1fTB", float64(m)+float64(r)/float64(TeraByteSize))
+	case value > GigaByteSize:
+		m := value / GigaByteSize
+		r := value % GigaByteSize
+		rs = fmt.Sprintf("%.1fGB", float64(m)+float64(r)/float64(GigaByteSize))
+	case value > MegaByteSize:
+		m := value / MegaByteSize
+		r := value % MegaByteSize
+		rs = fmt.Sprintf("%.1fMB", float64(m)+float64(r)/float64(MegaByteSize))
+	case value > KiloByteSize:
+		m := value / KiloByteSize
+		r := value % KiloByteSize
+		rs = fmt.Sprintf("%.1fKB", float64(m)+float64(r)/float64(KiloByteSize))
+	default:
+		rs = fmt.Sprintf("%dB", value)
+	}
+	return strings.Replace(rs, ".0", "", -1)
+}

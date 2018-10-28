@@ -18,6 +18,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -26,6 +27,7 @@ import (
 	"aahframe.work/aruntime"
 	"aahframe.work/cache"
 	"aahframe.work/config"
+	"aahframe.work/console"
 	"aahframe.work/essentials"
 	"aahframe.work/i18n"
 	"aahframe.work/internal/settings"
@@ -66,12 +68,14 @@ func App() *Application {
 func newApp() *Application {
 	aahApp := &Application{
 		RWMutex: sync.RWMutex{},
+		cli:     console.NewApp(),
 		vfs:     new(vfs.VFS),
 		settings: &settings.Settings{
 			VirtualBaseDir: "/app",
 		},
 		cacheMgr: cache.NewManager(),
 	}
+	aahApp.cli.Commands = make([]console.Command, 0)
 
 	aahApp.he = &HTTPEngine{
 		a:       aahApp,
@@ -89,6 +93,8 @@ func newApp() *Application {
 		mu:          sync.RWMutex{},
 	}
 
+	aahApp.logger, _ = log.New(config.NewEmpty())
+
 	return aahApp
 }
 
@@ -97,6 +103,7 @@ type Application struct {
 	sync.RWMutex
 	buildInfo      *BuildInfo
 	settings       *settings.Settings
+	cli            *console.Application
 	cfg            *config.Config
 	vfs            *vfs.VFS
 	tlsCfg         *tls.Config
@@ -119,89 +126,25 @@ type Application struct {
 	dumpLog        *dumpLogger
 }
 
-// Init method initializes `aah` application, if anything goes wrong during
-// an initialize process, it will log it as fatal msg and exit.
-func (a *Application) Init(importPath string) error {
+// InitForCLI method is for purpose aah CLI tool. IT IS NOT FOR AAH USER.
+// Introduced in v0.12.0 release.
+func (a *Application) InitForCLI(importPath string) error {
 	a.settings.ImportPath = path.Clean(importPath)
+	a.Log().(*log.Logger).SetLevel("warn")
 	var err error
-
-	if a.buildInfo == nil {
-		// aah CLI is accessing application for build purpose
-		_ = log.SetLevel("warn")
-		if err = a.initPath(); err != nil {
-			return err
-		}
-		if err = a.initConfig(); err != nil {
-			return err
-		}
-		if err = a.settings.Refresh(a.Config()); err != nil {
-			return err
-		}
-		if err = a.initRouter(); err != nil {
-			return err
-		}
-		_ = log.SetLevel("debug")
-	} else {
-		log.Infof("aah framework v%s, requires >= go1.11", a.BuildInfo().AahVersion)
-		for event := range a.EventStore().subscribers {
-			a.EventStore().sortEventSubscribers(event)
-		}
-
-		if err = a.initPath(); err != nil {
-			return err
-		}
-		if err = a.initConfig(); err != nil {
-			return err
-		}
-
-		// publish `OnInit` server event
-		a.EventStore().PublishSync(&Event{Name: EventOnInit})
-
-		if err = a.settings.Refresh(a.Config()); err != nil {
-			return err
-		}
-		if err = a.initLog(); err != nil {
-			return err
-		}
-		if err = a.initI18n(); err != nil {
-			return err
-		}
-		if err = a.initSecurity(); err != nil {
-			return err
-		}
-		if err = a.initRouter(); err != nil {
-			return err
-		}
-		if err = a.initBind(); err != nil {
-			return err
-		}
-		if err = a.initView(); err != nil {
-			return err
-		}
-		if err = a.initStatic(); err != nil {
-			return err
-		}
-		if err = a.initError(); err != nil {
-			return err
-		}
-		if a.settings.AccessLogEnabled {
-			if err = a.initAccessLog(); err != nil {
-				return err
-			}
-		}
-		if a.settings.DumpLogEnabled {
-			if err = a.initDumpLog(); err != nil {
-				return err
-			}
-		}
-		if a.IsWebSocketEnabled() {
-			if a.wse, err = ws.New(a); err != nil {
-				return err
-			}
-		}
+	if err = a.initPath(); err != nil {
+		return err
 	}
-
-	a.settings.Initialized = true
+	if err = a.initConfig(); err != nil {
+		return err
+	}
+	if err = a.settings.Refresh(a.Config()); err != nil {
+		return err
+	}
+	if err = a.initRouter(); err != nil {
+		return err
+	}
+	a.Log().(*log.Logger).SetLevel("debug")
 	return nil
 }
 
@@ -485,6 +428,22 @@ func (a *Application) AddValueParser(typ reflect.Type, parser valpar.Parser) err
 	return valpar.AddValueParser(typ, parser)
 }
 
+// AddCommand method adds the aah application CLI commands. Introduced in v0.12.0 release
+// aah app binary fully compliant using module console and POSIX flags.
+func (a *Application) AddCommand(cmd console.Command) error {
+	name := strings.ToLower(cmd.Name)
+	if name == "run" || name == "vfs" || name == "help" {
+		return fmt.Errorf("aah: reserved command name '%s' cannot be used", name)
+	}
+	for _, c := range a.cli.Commands {
+		if c.Name == name {
+			return fmt.Errorf("aah: command name '%s' already exists", name)
+		}
+	}
+	a.cli.Commands = append(a.cli.Commands, cmd)
+	return nil
+}
+
 // Validate method is to validate struct via underneath validator.
 //
 // Returns:
@@ -518,6 +477,20 @@ func (a *Application) Validate(s interface{}) (validator.ValidationErrors, error
 // 	result := valpar.ValidateValue(numbers, "unique")
 func (a *Application) ValidateValue(v interface{}, rules string) bool {
 	return valpar.ValidateValue(v, rules)
+}
+
+// Run method initializes `aah` application and runs the given command.
+// If anything goes wrong during an initialize process, it would return an error.
+func (a *Application) Run(args []string) error {
+	var err error
+	if err = a.initPath(); err != nil {
+		return err
+	}
+	if err = a.initConfig(); err != nil {
+		return err
+	}
+	a.initCli()
+	return a.cli.Run(args)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -592,6 +565,62 @@ func (a *Application) initPath() error {
 	return nil
 }
 
+func (a *Application) initApp() error {
+	var err error
+	for event := range a.EventStore().subscribers {
+		a.EventStore().sortEventSubscribers(event)
+	}
+	// publish `OnInit` server event
+	a.EventStore().PublishSync(&Event{Name: EventOnInit})
+	if err = a.settings.Refresh(a.Config()); err != nil {
+		return err
+	}
+	if err = a.initLog(); err != nil {
+		return err
+	}
+	if err = a.initI18n(); err != nil {
+		return err
+	}
+	if err = a.initSecurity(); err != nil {
+		return err
+	}
+	if err = a.initRouter(); err != nil {
+		return err
+	}
+	if err = a.initBind(); err != nil {
+		return err
+	}
+	if err = a.initView(); err != nil {
+		return err
+	}
+	if err = a.initStatic(); err != nil {
+		return err
+	}
+	if err = a.initError(); err != nil {
+		return err
+	}
+	if a.settings.AccessLogEnabled {
+		if err = a.initAccessLog(); err != nil {
+			return err
+		}
+	}
+	if a.settings.DumpLogEnabled {
+		if err = a.initDumpLog(); err != nil {
+			return err
+		}
+	}
+	if a.IsWebSocketEnabled() {
+		if a.wse, err = ws.New(a); err != nil {
+			return err
+		}
+	}
+	if err := a.CacheManager().InitProviders(a.Config(), a.Log()); err != nil {
+		return err
+	}
+	a.settings.Initialized = true
+	return nil
+}
+
 func (a *Application) binaryFilename() string {
 	if a.buildInfo == nil {
 		return ""
@@ -658,7 +687,7 @@ func (a *Application) AddLoggerHook(name string, hook log.HookFunc) error {
 
 func (a *Application) initLog() error {
 	if !a.Config().IsExists("log") {
-		log.Warn("Section 'log { ... }' configuration does not exists, initializing app logger with default values.")
+		a.Log().Warn("Section 'log { ... }' configuration does not exists, initializing app logger with default values.")
 	}
 
 	if a.Config().StringDefault("log.receiver", "") == "file" {

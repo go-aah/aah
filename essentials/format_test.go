@@ -45,6 +45,14 @@ func TestTBStrToBytes(t *testing.T) {
 	checkBytesValue(t, "2TiB", int64(2199023255552))
 }
 
+func TestBytesToStr(t *testing.T) {
+	assert.Equal(t, "2B", BytesToStr(int64(2)))
+	assert.Equal(t, "2KB", BytesToStr(int64(2048)))
+	assert.Equal(t, "2MB", BytesToStr(int64(2097152)))
+	assert.Equal(t, "2GB", BytesToStr(int64(2147483648)))
+	assert.Equal(t, "2TB", BytesToStr(int64(2199023255552)))
+}
+
 func TestErrStrToBytes(t *testing.T) {
 	v1, err := StrToBytes("2")
 	assert.NotNil(t, err)

@@ -2,7 +2,7 @@
 // Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-// Package console provides a feature to implementation CLI commands into your 
+// Package console provides a feature to implementation CLI commands into your
 // aah application easily and manageable.
 package console
 
@@ -148,61 +148,61 @@ func init() {
 	AppHelpTemplate(`Name:
 	{{.Name}}{{if .Usage}} - {{.Usage}}{{end}}
 	
- Usage:
+Usage:
 	{{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}{{if .Version}}{{if not .HideVersion}}
 
- Version:
+Version:
 	{{.Version}}{{end}}{{end}}{{if .Description}}
 
- Description:
+Description:
 	{{.Description}}{{end}}{{if len .Authors}}
 
- Author{{with $length := len .Authors}}{{if ne 1 $length}}S{{end}}{{end}}:
+Author{{with $length := len .Authors}}{{if ne 1 $length}}S{{end}}{{end}}:
 	{{range $index, $author := .Authors}}{{if $index}}
 	{{end}}{{$author}}{{end}}{{end}}{{if .VisibleCommands}}
 
- Commands:{{range .VisibleCategories}}{{if .Name}}
+Commands:{{range .VisibleCategories}}{{if .Name}}
 	{{.Name}}:{{end}}{{range .VisibleCommands}}
-	  {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
+	{{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}{{end}}{{end}}{{if .VisibleFlags}}
 
- Global Options:
+Global Options:
 	{{range $index, $option := .VisibleFlags}}{{if $index}}
 	{{end}}{{$option}}{{end}}{{end}}{{if .Copyright}}
 
- Copyrights:
+Copyrights:
 	{{.Copyright}}{{end}}
- `)
+`)
 
 	CommandHelpTemplate(`Name:
 	{{.HelpName}} - {{.Usage}}
 
- Usage:
+Usage:
 	{{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}}{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}{{if .Category}}
 
- Category:
+Category:
 	{{.Category}}{{end}}{{if .Description}}
 
- Description:
+Description:
 	{{.Description}}{{end}}{{if .VisibleFlags}}
 
- Options:
+Options:
 	{{range .VisibleFlags}}{{.}}
 	{{end}}{{end}}
- `)
+`)
 
 	SubcommandHelpTemplate(`Name:
 	{{.HelpName}} - {{if .Description}}{{.Description}}{{else}}{{.Usage}}{{end}}
 
- Usage:
+Usage:
 	{{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}} command{{if .VisibleFlags}} [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}
 
- Commands:{{range .VisibleCategories}}{{if .Name}}
+Commands:{{range .VisibleCategories}}{{if .Name}}
 	{{.Name}}:{{end}}{{range .VisibleCommands}}
-	  {{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}
+	{{join .Names ", "}}{{"\t"}}{{.Usage}}{{end}}
  {{end}}{{if .VisibleFlags}}
 
- Options:
+Options:
 	{{range .VisibleFlags}}{{.}}
 	{{end}}{{end}}
- `)
+`)
 }

@@ -127,3 +127,15 @@ func IsGzipWorthForFile(name string) bool {
 		return false
 	}
 }
+
+// FirstNonEmpty method returns the first non-empty string from given var args
+// otherwise empty string.
+func FirstNonEmpty(values ...string) string {
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if len(v) > 0 {
+			return v
+		}
+	}
+	return ""
+}
