@@ -24,10 +24,12 @@ import (
 	"aahframe.work/essentials"
 	"aahframe.work/log"
 	"aahframe.work/router"
-	"github.com/stretchr/testify/assert"
+	"aahframe.work/security"
+	"aahframe.work/vfs"
 
 	gws "github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEngineWSClient(t *testing.T) {
@@ -168,9 +170,11 @@ type app struct {
 	l   log.Loggerer
 }
 
-func (a *app) Config() *config.Config { return a.cfg }
-func (a *app) Router() *router.Router { return a.r }
-func (a *app) Log() log.Loggerer      { return a.l }
+func (a *app) Config() *config.Config             { return a.cfg }
+func (a *app) Router() *router.Router             { return a.r }
+func (a *app) Log() log.Loggerer                  { return a.l }
+func (a *app) VFS() *vfs.VFS                      { return nil }
+func (a *app) SecurityManager() *security.Manager { return nil }
 
 func createWSTestServer(t *testing.T, cfgStr, routeFile string) *testServer {
 	cfg, _ := config.ParseString(cfgStr)
@@ -195,11 +199,12 @@ func newEngine(t *testing.T, cfg *config.Config, routeFile string) *Engine {
 
 	l.SetWriter(ioutil.Discard)
 
-	r := router.New(filepath.Join(testdataBaseDir(), routeFile), config.NewEmpty())
-	err = r.Load()
+	app := &app{cfg: cfg, l: l}
+	r, err := router.NewWithApp(app, filepath.Join(testdataBaseDir(), routeFile))
 	assert.Nil(t, err)
 
-	wse, err := New(&app{cfg: cfg, r: r, l: l})
+	app.r = r
+	wse, err := New(app)
 	assert.Nil(t, err)
 	assert.NotNil(t, wse.app)
 

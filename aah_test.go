@@ -187,7 +187,7 @@ func TestAppMisc(t *testing.T) {
 	t.Log("simualate CLI call")
 	a.SetBuildInfo(nil)
 	a.settings.PackagedMode = false
-	err := a.Init(importPath)
+	err := a.InitForCLI(importPath)
 	assert.Nil(t, err)
 
 	// SSL
@@ -378,7 +378,12 @@ func newTestApp(t *testing.T, importPath string) *Application {
 	err := a.VFS().AddMount(a.VirtualBaseDir(), importPath)
 	assert.Nil(t, err, "not expecting any error")
 
-	err = a.Init(importPath)
+	a.settings.ImportPath = importPath
+	err = a.initPath()
+	assert.Nil(t, err, "app initPath failure")
+	err = a.initConfig()
+	assert.Nil(t, err, "app initConfig failure")	
+	err = a.initApp()
 	assert.Nil(t, err, "app init failure")
 
 	return a
