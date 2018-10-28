@@ -46,7 +46,9 @@ func (a *Application) Start() {
 	a.Log().Infof("App Single Binary Mode: %v", a.VFS().IsEmbeddedMode())
 	a.Log().Infof("App Profile: %s", a.Profile())
 	a.Log().Infof("App TLS/SSL Enabled: %t", a.IsSSLEnabled())
-
+	if a.diagnosis != nil {
+		a.Log().Infof("App Diagnosis Enabled: true, mode: %s", a.diagnosis.Mode)
+	}
 	if a.viewMgr != nil {
 		a.Log().Infof("App View Engine: %s", a.viewMgr.engineName)
 	}
@@ -106,7 +108,10 @@ func (a *Application) Start() {
 		a.startUnix()
 		return
 	}
-
+	if a.diagnosis != nil && a.diagnosis.IsHTTPMode() {
+		a.Log().Infof("aah go diagnosis server running on %s",
+			a.diagnosis.Config.StringDefault("runtime.diagnosis.http.address", ":7070"))
+	}
 	a.server.Addr = fmt.Sprintf("%s:%s", a.HTTPAddress(), a.HTTPPort())
 
 	// HTTPS
@@ -137,8 +142,8 @@ func (a *Application) Shutdown() {
 	if err := a.server.Shutdown(ctx); err != nil && err != http.ErrServerClosed {
 		a.Log().Error(err)
 	}
-
 	a.shutdownRedirectServer()
+	a.Log().Info("aah go server shutdown successfully")
 
 	// Publish `OnPostShutdown` event
 	a.EventStore().sortAndPublishSync(&Event{Name: EventOnPostShutdown})

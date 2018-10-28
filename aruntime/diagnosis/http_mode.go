@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"runtime"
@@ -76,7 +75,7 @@ func (d *Diagnosis) indexHandler(w http.ResponseWriter, r *http.Request) {
 		"PathPrefix": d.pathPrefix,
 		"Profiles":   profiles,
 	}); err != nil {
-		log.Print(err)
+		d.log.Error(err)
 	}
 }
 

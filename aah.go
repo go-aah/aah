@@ -25,6 +25,7 @@ import (
 	"aahframe.work/ahttp"
 	"aahframe.work/ainsp"
 	"aahframe.work/aruntime"
+	"aahframe.work/aruntime/diagnosis"
 	"aahframe.work/cache"
 	"aahframe.work/config"
 	"aahframe.work/console"
@@ -124,6 +125,7 @@ type Application struct {
 	logger         log.Loggerer
 	accessLog      *accessLogger
 	dumpLog        *dumpLogger
+	diagnosis      *diagnosis.Diagnosis
 }
 
 // InitForCLI method is for purpose aah CLI tool. IT IS NOT FOR AAH USER.

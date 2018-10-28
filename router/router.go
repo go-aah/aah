@@ -130,7 +130,7 @@ func (r *Router) Load() (err error) {
 
 	// apply aah.conf env variables
 	if envRoutesValues, found := r.appConfig().GetSubConfig("routes"); found {
-		log.Debug("Env profile 'routes { ... }' values found, applying it")
+		r.app.Log().Debug("Env profile 'routes { ... }' values found, applying it")
 		if err = r.config.Merge(envRoutesValues); err != nil {
 			return fmt.Errorf("router: routes.conf: %s", err)
 		}
@@ -319,7 +319,7 @@ func (r *Router) processRoutesConfig() (err error) {
 
 	// allocate for no. of domains
 	r.Domains = make([]*Domain, len(domains))
-	log.Debugf("Domain count: %d", len(domains))
+	r.app.Log().Debugf("Domain count: %d", len(domains))
 
 	for idx, key := range domains {
 		domainCfg, _ := r.config.GetSubConfig(key)
@@ -408,21 +408,21 @@ func (r *Router) processRoutesConfig() (err error) {
 
 		// add domain routes
 		domain.inferKey()
-		log.Debugf("Domain: %s, routes found: %d", domain.Key, len(domain.routes))
-		if log.IsLevelTrace() { // process only if log level is trace
+		r.app.Log().Debugf("Domain: %s, routes found: %d", domain.Key, len(domain.routes))
+		if r.app.Log().IsLevelTrace() { // process only if log level is trace
 			// Static Files routes
-			log.Trace("Routes: Static")
+			r.app.Log().Trace("Routes: Static")
 			for _, dr := range domain.routes {
 				if dr.IsStatic {
-					log.Trace(dr)
+					r.app.Log().Trace(dr)
 				}
 			}
 
 			// Application routes
-			log.Trace("Routes: Application")
+			r.app.Log().Trace("Routes: Application")
 			for _, dr := range domain.routes {
 				if !dr.IsStatic {
-					log.Trace(dr)
+					r.app.Log().Trace(dr)
 				}
 			}
 		}
@@ -497,7 +497,7 @@ func (r *Router) processRoutes(domain *Domain, domainCfg *config.Config) error {
 		authSchemes := r.app.SecurityManager().AuthSchemes()
 		if len(authSchemes) > 0 {
 			if routeNames, result := domain.isAuthConfigured(r.app.SecurityManager()); !result {
-				log.Errorf("Auth schemes are configured in 'security.conf', however "+
+				r.app.Log().Errorf("Auth schemes are configured in 'security.conf', however "+
 					"these routes have invaild auth scheme or not configured: %s",
 					strings.Join(routeNames, ", "))
 				return fmt.Errorf("routes configuration error in domain '%s', please check the logs", domain.Name)

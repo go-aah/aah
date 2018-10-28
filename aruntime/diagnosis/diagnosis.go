@@ -37,11 +37,10 @@ func New(appName string, diagnosisCfg *config.Config, al log.Loggerer) (*Diagnos
 	if len(strings.TrimSpace(mode)) == 0 {
 		return nil, errors.New("diagnosis: missing required config 'runtime.diagnosis.mode'")
 	}
-	d := &Diagnosis{appName: appName, cfg: diagnosisCfg, mode: strings.ToLower(mode)}
-	switch d.mode {
-	case "http":
+	d := &Diagnosis{Config: diagnosisCfg, Mode: strings.ToLower(mode), appName: appName, log: al}
+	if d.IsHTTPMode() {
 		d.createHTTPServer()
-	case "file":
+	} else {
 		d.createFiles()
 	}
 	return d, nil
@@ -52,20 +51,24 @@ func New(appName string, diagnosisCfg *config.Config, al log.Loggerer) (*Diagnos
 //
 // Documentation and sample config refer to https://docs.aahframework.org/diagnosis.html
 type Diagnosis struct {
+	Config             *config.Config
+	Mode               string
 	appName            string
-	cfg                *config.Config
-	log                log.Loggerer
-	mode               string
-	pathPrefix         string
 	server             *http.Server
+	log                log.Loggerer
+	pathPrefix         string
 	serverWriteTimeout time.Duration
+}
+
+// IsHTTPMode method returns true if diagnosis enabled in HTTP mode otherwise false.
+func (d *Diagnosis) IsHTTPMode() bool {
+	return d.Mode == "http"
 }
 
 // Run method runs diagnosis solutions on current aah application based on
 // given diagnosis configuration on application startup.
 func (d *Diagnosis) Run() {
-	if d.mode == "http" {
-		d.log.Info("Diagnosis server starting at %s", d.server.Addr)
+	if d.IsHTTPMode() {
 		if err := d.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			d.log.Error(err)
 		}
@@ -79,7 +82,7 @@ func (d *Diagnosis) Run() {
 func (d *Diagnosis) Stop() {
 	if d.server != nil {
 		_ = d.server.Close()
-		d.log.Info("Diagnosis server stopped successfully")
+		d.log.Info("aah go diagnosis server shutdown successfully")
 	}
 	// stop the profilers for file mode and close the file descriptors
 }
@@ -87,6 +90,9 @@ func (d *Diagnosis) Stop() {
 func (d *Diagnosis) createHTTPServer() {
 	d.pathPrefix = "/diagnosis"
 	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, d.pathPrefix, http.StatusMovedPermanently)
+	})
 	mux.HandleFunc(d.pathPrefix, d.indexHandler)
 	mux.HandleFunc(d.pathPrefix+"/", d.indexHandler)
 	mux.HandleFunc(d.pathPrefix+"/pprof/", d.dynamicProfileHandler)
@@ -95,12 +101,12 @@ func (d *Diagnosis) createHTTPServer() {
 	mux.HandleFunc(d.pathPrefix+"/pprof/symbol", d.symbolHandler)
 	mux.HandleFunc(d.pathPrefix+"/pprof/trace", d.traceHandler)
 	var err error
-	d.serverWriteTimeout, err = time.ParseDuration(d.cfg.StringDefault("runtime.diagnosis.http.timeout.write", "2m"))
+	d.serverWriteTimeout, err = time.ParseDuration(d.Config.StringDefault("runtime.diagnosis.http.timeout.write", "2m"))
 	if err != nil {
 		d.serverWriteTimeout = time.Minute * 2
 	}
 	d.server = &http.Server{
-		Addr:         d.cfg.StringDefault("runtime.diagnosis.http.address", ":7070"),
+		Addr:         d.Config.StringDefault("runtime.diagnosis.http.address", ":7070"),
 		Handler:      mux,
 		WriteTimeout: d.serverWriteTimeout,
 	}
@@ -114,7 +120,7 @@ func (d *Diagnosis) cpuProfile(w io.Writer, seconds time.Duration) error {
 	if err := pprof.StartCPUProfile(w); err != nil {
 		return fmt.Errorf("diagnosis: could not enable CPU profiling: %s", err)
 	}
-	if d.mode == "http" {
+	if d.IsHTTPMode() {
 		d.sleep(w, seconds)
 		pprof.StopCPUProfile()
 	}
@@ -125,7 +131,7 @@ func (d *Diagnosis) trace(w io.Writer, seconds time.Duration) error {
 	if err := trace.Start(w); err != nil {
 		return fmt.Errorf("diagnosis: could not enable tracing: %s", err)
 	}
-	if d.mode == "http" {
+	if d.IsHTTPMode() {
 		d.sleep(w, seconds)
 		trace.Stop()
 	}
