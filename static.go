@@ -128,11 +128,6 @@ func (s *staticManager) Serve(ctx *Context) error {
 
 		// 'OnAfterReply' server extension point
 		s.a.he.publishOnPostReplyEvent(ctx)
-
-		// Send data to access log channel
-		if s.a.settings.AccessLogEnabled && s.a.settings.StaticAccessLogEnabled {
-			s.a.accessLog.Log(ctx)
-		}
 		return nil
 	}
 
@@ -152,11 +147,6 @@ func (s *staticManager) Serve(ctx *Context) error {
 
 		// 'OnAfterReply' server extension point
 		s.a.he.publishOnPostReplyEvent(ctx)
-
-		// Send data to access log channel
-		if s.a.settings.AccessLogEnabled && s.a.settings.StaticAccessLogEnabled {
-			s.a.accessLog.Log(ctx)
-		}
 		return nil
 	}
 

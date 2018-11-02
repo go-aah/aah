@@ -119,6 +119,9 @@ type accessLogger struct {
 }
 
 func (aal *accessLogger) Log(ctx *Context) {
+	if ctx.IsStaticRoute() && !aal.a.settings.StaticAccessLogEnabled {
+		return
+	}
 	al := aal.logPool.Get().(*accessLog)
 	al.StartTime = ctx.Get(reqStartTimeKey).(time.Time)
 
