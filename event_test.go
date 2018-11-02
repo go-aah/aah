@@ -18,6 +18,7 @@ func TestAppEvents(t *testing.T) {
 		EventOnStart,
 		EventOnPreShutdown,
 		EventOnPostShutdown,
+		EventOnConfigHotReload,
 	}
 
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
@@ -95,6 +96,8 @@ func addTestEvent(a *Application, eventName string, fn func(e *Event), priority 
 		a.OnPreShutdown(fn, priority...)
 	case EventOnPostShutdown:
 		a.OnPostShutdown(fn, priority...)
+	case EventOnConfigHotReload:
+		a.OnConfigHotReload(fn, priority...)
 	}
 }
 
@@ -144,6 +147,7 @@ func TestEventSubscribeAndUnsubscribeAndPublish(t *testing.T) {
 	ts.app.PublishEvent("myEventNotExists", nil)
 
 	ts.app.SubscribeEvent("myEvent2", EventCallback{Callback: myEventFunc3, CallOnce: true})
+	ts.app.SubscribeEventFunc("myEvent2", myEventFunc3)
 	ts.app.PublishEvent("myEvent2", "myEvent2 is fired async")
 	time.Sleep(time.Millisecond * 100) // for goroutine to finish
 

@@ -34,6 +34,12 @@ const (
 	// of aah server and then application does clean exit.
 	EventOnPostShutdown = "OnPostShutdown"
 
+	// EventOnConfigHotReload is published just after aah application internal config
+	// hot-reload and re-initialize completes without an error otherwise it won't be
+	// published. It happens when application receives the signal based on
+	// config `runtime.config_hotreload.signal`.
+	EventOnConfigHotReload = "OnConfigHotReload"
+
 	//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 	// HTTP Engine events
 	//______________________________________________________________________________
@@ -141,6 +147,14 @@ func (a *Application) OnPreShutdown(ecb EventCallbackFunc, priority ...int) {
 // of aah server.
 func (a *Application) OnPostShutdown(ecb EventCallbackFunc, priority ...int) {
 	a.subcribeAppEvent(EventOnPostShutdown, ecb, priority)
+}
+
+// OnConfigHotReload method is to subscribe to aah application `OnConfigHotReload` event.
+// `OnConfigHotReload` is published just after aah application internal config
+// hot-reload and re-initialize completes without an error otherwise it won't be
+// published.
+func (a *Application) OnConfigHotReload(ecb EventCallbackFunc, priority ...int) {
+	a.subcribeAppEvent(EventOnConfigHotReload, ecb, priority)
 }
 
 func (a *Application) subcribeAppEvent(eventName string, ecb EventCallbackFunc, priority []int) {

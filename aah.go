@@ -18,9 +18,9 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 
 	"aahframe.work/ahttp"
 	"aahframe.work/ainsp"
@@ -782,15 +782,18 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //______________________________________________________________________________
 
 func (a *Application) listenForHotReload() {
-	if a.IsProfile(settings.DefaultEnvProfile) || !a.IsPackaged() {
+	if !a.settings.HotReloadEnabled || a.IsProfile(settings.DefaultEnvProfile) || !a.IsPackaged() {
 		return
 	}
-
+	if runtime.GOOS == "windows" && (a.settings.HotReloadSignalStr == "SIGUSR1" ||
+		a.settings.HotReloadSignalStr == "SIGUSR2") {
+		a.Log().Warn("OS Windows does not support signal SIGUSR1/SIGUSR2 let's fallback to default SIGHUP")
+	}
 	a.sc = make(chan os.Signal, 1)
-	signal.Notify(a.sc, syscall.SIGHUP)
+	signal.Notify(a.sc, a.settings.HotReloadSignal())
 	for {
 		<-a.sc
-		a.Log().Warn("Hangup signal (SIGHUP) received")
+		a.Log().Warnf("Hangup signal (%s) received", a.settings.HotReloadSignalStr)
 		a.performHotReload()
 	}
 }
@@ -870,6 +873,7 @@ func (a *Application) performHotReload() {
 	}
 
 	a.Log().Info("Application hot-reload and reinitialization was successful")
+	a.EventStore().PublishSync(&Event{Name: EventOnConfigHotReload})
 }
 
 func inferBaseDir(p string) (string, error) {

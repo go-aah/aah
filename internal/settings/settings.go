@@ -42,6 +42,7 @@ type Settings struct {
 	DumpLogEnabled         bool
 	Initialized            bool
 	HotReload              bool
+	HotReloadEnabled       bool
 	AuthSchemeExists       bool
 	Redirect               bool
 	Pid                    int
@@ -58,6 +59,7 @@ type Settings struct {
 	SecureJSONPrefix       string
 	ShutdownGraceTimeStr   string
 	DefaultContentType     string
+	HotReloadSignalStr     string
 	HTTPReadTimeout        time.Duration
 	HTTPWriteTimeout       time.Duration
 	ShutdownGraceTimeout   time.Duration
@@ -159,6 +161,9 @@ func (s *Settings) Refresh(cfg *config.Config) error {
 			return fmt.Errorf("'render.gzip.level' is not a valid level value: %v", ahttp.GzipLevel)
 		}
 	}
+
+	s.HotReloadEnabled = s.cfg.BoolDefault("runtime.config_hotreload.enable", true)
+	s.HotReloadSignalStr = strings.ToUpper(s.cfg.StringDefault("runtime.config_hotreload.signal", "SIGHUP"))
 
 	s.ShutdownGraceTimeStr = s.cfg.StringDefault("server.timeout.grace_shutdown", "60s")
 	if !util.IsValidTimeUnit(s.ShutdownGraceTimeStr, "s", "m") {

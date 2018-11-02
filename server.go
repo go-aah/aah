@@ -82,6 +82,12 @@ func (a *Application) Start() {
 		}
 	}
 
+	if !a.IsProfile(settings.DefaultEnvProfile) {
+		a.Log().Infof("App Config Hot-Reload Enabled: %v", a.settings.HotReloadEnabled)
+		if a.settings.HotReloadEnabled {
+			a.Log().Infof("App Config Hot-Reload Signal: %s", a.settings.HotReloadSignalStr)
+		}
+	}
 	a.Log().Infof("App Shutdown Grace Timeout: %s", a.settings.ShutdownGraceTimeStr)
 
 	// Publish `OnStart` event
