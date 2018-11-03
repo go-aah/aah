@@ -10,7 +10,6 @@ import (
 
 	"aahframe.work/essentials"
 	"aahframe.work/internal/util"
-	"aahframe.work/log"
 )
 
 const (
@@ -154,7 +153,10 @@ func (a *Application) OnPostShutdown(ecb EventCallbackFunc, priority ...int) {
 // hot-reload and re-initialize completes without an error otherwise it won't be
 // published.
 func (a *Application) OnConfigHotReload(ecb EventCallbackFunc, priority ...int) {
-	a.subcribeAppEvent(EventOnConfigHotReload, ecb, priority)
+	a.SubscribeEvent(EventOnConfigHotReload, EventCallback{
+		Callback: ecb,
+		priority: parsePriority(priority),
+	})
 }
 
 func (a *Application) subcribeAppEvent(eventName string, ecb EventCallbackFunc, priority []int) {
@@ -224,8 +226,7 @@ func (es *EventStore) Publish(e *Event) {
 	if !es.IsEventExists(e.Name) {
 		return
 	}
-
-	es.a.Log().Debugf("Event [%s] published in asynchronous mode", e.Name)
+	es.a.Log().Debugf("Publishing event '%s' in asynchronous mode", e.Name)
 	for idx, ec := range es.subscribers[e.Name] {
 		if ec.CallOnce {
 			if !ec.published {
@@ -250,13 +251,7 @@ func (es *EventStore) PublishSync(e *Event) {
 	if !es.IsEventExists(e.Name) {
 		return
 	}
-
-	if es.a.Log() == nil {
-		log.Debugf("Event [%s] publishing in synchronous mode", e.Name)
-	} else {
-		es.a.Log().Debugf("Event [%s] publishing in synchronous mode", e.Name)
-	}
-
+	es.a.Log().Debugf("Publishing event '%s' in synchronous mode", e.Name)
 	for idx, ec := range es.subscribers[e.Name] {
 		if ec.CallOnce {
 			if !ec.published {

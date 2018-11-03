@@ -74,14 +74,6 @@ func (a *Application) Start() {
 		a.Log().Infof("App i18n Locales: %s", strings.Join(a.I18n().Locales(), ", "))
 	}
 
-	if a.Log().IsLevelDebug() {
-		for event := range a.EventStore().subscribers {
-			for _, c := range a.EventStore().subscribers[event] {
-				a.Log().Debugf("Event: %s (callback=%s priority=%v)", event, ess.GetFunctionInfo(c.Callback).QualifiedName, c.priority)
-			}
-		}
-	}
-
 	if !a.IsProfile(settings.DefaultEnvProfile) {
 		a.Log().Infof("App Config Hot-Reload Enabled: %v", a.settings.HotReloadEnabled)
 		if a.settings.HotReloadEnabled {
@@ -89,6 +81,15 @@ func (a *Application) Start() {
 		}
 	}
 	a.Log().Infof("App Shutdown Grace Timeout: %s", a.settings.ShutdownGraceTimeStr)
+
+	if a.Log().IsLevelDebug() {
+		a.Log().Debug("Subscribed event callbacks")
+		for _, event := range []string{EventOnInit, EventOnStart, EventOnPreShutdown, EventOnPostShutdown, EventOnConfigHotReload} {
+			for _, c := range a.EventStore().subscribers[event] {
+				a.Log().Debugf("Event: %s (callback=%s priority=%v)", event, ess.GetFunctionInfo(c.Callback).QualifiedName, c.priority)
+			}
+		}
+	}
 
 	// Publish `OnStart` event
 	a.EventStore().sortAndPublishSync(&Event{Name: EventOnStart})
