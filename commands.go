@@ -96,11 +96,7 @@ func (a *Application) cliCmdRun() console.Command {
 			},
 			console.StringFlag{
 				Name:  "config, c",
-				Usage: "External config `FILE` for overriding aah configuration (*.conf) values",
-			},
-			console.StringFlag{
-				Name:  "diagnosis, d",
-				Usage: "Diagnosis config `FILE` to enable aah application profiling",
+				Usage: "External config `FILE` for adding or overriding 'config/**/*.conf' values",
 			},
 			console.StringFlag{Name: "importpath", Hidden: true},
 			console.StringFlag{Name: "proxyport", Hidden: true},
@@ -139,20 +135,12 @@ func (a *Application) cliCmdRun() console.Command {
 			}
 
 			// Diagnosis and Profiling
-			diagCfgFile := util.FirstNonEmpty(c.String("d"), c.String("diagnosis"))
-			if !ess.IsStrEmpty(diagCfgFile) {
-				cpath, err := filepath.Abs(diagCfgFile)
-				if err != nil {
-					return fmt.Errorf("Unable to resolve diagnosis config: %s", diagCfgFile)
-				}
-				diagCfg, err := config.LoadFile(cpath)
-				if err != nil {
-					return fmt.Errorf("Unable to load diagnosis config: %s", cpath)
-				}
-				a.diagnosis, err = diagnosis.New(a.Name(), diagCfg, a.Log())
+			if a.Config().BoolDefault("runtime.diagnosis.enable", false) {
+				var err error
+				a.diagnosis, err = diagnosis.New(a.Name(), a.Config(), a.Log())
 				if err != nil {
 					return err
-				}				
+				}
 				go a.diagnosis.Run()
 			}
 
@@ -173,7 +161,7 @@ func (a *Application) cliCmdRun() console.Command {
 			if a.diagnosis != nil {
 				a.diagnosis.Stop()
 			}
-			a.Shutdown()			
+			a.Shutdown()
 			return nil
 		},
 	}

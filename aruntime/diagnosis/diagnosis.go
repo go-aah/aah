@@ -29,15 +29,9 @@ import (
 //
 // Basically all capabilities supported by `runtime/pprof` and `runtime/trace`
 // brought into HTTP or File mode collection.
-func New(appName string, diagnosisCfg *config.Config, al log.Loggerer) (*Diagnosis, error) {
-	if !diagnosisCfg.BoolDefault("runtime.diagnosis.enable", false) {
-		return nil, nil
-	}
-	mode := diagnosisCfg.StringDefault("runtime.diagnosis.mode", "")
-	if len(strings.TrimSpace(mode)) == 0 {
-		return nil, errors.New("diagnosis: missing required config 'runtime.diagnosis.mode'")
-	}
-	d := &Diagnosis{Config: diagnosisCfg, Mode: strings.ToLower(mode), appName: appName, log: al}
+func New(appName string, appCfg *config.Config, al log.Loggerer) (*Diagnosis, error) {
+	mode := appCfg.StringDefault("runtime.diagnosis.mode", "http")
+	d := &Diagnosis{Config: appCfg, Mode: strings.ToLower(mode), appName: appName, log: al}
 	if d.IsHTTPMode() {
 		d.createHTTPServer()
 	} else {
@@ -97,7 +91,7 @@ func (d *Diagnosis) createHTTPServer() {
 	mux.HandleFunc(d.pathPrefix+"/", d.indexHandler)
 	mux.HandleFunc(d.pathPrefix+"/pprof/", d.dynamicProfileHandler)
 	mux.HandleFunc(d.pathPrefix+"/pprof/cmdline", d.cmdlineHandler)
-	mux.HandleFunc(d.pathPrefix+"/pprof/profile", d.profileHandler)
+	mux.HandleFunc(d.pathPrefix+"/pprof/profile", d.cpuProfileHandler)
 	mux.HandleFunc(d.pathPrefix+"/pprof/symbol", d.symbolHandler)
 	mux.HandleFunc(d.pathPrefix+"/pprof/trace", d.traceHandler)
 	var err error
@@ -113,16 +107,22 @@ func (d *Diagnosis) createHTTPServer() {
 }
 
 func (d *Diagnosis) createFiles() {
-	// Not yet implemented, upcoming feature though :)
+	// Upcoming feature :)
 }
 
-func (d *Diagnosis) cpuProfile(w io.Writer, seconds time.Duration) error {
+func (d *Diagnosis) cpuProfile(w io.Writer, seconds time.Duration, hz int) error {
+	if hz > 0 {
+		runtime.SetCPUProfileRate(hz) // https://golang.org/pkg/runtime/#SetCPUProfileRate
+	}
 	if err := pprof.StartCPUProfile(w); err != nil {
 		return fmt.Errorf("diagnosis: could not enable CPU profiling: %s", err)
 	}
 	if d.IsHTTPMode() {
 		d.sleep(w, seconds)
 		pprof.StopCPUProfile()
+		if hz > 0 {
+			runtime.SetCPUProfileRate(0)
+		}
 	}
 	return nil
 }
@@ -138,13 +138,25 @@ func (d *Diagnosis) trace(w io.Writer, seconds time.Duration) error {
 	return nil
 }
 
-func (d *Diagnosis) doProfileByName(w io.Writer, name string, gc bool, debug int) error {
+func (d *Diagnosis) doProfileByName(w io.Writer, name string, gc bool, debug, val int) error {
 	p := pprof.Lookup(name)
 	if p == nil {
 		return errors.New("diagnosis: unknown profile")
 	}
-	if name == "heap" && gc {
-		runtime.GC()
+	switch name {
+	case "heap":
+		existingRate := runtime.MemProfileRate
+		runtime.MemProfileRate = val // https://golang.org/pkg/runtime/#pkg-variables
+		defer func() { runtime.MemProfileRate = existingRate }()
+		if gc {
+			runtime.GC()
+		}
+	case "block":
+		runtime.SetBlockProfileRate(val) // https://golang.org/pkg/runtime/#SetBlockProfileRate
+		defer func() { runtime.SetBlockProfileRate(0) }()
+	case "mutex":
+		runtime.SetMutexProfileFraction(val) // https://golang.org/pkg/runtime/#SetMutexProfileFraction
+		defer func() { runtime.SetMutexProfileFraction(0) }()
 	}
 	p.WriteTo(w, debug)
 	return nil

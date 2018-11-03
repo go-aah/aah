@@ -25,15 +25,15 @@ import (
 )
 
 var profileDescriptions = map[string]string{
-	"allocs":       "A sampling of all past memory allocations",
-	"block":        "Stack traces that led to blocking on synchronization primitives",
+	"allocs":       "A sampling of all past memory allocations. Supported query params: <code>debug</code>",
+	"block":        "Stack traces that led to blocking on synchronization primitives. Supported query params: <code>debug</code>",
 	"cmdline":      "The command line invocation of the current program",
-	"goroutine":    "Stack traces of all current goroutines",
-	"heap":         "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
-	"mutex":        "Stack traces of holders of contended mutexes",
-	"profile":      "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
-	"threadcreate": "Stack traces that led to the creation of new OS threads",
-	"trace":        "A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate.",
+	"goroutine":    "Stack traces of all current goroutines. Supported query params: <code>debug</code>",
+	"heap":         "A sampling of memory allocations of live objects. Supported query params: <code>debug, gc, rate</code>",
+	"mutex":        "Stack traces of holders of contended mutexes. Supported query params: <code>debug</code>",
+	"profile":      "CPU profile. Supported query params: <code>debug, seconds, hz</code>",
+	"threadcreate": "Stack traces that led to the creation of new OS threads.  Supported query params: <code>debug, seconds</code>",
+	"trace":        "A trace of execution of the current program. Supported query params: <code>debug, seconds</code>",
 	"symbol":       "Symbol looks up the program counters listed in the request, responding with a table mapping program counters to function names.",
 }
 
@@ -58,7 +58,7 @@ func (d *Diagnosis) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Adding other profiles exposed from within this package
-	for _, p := range []string{"cmdline", "profile", "trace", "symbol"} {
+	for _, p := range []string{"cmdline", "profile", "trace"} {
 		profiles = append(profiles, profile{
 			Name: p,
 			Href: p,
@@ -79,7 +79,13 @@ func (d *Diagnosis) indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var indexTmpl = template.Must(template.New("index").Parse(`<!DOCTYPE html>
+var tmplFuncs = template.FuncMap{
+	"safehtml": func(s string) template.HTML {
+		return template.HTML(s)
+	},
+}
+
+var indexTmpl = template.Must(template.New("index").Funcs(tmplFuncs).Parse(`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
@@ -96,10 +102,17 @@ html, body {
 	font-weight: 100;
 	height: 80vh;
 	padding: 25px;
+	padding-top: 10px;
+}
+code {
+	font-family: monospace;
+	white-space: pre;
+	color: #e83e8c;
 }
 .profile-list {
 	width: 100%;
 	border: 0;
+	font-size: 95%;
 }
 .profile-list thead {
 	line-height: 26px;
@@ -123,7 +136,7 @@ html, body {
 </style>
 </head>
 <body>
-<center><h2>Diagnosis: {{ .AppName }}</h2></center><br>
+<center><h2>Diagnosis: {{ .AppName }}</h2></center>
 <br>
 <center>
 <table class="profile-list">
@@ -137,12 +150,35 @@ html, body {
 	<tr>
 		<td class="count">{{ .Count }}</td>
 		<td><a href={{ $.PathPrefix }}/pprof/{{.Href}}>{{ .Name }}</a></td>
-		<td>{{ .Desc }}</td>
+		<td>{{ safehtml .Desc }}</td>
 	</tr>
 {{ end }}
 </tbody>
 </table>
 </center>
+<br>
+<div>
+<h3>Query Parameter(s):</h3>
+<p>Parameter: debug</p>
+<ul>
+<li><code>debug=0</code> - prints only the hexadecimal addresses that pprof needs</li>
+<li><code>debug=1</code> - adds comments translating addresses to function names and line numbers, so that a programmer can read the profile without tools</li>
+<li><code>debug=2</code> - print the goroutine stacks in the same form that a Go program uses when dying due to an unrecovered panic</li>
+</ul>
+<p>Parameter: hz</p>
+<ul>
+<li><code>hz=100</code> - Notes from <code>runtime/pprof/pprof.go</code>: In practice operating systems cannot trigger signals at more than about 500 Hz, and our processing of the signal is not cheap (mostly getting the stack trace). <code>100 Hz</code> is a reasonable choice: it is frequent enough to produce useful data, rare enough not to bog down the system, and a nice round number to make it easy to convert sample counts to seconds. Instead of requiring each client to specify the frequency, so 100hz hard coded Go source code.</li>
+</ul>
+<p>Parameter: gc</p>
+<ul>
+<li><code>gc=1</code> - runs <code>runtime.GC</code> before taking the heap sample</li>
+</ul>
+<p>Parameter: seconds</p>
+<ul>
+<li><code>seconds=60</code> - profiling last for specified duration in seconds before taking or collecting sampling data</li>
+</ul>
+</div>
+<br><br>
 </body>
 </html>
 `))
@@ -160,13 +196,32 @@ func (d *Diagnosis) dynamicProfileHandler(w http.ResponseWriter, r *http.Request
 			}
 			gc, _ := strconv.Atoi(r.FormValue("gc"))
 			debug, _ := strconv.Atoi(r.FormValue("debug"))
+			val, _ := strconv.Atoi(r.FormValue("rate"))
+			filename := d.appName + "-" + name
+			switch name {
+			case "heap":
+				if val == 0 {
+					val = 4096
+				}
+				filename += ".pprof"
+			case "block":
+				if val == 0 {
+					val = 1
+				}
+				filename += ".pprof"
+			case "mutex":
+				if val == 0 {
+					val = 1
+				}
+				filename += ".pprof"
+			}
 			if debug != 0 {
 				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			} else {
 				w.Header().Set("Content-Type", "application/octet-stream")
-				w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, name))
+				w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 			}
-			_ = d.doProfileByName(w, name, gc > 0, debug)
+			_ = d.doProfileByName(w, name, gc > 0, debug, val)
 			return
 		}
 	}
@@ -181,9 +236,9 @@ func (d *Diagnosis) cmdlineHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, strings.Join(os.Args, "\x00"))
 }
 
-// ProfileHandler responds with the pprof-formatted cpu profile.
+// CPUProfileHandler responds with the pprof-formatted cpu profile.
 // Profiling lasts for duration specified in seconds GET parameter, or for 30 seconds if not specified.
-func (d *Diagnosis) profileHandler(w http.ResponseWriter, r *http.Request) {
+func (d *Diagnosis) cpuProfileHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	sec, err := strconv.ParseInt(r.FormValue("seconds"), 10, 64)
 	if sec <= 0 || err != nil {
@@ -194,8 +249,9 @@ func (d *Diagnosis) profileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", `attachment; filename="profile"`)
-	if err := d.cpuProfile(w, time.Duration(sec)*time.Second); err != nil {
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-cpuprofile.pprof"`, d.appName))
+	hz, _ := strconv.Atoi(r.FormValue("hz"))
+	if err := d.cpuProfile(w, time.Duration(sec)*time.Second, hz); err != nil {
 		serveError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -214,7 +270,7 @@ func (d *Diagnosis) traceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", `attachment; filename="trace"`)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-trace.out"`, d.appName))
 	if err := d.trace(w, time.Duration(sec*float64(time.Second))); err != nil {
 		serveError(w, http.StatusInternalServerError, err.Error())
 		return
