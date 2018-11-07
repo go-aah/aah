@@ -178,7 +178,7 @@ func TestAppMisc(t *testing.T) {
 	assert.False(t, a.IsPackaged())
 	a.SetPackaged(true)
 	assert.True(t, a.IsPackaged())
-	assert.True(t, strings.Contains(strings.Join(a.AllProfiles(), " "), "prod"))
+	assert.True(t, strings.Contains(strings.Join(a.EnvProfiles(), " "), "prod"))
 
 	ll := a.NewChildLogger(log.Fields{"key1": "value1"})
 	assert.NotNil(t, ll)
@@ -382,7 +382,7 @@ func newTestApp(t *testing.T, importPath string) *Application {
 	err = a.initPath()
 	assert.Nil(t, err, "app initPath failure")
 	err = a.initConfig()
-	assert.Nil(t, err, "app initConfig failure")	
+	assert.Nil(t, err, "app initConfig failure")
 	err = a.initApp()
 	assert.Nil(t, err, "app init failure")
 

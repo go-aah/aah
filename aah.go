@@ -235,33 +235,23 @@ func (a *Application) SetPackaged(pack bool) {
 	a.settings.PackagedMode = pack
 }
 
-// Profile returns aah application configuration profile name
-// For e.g.: dev, prod, etc. Default is `dev`
-func (a *Application) Profile() string {
+// EnvProfile returns active environment profile name of aah application.
+// For e.g.: dev, prod, etc. Default is `dev`.
+func (a *Application) EnvProfile() string {
 	a.RLock()
 	defer a.RUnlock()
 	return a.settings.EnvProfile
 }
 
-// SetProfile method sets given profile as current aah application profile.
-//		For Example:
-//
-//		aah.SetAppProfile("prod")
-//		aah.SetAppProfile("stage1")
-func (a *Application) SetProfile(profile string) error {
-	a.Lock()
-	defer a.Unlock()
-	return a.settings.SetProfile(profile)
+// IsEnvProfile method returns true if given environment profile match with active
+// environment in aah application otherwise false.
+func (a *Application) IsEnvProfile(envProfile string) bool {
+	return a.EnvProfile() == envProfile
 }
 
-// IsProfile method returns to if given profile matches with active profile
-// otherwise false.
-func (a *Application) IsProfile(profile string) bool {
-	return a.Profile() == profile
-}
-
-// AllProfiles method returns all the aah application available environment profile names.
-func (a *Application) AllProfiles() []string {
+// EnvProfiles method returns all available environment profile names from aah
+// application.
+func (a *Application) EnvProfiles() []string {
 	var profiles []string
 
 	for _, v := range a.Config().KeysByPath("env") {
@@ -782,7 +772,7 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //______________________________________________________________________________
 
 func (a *Application) listenForHotReload() {
-	if !a.settings.HotReloadEnabled || a.IsProfile(settings.DefaultEnvProfile) || !a.IsPackaged() {
+	if !a.settings.HotReloadEnabled || a.IsEnvProfile(settings.DefaultEnvProfile) || !a.IsPackaged() {
 		return
 	}
 	if runtime.GOOS == "windows" && (a.settings.HotReloadSignalStr == "SIGUSR1" ||
@@ -802,7 +792,7 @@ func (a *Application) performHotReload() {
 	a.settings.HotReload = true
 	defer func() { a.settings.HotReload = false }()
 
-	activeProfile := a.Profile()
+	activeProfile := a.EnvProfile()
 
 	a.Log().Info("Application hot-reload and reinitialization starts ...")
 	var err error

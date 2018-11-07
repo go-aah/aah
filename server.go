@@ -44,7 +44,7 @@ func (a *Application) Start() {
 	a.Log().Infof("App Build Version: %s", a.BuildInfo().Version)
 	a.Log().Infof("App Build Timestamp: %s", a.BuildInfo().Timestamp)
 	a.Log().Infof("App Single Binary Mode: %v", a.VFS().IsEmbeddedMode())
-	a.Log().Infof("App Profile: %s", a.Profile())
+	a.Log().Infof("App Profile: %s", a.EnvProfile())
 	a.Log().Infof("App TLS/SSL Enabled: %t", a.IsSSLEnabled())
 	if a.diagnosis != nil {
 		a.Log().Infof("App Diagnosis Enabled: true, mode: %s", a.diagnosis.Mode)
@@ -74,7 +74,7 @@ func (a *Application) Start() {
 		a.Log().Infof("App i18n Locales: %s", strings.Join(a.I18n().Locales(), ", "))
 	}
 
-	if !a.IsProfile(settings.DefaultEnvProfile) {
+	if !a.IsEnvProfile(settings.DefaultEnvProfile) {
 		a.Log().Infof("App Config Hot-Reload Enabled: %v", a.settings.HotReloadEnabled)
 		if a.settings.HotReloadEnabled {
 			a.Log().Infof("App Config Hot-Reload Signal: %s", a.settings.HotReloadSignalStr)

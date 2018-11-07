@@ -68,24 +68,14 @@ type Settings struct {
 	cfg *config.Config
 }
 
-// SetProfile method is to set application environment profile setting.
-func (s *Settings) SetProfile(p string) error {
-	if !strings.HasPrefix(p, ProfilePrefix) {
-		p = ProfilePrefix + p
-	}
-	if err := s.cfg.SetProfile(p); err != nil {
-		return err
-	}
-	s.EnvProfile = strings.TrimPrefix(p, ProfilePrefix)
-	return nil
-}
-
 // Refresh method to parse/infer config values and populate settings instance.
 func (s *Settings) Refresh(cfg *config.Config) error {
 	s.cfg = cfg
 
 	var err error
-	s.SetProfile(s.cfg.StringDefault("env.active", DefaultEnvProfile))
+	if err = s.setEnvProfile(s.cfg.StringDefault("env.active", DefaultEnvProfile)); err != nil {
+		return err
+	}
 	s.SSLEnabled = s.cfg.BoolDefault("server.ssl.enable", false)
 	s.LetsEncryptEnabled = s.cfg.BoolDefault("server.ssl.lets_encrypt.enable", false)
 	s.Redirect = s.cfg.BoolDefault("server.redirect.enable", false)
@@ -172,6 +162,18 @@ func (s *Settings) Refresh(cfg *config.Config) error {
 	}
 	s.ShutdownGraceTimeout, _ = time.ParseDuration(s.ShutdownGraceTimeStr)
 
+	return nil
+}
+
+// SetEnvProfile method is to set application environment profile value.
+func (s *Settings) setEnvProfile(p string) error {
+	if !strings.HasPrefix(p, ProfilePrefix) {
+		p = ProfilePrefix + p
+	}
+	if err := s.cfg.SetProfile(p); err != nil {
+		return err
+	}
+	s.EnvProfile = strings.TrimPrefix(p, ProfilePrefix)
 	return nil
 }
 

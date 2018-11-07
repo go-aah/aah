@@ -389,7 +389,7 @@ func (e *HTTPEngine) writeOnWire(ctx *Context) {
 	// since we can't do anything after that.
 	// It could be network error, client is gone, etc.
 	if re.isHTML() {
-		if e.a.IsProfile(settings.DefaultEnvProfile) || !e.minifierExists() {
+		if e.a.IsEnvProfile(settings.DefaultEnvProfile) || !e.minifierExists() {
 			if _, err := re.body.WriteTo(w); err != nil {
 				ctx.Log().Error(err)
 			}

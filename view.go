@@ -84,7 +84,7 @@ func (a *Application) initView() error {
 
 	a.viewMgr = viewMgr
 	a.SecurityManager().AntiCSRF.Enabled = true
-	a.viewMgr.setHotReload(a.IsProfile(settings.DefaultEnvProfile) && !a.IsPackaged())
+	a.viewMgr.setHotReload(a.IsEnvProfile(settings.DefaultEnvProfile) && !a.IsPackaged())
 
 	return nil
 }
@@ -174,7 +174,7 @@ func (vm *viewManager) resolve(ctx *Context) {
 			}
 
 			ctx.Log().Errorf("template not found: %s", tmplFile)
-			if vm.a.IsProfile("prod") {
+			if vm.a.IsEnvProfile("prod") {
 				htmlRdr.ViewArgs["ViewNotFound"] = "View Not Found"
 			} else {
 				htmlRdr.ViewArgs["ViewNotFound"] = "View Not Found: " + tmplFile
@@ -204,7 +204,7 @@ func (vm *viewManager) addFrameworkValuesIntoViewArgs(ctx *Context) {
 		html.ViewArgs[KeyViewArgSubject] = ctx.Subject()
 	}
 
-	html.ViewArgs["EnvProfile"] = vm.a.Profile()
+	html.ViewArgs["EnvProfile"] = vm.a.EnvProfile()
 	html.ViewArgs["AppBuildInfo"] = vm.a.BuildInfo()
 }
 
