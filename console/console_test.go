@@ -24,10 +24,7 @@ func TestConsoleMisc(t *testing.T) {
 
 	ShowVersion(ctx)
 
-	VersionFlag(BoolFlag{
-		Name:  "v, version",
-		Usage: "Prints test app version",
-	})
+	VersionFlagDesc("Prints test app version")
 
 	cli.AppHelpTemplate = ""
 	cli.CommandHelpTemplate = ""

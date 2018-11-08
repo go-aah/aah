@@ -23,12 +23,14 @@ import (
 func (a *Application) initCli() {
 	bi := a.BuildInfo()
 	a.cli.Name = bi.BinaryName
-	a.cli.Description = a.Desc()
+	a.cli.Usage = a.Config().StringDefault("usage", "")
+	a.cli.Description = a.Desc()	
 	if ts, err := time.Parse(time.RFC3339, bi.Timestamp); err == nil {
 		a.cli.Compiled = ts
 	}
 	a.cli.Version = bi.Version
 	a.cli.Copyright = a.Config().StringDefault("copyrights", "")
+	a.cli.Metadata["BuildTimestamp"] = bi.Timestamp
 	a.cli.Commands = append([]console.Command{a.cliCmdRun(), a.cliCmdVfs()}, a.cli.Commands...)
 	a.cli.Commands = append(a.cli.Commands, a.cliCmdHelp())
 	a.cli.HideHelp = true
@@ -50,10 +52,7 @@ func (a *Application) initCli() {
 		console.ShowAppHelp(c)
 		return nil
 	}
-	console.VersionFlag(console.BoolFlag{
-		Name:  "version, v",
-		Usage: "Print app build information",
-	})
+	console.VersionFlagDesc("Print app build information")
 	console.VersionPrinter(func(c *console.Context) {
 		fmt.Fprintf(c.App.Writer, "App Build Info\n")
 		fmt.Fprintf(c.App.Writer, "--------------\n")

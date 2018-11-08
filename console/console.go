@@ -2,8 +2,8 @@
 // Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-// Package console provides a feature to implementation CLI commands into your
-// aah application easily and manageable.
+// Package console provides a feature to implement CLI commands into your
+// aah application easily and extensible.
 package console
 
 import (
@@ -73,6 +73,7 @@ type (
 func NewApp() *Application {
 	a := cli.NewApp()
 	a.Usage = "A console application"
+	a.Metadata = make(map[string]interface{})
 	return a
 }
 
@@ -111,14 +112,14 @@ func ShowVersion(c *Context) {
 	cli.ShowVersion(c)
 }
 
-// VersionFlag method customized flag name, desc for VersionFlag.
-func VersionFlag(f BoolFlag) {
-	cli.VersionFlag = f
+// VersionFlagDesc method customized flag name, desc for VersionFlag.
+func VersionFlagDesc(desc string) {
+	cli.VersionFlag = BoolFlag{Name: "version, v", Usage: desc}
 }
 
-// HelpFlag method customized flag name, desc for HelpFlag.
-func HelpFlag(f BoolFlag) {
-	cli.HelpFlag = f
+// HelpFlagDesc method customized flag name, desc for HelpFlag.
+func HelpFlagDesc(desc string) {
+	cli.HelpFlag = BoolFlag{Name: "help, h", Usage: desc}
 }
 
 // VersionPrinter method set custom func for version printer.
@@ -152,7 +153,10 @@ Usage:
 	{{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}{{if .Version}}{{if not .HideVersion}}
 
 Version:
-	{{.Version}}{{end}}{{end}}{{if .Description}}
+	{{.Version}}{{end}}{{end}}{{if (index .Metadata "BuildTimestamp")}}
+	
+Build Timestamp:
+	{{index .Metadata "BuildTimestamp"}}{{end}}{{if .Description}}
 
 Description:
 	{{.Description}}{{end}}{{if len .Authors}}
