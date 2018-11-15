@@ -17,14 +17,13 @@ import (
 	"aahframe.work/config"
 	"aahframe.work/console"
 	"aahframe.work/essentials"
-	"aahframe.work/internal/util"
 )
 
 func (a *Application) initCli() {
 	bi := a.BuildInfo()
 	a.cli.Name = bi.BinaryName
 	a.cli.Usage = a.Config().StringDefault("usage", "")
-	a.cli.Description = a.Desc()	
+	a.cli.Description = a.Desc()
 	if ts, err := time.Parse(time.RFC3339, bi.Timestamp); err == nil {
 		a.cli.Compiled = ts
 	}
@@ -85,8 +84,8 @@ func (a *Application) cliCmdRun() console.Command {
 	return console.Command{
 		Name:        "run",
 		Aliases:     []string{"r"},
-		Usage:       "Runs application binary",
-		Description: `Runs application binary.`,
+		Usage:       "Runs application server",
+		Description: `Runs application server.`,
 		Flags: []console.Flag{
 			console.StringFlag{
 				Name:  "envprofile, e",
@@ -97,15 +96,15 @@ func (a *Application) cliCmdRun() console.Command {
 				Name:  "config, c",
 				Usage: "External config `FILE` for adding or overriding 'config/**/*.conf' values",
 			},
-			console.StringFlag{Name: "importpath", Hidden: true},
-			console.StringFlag{Name: "proxyport", Hidden: true},
+			console.StringFlag{Name: "importpath", Hidden: true}, // For aah CLI purpose
+			console.StringFlag{Name: "proxyport", Hidden: true},  // For aah CLI purpose
 		},
 		Action: func(c *console.Context) error {
 			a.Log().Infof("aah framework v%s, requires >= go1.11", a.BuildInfo().AahVersion)
 			a.settings.ImportPath = c.String("importpath")
 
 			// External config file
-			extCfgFile := util.FirstNonEmpty(c.String("c"), c.String("config"))
+			extCfgFile := c.String("config")
 			if !ess.IsStrEmpty(extCfgFile) {
 				cpath, err := filepath.Abs(extCfgFile)
 				if err != nil {
@@ -120,7 +119,7 @@ func (a *Application) cliCmdRun() console.Command {
 				}
 			}
 
-			envProfile := util.FirstNonEmpty(c.String("e"), c.String("envprofile"))
+			envProfile := c.String("envprofile")
 			if !ess.IsStrEmpty(envProfile) {
 				a.Config().SetString("env.active", envProfile)
 			}
@@ -193,13 +192,12 @@ func (a *Application) cliCmdVfs() console.Command {
 					},
 				},
 				Action: func(c *console.Context) error {
-					pattern := util.FirstNonEmpty(c.String("p"), c.String("pattern"))
 					if !a.VFS().IsEmbeddedMode() {
 						fmt.Fprintf(c.App.Writer, "'%s' binary does not have embedded files or not a single binary build.\n",
 							a.BuildInfo().BinaryName)
 						return nil
 					}
-					regex, err := regexp.Compile(pattern)
+					regex, err := regexp.Compile(c.String("pattern"))
 					if err != nil {
 						return err
 					}

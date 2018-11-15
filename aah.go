@@ -421,18 +421,20 @@ func (a *Application) AddValueParser(typ reflect.Type, parser valpar.Parser) err
 }
 
 // AddCommand method adds the aah application CLI commands. Introduced in v0.12.0 release
-// aah app binary fully compliant using module console and POSIX flags.
-func (a *Application) AddCommand(cmd console.Command) error {
-	name := strings.ToLower(cmd.Name)
-	if name == "run" || name == "vfs" || name == "help" {
-		return fmt.Errorf("aah: reserved command name '%s' cannot be used", name)
-	}
-	for _, c := range a.cli.Commands {
-		if c.Name == name {
-			return fmt.Errorf("aah: command name '%s' already exists", name)
+// aah application binary fully compliant using module console and POSIX flags.
+func (a *Application) AddCommand(cmds ...console.Command) error {
+	for _, cmd := range cmds {
+		name := strings.ToLower(cmd.Name)
+		if name == "run" || name == "vfs" || name == "help" {
+			return fmt.Errorf("aah: reserved command name '%s' cannot be used", name)
 		}
+		for _, c := range a.cli.Commands {
+			if c.Name == name {
+				return fmt.Errorf("aah: command name '%s' already exists", name)
+			}
+		}
+		a.cli.Commands = append(a.cli.Commands, cmd)
 	}
-	a.cli.Commands = append(a.cli.Commands, cmd)
 	return nil
 }
 
