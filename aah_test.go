@@ -394,6 +394,10 @@ func newTestApp(t *testing.T, importPath string) *Application {
 	assert.Nil(t, err, "app initPath failure")
 	err = a.initConfig()
 	assert.Nil(t, err, "app initConfig failure")
+	err = a.settings.Refresh(a.Config())
+	assert.Nil(t, err, "app settings failure")
+	err = a.initLog()
+	assert.Nil(t, err, "app log failure")
 	err = a.initApp()
 	assert.Nil(t, err, "app init failure")
 

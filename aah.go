@@ -477,10 +477,17 @@ func (a *Application) ValidateValue(v interface{}, rules string) bool {
 // If anything goes wrong during an initialize process, it would return an error.
 func (a *Application) Run(args []string) error {
 	var err error
+	a.settings.SetImportPath(args) // only needed for development via CLI
 	if err = a.initPath(); err != nil {
 		return err
 	}
 	if err = a.initConfig(); err != nil {
+		return err
+	}
+	if err = a.settings.Refresh(a.Config()); err != nil {
+		return err
+	}
+	if err = a.initLog(); err != nil {
 		return err
 	}
 	a.initCli()
@@ -564,14 +571,7 @@ func (a *Application) initApp() error {
 	for event := range a.EventStore().subscribers {
 		a.EventStore().sortEventSubscribers(event)
 	}
-	// publish `OnInit` server event
-	a.EventStore().PublishSync(&Event{Name: EventOnInit})
-	if err = a.settings.Refresh(a.Config()); err != nil {
-		return err
-	}
-	if err = a.initLog(); err != nil {
-		return err
-	}
+	a.EventStore().PublishSync(&Event{Name: EventOnInit}) // publish `OnInit` server event
 	if err = a.initI18n(); err != nil {
 		return err
 	}

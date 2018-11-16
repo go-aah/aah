@@ -165,6 +165,16 @@ func (s *Settings) Refresh(cfg *config.Config) error {
 	return nil
 }
 
+// SetImportPath method process import path and sets it into settings instance.
+func (s *Settings) SetImportPath(args []string) {
+	for i, arg := range args {
+		if arg == "--importpath" {
+			s.ImportPath = args[i+1]
+			break
+		}
+	}
+}
+
 // SetEnvProfile method is to set application environment profile value.
 func (s *Settings) setEnvProfile(p string) error {
 	if !strings.HasPrefix(p, ProfilePrefix) {

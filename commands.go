@@ -101,7 +101,6 @@ func (a *Application) cliCmdRun() console.Command {
 		},
 		Action: func(c *console.Context) error {
 			a.Log().Infof("aah framework v%s, requires >= go1.11", a.BuildInfo().AahVersion)
-			a.settings.ImportPath = c.String("importpath")
 
 			// External config file
 			extCfgFile := c.String("config")

@@ -227,12 +227,15 @@ func (es *EventStore) Publish(e *Event) {
 		return
 	}
 	es.a.Log().Debugf("Publishing event '%s' in asynchronous mode", e.Name)
+	wg := sync.WaitGroup{}
 	for idx, ec := range es.subscribers[e.Name] {
 		if ec.CallOnce {
 			if !ec.published {
-				go func(event *Event, ecb EventCallbackFunc) {
+				wg.Add(1)
+				go func(w *sync.WaitGroup, event *Event, ecb EventCallbackFunc) {
+					defer w.Done()
 					ecb(event)
-				}(e, ec.Callback)
+				}(&wg, e, ec.Callback)
 				es.mu.Lock()
 				es.subscribers[e.Name][idx].published = true
 				es.mu.Unlock()
@@ -240,10 +243,13 @@ func (es *EventStore) Publish(e *Event) {
 			continue
 		}
 
-		go func(event *Event, ecb EventCallbackFunc) {
+		wg.Add(1)
+		go func(w *sync.WaitGroup, event *Event, ecb EventCallbackFunc) {
+			defer w.Done()
 			ecb(event)
-		}(e, ec.Callback)
+		}(&wg, e, ec.Callback)
 	}
+	wg.Wait()
 }
 
 // PublishSync method publishes events to subscribed callbacks synchronously.
