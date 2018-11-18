@@ -161,19 +161,32 @@ func (a *Application) Name() string {
 
 // InstanceName method returns aah application instane name from app config
 // `instance_name` otherwise empty string.
+//
+// Value of `instance_name` from `aah.conf`.
 func (a *Application) InstanceName() string {
 	return a.Config().StringDefault("instance_name", "")
 }
 
 // Type method returns aah application type info e.g.: web, api, websocket.
+//
+// Value of `type` from `aah.conf`.
 func (a *Application) Type() string {
 	return a.Config().StringDefault("type", "")
 }
 
 // Desc method returns aah application friendly description from app config
 // otherwise empty string.
+//
+// Value of `desc` from `aah.conf`.
 func (a *Application) Desc() string {
 	return a.Config().StringDefault("desc", "")
+}
+
+// Copyrights method returns application copyrights info from configuration.
+//
+// Value of `copyrights` from `aah.conf`.
+func (a *Application) Copyrights() string {
+	return a.Config().StringDefault("copyrights", "© aah framework")
 }
 
 // BaseDir method returns the application base or binary's base directory
@@ -199,6 +212,8 @@ func (a *Application) ImportPath() string {
 }
 
 // HTTPAddress method returns aah application HTTP address otherwise empty string
+//
+// Value of `server.address` from `aah.conf`.
 func (a *Application) HTTPAddress() string {
 	return a.Config().StringDefault("server.address", "")
 }
@@ -237,6 +252,8 @@ func (a *Application) SetPackaged(pack bool) {
 
 // EnvProfile returns active environment profile name of aah application.
 // For e.g.: dev, prod, etc. Default is `dev`.
+//
+// Value of `env.active` from `aah.conf`.
 func (a *Application) EnvProfile() string {
 	a.RLock()
 	defer a.RUnlock()
@@ -278,6 +295,8 @@ func (a *Application) IsLetsEncryptEnabled() bool {
 
 // IsWebSocketEnabled method returns to true if aah application enabled with
 // WebSocket feature.
+//
+// Value of `server.websocket.enable` from `aah.conf`.
 func (a *Application) IsWebSocketEnabled() bool {
 	return a.cfg.BoolDefault("server.websocket.enable", false)
 }
