@@ -28,7 +28,7 @@ func (a *Application) initCli() {
 		a.cli.Compiled = ts
 	}
 	a.cli.Version = bi.Version
-	a.cli.Copyright = a.Config().StringDefault("copyrights", "")
+	a.cli.Copyright = a.Config().StringDefault("copyright", "")
 	a.cli.Metadata["BuildTimestamp"] = bi.Timestamp
 	a.cli.Commands = append([]console.Command{a.cliCmdRun(), a.cliCmdVfs()}, a.cli.Commands...)
 	a.cli.Commands = append(a.cli.Commands, a.cliCmdHelp())

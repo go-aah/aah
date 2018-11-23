@@ -173,7 +173,7 @@ Global Options:
 	{{range $index, $option := .VisibleFlags}}{{if $index}}
 	{{end}}{{$option}}{{end}}{{end}}{{if .Copyright}}
 
-Copyrights:
+Copyright:
 	{{.Copyright}}{{end}}
 `)
 
