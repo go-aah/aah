@@ -3,7 +3,7 @@ module aahframe.work
 require (
 	cloud.google.com/go v0.30.0 // indirect
 	github.com/davecgh/go-spew v1.1.1
-	github.com/go-aah/forge v0.0.0-20181012163755-64756c63c547
+	github.com/go-aah/forge v0.6.0
 	github.com/go-playground/locales v0.12.1 // indirect
 	github.com/go-playground/universal-translator v0.16.0 // indirect
 	github.com/gobwas/httphead v0.0.0-20180130184737-2c6c146eadee // indirect

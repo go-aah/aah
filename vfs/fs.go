@@ -186,18 +186,16 @@ func (v *VFS) FindMount(name string) (*Mount, error) {
 // mounted source directory into binary for single binary build.
 func (v *VFS) AddMount(mountPath, physicalPath string) error {
 	pp := filepath.Clean(physicalPath)
-	if !filepath.IsAbs(physicalPath) {
-		return ErrNotAbsolutPath
-	}
-
 	if !v.embeddedMode {
+		if !filepath.IsAbs(physicalPath) {
+			return ErrNotAbsolutPath
+		}
 		fi, err := os.Lstat(pp)
 		if err != nil {
 			return err
 		}
-
 		if !fi.IsDir() {
-			return &os.PathError{Op: "addmount", Path: pp, Err: errors.New("is a file")}
+			return &os.PathError{Op: "addmount", Path: pp, Err: errors.New("vfs: is a file")}
 		}
 	}
 
