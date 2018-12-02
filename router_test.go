@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframe.work/ahttp"
+	"aahframe.work/router"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRouterTemplateFuncs(t *testing.T) {
@@ -47,12 +47,6 @@ func TestRouterTemplateFuncs(t *testing.T) {
 
 	url4 := vm.tmplURL(viewArgs, "host")
 	assert.Equal(t, "//localhost:8080", string(url4))
-}
-
-func TestRouterMisc(t *testing.T) {
-	domain := &router.Domain{Host: "localhost"}
-	result := composeRouteURL("localhost", domain, "/path", "my-head")
-	assert.Equal(t, "//localhost/path#my-head", result)
 }
 
 func TestRouterCORS(t *testing.T) {

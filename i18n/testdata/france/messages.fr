@@ -1,0 +1,8 @@
+# sample testdata for i18n - fr
+
+label {
+  paginate {
+    prev = "Précédent"
+    next = "Suivant"
+  }
+}

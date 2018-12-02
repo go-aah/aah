@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -9,8 +9,11 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"strings"
 
-	"aahframework.org/ahttp.v0"
+	"aahframe.work/ahttp"
+	"aahframe.work/essentials"
+	"aahframe.work/internal/util"
 )
 
 // aah errors
@@ -108,7 +111,7 @@ type ErrorHandler interface {
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) initError() error {
+func (a *Application) initError() error {
 	a.errorMgr = &errorManager{
 		a: a,
 	}
@@ -120,14 +123,14 @@ func (a *app) initError() error {
 //______________________________________________________________________________
 
 type errorManager struct {
-	a           *app
+	a           *Application
 	handlerFunc ErrorHandlerFunc
 }
 
 func (er *errorManager) SetHandler(handlerFn ErrorHandlerFunc) {
 	if handlerFn != nil {
 		er.handlerFunc = handlerFn
-		er.a.Log().Infof("Custom centralized application error handler is registered with: %v", funcName(handlerFn))
+		er.a.Log().Infof("Custom centralized application error handler is registered with: %v", ess.GetFunctionInfo(handlerFn).QualifiedName)
 	}
 }
 
@@ -161,13 +164,13 @@ func (er *errorManager) Handle(ctx *Context) {
 func (er *errorManager) DefaultHandler(ctx *Context, err *Error) bool {
 	ct := ctx.Reply().ContType
 	if len(ct) == 0 {
-		ct = ctx.detectContentType().Mime
-		if ctx.a.viewMgr == nil && ct == ahttp.ContentTypeHTML.Mime {
+		ct = ctx.detectContentType()
+		if ctx.a.viewMgr == nil && strings.HasPrefix(ct, ahttp.ContentTypeHTML.Mime) {
 			ct = ahttp.ContentTypePlainText.Mime
 		}
 	}
 
-	ct = stripCharset(ct)
+	ct = util.OnlyMIME(ct)
 
 	// Set HTTP response code
 	ctx.Reply().Status(err.Code)

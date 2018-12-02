@@ -1,0 +1,5 @@
+ignore:
+  - "ainsp"
+  - "aruntime/diagnosis"  
+  - "internal/**/*"
+  - "commands.go"

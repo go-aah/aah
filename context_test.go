@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -9,11 +9,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframe.work/ahttp"
+	"aahframe.work/config"
+	"aahframe.work/log"
+	"aahframe.work/router"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestContextSubdomain(t *testing.T) {

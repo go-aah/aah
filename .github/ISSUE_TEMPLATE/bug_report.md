@@ -1,12 +1,10 @@
 ---
 name: Bug report
-about: Create a report to help us improve aah
+about: Create a report to help us improve aah framework
 
 ---
 
-Please answer these questions before submitting your issue. Thanks!
-
-
+<!-- Please answer these questions before submitting your issue. Thanks! -->
 #### What version of aah are you using (`aah --version`)?
 
 
@@ -18,7 +16,7 @@ Please answer these questions before submitting your issue. Thanks!
 
 #### What did you do?
 
-If possible, provide a recipe for reproducing the error. A complete runnable program is good. Attach the project archive with issue.
+<!-- If possible, provide a recipe for reproducing the error. A complete runnable program is good. Attach the project archive with issue. -->
 
 
 #### What did you expect to see?
@@ -29,4 +27,4 @@ If possible, provide a recipe for reproducing the error. A complete runnable pro
 
 #### Additional context
 
-Add any other context about the problem here.
+<!-- Add any other context about the problem here. -->

@@ -1,0 +1,18 @@
+This license file contains the 3rd party libraries DIRECTLY used for aah main library.
+
+MIT License Libraries
+---------------------
+    - github.com/urfave/cli
+    - github.com/brettlangdon/forge
+    - gopkg.in/go-playground/validator.v9
+    - github.com/gobwas/ws
+    - github.com/stretchr/testify
+
+BSD 3-Clause License Libraries
+------------------------------
+    - github.com/radovskyb/watcher
+    - golang.org/x/oauth2
+    - golang.org/x/crypto
+    - golang.org/x/net
+
+Note: aah on-demand libraries has mentioning of 3rd party libraries used by that library respectively.

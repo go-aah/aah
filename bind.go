@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -13,10 +13,9 @@ import (
 	"regexp"
 	"strings"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/valpar.v0"
-	"gopkg.in/go-playground/validator.v9"
+	"aahframe.work/ahttp"
+	"aahframe.work/essentials"
+	"aahframe.work/valpar"
 )
 
 const (
@@ -33,58 +32,6 @@ var (
 )
 
 type requestParser func(ctx *Context) flowResult
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package method
-//______________________________________________________________________________
-
-// AddValueParser method adds given custom value parser for the `reflect.Type`
-func AddValueParser(typ reflect.Type, parser valpar.Parser) error {
-	return valpar.AddValueParser(typ, parser)
-}
-
-// Validator method return the default validator of aah framework.
-//
-// Refer to https://godoc.org/gopkg.in/go-playground/validator.v9 for detailed
-// documentation.
-func Validator() *validator.Validate {
-	return valpar.Validator()
-}
-
-// Validate method is to validate struct via underneath validator.
-//
-// Returns:
-//
-//  - For validation errors: returns `validator.ValidationErrors` and nil
-//
-//  - For invalid input: returns nil, error (invalid input such as nil, non-struct, etc.)
-//
-//  - For no validation errors: nil, nil
-func Validate(s interface{}) (validator.ValidationErrors, error) {
-	return valpar.Validate(s)
-}
-
-// ValidateValue method is to validate individual value on demand.
-//
-// Returns -
-//
-//  - true: validation passed
-//
-//  - false: validation failed
-//
-// For example:
-//
-// 	i := 15
-// 	result := valpar.ValidateValue(i, "gt=1,lt=10")
-//
-// 	emailAddress := "sample@sample"
-// 	result := valpar.ValidateValue(emailAddress, "email")
-//
-// 	numbers := []int{23, 67, 87, 23, 90}
-// 	result := valpar.ValidateValue(numbers, "unique")
-func ValidateValue(v interface{}, rules string) bool {
-	return valpar.ValidateValue(v, rules)
-}
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Bind Middleware
@@ -131,7 +78,7 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 		ctx.Req.Unwrap().Body = http.MaxBytesReader(ctx.Res, ctx.Req.Body(), ctx.route.MaxBodySize)
 
 		// Set the tee reader if dump log enabled with request body enabled
-		if ctx.a.dumpLogEnabled && ctx.a.dumpLog.logRequestBody {
+		if ctx.a.settings.DumpLogEnabled && ctx.a.dumpLog.logRequestBody {
 			reqBuf := acquireBuffer()
 			ctx.Req.Unwrap().Body = ioutil.NopCloser(io.TeeReader(ctx.Req.Body(), reqBuf))
 			ctx.Set(keyAahRequestBodyBuf, reqBuf)
@@ -152,7 +99,7 @@ func BindMiddleware(ctx *Context, m *Middleware) {
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) initBind() error {
+func (a *Application) initBind() error {
 	cfg := a.Config()
 
 	bindMgr := &bindManager{
@@ -280,7 +227,7 @@ func (ctx *Context) parseParameters() ([]reflect.Value, *Error) {
 
 		// Apply Validation for type `struct`
 		if val.Kind == reflect.Struct {
-			if errs, _ := Validate(result.Interface()); errs != nil {
+			if errs, _ := ctx.a.Validate(result.Interface()); errs != nil {
 				ctx.Log().Errorf("Param validation failed [name: %s, type: %s], Validation Errors:\n%v",
 					val.Name, val.Type, errs.Error())
 				return nil, newErrorWithData(ErrValidation, http.StatusBadRequest, errs)
@@ -300,8 +247,8 @@ func (ctx *Context) createParams() url.Values {
 	for _, priority := range ctx.a.bindMgr.autobindPriority {
 		switch priority {
 		case "P": // Path Values
-			for k, v := range ctx.Req.PathParams {
-				params.Set(k, v)
+			for _, p := range ctx.Req.URLParams {
+				params.Set(p.Key, p.Value)
 			}
 		case "F": // Form Values
 			for k, v := range ctx.Req.Unwrap().Form {
@@ -314,4 +261,11 @@ func (ctx *Context) createParams() url.Values {
 		}
 	}
 	return params
+}
+
+func reverseSlice(s []string) []string {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+	return s
 }

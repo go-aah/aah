@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -14,8 +14,9 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframe.work/ahttp"
+	"aahframe.work/internal/util"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStaticFilesDelivery(t *testing.T) {
@@ -105,7 +106,7 @@ func TestStaticDetectContentType(t *testing.T) {
 		{
 			label:    "javascript",
 			filename: "file.js",
-			result:   "application/javascript",
+			result:   "application/javascript; charset=utf-8",
 		},
 		{
 			label:    "txt",
@@ -115,7 +116,7 @@ func TestStaticDetectContentType(t *testing.T) {
 		{
 			label:    "xml",
 			filename: "file.xml",
-			result:   "application/xml",
+			result:   "application/xml; charset=utf-8",
 		},
 		{
 			label:    "css",
@@ -131,13 +132,13 @@ func TestStaticDetectContentType(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.label, func(t *testing.T) {
-			v, _ := detectFileContentType(tc.filename, nil)
+			v, _ := util.DetectFileContentType(tc.filename, nil)
 			assert.Equal(t, tc.result, v)
 		})
 	}
 
 	content, _ := ioutil.ReadFile(filepath.Join(testdataBaseDir(), "test-image.noext"))
-	v, _ := detectFileContentType("test-image.noext", bytes.NewReader(content))
+	v, _ := util.DetectFileContentType("test-image.noext", bytes.NewReader(content))
 	assert.Equal(t, "image/png", v)
 }
 

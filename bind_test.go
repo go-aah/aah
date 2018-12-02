@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframe.work/ahttp"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBindParamContentNegotiation(t *testing.T) {
@@ -60,7 +60,8 @@ func TestBindParamContentNegotiation(t *testing.T) {
 }
 
 func TestBindAddValueParser(t *testing.T) {
-	err := AddValueParser(reflect.TypeOf(time.Time{}), func(key string, typ reflect.Type, params url.Values) (reflect.Value, error) {
+	app := newApp()
+	err := app.AddValueParser(reflect.TypeOf(time.Time{}), func(key string, typ reflect.Type, params url.Values) (reflect.Value, error) {
 		return reflect.Value{}, nil
 	})
 	assert.NotNil(t, err)
@@ -68,32 +69,33 @@ func TestBindAddValueParser(t *testing.T) {
 }
 
 func TestBindValidatorWithValue(t *testing.T) {
-	assert.NotNil(t, Validator())
+	app := newApp()
+	assert.NotNil(t, app.Validator())
 
 	// Validation failed
 	i := 15
-	result := ValidateValue(i, "gt=1,lt=10")
+	result := app.ValidateValue(i, "gt=1,lt=10")
 	assert.False(t, result)
 
 	emailAddress := "sample@sample"
-	result = ValidateValue(emailAddress, "required,email")
+	result = app.ValidateValue(emailAddress, "required,email")
 	assert.False(t, result)
 
 	numbers := []int{23, 67, 87, 23, 90}
-	result = ValidateValue(numbers, "unique")
+	result = app.ValidateValue(numbers, "unique")
 	assert.False(t, result)
 
 	// validation pass
 	i = 9
-	result = ValidateValue(i, "gt=1,lt=10")
+	result = app.ValidateValue(i, "gt=1,lt=10")
 	assert.True(t, result)
 
 	emailAddress = "sample@sample.com"
-	result = ValidateValue(emailAddress, "required,email")
+	result = app.ValidateValue(emailAddress, "required,email")
 	assert.True(t, result)
 
 	numbers = []int{23, 67, 87, 56, 90}
-	result = ValidateValue(numbers, "unique")
+	result = app.ValidateValue(numbers, "unique")
 	assert.True(t, result)
 }
 
@@ -111,8 +113,7 @@ func TestBindParamTemplateFuncs(t *testing.T) {
 	_ = req1.ParseForm()
 
 	aahReq1 := ahttp.ParseRequest(req1, &ahttp.Request{})
-	aahReq1.PathParams = ahttp.PathParams{}
-	aahReq1.PathParams["userId"] = "100001"
+	aahReq1.URLParams = ahttp.URLParams{{Key: "userId", Value: "100001"}}
 
 	viewArgs := map[string]interface{}{}
 	viewArgs[KeyViewArgRequest] = aahReq1

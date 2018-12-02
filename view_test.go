@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -12,11 +12,11 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/test.v0/assert"
-	"aahframework.org/view.v0"
+	"aahframe.work/ahttp"
+	"aahframe.work/ainsp"
+	"aahframe.work/essentials"
+	"aahframe.work/view"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestViewStore(t *testing.T) {
@@ -99,14 +99,14 @@ func TestViewResolveView(t *testing.T) {
 
 	// Namespace/Sub-package
 	t.Log("Namespace/Sub-package")
-	ts.app.envProfile = "prod"
+	ts.app.settings.EnvProfile = "prod"
 	ctx.controller = &ainsp.Target{Type: reflect.TypeOf(AppController{}), Namespace: "frontend"}
 	ctx.Reply().HTMLf("index.html", Data{})
 	vm.resolve(ctx)
 	htmlRdr = ctx.Reply().Rdr.(*htmlRender)
 	assert.Equal(t, "index.html", htmlRdr.Filename)
 	assert.Equal(t, "View Not Found", htmlRdr.ViewArgs["ViewNotFound"])
-	ts.app.envProfile = "dev"
+	ts.app.settings.EnvProfile = "dev"
 }
 
 func TestViewMinifier(t *testing.T) {
@@ -131,20 +131,4 @@ func TestViewMinifier(t *testing.T) {
 		t.Log("this is second set", contentType, w, r)
 		return nil
 	})
-}
-
-func TestViewDefaultContentType(t *testing.T) {
-	assert.Nil(t, resolveDefaultContentType(""))
-
-	v1 := resolveDefaultContentType("html")
-	assert.Equal(t, "text/html; charset=utf-8", v1.Raw())
-
-	v2 := resolveDefaultContentType("xml")
-	assert.Equal(t, "application/xml; charset=utf-8", v2.Raw())
-
-	v3 := resolveDefaultContentType("json")
-	assert.Equal(t, "application/json; charset=utf-8", v3.Raw())
-
-	v4 := resolveDefaultContentType("text")
-	assert.Equal(t, "text/plain; charset=utf-8", v4.Raw())
 }

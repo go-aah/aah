@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -8,7 +8,8 @@ import (
 	"net/http"
 	"reflect"
 
-	"aahframework.org/log.v0"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
 )
 
 const (
@@ -29,7 +30,7 @@ type MiddlewareFunc func(ctx *Context, m *Middleware)
 // ToMiddleware method expands the possibilities. It helps aah users to
 // register the third-party or your own net/http middleware into `aah.MiddlewareFunc`.
 //
-// It is highly recommened refactored to `aah.MiddlewareFunc`.
+// It is highly recommended to refactored to `aah.MiddlewareFunc`.
 //
 //    You can register below handler types:
 //
@@ -51,7 +52,7 @@ func ToMiddleware(handler interface{}) MiddlewareFunc {
 	case func(http.ResponseWriter, *http.Request):
 		return ToMiddleware(http.HandlerFunc(handler.(func(http.ResponseWriter, *http.Request))))
 	default:
-		log.Errorf("Not a vaild handler: %s", funcName(handler))
+		log.Errorf("Not a vaild handler: %s", ess.GetFunctionInfo(handler).QualifiedName)
 		return nil
 	}
 }
@@ -128,7 +129,6 @@ type finallyInterceptor interface {
 func ActionMiddleware(ctx *Context, m *Middleware) {
 	if err := ctx.setTarget(ctx.route); err == errTargetNotFound {
 		// No controller or action found for the route
-		ctx.Log().Warnf("Target not found, Controller: %s, Action: %s", ctx.route.Target, ctx.route.Action)
 		ctx.Reply().NotFound().Error(newError(ErrControllerOrActionNotFound, http.StatusNotFound))
 		return
 	}
@@ -182,15 +182,17 @@ func ActionMiddleware(ctx *Context, m *Middleware) {
 		}
 	}
 
-	// Parse Action Parameters
-	actionArgs, err := ctx.parseParameters()
-	if err != nil { // Any error of parameter parsing result in 400 Bad Request
-		ctx.Reply().BadRequest().Error(err)
-		return
-	}
+	if !ctx.abort {
+		// Parse Action Parameters
+		actionArgs, err := ctx.parseParameters()
+		if err != nil { // Any error of parameter parsing result in 400 Bad Request
+			ctx.Reply().BadRequest().Error(err)
+			return
+		}
 
-	ctx.Log().Debugf("Calling action: %s.%s", ctx.controller.FqName, ctx.action.Name)
-	ctx.actionrv.Call(actionArgs)
+		ctx.Log().Debugf("Calling action: %s.%s", ctx.controller.FqName, ctx.action.Name)
+		ctx.actionrv.Call(actionArgs)
+	}
 
 	// After action method
 	if !ctx.abort {

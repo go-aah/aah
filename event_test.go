@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/test.v0/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAppEvents(t *testing.T) {
@@ -18,6 +18,7 @@ func TestAppEvents(t *testing.T) {
 		EventOnStart,
 		EventOnPreShutdown,
 		EventOnPostShutdown,
+		EventOnConfigHotReload,
 	}
 
 	importPath := filepath.Join(testdataBaseDir(), "webapp1")
@@ -36,7 +37,7 @@ func TestAppEvents(t *testing.T) {
 
 }
 
-func performEventTest(t *testing.T, a *app, eventName string) {
+func performEventTest(t *testing.T, a *Application, eventName string) {
 	// declare functions
 	onFunc1 := func(e *Event) {
 		t.Log(eventName+" Func1:", e)
@@ -85,7 +86,7 @@ func performEventTest(t *testing.T, a *app, eventName string) {
 	es.Unsubscribe(eventName, onFunc3)
 }
 
-func addTestEvent(a *app, eventName string, fn func(e *Event), priority ...int) {
+func addTestEvent(a *Application, eventName string, fn func(e *Event), priority ...int) {
 	switch eventName {
 	case EventOnInit:
 		a.OnInit(fn, priority...)
@@ -95,6 +96,8 @@ func addTestEvent(a *app, eventName string, fn func(e *Event), priority ...int) 
 		a.OnPreShutdown(fn, priority...)
 	case EventOnPostShutdown:
 		a.OnPostShutdown(fn, priority...)
+	case EventOnConfigHotReload:
+		a.OnConfigHotReload(fn, priority...)
 	}
 }
 
@@ -144,6 +147,7 @@ func TestEventSubscribeAndUnsubscribeAndPublish(t *testing.T) {
 	ts.app.PublishEvent("myEventNotExists", nil)
 
 	ts.app.SubscribeEvent("myEvent2", EventCallback{Callback: myEventFunc3, CallOnce: true})
+	ts.app.SubscribeEventFunc("myEvent2", myEventFunc3)
 	ts.app.PublishEvent("myEvent2", "myEvent2 is fired async")
 	time.Sleep(time.Millisecond * 100) // for goroutine to finish
 

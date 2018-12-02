@@ -1,0 +1,7 @@
+# sample testdata for i18n - fr-CA
+
+label {
+  home = "Accueil fr-CA"
+  add = "Ajouter %s"
+  show = "Montrer %s"
+}

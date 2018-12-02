@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -16,18 +16,20 @@ import (
 	"strconv"
 	"strings"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/essentials.v0"
+	"aahframe.work/ahttp"
+	"aahframe.work/essentials"
+	"aahframe.work/internal/settings"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// app methods
+// Application methods
 //______________________________________________________________________________
 
-func (a *app) Start() {
+// Start method starts the Go HTTP server based on aah config "server.*".
+func (a *Application) Start() {
 	defer a.aahRecover()
 
-	if !a.initialized {
+	if !a.settings.Initialized {
 		a.Log().Fatal("aah application is not initialized, call `aah.Init` before the `aah.Start`.")
 	}
 
@@ -39,12 +41,14 @@ func (a *app) Start() {
 	a.Log().Infof("App Base Directory: %s", a.BaseDir())
 	a.Log().Infof("App Virtual Base Directory: %s", a.VirtualBaseDir())
 	a.Log().Infof("App Name: %s", a.Name())
-	a.Log().Infof("App Version: %s", a.BuildInfo().Version)
-	a.Log().Infof("App Build Date: %s", a.BuildInfo().Date)
-	a.Log().Infof("App Single Binary Mode: %v", a.IsEmbeddedMode())
-	a.Log().Infof("App Profile: %s", a.Profile())
+	a.Log().Infof("App Build Version: %s", a.BuildInfo().Version)
+	a.Log().Infof("App Build Timestamp: %s", a.BuildInfo().Timestamp)
+	a.Log().Infof("App Single Binary Mode: %v", a.VFS().IsEmbeddedMode())
+	a.Log().Infof("App Profile: %s", a.EnvProfile())
 	a.Log().Infof("App TLS/SSL Enabled: %t", a.IsSSLEnabled())
-
+	if a.diagnosis != nil {
+		a.Log().Infof("App Diagnosis Enabled: true, mode: %s", a.diagnosis.Mode)
+	}
 	if a.viewMgr != nil {
 		a.Log().Infof("App View Engine: %s", a.viewMgr.engineName)
 	}
@@ -55,10 +59,11 @@ func (a *app) Start() {
 		a.Log().Infof("App Anti-CSRF Enabled: %t", a.SecurityManager().AntiCSRF.Enabled)
 	}
 
-	a.Log().Info("App Route Domains:")
+	var routeDomains []string
 	for _, d := range a.Router().Domains {
-		a.Log().Infof("      Host: %s, CORS Enabled: %t", d.Name, d.CORSEnabled)
+		routeDomains = append(routeDomains, d.Key)
 	}
+	a.Log().Info("App Route Domains: ", strings.Join(routeDomains, ", "))
 
 	redirectEnabled := a.Config().BoolDefault("server.redirect.enable", false)
 	if redirectEnabled {
@@ -69,15 +74,22 @@ func (a *app) Start() {
 		a.Log().Infof("App i18n Locales: %s", strings.Join(a.I18n().Locales(), ", "))
 	}
 
+	if !a.IsEnvProfile(settings.DefaultEnvProfile) {
+		a.Log().Infof("App Config Hot-Reload Enabled: %v", a.settings.HotReloadEnabled)
+		if a.settings.HotReloadEnabled {
+			a.Log().Infof("App Config Hot-Reload Signal: %s", a.settings.HotReloadSignalStr)
+		}
+	}
+	a.Log().Infof("App Shutdown Grace Timeout: %s", a.settings.ShutdownGraceTimeStr)
+
 	if a.Log().IsLevelDebug() {
-		for event := range a.EventStore().subscribers {
+		a.Log().Debug("Subscribed event callbacks")
+		for _, event := range []string{EventOnInit, EventOnStart, EventOnPreShutdown, EventOnPostShutdown, EventOnConfigHotReload} {
 			for _, c := range a.EventStore().subscribers[event] {
-				a.Log().Debugf("Callback: %s, subscribed to event: %s", funcName(c.Callback), event)
+				a.Log().Debugf("Event: %s (callback=%s priority=%v)", event, ess.GetFunctionInfo(c.Callback).QualifiedName, c.priority)
 			}
 		}
 	}
-
-	a.Log().Infof("App Shutdown Grace Timeout: %s", a.shutdownGraceTimeStr)
 
 	// Publish `OnStart` event
 	a.EventStore().sortAndPublishSync(&Event{Name: EventOnStart})
@@ -87,23 +99,26 @@ func (a *app) Start() {
 
 	a.server = &http.Server{
 		Handler:        a,
-		ReadTimeout:    a.httpReadTimeout,
-		WriteTimeout:   a.httpWriteTimeout,
-		MaxHeaderBytes: a.httpMaxHdrBytes,
+		ReadTimeout:    a.settings.HTTPReadTimeout,
+		WriteTimeout:   a.settings.HTTPWriteTimeout,
+		MaxHeaderBytes: a.settings.HTTPMaxHdrBytes,
 		ErrorLog:       hl,
 	}
 
 	a.server.SetKeepAlivesEnabled(a.Config().BoolDefault("server.keep_alive", true))
 	a.writePID()
 
-	go a.listenForHotConfigReload()
+	go a.listenForHotReload()
 
 	// Unix Socket
 	if strings.HasPrefix(a.HTTPAddress(), "unix") {
 		a.startUnix()
 		return
 	}
-
+	if a.diagnosis != nil && a.diagnosis.IsHTTPMode() {
+		a.Log().Infof("aah go diagnosis server running on %s",
+			a.diagnosis.Config.StringDefault("runtime.diagnosis.http.address", ":7070"))
+	}
 	a.server.Addr = fmt.Sprintf("%s:%s", a.HTTPAddress(), a.HTTPPort())
 
 	// HTTPS
@@ -116,19 +131,26 @@ func (a *app) Start() {
 	a.startHTTP()
 }
 
-func (a *app) Shutdown() {
+// Shutdown method allows aah server to shutdown gracefully with given timeout
+// in seconds. It's invoked on OS signal `SIGINT` and `SIGTERM`.
+//
+// Method performs:
+//    - Graceful server shutdown with timeout by `server.timeout.grace_shutdown`
+//    - Publishes `OnPostShutdown` event
+//    - Exits program with code 0
+func (a *Application) Shutdown() {
 	// Publish `OnPreShutdown` event
 	a.EventStore().sortAndPublishSync(&Event{Name: EventOnPreShutdown})
 
-	ctx, cancel := context.WithTimeout(context.Background(), a.shutdownGraceTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), a.settings.ShutdownGraceTimeout)
 	defer cancel()
 
-	a.Log().Warn("aah go server graceful shutdown triggered with timeout of ", a.shutdownGraceTimeStr)
+	a.Log().Warn("aah go server graceful shutdown triggered with timeout of ", a.settings.ShutdownGraceTimeStr)
 	if err := a.server.Shutdown(ctx); err != nil && err != http.ErrServerClosed {
 		a.Log().Error(err)
 	}
-
 	a.shutdownRedirectServer()
+	a.Log().Info("aah go server shutdown successfully")
 
 	// Publish `OnPostShutdown` event
 	a.EventStore().sortAndPublishSync(&Event{Name: EventOnPostShutdown})
@@ -138,9 +160,9 @@ func (a *app) Shutdown() {
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) writePID() {
+func (a *Application) writePID() {
 	// Get the application PID
-	a.pid = os.Getpid()
+	a.settings.Pid = os.Getpid()
 
 	pidFile := a.Config().StringDefault("pid_file", "")
 	if ess.IsStrEmpty(pidFile) {
@@ -151,12 +173,12 @@ func (a *app) writePID() {
 		pidFile += ".pid"
 	}
 
-	if err := ioutil.WriteFile(pidFile, []byte(strconv.Itoa(a.pid)), 0644); err != nil {
+	if err := ioutil.WriteFile(pidFile, []byte(strconv.Itoa(a.settings.Pid)), 0644); err != nil {
 		a.Log().Error(err)
 	}
 }
 
-func (a *app) startUnix() {
+func (a *Application) startUnix() {
 	sockFile := a.HTTPAddress()[5:]
 	if err := os.Remove(sockFile); !os.IsNotExist(err) {
 		a.Log().Fatal(err)
@@ -175,18 +197,18 @@ func (a *app) startUnix() {
 	}
 }
 
-func (a *app) startHTTPS() {
+func (a *Application) startHTTPS() {
 	// Add cert, if let's encrypt enabled
 	if a.IsLetsEncryptEnabled() {
 		a.Log().Infof("Let's Encypyt CA Cert enabled")
-		a.server.TLSConfig = a.autocertMgr.TLSConfig()
-		a.sslCert, a.sslKey = "", ""
+		a.server.TLSConfig = a.settings.Autocert.TLSConfig()
+		a.settings.SSLCert, a.settings.SSLKey = "", ""
 	} else {
 		if a.tlsCfg != nil {
 			a.Log().Info("Adding user provided TLS Config")
 			a.server.TLSConfig = a.tlsCfg
 		}
-		a.Log().Infof("SSLCert: %s, SSLKey: %s", a.sslCert, a.sslKey)
+		a.Log().Infof("SSLCert: %s, SSLKey: %s", a.settings.SSLCert, a.settings.SSLKey)
 	}
 
 	// Disable HTTP/2, if configured
@@ -211,19 +233,19 @@ func (a *app) startHTTPS() {
 	go a.startHTTPRedirect()
 
 	a.printStartupNote()
-	if err := a.server.ListenAndServeTLS(a.sslCert, a.sslKey); err != nil && err != http.ErrServerClosed {
+	if err := a.server.ListenAndServeTLS(a.settings.SSLCert, a.settings.SSLKey); err != nil && err != http.ErrServerClosed {
 		a.Log().Error(err)
 	}
 }
 
-func (a *app) startHTTP() {
+func (a *Application) startHTTP() {
 	a.printStartupNote()
 	if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		a.Log().Error(err)
 	}
 }
 
-func (a *app) startHTTPRedirect() {
+func (a *Application) startHTTPRedirect() {
 	cfg := a.Config()
 	keyPrefix := "server.ssl.redirect_http"
 	if !cfg.BoolDefault(keyPrefix+".enable", false) {
@@ -236,7 +258,7 @@ func (a *app) startHTTPRedirect() {
 	}
 
 	address := a.HTTPAddress()
-	toPort := a.parsePort(cfg.StringDefault("server.port", defaultHTTPPort))
+	toPort := a.parsePort(cfg.StringDefault("server.port", settings.DefaultHTTPPort))
 	fromPort, found := cfg.String(keyPrefix + ".port")
 	if !found {
 		a.Log().Errorf("'%s.port' is required value, unable to start redirect server", keyPrefix)
@@ -262,15 +284,44 @@ func (a *app) startHTTPRedirect() {
 	}
 }
 
-func (a *app) shutdownRedirectServer() {
+func (a *Application) shutdownRedirectServer() {
 	if a.redirectServer != nil {
 		_ = a.redirectServer.Close()
 	}
 }
 
-func (a *app) printStartupNote() {
+func (a *Application) printStartupNote() {
 	port := firstNonZeroString(
-		a.Config().StringDefault("server.port", defaultHTTPPort),
+		a.Config().StringDefault("server.port", settings.DefaultHTTPPort),
 		a.Config().StringDefault("server.proxyport", ""))
 	a.Log().Infof("aah go server running on %s:%s", a.HTTPAddress(), a.parsePort(port))
+}
+
+func parseHost(address, toPort string) string {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return address
+	}
+
+	if ess.IsStrEmpty(toPort) {
+		return host
+	}
+	return host + ":" + toPort
+}
+
+func firstNonZeroString(values ...string) string {
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if len(v) > 0 {
+			return v
+		}
+	}
+	return ""
+}
+
+func inferRedirectMode(redirectTo string) string {
+	if redirectTo == www {
+		return nonwww + " ==> " + www
+	}
+	return www + " ==> " + nonwww
 }

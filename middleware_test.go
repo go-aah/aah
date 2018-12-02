@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframe.work/ahttp"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestHandler ...

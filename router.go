@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -8,14 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"path"
 	"strings"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/valpar.v0"
+	"aahframe.work/ahttp"
+	"aahframe.work/router"
+	"aahframe.work/valpar"
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -44,15 +42,19 @@ func CORSMiddleware(ctx *Context, m *Middleware) {
 	ctx.Reply().HeaderAppend(ahttp.HeaderVary, ahttp.HeaderOrigin)
 
 	// CORS OPTIONS request
-	if ctx.Req.Method == ahttp.MethodOptions &&
-		ctx.Req.Header.Get(ahttp.HeaderAccessControlRequestMethod) != "" {
-		handleCORSPreflight(ctx)
-		return
+	if ctx.Req.Method == ahttp.MethodOptions {
+		if h := ctx.Req.Header[ahttp.HeaderAccessControlRequestMethod]; len(h) > 0 && len(h[0]) > 0 {
+			handleCORSPreflight(ctx)
+			return
+		}
 	}
 
 	// CORS headers
 	cors := ctx.route.CORS
-	origin := ctx.Req.Header.Get(ahttp.HeaderOrigin)
+	var origin string
+	if h := ctx.Req.Header[ahttp.HeaderOrigin]; len(h) > 0 {
+		origin = h[0]
+	}
 	if cors.IsOriginAllowed(origin) {
 		ctx.Reply().Header(ahttp.HeaderAccessControlAllowOrigin, origin)
 	}
@@ -79,7 +81,10 @@ func handleCORSPreflight(ctx *Context) {
 	cors := ctx.route.CORS
 
 	// Check Origin
-	origin := ctx.Req.Header.Get(ahttp.HeaderOrigin)
+	var origin string
+	if h := ctx.Req.Header[ahttp.HeaderOrigin]; len(h) > 0 {
+		origin = h[0]
+	}
 	if cors.IsOriginAllowed(origin) {
 		ctx.Reply().Header(ahttp.HeaderAccessControlAllowOrigin, origin)
 	} else {
@@ -90,7 +95,10 @@ func handleCORSPreflight(ctx *Context) {
 	}
 
 	// Check Method
-	method := ctx.Req.Header.Get(ahttp.HeaderAccessControlRequestMethod)
+	var method string
+	if h := ctx.Req.Header[ahttp.HeaderAccessControlRequestMethod]; len(h) > 0 {
+		method = h[0]
+	}
 	if cors.IsMethodAllowed(method) {
 		ctx.Reply().Header(ahttp.HeaderAccessControlAllowMethods, strings.Join(cors.AllowMethods, ", "))
 	} else {
@@ -101,7 +109,10 @@ func handleCORSPreflight(ctx *Context) {
 	}
 
 	// Check Headers
-	hdrs := ctx.Req.Header.Get(ahttp.HeaderAccessControlRequestHeaders)
+	var hdrs string
+	if h := ctx.Req.Header[ahttp.HeaderAccessControlRequestHeaders]; len(h) > 0 {
+		hdrs = h[0]
+	}
 	if cors.IsHeadersAllowed(hdrs) {
 		if len(cors.AllowHeaders) > 0 {
 			ctx.Reply().Header(ahttp.HeaderAccessControlAllowHeaders, strings.Join(cors.AllowHeaders, ", "))
@@ -125,18 +136,10 @@ func handleCORSPreflight(ctx *Context) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// app methods
-//______________________________________________________________________________
-
-func (a *app) Router() *router.Router {
-	return a.router
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) initRouter() error {
+func (a *Application) initRouter() error {
 	rtr, err := router.NewWithApp(a,
 		path.Join(a.VirtualBaseDir(), "config", "routes.conf"))
 	if err != nil {
@@ -159,23 +162,22 @@ func (a *app) initRouter() error {
 //  - auto options
 //  - route not found
 //  - if route found then it sets targeted controller into context
-//  - adds the pathParams into context if present
+//  - adds the url path params into context if present
 //
 // Returns status as-
 //  - flowCont
 //  - flowStop
 func handleRoute(ctx *Context) flowResult {
-	domain := ctx.a.Router().Lookup(ctx.Req.Host)
-	if domain == nil {
+	ctx.domain = ctx.a.Router().Lookup(ctx.Req.Host)
+	if ctx.domain == nil {
 		ctx.Log().Warnf("Domain not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 		ctx.Reply().NotFound().Error(newError(ErrDomainNotFound, http.StatusNotFound))
 		return flowAbort
 	}
-	ctx.domain = domain
 
-	route, pathParams, rts := domain.Lookup(ctx.Req.Unwrap())
+	route, urlParams, rts := ctx.domain.Lookup(ctx.Req.Unwrap())
 	if route == nil { // route not found
-		if err := handleRtsOptionsMna(ctx, domain, rts); err == nil {
+		if err := handleRtsOptionsMna(ctx, rts); err == nil {
 			return flowAbort
 		}
 
@@ -184,7 +186,7 @@ func handleRoute(ctx *Context) flowResult {
 		return flowAbort
 	}
 	ctx.route = route
-	ctx.Req.PathParams = pathParams
+	ctx.Req.URLParams = urlParams
 
 	// Serving static file
 	if route.IsStatic {
@@ -198,7 +200,7 @@ func handleRoute(ctx *Context) flowResult {
 
 	// Apply route constraints
 	if len(ctx.route.Constraints) > 0 {
-		if errs := valpar.ValidateValues(ctx.Req.PathParams, ctx.route.Constraints); len(errs) > 0 {
+		if errs := valpar.ValidateValues(ctx.Req.URLParams.ToMap(), ctx.route.Constraints); len(errs) > 0 {
 			ctx.Log().Errorf("Route constraints failed: %s", errs)
 			ctx.Reply().BadRequest().Error(newErrorWithData(router.ErrRouteConstraintFailed, http.StatusBadRequest, errs))
 			return flowAbort
@@ -208,93 +210,22 @@ func handleRoute(ctx *Context) flowResult {
 	return flowCont
 }
 
-func appendAnchorLink(routePath, anchorLink string) string {
-	if len(anchorLink) == 0 {
-		return routePath
-	}
-	return routePath + "#" + anchorLink
-}
-
-func getRouteNameAndAnchorLink(routeName string) (string, string) {
-	anchorLink := ""
-	hashIdx := strings.IndexByte(routeName, '#')
-	if hashIdx > 0 {
-		anchorLink = routeName[hashIdx+1:]
-		routeName = routeName[:hashIdx]
-	}
-	return routeName, anchorLink
-}
-
-func composeRouteURL(host string, domain *router.Domain, routePath, anchorLink string) string {
-	if domain.Host == "localhost" {
-		return appendAnchorLink("//"+host+routePath, anchorLink)
-	}
-
-	if len(domain.Port) == 0 {
-		routePath = fmt.Sprintf("//%s%s", domain.Host, routePath)
-	} else {
-		routePath = fmt.Sprintf("//%s:%s%s", domain.Host, domain.Port, routePath)
-	}
-
-	return appendAnchorLink(routePath, anchorLink)
-}
-
-func (a *app) findRouteURLDomain(host, routeName string) (*router.Domain, string) {
-	idx := strings.IndexByte(routeName, '.')
-	if idx > 0 {
-		subDomain := routeName[:idx]
-
-		// Returning current subdomain
-		if strings.HasPrefix(host, subDomain) {
-			return a.Router().Lookup(host), routeName[idx+1:]
-		}
-
-		// Returning requested subdomain
-		for _, d := range a.Router().Domains {
-			if strings.HasPrefix(d.Key, subDomain) && d.IsSubDomain {
-				return d, routeName[idx+1:]
-			}
-		}
-	}
-
-	// return root domain
-	return a.Router().RootDomain(), routeName
-}
-
-func createRouteURL(l log.Loggerer, host string, domain *router.Domain, routeName string, margs map[string]interface{}, args ...interface{}) string {
-	if routeName == "host" {
-		return composeRouteURL(host, domain, "", "")
-	}
-
-	routeName, anchorLink := getRouteNameAndAnchorLink(routeName)
-	var routePath string
-	if margs == nil {
-		routePath = domain.RouteURL(routeName, args...)
-	} else {
-		routePath = domain.RouteURLNamedArgs(routeName, margs)
-	}
-
-	// URL escapes
-	rURL, err := url.Parse(composeRouteURL(host, domain, routePath, anchorLink))
-	if err != nil {
-		l.Error(err)
-		return ""
-	}
-	return rURL.String()
-}
-
-// handleRtsOptionsMna method handles 1) Redirect Trailing Slash 2) Options
+// handleRtsOptionsMna method handles
+// 1) Redirect Trailing Slash
+// 2) Auto Options
 // 3) Method not allowed
-func handleRtsOptionsMna(ctx *Context, domain *router.Domain, rts bool) error {
+func handleRtsOptionsMna(ctx *Context, rts bool) error {
 	reqMethod := ctx.Req.Method
 	reqPath := ctx.Req.Path
 	reply := ctx.Reply()
+	domain := ctx.domain
 
 	// Redirect Trailing Slash
 	if reqMethod != ahttp.MethodConnect && reqPath != router.SlashString {
 		if rts && domain.RedirectTrailingSlash {
-			reply.MovedPermanently()
-			if reqMethod != ahttp.MethodGet {
+			if reqMethod == ahttp.MethodGet {
+				reply.MovedPermanently()
+			} else {
 				reply.TemporaryRedirect()
 			}
 

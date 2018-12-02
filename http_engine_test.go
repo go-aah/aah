@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframe.work/ahttp"
+	"aahframe.work/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHTTPEngineTestRequests(t *testing.T) {

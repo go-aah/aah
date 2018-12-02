@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -11,14 +11,14 @@ import (
 	"reflect"
 	"strings"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/security.v0"
-	"aahframework.org/security.v0/authz"
-	"aahframework.org/security.v0/session"
+	"aahframe.work/ahttp"
+	"aahframe.work/ainsp"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
+	"aahframe.work/router"
+	"aahframe.work/security"
+	"aahframe.work/security/authz"
+	"aahframe.work/security/session"
 )
 
 var (
@@ -50,7 +50,7 @@ type Context struct {
 	// response.
 	Res ahttp.ResponseWriter
 
-	a          *app
+	a          *Application
 	e          *HTTPEngine
 	controller *ainsp.Target
 	action     *ainsp.Method
@@ -96,15 +96,13 @@ func (ctx *Context) AddViewArg(key string, value interface{}) *Context {
 // RouteURL method returns the URL for given route name and args.
 // See `router.Domain.RouteURL` for more information.
 func (ctx *Context) RouteURL(routeName string, args ...interface{}) string {
-	domain, rn := ctx.a.findRouteURLDomain(ctx.Req.Host, routeName)
-	return createRouteURL(ctx.Log(), ctx.Req.Host, domain, rn, nil, args...)
+	return ctx.a.Router().CreateRouteURL(ctx.Req.Host, routeName, nil, args...)
 }
 
 // RouteURLNamedArgs method returns the URL for given route name and key-value paris.
 // See `router.Domain.RouteURLNamedArgs` for more information.
 func (ctx *Context) RouteURLNamedArgs(routeName string, args map[string]interface{}) string {
-	domain, rn := ctx.a.findRouteURLDomain(ctx.Req.Host, routeName)
-	return createRouteURL(ctx.Log(), ctx.Req.Host, domain, rn, args)
+	return ctx.a.Router().CreateRouteURL(ctx.Req.Host, routeName, args)
 }
 
 // Msg method returns the i18n value for given key otherwise empty string returned.
@@ -256,9 +254,13 @@ func (ctx *Context) Get(key string) interface{} {
 // the logger.
 func (ctx *Context) Log() log.Loggerer {
 	if ctx.logger == nil {
-		ctx.logger = ctx.a.Log().WithFields(log.Fields{
-			"reqid": ctx.Req.Header.Get(ctx.a.requestIDHeaderKey),
-		})
+		if h := ctx.Req.Header[ctx.a.settings.RequestIDHeaderKey]; len(h) > 0 {
+			ctx.logger = ctx.a.Log().WithFields(log.Fields{
+				"reqid": h[0],
+			})
+		} else {
+			ctx.logger = ctx.a.Log()
+		}
 	}
 	return ctx.logger
 }
@@ -268,14 +270,14 @@ func (ctx *Context) Log() log.Loggerer {
 //______________________________________________________________________________
 
 func (ctx *Context) setRequestID() {
-	reqID := ctx.Req.Header.Get(ctx.a.requestIDHeaderKey)
-	if reqID == "" {
+	h := ctx.Req.Header[ctx.a.settings.RequestIDHeaderKey]
+	if len(h) == 0 {
 		guid := ess.NewGUID()
-		ctx.Req.Header.Set(ctx.a.requestIDHeaderKey, guid)
-		ctx.Reply().Header(ctx.a.requestIDHeaderKey, guid)
+		ctx.Req.Header.Set(ctx.a.settings.RequestIDHeaderKey, guid)
+		ctx.Reply().Header(ctx.a.settings.RequestIDHeaderKey, guid)
 		return
 	}
-	ctx.Log().Debugf("Request already has traceability ID: %v", reqID)
+	ctx.Log().Debugf("Request already has traceability ID: %v", h[0])
 }
 
 // setTarget method sets contoller, action, embedded context into
@@ -312,14 +314,14 @@ func (ctx *Context) setTarget(route *router.Route) error {
 	return nil
 }
 
-func (ctx *Context) detectContentType() *ahttp.ContentType {
+func (ctx *Context) detectContentType() string {
 	// based on HTTP Header 'Accept'
 	acceptContType := ctx.Req.AcceptContentType()
 	if acceptContType.Mime == "" || acceptContType.Mime == "*/*" {
 		// as per 'render.default' from aah.conf
-		return ctx.a.defaultContentType
+		return ctx.a.settings.DefaultContentType
 	}
-	return acceptContType
+	return acceptContType.String()
 }
 
 // writeCookies method writes the user provided cookies and session cookie; also
@@ -329,21 +331,23 @@ func (ctx *Context) writeCookies() {
 		http.SetCookie(ctx.Res, c)
 	}
 
-	if ctx.a.SessionManager().IsStateful() && ctx.subject != nil && ctx.subject.Session != nil {
-		if err := ctx.a.SessionManager().SaveSession(ctx.Res, ctx.subject.Session); err != nil {
-			ctx.Log().Error(err)
+	if ctx.a.SessionManager().IsStateful() && ctx.a.SessionManager().IsPath(ctx.Req.Path) {
+		if ctx.subject != nil && ctx.subject.Session != nil {
+			if err := ctx.a.SessionManager().SaveSession(ctx.Res, ctx.subject.Session); err != nil {
+				ctx.Log().Error(err)
+			}
 		}
 	}
 }
 
 func (ctx *Context) writeHeaders() {
-	if ctx.a.serverHeaderEnabled {
-		ctx.Res.Header().Set(ahttp.HeaderServer, ctx.a.serverHeader)
+	if ctx.a.settings.ServerHeaderEnabled {
+		ctx.Res.Header().Set(ahttp.HeaderServer, ctx.a.settings.ServerHeader)
 	}
 
 	// Write application security headers with many safe defaults and
 	// configured header values.
-	if ctx.a.secureHeadersEnabled {
+	if ctx.a.settings.SecureHeadersEnabled {
 		secureHeaders := ctx.a.SecurityManager().SecureHeaders
 		// Write common secure headers for all request
 		for header, value := range secureHeaders.Common {
@@ -356,7 +360,7 @@ func (ctx *Context) writeHeaders() {
 			ctx.Res.Header().Set(ahttp.HeaderXXSSProtection, secureHeaders.XSSFilter)
 
 			// Content-Security-Policy (CSP) and applied only to environment `prod`
-			if ctx.a.IsProfileProd() && len(secureHeaders.CSP) > 0 {
+			if ctx.a.IsEnvProfile("prod") && len(secureHeaders.CSP) > 0 {
 				if secureHeaders.CSPReportOnly {
 					ctx.Res.Header().Set(ahttp.HeaderContentSecurityPolicy+"-Report-Only", secureHeaders.CSP)
 				} else {
@@ -371,7 +375,7 @@ func (ctx *Context) writeHeaders() {
 			ctx.Res.Header().Set(ahttp.HeaderStrictTransportSecurity, secureHeaders.STS)
 
 			// Public-Key-Pins PKP (aka HPKP) and applied only to environment `prod`
-			if ctx.a.IsProfileProd() && len(secureHeaders.PKP) > 0 {
+			if ctx.a.IsEnvProfile("prod") && len(secureHeaders.PKP) > 0 {
 				if secureHeaders.PKPReportOnly {
 					ctx.Res.Header().Set(ahttp.HeaderPublicKeyPins+"-Report-Only", secureHeaders.PKP)
 				} else {

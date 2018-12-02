@@ -1,0 +1,47 @@
+/*
+Minimal aah framework application template CSS.
+Based on your need choose your CSS framework.
+*/
+
+html {
+  font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+  -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+.container {
+  padding-right: 15px;
+  padding-left: 15px;
+  margin-right: auto;
+  margin-left: auto;
+}
+@media (min-width: 992px) {
+  .container {
+    width: 970px;
+  }
+}
+@media (min-width: 1200px) {
+  .container {
+    width: 1170px;
+  }
+}
+
+.row {
+  margin-right: -15px;
+  margin-left: -15px;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.welcome-msg {
+  padding-top: 30px;
+  padding-bottom: 30px;
+  margin-bottom: 30px;
+  color: inherit;
+}

@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -11,12 +11,14 @@ import (
 	"sync"
 	"time"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/aruntime.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/security.v0"
-	"aahframework.org/security.v0/authc"
+	"aahframe.work/ahttp"
+	"aahframe.work/ainsp"
+	"aahframe.work/aruntime"
+	"aahframe.work/essentials"
+	"aahframe.work/internal/settings"
+	"aahframe.work/log"
+	"aahframe.work/security"
+	"aahframe.work/security/authc"
 )
 
 const (
@@ -52,7 +54,7 @@ type (
 // HTTPEngine holds the implementation handling HTTP request, response,
 // middlewares, interceptors, etc.
 type HTTPEngine struct {
-	a        *app
+	a        *Application
 	ctxPool  *sync.Pool
 	mwStack  []MiddlewareFunc
 	mwChain  []*Middleware
@@ -73,7 +75,7 @@ func (e *HTTPEngine) Handle(w http.ResponseWriter, r *http.Request) {
 	defer e.releaseContext(ctx)
 
 	// Record access log
-	if e.a.accessLogEnabled {
+	if e.a.settings.AccessLogEnabled {
 		ctx.Set(reqStartTimeKey, time.Now())
 		defer e.a.accessLog.Log(ctx)
 	}
@@ -83,7 +85,7 @@ func (e *HTTPEngine) Handle(w http.ResponseWriter, r *http.Request) {
 	// Recovery handling
 	defer e.handleRecovery(ctx)
 
-	if e.a.requestIDEnabled {
+	if e.a.settings.RequestIDEnabled {
 		ctx.setRequestID()
 	}
 
@@ -134,7 +136,7 @@ func (e *HTTPEngine) Log() log.Loggerer {
 func (e *HTTPEngine) OnRequest(sef EventCallbackFunc) {
 	if e.onRequestFunc != nil {
 		e.Log().Warnf("Changing 'OnRequest' server extension from '%s' to '%s'",
-			funcName(e.onRequestFunc), funcName(sef))
+			ess.GetFunctionInfo(e.onRequestFunc).QualifiedName, ess.GetFunctionInfo(sef).QualifiedName)
 	}
 	e.onRequestFunc = sef
 }
@@ -152,7 +154,7 @@ func (e *HTTPEngine) OnRequest(sef EventCallbackFunc) {
 func (e *HTTPEngine) OnPreReply(sef EventCallbackFunc) {
 	if e.onPreReplyFunc != nil {
 		e.Log().Warnf("Changing 'OnPreReply' server extension from '%s' to '%s'",
-			funcName(e.onPreReplyFunc), funcName(sef))
+			ess.GetFunctionInfo(e.onPreReplyFunc).QualifiedName, ess.GetFunctionInfo(sef).QualifiedName)
 	}
 	e.onPreReplyFunc = sef
 }
@@ -170,7 +172,7 @@ func (e *HTTPEngine) OnPreReply(sef EventCallbackFunc) {
 func (e *HTTPEngine) OnHeaderReply(sef EventCallbackFunc) {
 	if e.onHeaderReplyFunc != nil {
 		e.Log().Warnf("Changing 'OnHeaderReply' server extension from '%s' to '%s'",
-			funcName(e.onHeaderReplyFunc), funcName(sef))
+			ess.GetFunctionInfo(e.onHeaderReplyFunc).QualifiedName, ess.GetFunctionInfo(sef).QualifiedName)
 	}
 	e.onHeaderReplyFunc = sef
 }
@@ -188,7 +190,7 @@ func (e *HTTPEngine) OnHeaderReply(sef EventCallbackFunc) {
 func (e *HTTPEngine) OnPostReply(sef EventCallbackFunc) {
 	if e.onPostReplyFunc != nil {
 		e.Log().Warnf("Changing 'OnPostReply' server extension from '%s' to '%s'",
-			funcName(e.onPostReplyFunc), funcName(sef))
+			ess.GetFunctionInfo(e.onPostReplyFunc).QualifiedName, ess.GetFunctionInfo(sef).QualifiedName)
 	}
 	e.onPostReplyFunc = sef
 }
@@ -199,7 +201,7 @@ func (e *HTTPEngine) OnPostReply(sef EventCallbackFunc) {
 func (e *HTTPEngine) OnPreAuth(sef EventCallbackFunc) {
 	if e.onPreAuthFunc != nil {
 		e.Log().Warnf("Changing 'OnPreAuth' server extension from '%s' to '%s'",
-			funcName(e.onPreAuthFunc), funcName(sef))
+			ess.GetFunctionInfo(e.onPreAuthFunc).QualifiedName, ess.GetFunctionInfo(sef).QualifiedName)
 	}
 	e.onPreAuthFunc = sef
 }
@@ -210,7 +212,7 @@ func (e *HTTPEngine) OnPreAuth(sef EventCallbackFunc) {
 func (e *HTTPEngine) OnPostAuth(sef EventCallbackFunc) {
 	if e.onPostAuthFunc != nil {
 		e.Log().Warnf("Changing 'OnPostAuth' server extension from '%s' to '%s'",
-			funcName(e.onPostAuthFunc), funcName(sef))
+			ess.GetFunctionInfo(e.onPostAuthFunc).QualifiedName, ess.GetFunctionInfo(sef).QualifiedName)
 	}
 	e.onPostAuthFunc = sef
 }
@@ -269,7 +271,7 @@ func (e *HTTPEngine) newContext() *Context {
 // Panic gets translated into HTTP Internal Server Error (Status 500).
 func (e *HTTPEngine) handleRecovery(ctx *Context) {
 	if r := recover(); r != nil {
-		ctx.Log().Errorf("Internal Server Error on %s", ctx.Req.Path)
+		ctx.Log().Errorf("Internal Server Error on %s", ctx.Req.URL().RequestURI())
 
 		st := aruntime.NewStacktrace(r, e.a.Config())
 		buf := acquireBuffer()
@@ -319,9 +321,13 @@ func (e *HTTPEngine) writeReply(ctx *Context) {
 
 	// Check ContentType and detect it if need be
 	if len(re.ContType) == 0 {
-		re.ContentType(ctx.detectContentType().String())
+		if _, ok := re.Rdr.(*binaryRender); !ok {
+			re.ContentType(ctx.detectContentType())
+		}
 	}
-	ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+	if len(re.ContType) > 0 {
+		ctx.Res.Header().Set(ahttp.HeaderContentType, re.ContType)
+	}
 
 	// 'OnHeaderReply' HTTP event
 	e.publishOnHeaderReplyEvent(ctx.Res.Header())
@@ -333,6 +339,7 @@ func (e *HTTPEngine) writeReply(ctx *Context) {
 
 		e.writeOnWire(ctx)
 	} else {
+		ctx.Res.Header().Del(ahttp.HeaderContentType)
 		ctx.Res.WriteHeader(re.Code)
 	}
 
@@ -340,7 +347,7 @@ func (e *HTTPEngine) writeReply(ctx *Context) {
 	e.publishOnPostReplyEvent(ctx)
 
 	// Dump request and response
-	if e.a.dumpLogEnabled {
+	if e.a.settings.DumpLogEnabled {
 		e.a.dumpLog.Dump(ctx)
 	}
 }
@@ -372,7 +379,7 @@ func (e *HTTPEngine) writeOnWire(ctx *Context) {
 	var w io.Writer = ctx.Res
 
 	// If response dump log enabled with response body
-	if e.a.dumpLogEnabled && e.a.dumpLog.logResponseBody {
+	if e.a.settings.DumpLogEnabled && e.a.dumpLog.logResponseBody {
 		resBuf := acquireBuffer()
 		w = io.MultiWriter([]io.Writer{w, resBuf}...)
 		ctx.Set(keyAahResponseBodyBuf, resBuf)
@@ -381,9 +388,12 @@ func (e *HTTPEngine) writeOnWire(ctx *Context) {
 	// currently write error on wire is not propagated to error
 	// since we can't do anything after that.
 	// It could be network error, client is gone, etc.
-	if re.isHTML() && e.minifierExists() {
-		// HTML Minifier configured
-		if err := e.a.viewMgr.minifier(re.ContType, w, re.body); err != nil {
+	if re.isHTML() {
+		if e.a.IsEnvProfile(settings.DefaultEnvProfile) || !e.minifierExists() {
+			if _, err := re.body.WriteTo(w); err != nil {
+				ctx.Log().Error(err)
+			}
+		} else if err := e.a.viewMgr.minifier(re.ContType, w, re.body); err != nil {
 			ctx.Log().Error(err)
 		}
 	} else if _, err := re.body.WriteTo(w); err != nil {
@@ -414,7 +424,7 @@ func (e *HTTPEngine) minifierExists() bool {
 }
 
 func (e *HTTPEngine) qualifyGzip(ctx *Context) bool {
-	return e.a.gzipEnabled && ctx.Req.IsGzipAccepted && ctx.Reply().gzip
+	return e.a.settings.GzipEnabled && ctx.Req.IsGzipAccepted && ctx.Reply().gzip
 }
 
 func (e *HTTPEngine) releaseContext(ctx *Context) {
@@ -452,4 +462,20 @@ func (e *HTTPEngine) doRedirect(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 	return false
+}
+
+// bodyAllowedForStatus reports whether a given response status code
+// permits a body. See RFC 2616, section 4.4.
+//
+// This method taken from https://golang.org/src/net/http/transfer.go#bodyAllowedForStatus
+func bodyAllowedForStatus(status int) bool {
+	switch {
+	case status >= 100 && status <= 199:
+		return false
+	case status == 204: // Status NoContent
+		return false
+	case status == 304: // Status NotModified
+		return false
+	}
+	return true
 }

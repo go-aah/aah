@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -15,27 +15,28 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/router.v0"
-	"aahframework.org/security.v0"
-	"aahframework.org/security.v0/anticsrf"
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/authz"
-	"aahframework.org/security.v0/scheme"
-	"aahframework.org/security.v0/session"
-	"aahframework.org/test.v0/assert"
+	"aahframe.work/ahttp"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/router"
+	"aahframe.work/security"
+	"aahframe.work/security/anticsrf"
+	"aahframe.work/security/authc"
+	"aahframe.work/security/authz"
+	"aahframe.work/security/scheme"
+	"aahframe.work/security/session"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/publicsuffix"
 	"golang.org/x/oauth2"
 )
 
 func TestSecuritySessionStore(t *testing.T) {
-	err := AddSessionStore("file", &session.FileStore{})
+	app := newApp()
+	err := app.AddSessionStore("file", &session.FileStore{})
 	assert.NotNil(t, err)
 	assert.Equal(t, "session: store name 'file' is already added, skip it", err.Error())
 
-	err = AddSessionStore("custom", nil)
+	err = app.AddSessionStore("custom", nil)
 	assert.NotNil(t, err)
 	assert.Equal(t, errors.New("security/session: store value is nil"), err)
 }
@@ -285,7 +286,7 @@ security {
 	err = ts.app.initSecurity()
 	assert.Nil(t, err)
 	err = ts.app.initRouter()
-	assert.FailNowOnError(t, err, "router init issue")
+	assert.Nil(t, err, "router init issue")
 
 	ots := createOAuth2TestServer()
 	defer ots.Close()
@@ -441,13 +442,15 @@ func TestSecurityAntiCSRF(t *testing.T) {
 
 	// https: malformed URL
 	t.Log("https: malformed URL")
-	ctx1.Req.Referer = ":host:8080"
+	r1.Header.Set("Referer", ":host:8080")
+	ctx1.Req = ahttp.AcquireRequest(r1)
 	AntiCSRFMiddleware(ctx1, &Middleware{})
 	assert.Equal(t, anticsrf.ErrMalformedReferer, ctx1.reply.err.Reason)
 
 	// Bad referer
 	t.Log("Bad referer")
-	ctx1.Req.Referer = "https:::"
+	r1.Header.Set("Referer", "https:::")
+	ctx1.Req = ahttp.AcquireRequest(r1)
 	AntiCSRFMiddleware(ctx1, &Middleware{})
 	assert.Equal(t, anticsrf.ErrBadReferer, ctx1.reply.err.Reason)
 
@@ -462,6 +465,6 @@ func TestSecurityAntiCSRF(t *testing.T) {
 
 	// Password Encoder
 	t.Log("Password Encoder")
-	err = AddPasswordAlgorithm("mypass", nil)
+	err = ts.app.AddPasswordAlgorithm("mypass", nil)
 	assert.NotNil(t, err)
 }

@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// go-aah/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -18,9 +18,10 @@ import (
 	"sort"
 	"strings"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/vfs.v0"
+	"aahframe.work/ahttp"
+	"aahframe.work/essentials"
+	"aahframe.work/internal/util"
+	"aahframe.work/vfs"
 )
 
 var (
@@ -31,7 +32,7 @@ var (
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) initStatic() error {
+func (a *Application) initStatic() error {
 	a.staticMgr = &staticManager{
 		a:                     a,
 		mimeCacheHdrMap:       make(map[string]string),
@@ -59,7 +60,7 @@ func (a *app) initStatic() error {
 }
 
 type staticManager struct {
-	a                     *app
+	a                     *Application
 	defaultCacheHdr       string
 	noCacheHdrValue       string
 	dirListDateTimeFormat string
@@ -89,12 +90,12 @@ func (s *staticManager) Serve(ctx *Context) error {
 
 	gf, ok := f.(vfs.Gziper)
 	var fr io.ReadSeeker = f
-	if s.a.gzipEnabled && ctx.Req.IsGzipAccepted {
+	if s.a.settings.GzipEnabled && ctx.Req.IsGzipAccepted {
 		if ok && gf.IsGzip() {
 			ctx.Res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
 			ctx.Res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
 			fr = bytes.NewReader(gf.RawBytes())
-		} else if fi.Size() > defaultGzipMinSize && gzipRequired(fi.Name()) {
+		} else if fi.Size() > defaultGzipMinSize && util.IsGzipWorthForFile(fi.Name()) {
 			ctx.Res = wrapGzipWriter(ctx.Res)
 		}
 	}
@@ -105,11 +106,11 @@ func (s *staticManager) Serve(ctx *Context) error {
 	// Serve file
 	if fi.Mode().IsRegular() {
 		// `Cache-Control` header based on `cache.static.*`
-		if contentType, err := detectFileContentType(fi.Name(), f); err == nil {
+		if contentType, err := util.DetectFileContentType(fi.Name(), f); err == nil {
 			ctx.Res.Header().Set(ahttp.HeaderContentType, contentType)
 
 			// apply cache header if environment profile is `prod`
-			if s.a.IsProfileProd() {
+			if s.a.IsEnvProfile("prod") {
 				ctx.Res.Header().Set(ahttp.HeaderCacheControl, s.cacheHeader(contentType))
 			} else { // for static files hot-reload
 				ctx.Res.Header().Set(ahttp.HeaderExpires, "0")
@@ -127,11 +128,6 @@ func (s *staticManager) Serve(ctx *Context) error {
 
 		// 'OnAfterReply' server extension point
 		s.a.he.publishOnPostReplyEvent(ctx)
-
-		// Send data to access log channel
-		if s.a.accessLogEnabled && s.a.staticAccessLogEnabled {
-			s.a.accessLog.Log(ctx)
-		}
 		return nil
 	}
 
@@ -151,11 +147,6 @@ func (s *staticManager) Serve(ctx *Context) error {
 
 		// 'OnAfterReply' server extension point
 		s.a.he.publishOnPostReplyEvent(ctx)
-
-		// Send data to access log channel
-		if s.a.accessLogEnabled && s.a.staticAccessLogEnabled {
-			s.a.accessLog.Log(ctx)
-		}
 		return nil
 	}
 
@@ -182,7 +173,7 @@ func (s *staticManager) open(ctx *Context) (vfs.File, error) {
 }
 
 func (s *staticManager) cacheHeader(contentType string) string {
-	if hdrValue, found := s.mimeCacheHdrMap[stripCharset(contentType)]; found {
+	if hdrValue, found := s.mimeCacheHdrMap[util.OnlyMIME(contentType)]; found {
 		return hdrValue
 	}
 	return s.defaultCacheHdr
@@ -196,7 +187,7 @@ func (s *staticManager) listDirectory(res http.ResponseWriter, req *http.Request
 		fmt.Fprintf(res, "Error reading directory")
 		return
 	}
-	sort.Sort(byName(dirs))
+	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
 
 	res.Header().Set(ahttp.HeaderContentType, ahttp.ContentTypeHTML.String())
 	fmt.Fprintf(res, "<html>\n")
@@ -236,9 +227,19 @@ func (s *staticManager) writeError(res ahttp.ResponseWriter, req *ahttp.Request,
 	}
 }
 
-// Sort interface for Directory list
-type byName []os.FileInfo
+func parseCacheBustPart(name, part string) string {
+	if strings.Contains(name, part) {
+		name = strings.Replace(name, "-"+part, "", 1)
+		name = strings.Replace(name, part+"-", "", 1)
+	}
+	return name
+}
 
-func (s byName) Len() int           { return len(s) }
-func (s byName) Less(i, j int) bool { return s[i].Name() < s[j].Name() }
-func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+// wrapGzipWriter method writes respective header for gzip and wraps write into
+// gzip writer.
+func wrapGzipWriter(res ahttp.ResponseWriter) ahttp.ResponseWriter {
+	res.Header().Add(ahttp.HeaderVary, ahttp.HeaderAcceptEncoding)
+	res.Header().Add(ahttp.HeaderContentEncoding, gzipContentEncoding)
+	res.Header().Del(ahttp.HeaderContentLength)
+	return ahttp.WrapGzipWriter(res)
+}

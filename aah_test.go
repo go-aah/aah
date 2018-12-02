@@ -1,12 +1,15 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
 
 import (
+	"errors"
+	"aahframe.work/console"
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -20,12 +23,12 @@ import (
 	"testing"
 	"time"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/ainsp.v0"
-	"aahframework.org/config.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/log.v0"
-	"aahframework.org/test.v0/assert"
+	"aahframe.work/ahttp"
+	"aahframe.work/ainsp"
+	"aahframe.work/config"
+	"aahframe.work/essentials"
+	"aahframe.work/log"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestAahApp(t *testing.T) {
@@ -177,8 +180,16 @@ func TestAppMisc(t *testing.T) {
 	assert.False(t, a.IsPackaged())
 	a.SetPackaged(true)
 	assert.True(t, a.IsPackaged())
-	assert.True(t, a.IsProfileDev())
-	assert.True(t, strings.Contains(strings.Join(a.AllProfiles(), " "), "prod"))
+	assert.True(t, strings.Contains(strings.Join(a.EnvProfiles(), " "), "prod"))
+
+	_= a.Run([]string{"-v"})
+
+	er := a.AddCommand(console.Command{Name:"test1"}, console.Command{Name:"test2"})
+	assert.Nil(t, er)
+	er = a.AddCommand(console.Command{Name:"vfs"})
+	assert.Equal(t, errors.New("aah: reserved command name 'vfs' cannot be used"), er)
+	er = a.AddCommand(console.Command{Name:"test2"})
+	assert.Equal(t, errors.New("aah: command name 'test2' already exists"), er)
 
 	ll := a.NewChildLogger(log.Fields{"key1": "value1"})
 	assert.NotNil(t, ll)
@@ -186,8 +197,8 @@ func TestAppMisc(t *testing.T) {
 	// simualate CLI call
 	t.Log("simualate CLI call")
 	a.SetBuildInfo(nil)
-	a.packagedMode = false
-	err := a.Init(importPath)
+	a.settings.PackagedMode = false
+	err := a.InitForCLI(importPath)
 	assert.Nil(t, err)
 
 	// SSL
@@ -195,16 +206,14 @@ func TestAppMisc(t *testing.T) {
 	a.SetTLSConfig(nil)
 	a.Config().SetBool("server.ssl.enable", true)
 	a.Config().SetBool("server.ssl.lets_encrypt.enable", true)
-	err = a.checkSSLConfigValues()
-	assert.Nil(t, err)
-	err = a.initAutoCertManager()
+	err = a.settings.Refresh(a.Config())
 	assert.Nil(t, err)
 
 	// simulate import path
 	t.Log("simulate import path")
-	a.importPath = "github.com/jeevatkm/noapp"
+	a.settings.ImportPath = "github.com/jeevatkm/noapp"
 	err = a.initPath()
-	assert.True(t, strings.HasPrefix(err.Error(), "import path does not exists:"))
+	// assert.True(t, strings.HasPrefix(err.Error(), "import path does not exists:"))
 
 	// App packaged mode
 	t.Log("App packaged mode")
@@ -215,9 +224,9 @@ func TestAppMisc(t *testing.T) {
 	pa.initPath()
 
 	// App embedded mode
-	assert.False(t, pa.IsEmbeddedMode())
-	pa.SetEmbeddedMode()
-	assert.True(t, pa.IsEmbeddedMode())
+	assert.False(t, pa.VFS().IsEmbeddedMode())
+	pa.VFS().SetEmbeddedMode()
+	assert.True(t, pa.VFS().IsEmbeddedMode())
 	pa.initPath()
 
 	// App WS engine
@@ -234,7 +243,101 @@ func TestAppRecover(t *testing.T) {
 	panicTest(a)
 }
 
-func panicTest(a *app) {
+func TestHotAppReload(t *testing.T) {
+	importPath := filepath.Join(testdataBaseDir(), "webapp1")
+	ts := newTestServer(t, importPath)
+	defer ts.Close()
+
+	t.Logf("Test Server URL [Hot Reload]: %s", ts.URL)
+
+	ts.app.performHotReload()
+}
+
+func TestLogInitRelativeFilePath(t *testing.T) {
+	logPath := filepath.Join(testdataBaseDir(), "sample-test-app.log")
+	defer ess.DeleteFiles(logPath)
+
+	// Relative path file
+	a := newApp()
+	cfg, _ := config.ParseString(`log {
+    receiver = "file"
+    file = "sample-test-app.log"
+  }`)
+	a.cfg = cfg
+
+	err := a.initLog()
+	assert.Nil(t, err)
+
+	a.AddLoggerHook("myapphook", func(e log.Entry) {
+		t.Logf("%v", e)
+	})
+}
+
+func TestLogInitNoFilePath(t *testing.T) {
+	// No file input - auto location
+	logPath := filepath.Join(testdataBaseDir(), "wepapp1.log")
+	defer ess.DeleteFiles(logPath)
+
+	// Relative path file
+	a := newApp()
+	cfg, _ := config.ParseString(`log {
+    receiver = "file"
+  }`)
+	a.cfg = cfg
+
+	err := a.initLog()
+	assert.Nil(t, err)
+
+	a.AddLoggerHook("myapphook", func(e log.Entry) {
+		t.Logf("%v", e)
+	})
+}
+
+func TestAccessLogInitAbsPath(t *testing.T) {
+	logPath := filepath.Join(testdataBaseDir(), "sample-test-access.log")
+	defer ess.DeleteFiles(logPath)
+
+	a := newApp()
+	cfg, _ := config.ParseString(fmt.Sprintf(`server {
+    access_log {
+      file = "%s"
+    }
+  }`, filepath.ToSlash(logPath)))
+	a.cfg = cfg
+
+	err := a.initAccessLog()
+	assert.Nil(t, err)
+}
+
+type testErrorController1 struct {
+}
+
+func (tec *testErrorController1) HandleError(err *Error) bool {
+	log.Info("I have handled it at controller level")
+	return true
+}
+
+func TestErrorCallControllerHandler(t *testing.T) {
+	req, err := http.NewRequest(ahttp.MethodGet, "http://localhost:8080", nil)
+	assert.Nil(t, err)
+	ctx := &Context{
+		Req:        ahttp.AcquireRequest(req),
+		controller: &ainsp.Target{FqName: "testErrorController1"},
+		target:     &testErrorController1{},
+	}
+
+	l, err := log.New(config.NewEmpty())
+	assert.Nil(t, err)
+	ctx.logger = l
+
+	ctx.Reply().ContentType("application/json")
+	ctx.Reply().BadRequest().Error(newError(nil, http.StatusBadRequest))
+
+	em := new(errorManager)
+	em.Handle(ctx)
+}
+
+func panicTest(a *Application) {
 	defer a.aahRecover()
 	panic("test panic")
 }
@@ -275,19 +378,28 @@ func newTestServer(t *testing.T, importPath string) *testServer {
 	return ts
 }
 
-func newTestApp(t *testing.T, importPath string) *app {
+func newTestApp(t *testing.T, importPath string) *Application {
 	a := newApp()
 	a.SetBuildInfo(&BuildInfo{
 		BinaryName: filepath.Base(importPath),
-		Date:       time.Now().Format(time.RFC3339),
+		Timestamp:  time.Now().Format(time.RFC3339),
 		Version:    "1.0.0",
 	})
 
 	err := a.VFS().AddMount(a.VirtualBaseDir(), importPath)
-	assert.FailNowOnError(t, err, "not expecting any error")
+	assert.Nil(t, err, "not expecting any error")
 
-	err = a.Init(importPath)
-	assert.FailNowOnError(t, err, "app init failure")
+	a.settings.ImportPath = importPath
+	err = a.initPath()
+	assert.Nil(t, err, "app initPath failure")
+	err = a.initConfig()
+	assert.Nil(t, err, "app initConfig failure")
+	err = a.settings.Refresh(a.Config())
+	assert.Nil(t, err, "app settings failure")
+	err = a.initLog()
+	assert.Nil(t, err, "app log failure")
+	err = a.initApp()
+	assert.Nil(t, err, "app init failure")
 
 	return a
 }
@@ -302,10 +414,10 @@ type testResult struct {
 // TestServer provides capabilities to test aah application end-to-end.
 //
 // Note: after sometime I will expose this test server, I'm not fully satisfied with
-// the implementation yet! Becuase there are short comings in the test server....
+// the implementation yet! Because there are short comings in the test server....
 type testServer struct {
 	URL    string
-	app    *app
+	app    *Application
 	server *httptest.Server
 }
 

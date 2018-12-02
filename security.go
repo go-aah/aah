@@ -1,5 +1,5 @@
 // Copyright (c) Jeevanandam M. (https://github.com/jeevatkm)
-// aahframework.org/aah source code and usage is governed by a MIT style
+// Source code and usage is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package aah
@@ -9,14 +9,14 @@ import (
 	"net/url"
 	"strings"
 
-	"aahframework.org/ahttp.v0"
-	"aahframework.org/essentials.v0"
-	"aahframework.org/security.v0"
-	"aahframework.org/security.v0/acrypto"
-	"aahframework.org/security.v0/anticsrf"
-	"aahframework.org/security.v0/authc"
-	"aahframework.org/security.v0/scheme"
-	"aahframework.org/security.v0/session"
+	"aahframe.work/ahttp"
+	"aahframe.work/essentials"
+	"aahframe.work/internal/util"
+	"aahframe.work/security"
+	"aahframe.work/security/anticsrf"
+	"aahframe.work/security/authc"
+	"aahframe.work/security/authz"
+	"aahframe.work/security/scheme"
 )
 
 const (
@@ -35,41 +35,10 @@ const (
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Package methods
-//______________________________________________________________________________
-
-// AddSessionStore method allows you to add custom session store which
-// implements `session.Storer` interface. The `name` parameter is used in
-// aah.conf on `session.store.type = "name"`.
-func AddSessionStore(name string, store session.Storer) error {
-	return session.AddStore(name, store)
-}
-
-// AddPasswordAlgorithm method adds given password algorithm to encoders list.
-// Implementation have to implement interface `PasswordEncoder`.
-//
-// Then you can use it `security.auth_schemes.*`.
-func AddPasswordAlgorithm(name string, encoder acrypto.PasswordEncoder) error {
-	return acrypto.AddPasswordAlgorithm(name, encoder)
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// app methods
-//______________________________________________________________________________
-
-func (a *app) SecurityManager() *security.Manager {
-	return a.securityMgr
-}
-
-func (a *app) SessionManager() *session.Manager {
-	return a.SecurityManager().SessionManager
-}
-
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // app Unexported methods
 //______________________________________________________________________________
 
-func (a *app) initSecurity() error {
+func (a *Application) initSecurity() error {
 	asecmgr := security.New()
 	asecmgr.IsSSLEnabled = a.IsSSLEnabled()
 	if err := asecmgr.Init(a.Config()); err != nil {
@@ -77,7 +46,7 @@ func (a *app) initSecurity() error {
 	}
 
 	a.securityMgr = asecmgr
-	a.authSchemeExists = len(a.securityMgr.AuthSchemes()) > 0
+	a.settings.AuthSchemeExists = len(a.securityMgr.AuthSchemes()) > 0
 	return nil
 }
 
@@ -90,7 +59,7 @@ func AuthcAuthzMiddleware(ctx *Context, m *Middleware) {
 	// Continue with the flow, if -
 	// 		- Auth scheme is not defined in `security.conf`
 	// 		- Route auth is `anonymous`
-	if !ctx.a.authSchemeExists || ctx.route.Auth == "anonymous" {
+	if !ctx.a.settings.AuthSchemeExists || ctx.route.Auth == "anonymous" {
 		m.Next(ctx)
 		return
 	}
@@ -143,7 +112,7 @@ func doFormAuth(authScheme scheme.Schemer, ctx *Context) flowResult {
 	if formAuth.LoginSubmitURL != ctx.route.Path && ctx.Req.Method != ahttp.MethodPost {
 		loginURL := formAuth.LoginURL
 		if formAuth.LoginURL != ctx.Req.Path {
-			loginURL = addQueryString(loginURL, "_rt", ctx.Req.URL().String())
+			loginURL = util.AddQueryString(loginURL, "_rt", ctx.Req.URL().String())
 		}
 		ctx.Reply().Redirect(loginURL)
 		return flowAbort
@@ -267,7 +236,7 @@ func doAuthentication(authScheme scheme.Schemer, ctx *Context) flowResult {
 			switch sa := authScheme.(type) {
 			case *scheme.FormAuth:
 				ctx.Log().Infof("%s: Authentication is failed, sending to login failure URL", authScheme.Key())
-				ctx.Reply().Redirect(addQueryString(sa.LoginFailureURL, "_rt", ctx.Req.FormValue("_rt")))
+				ctx.Reply().Redirect(util.AddQueryString(sa.LoginFailureURL, "_rt", ctx.Req.FormValue("_rt")))
 			case *scheme.BasicAuth:
 				ctx.Log().Infof("%s: Authentication is failed", authScheme.Key())
 				ctx.Reply().Header(ahttp.HeaderWWWAuthenticate, `Basic realm="`+sa.RealmName+`"`)
@@ -368,21 +337,21 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	// same-domain requests in only about 0.2% of cases or less, so
 	// we can use strict Referer checking.
 	if ctx.Req.Scheme == ahttp.SchemeHTTPS {
-		referer, err := url.Parse(ctx.Req.Referer)
+		referer, err := url.Parse(ctx.Req.Referer())
 		if err != nil {
-			ctx.Log().Warnf("anticsrf: Malformed referer %s", ctx.Req.Referer)
+			ctx.Log().Warnf("anticsrf: Malformed referer %s", ctx.Req.Referer())
 			ctx.Reply().Forbidden().Error(newError(anticsrf.ErrMalformedReferer, http.StatusForbidden))
 			return
 		}
 
 		if len(referer.String()) == 0 {
-			ctx.Log().Warnf("anticsrf: No referer %s", ctx.Req.Referer)
+			ctx.Log().Warnf("anticsrf: No referer %s", ctx.Req.Referer())
 			ctx.Reply().Forbidden().Error(newError(anticsrf.ErrNoReferer, http.StatusForbidden))
 			return
 		}
 
 		if !anticsrf.IsSameOrigin(ctx.Req.URL(), referer) {
-			ctx.Log().Warnf("anticsrf: Bad referer %s", ctx.Req.Referer)
+			ctx.Log().Warnf("anticsrf: Bad referer %s", ctx.Req.Referer())
 			ctx.Reply().Forbidden().Error(newError(anticsrf.ErrBadReferer, http.StatusForbidden))
 			return
 		}
@@ -406,4 +375,12 @@ func writeAntiCSRFCookie(ctx *Context, secret []byte) {
 	if err := ctx.a.SecurityManager().AntiCSRF.SetCookie(ctx.Res, secret); err != nil {
 		ctx.Log().Error("anticsrf: Unable to write cookie")
 	}
+}
+
+func reason2String(reasons []*authz.Reason) string {
+	var str string
+	for _, r := range reasons {
+		str += " " + r.String()
+	}
+	return str
 }
