@@ -587,6 +587,12 @@ func (a *Application) initPath() error {
 
 func (a *Application) initApp() error {
 	var err error
+	if err = a.settings.Refresh(a.Config()); err != nil {
+		return err
+	}
+	if err = a.initLog(); err != nil {
+		return err
+	}
 	for event := range a.EventStore().subscribers {
 		a.EventStore().sortEventSubscribers(event)
 	}
