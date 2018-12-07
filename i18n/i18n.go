@@ -166,7 +166,7 @@ func (s *I18n) Locales() []string {
 
 func (s *I18n) processMsgFile(file string) {
 	key := strings.ToLower(filepath.Ext(file)[1:])
-	msgFile, err := config.VFSLoadFile(s.vfs, file)
+	msgFile, err := config.LoadFile(file)
 	if err != nil {
 		log.Errorf("Unable to load message file: %v, error: %v", file, err)
 	}

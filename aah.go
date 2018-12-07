@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -41,7 +42,7 @@ import (
 	"aahframe.work/vfs"
 	"aahframe.work/view"
 	"aahframe.work/ws"
-
+	"github.com/go-aah/forge"
 	"gopkg.in/go-playground/validator.v9"
 )
 
@@ -503,12 +504,6 @@ func (a *Application) Run(args []string) error {
 	if err = a.initConfig(); err != nil {
 		return err
 	}
-	if err = a.settings.Refresh(a.Config()); err != nil {
-		return err
-	}
-	if err = a.initLog(); err != nil {
-		return err
-	}
 	a.initCli()
 	return a.cli.Run(args)
 }
@@ -531,6 +526,7 @@ func (a *Application) initPath() error {
 				}
 			}
 		}
+		forge.RegisterFS(&aahVFS{fs: a.VFS()})
 	}()
 
 	// Application is packaged, it means built via `aah build`
@@ -587,16 +583,16 @@ func (a *Application) initPath() error {
 
 func (a *Application) initApp() error {
 	var err error
+	for event := range a.EventStore().subscribers {
+		a.EventStore().sortEventSubscribers(event)
+	}
+	a.EventStore().PublishSync(&Event{Name: EventOnInit}) // publish `OnInit` server event
 	if err = a.settings.Refresh(a.Config()); err != nil {
 		return err
 	}
 	if err = a.initLog(); err != nil {
 		return err
 	}
-	for event := range a.EventStore().subscribers {
-		a.EventStore().sortEventSubscribers(event)
-	}
-	a.EventStore().PublishSync(&Event{Name: EventOnInit}) // publish `OnInit` server event
 	if err = a.initI18n(); err != nil {
 		return err
 	}
@@ -681,7 +677,7 @@ func (a *Application) Config() *config.Config {
 }
 
 func (a *Application) initConfig() error {
-	cfg, err := config.VFSLoadFile(a.VFS(), path.Join(a.VirtualBaseDir(), "config", "aah.conf"))
+	cfg, err := config.LoadFile(path.Join(a.VirtualBaseDir(), "config", "aah.conf"))
 	if err != nil {
 		return fmt.Errorf("aah.conf: %s", err)
 	}
@@ -904,4 +900,16 @@ func inferBaseDir(p string) (string, error) {
 		}
 	}
 	return "", errors.New("aah: config directory not found in parent directories")
+}
+
+type aahVFS struct {
+	fs *vfs.VFS
+}
+
+func (f aahVFS) Open(filename string) (io.Reader, error) {
+	return f.fs.Open(filename)
+}
+
+func (f aahVFS) Glob(pattern string) (matches []string, err error) {
+	return f.fs.Glob(pattern)
 }

@@ -16,6 +16,7 @@ go:
 go_import_path: aahframe.work
 
 install:
+  - export GO111MODULE=on
   - go get -t -v ./...
 
 script:
