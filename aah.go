@@ -907,9 +907,16 @@ type aahVFS struct {
 }
 
 func (f aahVFS) Open(filename string) (io.Reader, error) {
-	return f.fs.Open(filename)
+	return f.fs.Open(checkToSlash(filename))
 }
 
 func (f aahVFS) Glob(pattern string) (matches []string, err error) {
-	return f.fs.Glob(pattern)
+	return f.fs.Glob(checkToSlash(pattern))
+}
+
+func checkToSlash(value string) string {
+	if strings.HasPrefix(value, "\\app\\") {
+		return filepath.ToSlash(value)
+	}
+	return value
 }
