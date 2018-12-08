@@ -19,8 +19,6 @@ func TestLookExecutable(t *testing.T) {
 }
 
 func TestIsImportPathExists(t *testing.T) {
-	assert.Equal(t, true, IsImportPathExists("github.com/stretchr/testify"))
-
 	assert.Equal(t, false, IsImportPathExists("aahframe.work/unknown"))
 }
 

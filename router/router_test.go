@@ -6,6 +6,7 @@ package router
 
 import (
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -22,6 +23,8 @@ import (
 	"aahframe.work/security/scheme"
 	"aahframe.work/valpar"
 	"aahframe.work/vfs"
+
+	"github.com/go-aah/forge"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -428,7 +431,7 @@ func TestRouterDomainAddRoute(t *testing.T) {
 func TestRouterConfigNotExists(t *testing.T) {
 	router, err := createRouter("routes-not-exists.conf")
 	assert.NotNil(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "router: configuration does not exists"))
+	assert.True(t, strings.Contains(err.Error(), "does not exists"))
 	assert.Nil(t, router)
 }
 
@@ -637,21 +640,32 @@ func TestMiscRouter(t *testing.T) {
 	addSlashPrefix("welcome")
 }
 
+type aahFS struct {
+	fs *vfs.VFS
+}
+
+func (f aahFS) Open(filename string) (io.Reader, error) {
+	return f.fs.Open(filename)
+}
+
+func (f aahFS) Glob(pattern string) (matches []string, err error) {
+	return f.fs.Glob(pattern)
+}
+
 type app struct {
 	cfg *config.Config
 	l   log.Loggerer
-	fs  *vfs.VFS
 	sec *security.Manager
 }
 
 func (a *app) Config() *config.Config             { return a.cfg }
 func (a *app) Log() log.Loggerer                  { return a.l }
-func (a *app) VFS() *vfs.VFS                      { return a.fs }
 func (a *app) SecurityManager() *security.Manager { return a.sec }
 
 func createRouter(filename string) (*Router, error) {
-	fs := new(vfs.VFS)
-	fs.AddMount("/app/config", testdataBaseDir())
+	rfs := new(vfs.VFS)
+	_ = rfs.AddMount("/app/config", testdataBaseDir())
+	forge.RegisterFS(&aahFS{fs: rfs})
 
 	appCfg, _ := config.ParseString(`routes {
 			localhost {
@@ -664,11 +678,11 @@ func createRouter(filename string) (*Router, error) {
 	l.SetWriter(ioutil.Discard)
 
 	sec := security.New()
-	sec.AddAuthScheme("form_auth", &scheme.FormAuth{LoginSubmitURL: "/login"})
-	sec.AddAuthScheme("form", &scheme.FormAuth{LoginSubmitURL: "/login"})
+	_ = sec.AddAuthScheme("form_auth", &scheme.FormAuth{LoginSubmitURL: "/login"})
+	_ = sec.AddAuthScheme("form", &scheme.FormAuth{LoginSubmitURL: "/login"})
 
 	// config path in vfs, filepath.Join not required
-	return NewWithApp(&app{cfg: appCfg, l: l, fs: fs, sec: sec}, "/app/config/"+filename)
+	return NewWithApp(&app{cfg: appCfg, l: l, sec: sec}, "/app/config/"+filename)
 }
 
 func createHTTPRequest(host, path string) *http.Request {
