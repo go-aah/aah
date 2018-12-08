@@ -23,7 +23,6 @@ import (
 	"aahframe.work/log"
 	"aahframe.work/security"
 	"aahframe.work/security/scheme"
-	"aahframe.work/vfs"
 )
 
 const (
@@ -58,7 +57,6 @@ var (
 type application interface {
 	Config() *config.Config
 	Log() log.Loggerer
-	VFS() *vfs.VFS
 	SecurityManager() *security.Manager
 }
 
@@ -119,11 +117,7 @@ type Router struct {
 // Load method loads a configuration from given file e.g. `routes.conf` and
 // applies env profile override values if available.
 func (r *Router) Load() (err error) {
-	if !r.isExists(r.configPath) {
-		return fmt.Errorf("router: configuration does not exists: %v", r.configPath)
-	}
-
-	r.config, err = r.readConfig(r.configPath)
+	r.config, err = config.LoadFile(r.configPath)
 	if err != nil {
 		return err
 	}
@@ -241,20 +235,6 @@ func (r *Router) findDomain(key string) *Domain {
 		}
 	}
 	return nil
-}
-
-func (r *Router) isExists(name string) bool {
-	if r.app == nil {
-		return vfs.IsExists(nil, name)
-	}
-	return vfs.IsExists(r.app.VFS(), name)
-}
-
-func (r *Router) readConfig(name string) (*config.Config, error) {
-	if r.app == nil {
-		return config.LoadFile(name)
-	}
-	return config.VFSLoadFile(r.app.VFS(), r.configPath)
 }
 
 func (r *Router) lookupRouteURLDomain(host, routeName string) (*Domain, string) {

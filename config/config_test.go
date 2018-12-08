@@ -281,7 +281,7 @@ func TestProfile(t *testing.T) {
 
 func TestConfigLoadNotExists(t *testing.T) {
 	_, err := LoadFile(join(testdataBaseDir(), "not_exists.cfg"))
-	assert.True(t, strings.HasPrefix(err.Error(), "configuration does not exists:"))
+	assert.True(t, strings.Contains(err.Error(), "does not exists:"))
 
 	_, err = ParseString(`
   # Error configuration
@@ -290,13 +290,13 @@ func TestConfigLoadNotExists(t *testing.T) {
   float32 = 32.2
   int64 = 1
   float64 = 1.1
-    `)
+	`)
 	assert.Equal(t, true,
 		strings.Contains(err.Error(), "adding comment without semicolon will lead to error"))
 }
 
 func TestMergeConfig(t *testing.T) {
-	cfg1, err := ParseString(`
+	cfg1, _ := ParseString(`
 global = "global value";
 
 prod {
@@ -309,7 +309,7 @@ prod {
 }
 	`)
 
-	cfg2, err := ParseString(`
+	cfg2, _ := ParseString(`
 global = "global value";
 
 newvalue = "I'm new value"
@@ -319,7 +319,7 @@ prod {
 }
 `)
 
-	err = cfg1.Merge(cfg2)
+	err := cfg1.Merge(cfg2)
 	assert.NoErrorf(t, err, "merge failed")
 
 	t.Log("Merge2Section test")
@@ -374,7 +374,7 @@ func TestLoadFiles(t *testing.T) {
 
 	// fail cases
 	_, err = LoadFiles(join(testdataPath, "not_exists.cfg"))
-	assert.Equal(t, true, strings.Contains(err.Error(), "configuration does not exists:"))
+	assert.Equal(t, true, strings.Contains(err.Error(), "does not exists:"))
 
 	_, err = LoadFiles(
 		join(testdataPath, "test-1.cfg"),

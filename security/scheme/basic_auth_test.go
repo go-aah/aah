@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"aahframe.work/ahttp"
@@ -44,7 +45,7 @@ func TestSchemeBasicAuthFileRealm(t *testing.T) {
 
 	err := basicAuth.Init(cfg, "basic_auth")
 	assert.NotNil(t, err)
-	assert.Equal(t, "configuration does not exists: path/to/file", err.Error())
+	assert.True(t, strings.Contains(err.Error(), "does not exists"))
 
 	fileRealmPathError := filepath.Join(getTestdataPath(), "basic_auth_file_realm_error.conf")
 	cfg.SetString("security.auth_schemes.basic_auth.file_realm", fileRealmPathError)

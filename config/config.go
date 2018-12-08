@@ -12,10 +12,10 @@ package config
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
-	"aahframe.work/vfs"
 	"github.com/go-aah/forge"
 )
 
@@ -430,37 +430,27 @@ func (c *Config) ToJSON() string {
 //______________________________________________________________________________
 
 // LoadFile loads the configuration from given config file.
-func LoadFile(file string) (*Config, error) {
-	return VFSLoadFile(nil, file)
-}
-
-// VFSLoadFile loads the configuration from given vfs and config file.
-func VFSLoadFile(fs *vfs.VFS, file string) (*Config, error) {
-	setting, err := loadFile(fs, file)
-	return newConfig(setting), err
+func LoadFile(filename string) (*Config, error) {
+	setting, err := loadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return newConfig(setting), nil
 }
 
 // LoadFiles loads the configuration from given config files.
 // It does merging of configuration in the order they are given.
 func LoadFiles(files ...string) (*Config, error) {
-	return VFSLoadFiles(nil, files...)
-}
-
-// VFSLoadFiles loads the configuration from given config vfs and files.
-// It does merging of configuration in the order they are given.
-func VFSLoadFiles(fs *vfs.VFS, files ...string) (*Config, error) {
 	settings := forge.NewSection()
-	for _, file := range files {
-		setting, err := loadFile(fs, file)
+	for _, filename := range files {
+		setting, err := loadFile(filename)
 		if err != nil {
 			return nil, err
 		}
-
 		if err = settings.Merge(setting); err != nil {
 			return nil, err
 		}
 	}
-
 	return newConfig(settings), nil
 }
 
@@ -477,11 +467,15 @@ func ParseString(cfg string) (*Config, error) {
 // Config unexported methods
 //______________________________________________________________________________
 
-func loadFile(fs *vfs.VFS, file string) (*forge.Section, error) {
-	if _, err := vfs.Stat(fs, file); err != nil {
-		return nil, fmt.Errorf("configuration does not exists: %v", file)
+func loadFile(filename string) (*forge.Section, error) {
+	setting, err := forge.ParseFile(filename)
+	if os.IsNotExist(err) {
+		return nil, fmt.Errorf("configuration file does not exists: %v", filename)
 	}
-	return forge.VFSParseFile(fs, file)
+	if err != nil {
+		return nil, err
+	}
+	return setting, nil
 }
 
 func (c *Config) prepareKey(key string) string {
