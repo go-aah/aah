@@ -63,6 +63,10 @@ walk:
 				i++
 			}
 			if i != max {
+				if pn.wnode != nil {
+					sn = pn.wnode
+					continue walk
+				}
 				r, params = nil, nil
 				return
 			}
