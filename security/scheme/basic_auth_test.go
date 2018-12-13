@@ -217,6 +217,7 @@ func TestSchemeBasicAuthCustom(t *testing.T) {
 
 	authcToken.Identity = "newuser"
 	authcInfo, err = basicAuth.DoAuthenticate(authcToken)
+	assert.Nil(t, authcInfo)
 	assert.NotNil(t, err)
 	assert.True(t, err == authc.ErrSubjectNotExists)
 }

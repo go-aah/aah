@@ -637,7 +637,7 @@ func TestMiscRouter(t *testing.T) {
 	assert.NotNil(t, r)
 	assert.Nil(t, r.config)
 
-	addSlashPrefix("welcome")
+	_ = addSlashPrefix("welcome")
 }
 
 type aahFS struct {

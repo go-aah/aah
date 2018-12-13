@@ -27,7 +27,7 @@ const (
 	ProfilePrefix           = "env."
 )
 
-// Settings represents parsed/infered config values for the application.
+// Settings represents parsed and inferred config values for the application.
 type Settings struct {
 	PhysicalPathMode       bool
 	PackagedMode           bool

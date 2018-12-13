@@ -41,15 +41,13 @@ func (a *Application) initCli() {
 	}
 	a.cli.Action = func(c *console.Context) error {
 		if c.GlobalBool("help") || c.Bool("h") {
-			console.ShowAppHelp(c)
-			return nil
+			return console.ShowAppHelp(c)
 		}
 		args := c.Args()
 		if args.Present() {
 			return console.ShowCommandHelp(c, args.First())
 		}
-		console.ShowAppHelp(c)
-		return nil
+		return console.ShowAppHelp(c)
 	}
 	console.VersionFlagDesc("Print app build information")
 	console.VersionPrinter(func(c *console.Context) {
@@ -74,8 +72,7 @@ func (a *Application) cliCmdHelp() console.Command {
 			if args.Present() {
 				return console.ShowCommandHelp(c, args.First())
 			}
-			console.ShowAppHelp(c)
-			return nil
+			return console.ShowAppHelp(c)
 		},
 	}
 }
@@ -111,9 +108,9 @@ func (a *Application) cliCmdRun() console.Command {
 				}
 				extCfg, err := config.LoadFile(cpath)
 				if err != nil {
-					return fmt.Errorf("Unable to load external config: %s", cpath)
+					return fmt.Errorf("Unable to load external config, error: %s", err)
 				}
-				if err := a.Config().Merge(extCfg); err != nil {
+				if err = a.Config().Merge(extCfg); err != nil {
 					return fmt.Errorf("Unable to merge external config into aah application[%s]: %s", a.Name(), err)
 				}
 			}

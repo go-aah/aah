@@ -5,10 +5,9 @@
 package aah
 
 import (
-	"errors"
-	"aahframe.work/console"
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -26,6 +25,7 @@ import (
 	"aahframe.work/ahttp"
 	"aahframe.work/ainsp"
 	"aahframe.work/config"
+	"aahframe.work/console"
 	"aahframe.work/essentials"
 	"aahframe.work/log"
 	"github.com/stretchr/testify/assert"
@@ -182,13 +182,13 @@ func TestAppMisc(t *testing.T) {
 	assert.True(t, a.IsPackaged())
 	assert.True(t, strings.Contains(strings.Join(a.EnvProfiles(), " "), "prod"))
 
-	_= a.Run([]string{"-v"})
+	_ = a.Run([]string{"-v"})
 
-	er := a.AddCommand(console.Command{Name:"test1"}, console.Command{Name:"test2"})
+	er := a.AddCommand(console.Command{Name: "test1"}, console.Command{Name: "test2"})
 	assert.Nil(t, er)
-	er = a.AddCommand(console.Command{Name:"vfs"})
+	er = a.AddCommand(console.Command{Name: "vfs"})
 	assert.Equal(t, errors.New("aah: reserved command name 'vfs' cannot be used"), er)
-	er = a.AddCommand(console.Command{Name:"test2"})
+	er = a.AddCommand(console.Command{Name: "test2"})
 	assert.Equal(t, errors.New("aah: command name 'test2' already exists"), er)
 
 	ll := a.NewChildLogger(log.Fields{"key1": "value1"})
@@ -212,7 +212,7 @@ func TestAppMisc(t *testing.T) {
 	// simulate import path
 	t.Log("simulate import path")
 	a.settings.ImportPath = "github.com/jeevatkm/noapp"
-	err = a.initPath()
+	_ = a.initPath()
 	// assert.True(t, strings.HasPrefix(err.Error(), "import path does not exists:"))
 
 	// App packaged mode
