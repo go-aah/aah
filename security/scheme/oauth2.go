@@ -74,7 +74,6 @@ type OAuth2 struct {
 	redirectUpdated bool
 	signSha         string
 	signKey         []byte
-	appCfg          *config.Config
 	oauthCfg        *oauth2.Config
 }
 

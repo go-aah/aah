@@ -28,7 +28,6 @@ const (
 	// SlashString const for comparison use
 	SlashString = "/"
 
-	dotByte   = '.'
 	slashByte = '/'
 	paramByte = ':'
 	wildByte  = '*'

@@ -13,7 +13,7 @@ import (
 )
 
 // NOTE: console package type aliases declared using library `github.com/urfave/cli`.
-// To keep decoupled from thrid party library for aah user and also opens up avenue
+// To keep decoupled from third party library for aah user and also opens up avenue
 // for smooth migration to new library if need be or bringing home grown module later.
 
 type (

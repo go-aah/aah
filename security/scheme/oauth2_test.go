@@ -283,8 +283,9 @@ security {
 
 	result1, err1 := oauth.Principal("local_auth", nil)
 	assert.Equal(t, errors.New("oauth2: 'security.auth_schemes.local_auth.provider.principal' not configured properly"), err1)
+	assert.Nil(t, result1)
 
-	oauth.SetPrincipalProvider(&principalprovider{})
+	_ = oauth.SetPrincipalProvider(&principalprovider{})
 	result1, err1 = oauth.Principal("local_auth", nil)
 	assert.Nil(t, err1)
 	assert.True(t, result1[0].IsPrimary)

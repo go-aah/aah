@@ -142,6 +142,7 @@ func TestSchemeFormAuth(t *testing.T) {
 
 	authcToken.Identity = "newuser"
 	authcInfo, err = formAuth.DoAuthenticate(authcToken)
+	assert.Nil(t, authcInfo)
 	assert.NotNil(t, err)
 	assert.True(t, err == authc.ErrAuthenticationFailed)
 }

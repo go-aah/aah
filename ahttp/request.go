@@ -39,7 +39,7 @@ func ParseRequest(r *http.Request, req *Request) *Request {
 	req.Path = r.URL.Path
 	req.Header = r.Header
 	if h := r.Header[HeaderAcceptEncoding]; len(h) > 0 {
-		req.IsGzipAccepted = strings.Index(h[0], "gzip") >= 0
+		req.IsGzipAccepted = strings.Contains(h[0], "gzip")
 	}
 	req.raw = r
 	req.raw.URL.Scheme = req.Scheme
@@ -300,7 +300,7 @@ func (r *Request) Reset() {
 
 func (r *Request) cleanupMutlipart() {
 	if r.Unwrap().MultipartForm != nil {
-		r.Unwrap().MultipartForm.RemoveAll()
+		_ = r.Unwrap().MultipartForm.RemoveAll()
 	}
 }
 
