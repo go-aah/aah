@@ -17,9 +17,8 @@ import (
 
 func TestTreeBasicUseCase(t *testing.T) {
 	testcases := []struct {
-		route        string
-		result       *Route
-		resultParams ahttp.URLParams
+		route  string
+		result *Route
 	}{
 		{route: "/hi", result: &Route{Path: "/hi"}},
 		{route: "/contact", result: &Route{Path: "/contact"}},
@@ -72,7 +71,12 @@ func TestTreeRouteParameters(t *testing.T) {
 		"/doc/go1.html",
 		"/info/:user/public",
 		"/info/:user/project/:project",
+		"/:version",
+		"/:version/*content",
 		"/",
+		"/refresh",
+		"/:version/release-notes.html",
+		"/examples.html",
 	}
 
 	tt := newTree()
@@ -142,6 +146,34 @@ func TestTreeRouteParameters(t *testing.T) {
 			route:        "/src/path/to/source/file.go",
 			result:       &Route{Path: "/src/*filepath"},
 			resultParams: ahttp.URLParams{{Key: "filepath", Value: "path/to/source/file.go"}},
+		},
+		{
+			route:        "/v0.12",
+			result:       &Route{Path: "/:version"},
+			resultParams: ahttp.URLParams{{Key: "version", Value: "v0.12"}},
+		},
+		{
+			route:        "/v0.12/routing.html",
+			result:       &Route{Path: "/:version/*content"},
+			resultParams: ahttp.URLParams{{Key: "version", Value: "v0.12"}, {Key: "content", Value: "routing.html"}},
+		},
+		{
+			route:        "/v0.12/request-and-response.html",
+			result:       &Route{Path: "/:version/*content"},
+			resultParams: ahttp.URLParams{{Key: "version", Value: "v0.12"}, {Key: "content", Value: "request-and-response.html"}},
+		},
+		{
+			route:  "/examples.html",
+			result: &Route{Path: "/examples.html"},
+		},
+		{
+			route:        "/v0.12/release-notes.html",
+			result:       &Route{Path: "/:version/release-notes.html"},
+			resultParams: ahttp.URLParams{{Key: "version", Value: "v0.12"}},
+		},
+		{
+			route:  "/refresh",
+			result: &Route{Path: "/refresh"},
 		},
 	}
 
