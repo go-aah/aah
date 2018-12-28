@@ -244,7 +244,7 @@ func createVFS(t *testing.T) *VFS {
 	assert.Nil(t, err)
 	assert.NotNil(t, m)
 
-	err = filepath.Walk(mountDir, func(fpath string, info os.FileInfo, err error) error {
+	werr := filepath.Walk(mountDir, func(fpath string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			err = m.AddDir(&NodeInfo{
 				Dir:  info.IsDir(),
@@ -275,7 +275,7 @@ func createVFS(t *testing.T) *VFS {
 		}
 		return nil
 	})
-	assert.Nil(t, err)
+	assert.Nil(t, werr)
 
 	return fs
 }

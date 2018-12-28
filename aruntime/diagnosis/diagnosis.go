@@ -158,8 +158,7 @@ func (d *Diagnosis) doProfileByName(w io.Writer, name string, gc bool, debug, va
 		runtime.SetMutexProfileFraction(val) // https://golang.org/pkg/runtime/#SetMutexProfileFraction
 		defer func() { runtime.SetMutexProfileFraction(0) }()
 	}
-	p.WriteTo(w, debug)
-	return nil
+	return p.WriteTo(w, debug)
 }
 
 func (d *Diagnosis) sleep(w io.Writer, dur time.Duration) {

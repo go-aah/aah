@@ -6,7 +6,6 @@ package aah
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -22,10 +21,6 @@ import (
 	"aahframe.work/essentials"
 	"aahframe.work/internal/util"
 	"aahframe.work/vfs"
-)
-
-var (
-	errSeeker = errors.New("static: seeker can't seek")
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

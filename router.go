@@ -189,7 +189,7 @@ func handleRoute(ctx *Context) flowResult {
 	ctx.Req.URLParams = urlParams
 
 	// Serving static file
-	if route.IsStatic {
+	if ctx.route.IsStatic {
 		if err := ctx.a.staticMgr.Serve(ctx); err == errFileNotFound {
 			ctx.Log().Warnf("Static file not found, Host: %s, Path: %s", ctx.Req.Host, ctx.Req.Path)
 			ctx.Reply().done = false

@@ -236,8 +236,8 @@ func CopyDir(dest, src string, excludes Excludes) error {
 		}
 
 		// copy source into destination
-		if _, err = CopyFile(destPath, srcPath); err != nil {
-			return err
+		if _, er := CopyFile(destPath, srcPath); er != nil {
+			return er
 		}
 
 		// Apply source permision into target as well

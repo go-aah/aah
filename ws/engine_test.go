@@ -232,7 +232,7 @@ func addWebSocketEvents(t *testing.T, wse *Engine) {
 		assert.Equal(t, EventOnPostConnect, eventName)
 		assert.NotNil(t, ctx)
 		if ctx.Req.QueryValue("disconnect") == "true" {
-			ctx.Disconnect()
+			_ = ctx.Disconnect()
 		}
 	})
 	wse.OnPostDisconnect(func(eventName string, ctx *Context) {

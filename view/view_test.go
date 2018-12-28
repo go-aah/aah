@@ -6,15 +6,12 @@ package view
 
 import (
 	"html/template"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"aahframe.work/config"
-	"aahframe.work/log"
 	"aahframe.work/vfs"
 	"github.com/stretchr/testify/assert"
 )
@@ -73,16 +70,10 @@ func testdataBaseDir() string {
 
 func newVFS() *vfs.VFS {
 	fs := new(vfs.VFS)
-	fs.AddMount("/testdata", testdataBaseDir())
+	_ = fs.AddMount("/testdata", testdataBaseDir())
 	return fs
 }
 
 func join(s ...string) string {
 	return "/" + path.Join(s...)
-}
-
-func newLog() log.Loggerer {
-	l, _ := log.New(config.NewEmpty())
-	l.SetWriter(ioutil.Discard)
-	return l
 }

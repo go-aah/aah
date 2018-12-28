@@ -5,7 +5,6 @@
 package log
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	slog "log"
@@ -15,8 +14,7 @@ import (
 )
 
 var (
-	entryPool *sync.Pool
-	bufPool   *sync.Pool
+	entryPool          = &sync.Pool{New: func() interface{} { return newEntry() }}
 	_         Loggerer = (*Entry)(nil)
 )
 
@@ -325,20 +323,4 @@ func acquireEntry(logger *Logger) *Entry {
 func releaseEntry(e *Entry) {
 	e.Reset()
 	entryPool.Put(e)
-}
-
-func acquireBuffer() *bytes.Buffer {
-	return bufPool.Get().(*bytes.Buffer)
-}
-
-func releaseBuffer(buf *bytes.Buffer) {
-	if buf != nil {
-		buf.Reset()
-		bufPool.Put(buf)
-	}
-}
-
-func init() {
-	bufPool = &sync.Pool{New: func() interface{} { return &bytes.Buffer{} }}
-	entryPool = &sync.Pool{New: func() interface{} { return newEntry() }}
 }

@@ -225,7 +225,7 @@ func (d *Diagnosis) dynamicProfileHandler(w http.ResponseWriter, r *http.Request
 			return
 		}
 	}
-	w.Write([]byte("Unknown profile"))
+	_, _ = w.Write([]byte("Unknown profile"))
 }
 
 // CmdlineHandler responds with the running program's
@@ -322,7 +322,7 @@ func (d *Diagnosis) symbolHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Write(buf.Bytes())
+	_, _ = w.Write(buf.Bytes())
 }
 
 func durationExceedsWriteTimeout(r *http.Request, seconds float64) bool {

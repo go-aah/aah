@@ -429,10 +429,8 @@ func releaseBuffer(b *bytes.Buffer) {
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-// Render Definiyions
+// Render Definitions
 //______________________________________________________________________________
-
-const defaultSecureJSONPrefix = ")]}',\n"
 
 var xmlHeaderBytes = []byte(xml.Header)
 

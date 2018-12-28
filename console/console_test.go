@@ -29,7 +29,7 @@ func TestConsoleMisc(t *testing.T) {
 	cli.AppHelpTemplate = ""
 	cli.CommandHelpTemplate = ""
 	cli.SubcommandHelpTemplate = ""
-	ShowAppHelp(ctx)
-	ShowCommandHelp(ctx, "help")
-	ShowSubcommandHelp(ctx)
+	_ = ShowAppHelp(ctx)
+	_ = ShowCommandHelp(ctx, "help")
+	_ = ShowSubcommandHelp(ctx)
 }

@@ -133,7 +133,7 @@ type Application struct {
 // Introduced in v0.12.0 release.
 func (a *Application) InitForCLI(importPath string) error {
 	a.settings.ImportPath = path.Clean(importPath)
-	a.Log().(*log.Logger).SetLevel("warn")
+	_ = a.Log().(*log.Logger).SetLevel("warn")
 	var err error
 	if err = a.initPath(); err != nil {
 		return err
@@ -147,7 +147,7 @@ func (a *Application) InitForCLI(importPath string) error {
 	if err = a.initRouter(); err != nil {
 		return err
 	}
-	a.Log().(*log.Logger).SetLevel("debug")
+	_ = a.Log().(*log.Logger).SetLevel("debug")
 	return nil
 }
 

@@ -130,7 +130,8 @@ func TestAahApp(t *testing.T) {
 	secretstr := ts.app.SecurityManager().AntiCSRF.SaltCipherSecret(secret)
 	form.Add("anti_csrf_token", secretstr)
 	wt := httptest.NewRecorder()
-	ts.app.SecurityManager().AntiCSRF.SetCookie(wt, secret)
+	err = ts.app.SecurityManager().AntiCSRF.SetCookie(wt, secret)
+	assert.Nil(t, err)
 	cookieValue := wt.Header().Get("Set-Cookie")
 	req, err = http.NewRequest(ahttp.MethodPost, ts.URL+"/form-submit", strings.NewReader(form.Encode()))
 	assert.Nil(t, err)
@@ -221,13 +222,13 @@ func TestAppMisc(t *testing.T) {
 	l, _ := log.New(config.NewEmpty())
 	pa.logger = l
 	pa.SetPackaged(true)
-	pa.initPath()
+	_ = pa.initPath()
 
 	// App embedded mode
 	assert.False(t, pa.VFS().IsEmbeddedMode())
 	pa.VFS().SetEmbeddedMode()
 	assert.True(t, pa.VFS().IsEmbeddedMode())
-	pa.initPath()
+	_ = pa.initPath()
 
 	// App WS engine
 	assert.Nil(t, pa.WSEngine())
@@ -268,7 +269,7 @@ func TestLogInitRelativeFilePath(t *testing.T) {
 	err := a.initLog()
 	assert.Nil(t, err)
 
-	a.AddLoggerHook("myapphook", func(e log.Entry) {
+	_ = a.AddLoggerHook("myapphook", func(e log.Entry) {
 		t.Logf("%v", e)
 	})
 }
@@ -288,7 +289,7 @@ func TestLogInitNoFilePath(t *testing.T) {
 	err := a.initLog()
 	assert.Nil(t, err)
 
-	a.AddLoggerHook("myapphook", func(e log.Entry) {
+	_ = a.AddLoggerHook("myapphook", func(e log.Entry) {
 		t.Logf("%v", e)
 	})
 }

@@ -5,7 +5,6 @@
 package util
 
 import (
-	"errors"
 	"html/template"
 	"io"
 	"mime"
@@ -16,10 +15,6 @@ import (
 	"strings"
 
 	"aahframe.work/ahttp"
-)
-
-var (
-	errSeeker = errors.New("static: seeker can't seek")
 )
 
 // IsValidTimeUnit method to check supported time unit suffixes.
@@ -47,7 +42,7 @@ func DetectFileContentType(file string, content io.ReadSeeker) (string, error) {
 
 		// rewind to output whole file
 		if _, err := content.Seek(0, io.SeekStart); err != nil {
-			return "", errSeeker
+			return "", err
 		}
 	}
 	return ctype, nil

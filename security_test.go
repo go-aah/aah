@@ -303,15 +303,14 @@ security {
 	client := &http.Client{Jar: cookieJar}
 
 	r1, _ := http.NewRequest(http.MethodGet, ts.URL+"/local-oauth/login", nil)
-	resp, err := client.Do(r1)
+	_, err = client.Do(r1)
 	assert.Nil(t, err)
-	// assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 
 	testOAuth2 := new(testOAuth2Auth)
 	assert.Nil(t, oauth.SetPrincipalProvider(testOAuth2))
 	assert.Nil(t, oauth.SetAuthorizer(testOAuth2))
 
-	resp, err = client.Do(r1)
+	resp, err := client.Do(r1)
 	assert.Nil(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
