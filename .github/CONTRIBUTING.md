@@ -1,16 +1,19 @@
 # The aah Project
 
-aah is an open source project, lead by [Jeevanandam M.](https://github.com/jeevatkm) and contributions from many [contributors](https://github.com/go-aah/aah/graphs/contributors) from open source community.
+First off, thank you for considering contributing to aah project. Please take a moment to review this document.
 
-aah source code is released under [MIT-style license](https://github.com/go-aah/aah/blob/master/LICENSE), unless otherwise noted.
+aah is an open source project and love to receive voluntary contributions from aah community — you!
 
-aah documentation and content is released under [CC BY 4.0-style License](https://creativecommons.org/licenses/by/4.0/).
+There are many ways to contribute, from writing tutorials or blog posts, creating examples, improving the documentation, submitting bug reports and feature requests or writing code which can be incorporated into aah framework and its libraries.
 
-## Get in touch
+aah Community and Contributions - [Code of Conduct](https://github.com/go-aah/aah/blob/edge/.github/CODE_OF_CONDUCT.md)
 
+## Start here :smile:
+
+* If you find a security vulnerability, do NOT open an issue or do NOT disclose in public. Please refer to https://aahframework.org/security/vulnerabilities.html
 * Ask usage questions on [StackOverflow](https://stackoverflow.com/questions/tagged/aah).
-* Discuss on [Gitter](https://gitter.im/aahframework/community), on [Gophers Slack](https://gophers.slack.com/messages/aah). 
-* Report bugs, suggest features or view the source code on [GitHub](https://github.com/go-aah/aah).
+* Discuss on [Gitter](https://gitter.im/aahframework/community), on [Gophers Slack](https://gophers.slack.com/messages/aah) - aah community gets benefited.
+* Please do NOT use the issue tracker for personal support requests, instead use Gitter DM or Slack DM.
 
 ## Contribute to Documentation
 
@@ -28,5 +31,15 @@ aah documentation and content is released under [CC BY 4.0-style License](https:
 * Small changes, just send a Pull Request.
 * Bigger changes, I would suggest you to start the discussion first before you work on.
 * I like pull requests that include test cases. If possible example too.
+
+## Your First Code Contribution
+
+Unsure where to begin contributing to aah? You can start by looking through these `beginner` and `help-wanted` issues.
+
+* [Beginner issues and Help wanted issues](https://github.com/search?utf8=%E2%9C%93&q=is%3Aopen+is%3Aissue+label%3Abeginner+label%3Ahelp-wanted+user%3Ago-aah+sort%3Acomments-desc)
+
+Discuss via [Gitter](https://gitter.im/aahframework/community), on [Gophers Slack](https://gophers.slack.com/messages/aah) if you have any doubts or questions.
+
+# Spread the word
 
 Please, let the world know you've contributed to [aah framework](https://aahframework.org/) or give [@aahframework](https://twitter.com/aahframework) a shout out on Twitter or on your favorite social channels.
