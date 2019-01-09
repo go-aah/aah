@@ -44,7 +44,8 @@ func TestAntiCSRFSecret(t *testing.T) {
 	security {
 		anti_csrf {
 			sign_key = "eFWLXEewECptbDVXExokRTLONWxrTjfV"
-	    enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
+			enc_key = "KYqklJsgeclPpZutTeQKNOTWlpksRBwA"
+			trusted_origins = ["localhost:8080", "localhost:8443"]
 		}
 	}
 	`
@@ -94,6 +95,13 @@ func TestAntiCSRFSecret(t *testing.T) {
 	// same origin check
 	b, _ := url.Parse(req.Header.Get(ahttp.HeaderReferer))
 	assert.True(t, IsSameOrigin(req.URL, b))
+
+	// trusted origin check
+	assert.True(t, antiCSRF.IsTrustedOrigin(b))
+	c, _ := url.Parse("https://localhost:8443/home")
+	assert.True(t, antiCSRF.IsTrustedOrigin(c))
+	ne, _ := url.Parse("http://localhost:7000/")
+	assert.False(t, antiCSRF.IsTrustedOrigin(ne))
 }
 
 func TestAntiCSRFCipherSecret(t *testing.T) {

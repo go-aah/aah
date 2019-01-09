@@ -8,6 +8,8 @@ import (
 	"crypto/subtle"
 	"errors"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"aahframe.work/ahttp"
 	"aahframe.work/config"
@@ -25,13 +27,14 @@ var (
 
 // AntiCSRF struct hold the implementation of Anti CSRF (aka XSRF) protection.
 type AntiCSRF struct {
-	Enabled       bool
-	cfg           *config.Config
-	cookieMgr     *cookie.Manager
-	secretLength  int
-	cookieName    string
-	headerName    string
-	formFieldName string
+	Enabled        bool
+	cfg            *config.Config
+	cookieMgr      *cookie.Manager
+	secretLength   int
+	cookieName     string
+	headerName     string
+	formFieldName  string
+	trustedOrigins map[string]bool
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -50,6 +53,13 @@ func New(cfg *config.Config) (*AntiCSRF, error) {
 	c.secretLength = c.cfg.IntDefault(keyPrefix+".secret_length", 32)
 	c.headerName = c.cfg.StringDefault(keyPrefix+".header_name", "X-Anti-CSRF-Token")
 	c.formFieldName = c.cfg.StringDefault(keyPrefix+".form_field_name", "anti_csrf_token")
+
+	// GitHub #230
+	trustedOrigins, _ := c.cfg.StringList(keyPrefix + ".trusted_origins")
+	c.trustedOrigins = make(map[string]bool)
+	for _, origin := range trustedOrigins {
+		c.trustedOrigins[strings.ToLower(origin)] = true
+	}
 
 	// Anit CSRF cookie options
 	c.cookieName = c.cfg.StringDefault(keyPrefix+".prefix", "aah") + "_anti_csrf"
@@ -164,6 +174,16 @@ func (ac *AntiCSRF) ClearCookie(w http.ResponseWriter, r *ahttp.Request) {
 		opts.MaxAge = -1
 		http.SetCookie(w, cookie.NewWithOptions("", &opts))
 	}
+}
+
+// IsTrustedOrigin method returns true if given referrer host
+// listed in config `security.anti_csrf.trusted_origins`
+// otherwise false.
+//
+// Note: Trusted origin check is 'incasesensitive'.
+func (ac *AntiCSRF) IsTrustedOrigin(ref *url.URL) bool {
+	_, found := ac.trustedOrigins[strings.ToLower(ref.Host)]
+	return found
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
