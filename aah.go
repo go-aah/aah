@@ -116,7 +116,7 @@ type Application struct {
 	router         *router.Router
 	eventStore     *EventStore
 	bindMgr        *bindManager
-	i18n           *i18n.I18n
+	i18n           i18n.I18ner
 	securityMgr    *security.Manager
 	viewMgr        *viewManager
 	staticMgr      *staticManager
@@ -739,15 +739,23 @@ func (a *Application) initLog() error {
 
 const keyLocale = "Locale"
 
+// RegisterI18n method is used to register the i18n message store
+// into aah appplication the implements interface `i18n.I18ner`.
+func (a *Application) RegisterI18n(ms i18n.I18ner) {
+	a.Lock()
+	defer a.Unlock()
+	a.i18n = ms
+}
+
 // I18n method returns aah application I18n store instance.
-func (a *Application) I18n() *i18n.I18n {
+func (a *Application) I18n() i18n.I18ner {
 	return a.i18n
 }
 
 // DefaultI18nLang method returns application i18n default language if
 // configured otherwise framework defaults to "en".
 func (a *Application) DefaultI18nLang() string {
-	return a.Config().StringDefault("i18n.default", "en")
+	return a.I18n().DefaultLocale()
 }
 
 func (a *Application) initI18n() error {
@@ -756,14 +764,13 @@ func (a *Application) initI18n() error {
 		// i18n directory not exists, scenario could be only API application
 		return nil
 	}
-
-	ai18n := i18n.NewWithVFS(a.VFS())
-	ai18n.DefaultLocale = a.DefaultI18nLang()
-	if err := ai18n.Load(i18nPath); err != nil {
-		return err
-	}
-
-	a.i18n = ai18n
+	ai18n := i18n.New(
+		i18n.Logger(a.Log()),
+		i18n.DefaultLocale(a.Config().StringDefault("i18n.default", "en")),
+		i18n.VFS(a.VFS()),
+		i18n.Dirs(i18nPath),
+	)
+	a.RegisterI18n(ai18n)
 	return nil
 }
 

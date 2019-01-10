@@ -20,9 +20,9 @@ import (
 
 // Open method calls `os.Open` if fs == nil otherwise VFS.
 //
-// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// NOTE: Use VFS instance directly `aah.App().VFS().*`.  This is created to prevent
 // repetition code in consumimg libraries of aah.
-func Open(fs *VFS, name string) (File, error) {
+func Open(fs FileSystem, name string) (File, error) {
 	if fs == nil {
 		return os.Open(name)
 	}
@@ -31,9 +31,9 @@ func Open(fs *VFS, name string) (File, error) {
 
 // Lstat method calls `os.Lstat` if fs == nil otherwise VFS.
 //
-// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// NOTE: Use VFS instance directly `aah.App().VFS().*`.  This is created to prevent
 // repetition code in consumimg libraries of aah.
-func Lstat(fs *VFS, name string) (os.FileInfo, error) {
+func Lstat(fs FileSystem, name string) (os.FileInfo, error) {
 	if fs == nil {
 		return os.Lstat(name)
 	}
@@ -42,9 +42,9 @@ func Lstat(fs *VFS, name string) (os.FileInfo, error) {
 
 // Stat method calls `os.Stat` if fs == nil otherwise VFS.
 //
-// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// NOTE: Use VFS instance directly `aah.App().VFS().*`.  This is created to prevent
 // repetition code in consumimg libraries of aah.
-func Stat(fs *VFS, name string) (os.FileInfo, error) {
+func Stat(fs FileSystem, name string) (os.FileInfo, error) {
 	if fs == nil {
 		return os.Stat(name)
 	}
@@ -53,9 +53,9 @@ func Stat(fs *VFS, name string) (os.FileInfo, error) {
 
 // ReadFile method calls `ioutil.ReadFile` if fs == nil otherwise VFS.
 //
-// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// NOTE: Use VFS instance directly `aah.App().VFS().*`.  This is created to prevent
 // repetition code in consumimg libraries of aah.
-func ReadFile(fs *VFS, filename string) ([]byte, error) {
+func ReadFile(fs FileSystem, filename string) ([]byte, error) {
 	if fs == nil {
 		return ioutil.ReadFile(filename)
 	}
@@ -64,9 +64,9 @@ func ReadFile(fs *VFS, filename string) ([]byte, error) {
 
 // ReadDir method calls `ioutil.ReadDir` if fs == nil otherwise VFS.
 //
-// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// NOTE: Use VFS instance directly `aah.App().VFS().*`.  This is created to prevent
 // repetition code in consumimg libraries of aah.
-func ReadDir(fs *VFS, dirname string) ([]os.FileInfo, error) {
+func ReadDir(fs FileSystem, dirname string) ([]os.FileInfo, error) {
 	if fs == nil {
 		return ioutil.ReadDir(dirname)
 	}
@@ -75,9 +75,9 @@ func ReadDir(fs *VFS, dirname string) ([]os.FileInfo, error) {
 
 // Glob method calls `filepath.Glob` if fs == nil otherwise VFS.
 //
-// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// NOTE: Use VFS instance directly `aah.App().VFS().*`.  This is created to prevent
 // repetition code in consumimg libraries of aah.
-func Glob(fs *VFS, pattern string) ([]string, error) {
+func Glob(fs FileSystem, pattern string) ([]string, error) {
 	if fs == nil {
 		return filepath.Glob(pattern)
 	}
@@ -86,9 +86,9 @@ func Glob(fs *VFS, pattern string) ([]string, error) {
 
 // IsExists method is helper to find existence.
 //
-// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// NOTE: Use VFS instance directly `aah.App().VFS().*`.  This is created to prevent
 // repetition code in consumimg libraries of aah.
-func IsExists(fs *VFS, name string) bool {
+func IsExists(fs FileSystem, name string) bool {
 	var err error
 	if fs == nil {
 		_, err = os.Lstat(name)
@@ -98,15 +98,28 @@ func IsExists(fs *VFS, name string) bool {
 	return err == nil
 }
 
+// IsDir method is helper to find out given path is directory or not.
+//
+// NOTE: Use VFS instance directly `aah.App().VFS().*`.  This is created to prevent
+// repetition code in consumimg libraries of aah.
+func IsDir(fs FileSystem, name string) bool {
+	if fs == nil {
+		fi, err := os.Lstat(name)
+		return err == nil && fi.IsDir()
+	}
+	fi, err := fs.Lstat(name)
+	return err == nil && fi.IsDir()
+}
+
 // Walk method calls `filepath.Walk` if fs == nil otherwise VFS.
 //
-// NOTE: Use VFS instance directly `aah.AppVFS().*`.  This is created to prevent
+// NOTE: Use VFS instance directly `aah.App().VFS().*`.  This is created to prevent
 // repetition code in consumimg libraries of aah.
-func Walk(fs *VFS, root string, walkFn filepath.WalkFunc) error {
+func Walk(fs FileSystem, root string, walkFn filepath.WalkFunc) error {
 	if fs == nil {
 		return filepath.Walk(root, walkFn)
 	}
-	return fs.Walk(root, walkFn)
+	return fs.(*VFS).Walk(root, walkFn)
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
