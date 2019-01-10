@@ -299,16 +299,17 @@ func debugLogSubjectInfo(ctx *Context) {
 // AntiCSRFMiddleware provides feature to prevent Cross-Site Request Forgery (CSRF)
 // attacks.
 func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
+	ac := ctx.a.SecurityManager().AntiCSRF
 	// If Anti-CSRF is not enabled, move on.
 	// It is highly recommended to enable it for web application.
-	if !ctx.a.SecurityManager().AntiCSRF.Enabled || !ctx.route.IsAntiCSRFCheck || ctx.a.ViewEngine() == nil {
-		ctx.a.SecurityManager().AntiCSRF.ClearCookie(ctx.Res, ctx.Req)
+	if !ac.Enabled || !ctx.route.IsAntiCSRFCheck || ctx.a.ViewEngine() == nil {
+		ac.ClearCookie(ctx.Res, ctx.Req)
 		m.Next(ctx)
 		return
 	}
 
 	// Get cipher secret from anti-csrf cookie
-	secret := ctx.a.SecurityManager().AntiCSRF.CipherSecret(ctx.Req)
+	secret := ac.CipherSecret(ctx.Req)
 	ctx.AddViewArg(keyAntiCSRF, secret)
 
 	// HTTP Method is safe per defined in
@@ -316,7 +317,9 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	if anticsrf.IsSafeHTTPMethod(ctx.Req.Method) {
 		ctx.Log().Tracef("HTTP %s is safe method per RFC7231", ctx.Req.Method)
 		m.Next(ctx)
-		writeAntiCSRFCookie(ctx, secret)
+		if err := ac.SetCookie(ctx.Res, secret); err != nil {
+			ctx.Log().Error("anticsrf: Unable to write cookie")
+		}
 		return
 	}
 
@@ -350,7 +353,7 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 			return
 		}
 
-		if !anticsrf.IsSameOrigin(ctx.Req.URL(), referer) {
+		if !anticsrf.IsSameOrigin(ctx.Req.URL(), referer) && !ac.IsTrustedOrigin(referer) {
 			ctx.Log().Warnf("anticsrf: Bad referer %s", ctx.Req.Referer())
 			ctx.Reply().Forbidden().Error(newError(anticsrf.ErrBadReferer, http.StatusForbidden))
 			return
@@ -358,8 +361,8 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	}
 
 	// Get request cipher secret from HTTP header or Form
-	requestSecret := ctx.a.SecurityManager().AntiCSRF.RequestCipherSecret(ctx.Req)
-	if requestSecret == nil || !ctx.a.SecurityManager().AntiCSRF.IsAuthentic(secret, requestSecret) {
+	requestSecret := ac.RequestCipherSecret(ctx.Req)
+	if requestSecret == nil || !ac.IsAuthentic(secret, requestSecret) {
 		ctx.Log().Warn("anticsrf: Verification failed, invalid cipher secret")
 		ctx.Reply().Forbidden().Error(newError(anticsrf.ErrNoCookieFound, http.StatusForbidden))
 		return
@@ -368,11 +371,7 @@ func AntiCSRFMiddleware(ctx *Context, m *Middleware) {
 	ctx.Log().Info("anticsrf: Cipher secret verification passed")
 	m.Next(ctx)
 
-	writeAntiCSRFCookie(ctx, ctx.viewArgs[keyAntiCSRF].([]byte))
-}
-
-func writeAntiCSRFCookie(ctx *Context, secret []byte) {
-	if err := ctx.a.SecurityManager().AntiCSRF.SetCookie(ctx.Res, secret); err != nil {
+	if err := ac.SetCookie(ctx.Res, secret); err != nil {
 		ctx.Log().Error("anticsrf: Unable to write cookie")
 	}
 }
