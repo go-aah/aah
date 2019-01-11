@@ -765,11 +765,14 @@ func (a *Application) initI18n() error {
 		return nil
 	}
 	ai18n := i18n.New(
-		i18n.Logger(a.Log()),
+		a.Log(),
 		i18n.DefaultLocale(a.Config().StringDefault("i18n.default", "en")),
 		i18n.VFS(a.VFS()),
 		i18n.Dirs(i18nPath),
 	)
+	if err := ai18n.Init(); err != nil {
+		return err
+	}
 	a.RegisterI18n(ai18n)
 	return nil
 }

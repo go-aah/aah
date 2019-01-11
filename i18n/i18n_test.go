@@ -21,13 +21,17 @@ func TestNewStore(t *testing.T) {
 	wd, _ := os.Getwd()
 
 	store := New(
-		logOption(),
-		Dirs(filepath.Join(wd, "testdata")),
+		logger(),
+		Dirs(
+			filepath.Join(wd, "testdata"),
+			filepath.Join(wd, "testdata", "english", "messages.en"),
+		),
 		Files(
 			filepath.Join(wd, "testdata", "english", "messages.en"),
 			filepath.Join(wd, "testdata", "english", "message-not-exists.en"),
 		),
 	)
+	assert.Nil(t, store.Init())
 
 	locales := store.Locales()
 
@@ -43,7 +47,8 @@ func TestNewStore(t *testing.T) {
 func TestMsgRetrive_enUS(t *testing.T) {
 	wd, _ := os.Getwd()
 
-	store := New(logOption(), Dirs(filepath.Join(wd, "testdata")))
+	store := New(logger(), Dirs(filepath.Join(wd, "testdata")))
+	assert.Nil(t, store.Init())
 
 	locale := ahttp.Locale{Raw: "en-US", Language: "en", Region: "US"}
 
@@ -59,7 +64,8 @@ func TestMsgRetrive_enUS(t *testing.T) {
 
 func TestMsgRetrive_enGB(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New(logOption(), DefaultLocale("en"), Dirs(filepath.Join(wd, "testdata")))
+	store := New(logger(), DefaultLocale("en"), Dirs(filepath.Join(wd, "testdata")))
+	assert.Nil(t, store.Init())
 	assert.Equal(t, "en", store.DefaultLocale())
 
 	locale := ahttp.Locale{Raw: "en-GB", Language: "en", Region: "GB"}
@@ -79,7 +85,8 @@ func TestMsgRetrive_enGB(t *testing.T) {
 
 func TestMsgRetrive_en(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New(logOption(), DefaultLocale("en"), Dirs(filepath.Join(wd, "testdata")))
+	store := New(logger(), DefaultLocale("en"), Dirs(filepath.Join(wd, "testdata")))
+	assert.Nil(t, store.Init())
 
 	locale := ahttp.Locale{Raw: "en", Language: "en"}
 
@@ -101,7 +108,8 @@ func TestMsgRetrive_en(t *testing.T) {
 
 func TestMsgRetrive_frCA(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New(logOption(), Dirs(filepath.Join(wd, "testdata")))
+	store := New(logger(), Dirs(filepath.Join(wd, "testdata")))
+	assert.Nil(t, store.Init())
 
 	locale := ahttp.Locale{Raw: "fr-CA", Language: "fr", Region: "CA"}
 
@@ -117,7 +125,8 @@ func TestMsgRetrive_frCA(t *testing.T) {
 
 func TestMsgRetrive_fr(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New(logOption(), Dirs(filepath.Join(wd, "testdata")))
+	store := New(logger(), Dirs(filepath.Join(wd, "testdata")))
+	assert.Nil(t, store.Init())
 
 	locale := ahttp.Locale{Raw: "fr", Language: "fr"}
 
@@ -130,7 +139,8 @@ func TestMsgRetrive_fr(t *testing.T) {
 
 func TestMsgRetrive_it(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New(logOption(), Dirs(filepath.Join(wd, "testdata")), VFS(nil))
+	store := New(logger(), Dirs(filepath.Join(wd, "testdata")), VFS(nil))
+	assert.Nil(t, store.Init())
 
 	locale := ahttp.Locale{Raw: "it-IT", Language: "it", Region: "IT"}
 
@@ -143,7 +153,8 @@ func TestMsgRetrive_it(t *testing.T) {
 
 func TestMsgRetriveNotFoundLocale(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := New(logOption(), Dirs(filepath.Join(wd, "testdata")), VFS(nil))
+	store := New(logger(), Dirs(filepath.Join(wd, "testdata")), VFS(nil))
+	assert.Nil(t, store.Init())
 
 	locale := ahttp.Locale{Raw: "pl-PT", Language: "pl", Region: "PL"}
 
@@ -151,8 +162,8 @@ func TestMsgRetriveNotFoundLocale(t *testing.T) {
 	assert.Equal(t, "store.not.exists", notFoundStore)
 }
 
-func logOption() Option {
+func logger() log.Loggerer {
 	l, _ := log.New(config.NewEmpty())
 	l.SetWriter(ioutil.Discard)
-	return Logger(l)
+	return l
 }

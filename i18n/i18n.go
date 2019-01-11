@@ -56,17 +56,15 @@ type I18ner interface {
 //______________________________________________________________________________
 
 // New method creates aah i18n message store with given options.
-//
-// Note: It's recommend to pass logger option as a first argument,
-// to get to log message to your logger otherwise defalut logger used
-// util logger option is processed.
-func New(opts ...Option) I18ner {
+func New(l log.Loggerer, opts ...Option) *I18n {
 	msgStore := &I18n{
+		RWMutex:       sync.RWMutex{},
 		store:         make(map[string]*config.Config),
-		fileExtRegex:  `messages\.[a-z]{2}(\-[a-zA-Z]{2})?$`,
+		fileExtRegex:  regexp.MustCompile(`messages\.[a-z]{2}(\-[a-zA-Z]{2})?$`),
 		defaultLocale: "en",
+		files:         make([]string, 0),
+		log:           l,
 	}
-	msgStore.log, _ = log.New(config.NewEmpty()) // fallback
 	for _, opt := range opts {
 		opt(msgStore)
 	}
@@ -84,13 +82,26 @@ type Option func(*I18n)
 // DefaultLocale option func is to message store default locale.
 func DefaultLocale(locale string) Option {
 	return func(i *I18n) {
+		i.Lock()
+		defer i.Unlock()
 		i.defaultLocale = locale
+	}
+}
+
+// Dirs option func is to set aah VFS instance.
+func VFS(fs vfs.FileSystem) Option {
+	return func(i *I18n) {
+		i.Lock()
+		defer i.Unlock()
+		i.fs = fs
 	}
 }
 
 // Dirs option func is to supply n no. of directory path.
 func Dirs(dirs ...string) Option {
 	return func(i *I18n) {
+		i.Lock()
+		defer i.Unlock()
 		for _, d := range dirs {
 			if !vfs.IsDir(i.fs, d) {
 				i.log.Warnf("i18n: %v not exists or error, let's move on", d)
@@ -98,9 +109,8 @@ func Dirs(dirs ...string) Option {
 			}
 			_ = vfs.Walk(i.fs, d, func(fpath string, fi os.FileInfo, _ error) error {
 				if !fi.IsDir() {
-					match, err := regexp.MatchString(i.fileExtRegex, fi.Name())
-					if err == nil && match {
-						i.add2Store(fpath)
+					if i.fileExtRegex.MatchString(fi.Name()) {
+						i.files = append(i.files, fpath)
 					}
 				}
 				return nil
@@ -112,27 +122,15 @@ func Dirs(dirs ...string) Option {
 // Files option func is to supply n no. of file path.
 func Files(files ...string) Option {
 	return func(i *I18n) {
+		i.Lock()
+		defer i.Unlock()
 		for _, f := range files {
 			if !vfs.IsExists(i.fs, f) {
 				i.log.Warnf("i18n: %v not exists, let's move on", f)
 				continue
 			}
-			i.add2Store(f)
+			i.files = append(i.files, f)
 		}
-	}
-}
-
-// Dirs option func is to set aah VFS instance.
-func VFS(fs vfs.FileSystem) Option {
-	return func(i *I18n) {
-		i.fs = fs
-	}
-}
-
-// Logger option func is to set aah application logger.
-func Logger(l log.Loggerer) Option {
-	return func(i *I18n) {
-		i.log = l
 	}
 }
 
@@ -146,7 +144,8 @@ type I18n struct {
 	sync.RWMutex
 	store         map[string]*config.Config
 	defaultLocale string
-	fileExtRegex  string
+	files         []string
+	fileExtRegex  *regexp.Regexp
 	fs            vfs.FileSystem
 	log           log.Loggerer
 }
@@ -172,11 +171,10 @@ func (s *I18n) Lookup(locale *ahttp.Locale, key string, args ...interface{}) str
 	// Lookup by language and region-id. For eg.: en-us
 	store := s.findStoreByLocale(locale.String())
 	if store == nil {
-		s.log.Tracef("Locale (%v) doesn't exists in message store", locale)
 		goto langStore
 	}
-	log.Tracef("Message is retrieved from locale: %v, key: %v", locale, key)
 	if msg, found := retriveValue(store, key, args...); found {
+		s.log.Tracef("i18n message is retrieved from locale: %v, key: %v", locale, key)
 		return msg
 	}
 
@@ -184,11 +182,10 @@ langStore:
 	// Lookup by language. For eg.: en
 	store = s.findStoreByLocale(locale.Language)
 	if store == nil {
-		s.log.Tracef("Locale (%v) doesn't exists in message store", locale.Language)
 		goto defaultStore
 	}
-	s.log.Tracef("Message is retrieved from locale: %v, key: %v", locale.Language, key)
 	if msg, found := retriveValue(store, key, args...); found {
+		s.log.Tracef("i18n message is retrieved from locale: %v, key: %v", locale.Language, key)
 		return msg
 	}
 
@@ -197,8 +194,8 @@ defaultStore: // fallback to `i18n.default` config value.
 	if store == nil {
 		goto notExists
 	}
-	s.log.Tracef("Message is retrieved with 'i18n.default': %v, key: %v", s.defaultLocale, key)
 	if msg, found := retriveValue(store, key, args...); found {
+		s.log.Tracef("i18n message is retrieved from locale: %v, key: %v", s.defaultLocale, key)
 		return msg
 	}
 
@@ -224,29 +221,40 @@ func (s *I18n) Locales() []string {
 	return locales
 }
 
+// Load method loads message files into message store.
+// Returns error for any failures.
+func (s *I18n) Init() error {
+	for _, f := range s.files {
+		if err := s.add2Store(f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // I18n Unexported methods
 //______________________________________________________________________________
 
-func (s *I18n) add2Store(file string) {
+func (s *I18n) add2Store(file string) error {
 	key := strings.ToLower(filepath.Ext(file)[1:])
+	s.log.Tracef("Adding into i18n message store [%v: %v]", key, file)
 	msgFile, err := config.LoadFile(file)
 	if err != nil {
-		s.log.Errorf("Unable to load message file: %v, error: %v", file, err)
+		return fmt.Errorf("i18n: unable to process message file: %v, error: %v", file, err)
 	}
 
 	// merge messages if key is already exists otherwise add it
 	s.Lock()
+	defer s.Unlock()
 	if ms, exists := s.store[key]; exists {
-		s.log.Tracef("Store key[%v] is already exists, let's merge it", key)
 		if err = ms.Merge(msgFile); err != nil {
-			s.log.Errorf("Error while merging message file: %v", file)
+			return fmt.Errorf("i18n: error while adding into message store file: %v", file)
 		}
 	} else {
-		s.log.Tracef("Adding to message store [%v: %v]", key, file)
 		s.store[key] = msgFile
 	}
-	s.Unlock()
+	return nil
 }
 
 func (s *I18n) findStoreByLocale(locale string) *config.Config {
