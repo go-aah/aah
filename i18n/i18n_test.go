@@ -5,23 +5,33 @@
 package i18n
 
 import (
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"aahframe.work/ahttp"
+	"aahframe.work/config"
 	"aahframe.work/essentials"
+	"aahframe.work/log"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLoadMessage(t *testing.T) {
+func TestNewStore(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := newI18n()
 
-	err := store.Load(filepath.Join(wd, "testdata"))
-	assert.Nil(t, err)
-	_ = store.Load(filepath.Join(wd, "testdata", "english", "messages.en"))
-	_ = store.Load(filepath.Join(wd, "testdata", "english", "message-not-exists.en"))
+	store := New(
+		logger(),
+		Dirs(
+			filepath.Join(wd, "testdata"),
+			filepath.Join(wd, "testdata", "english", "messages.en"),
+		),
+		Files(
+			filepath.Join(wd, "testdata", "english", "messages.en"),
+			filepath.Join(wd, "testdata", "english", "message-not-exists.en"),
+		),
+	)
+	assert.Nil(t, store.Init())
 
 	locales := store.Locales()
 
@@ -31,13 +41,14 @@ func TestLoadMessage(t *testing.T) {
 	assert.True(t, ess.IsSliceContainsString(locales, "fr-ca"))
 	assert.True(t, ess.IsSliceContainsString(locales, "fr"))
 	assert.True(t, ess.IsSliceContainsString(locales, "en-gb"))
+	assert.Equal(t, "en", store.DefaultLocale())
 }
 
 func TestMsgRetrive_enUS(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := newI18n()
 
-	_ = store.Load(filepath.Join(wd, "testdata"))
+	store := New(logger(), Dirs(filepath.Join(wd, "testdata")))
+	assert.Nil(t, store.Init())
 
 	locale := ahttp.Locale{Raw: "en-US", Language: "en", Region: "US"}
 
@@ -53,10 +64,9 @@ func TestMsgRetrive_enUS(t *testing.T) {
 
 func TestMsgRetrive_enGB(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := newI18n()
-
-	_ = store.Load(filepath.Join(wd, "testdata"))
-	store.DefaultLocale = "en"
+	store := New(logger(), DefaultLocale("en"), Dirs(filepath.Join(wd, "testdata")))
+	assert.Nil(t, store.Init())
+	assert.Equal(t, "en", store.DefaultLocale())
 
 	locale := ahttp.Locale{Raw: "en-GB", Language: "en", Region: "GB"}
 
@@ -70,23 +80,21 @@ func TestMsgRetrive_enGB(t *testing.T) {
 	assert.Equal(t, "Previous", prevLabel)
 
 	nfLabel := store.Lookup(&locale, "label.paginate.notfound")
-	assert.Equal(t, "", nfLabel)
+	assert.Equal(t, "label.paginate.notfound", nfLabel)
 }
 
 func TestMsgRetrive_en(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := newI18n()
-
-	_ = store.Load(filepath.Join(wd, "testdata"))
-	store.DefaultLocale = "en"
+	store := New(logger(), DefaultLocale("en"), Dirs(filepath.Join(wd, "testdata")))
+	assert.Nil(t, store.Init())
 
 	locale := ahttp.Locale{Raw: "en", Language: "en"}
 
 	homeLabel := store.Lookup(nil, "label.home")
-	assert.Equal(t, "", homeLabel)
+	assert.Equal(t, "label.home", homeLabel)
 
 	addUserLabel := store.Lookup(&locale, "label.add", "User")
-	assert.Equal(t, "", addUserLabel)
+	assert.Equal(t, "label.add", addUserLabel)
 
 	prevLabel := store.Lookup(&locale, "label.paginate.prev")
 	assert.Equal(t, "Previous", prevLabel)
@@ -100,9 +108,8 @@ func TestMsgRetrive_en(t *testing.T) {
 
 func TestMsgRetrive_frCA(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := newI18n()
-
-	_ = store.Load(filepath.Join(wd, "testdata"))
+	store := New(logger(), Dirs(filepath.Join(wd, "testdata")))
+	assert.Nil(t, store.Init())
 
 	locale := ahttp.Locale{Raw: "fr-CA", Language: "fr", Region: "CA"}
 
@@ -118,9 +125,8 @@ func TestMsgRetrive_frCA(t *testing.T) {
 
 func TestMsgRetrive_fr(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := newI18n()
-
-	_ = store.Load(filepath.Join(wd, "testdata"))
+	store := New(logger(), Dirs(filepath.Join(wd, "testdata")))
+	assert.Nil(t, store.Init())
 
 	locale := ahttp.Locale{Raw: "fr", Language: "fr"}
 
@@ -133,9 +139,8 @@ func TestMsgRetrive_fr(t *testing.T) {
 
 func TestMsgRetrive_it(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := newI18n()
-
-	_ = store.Load(filepath.Join(wd, "testdata"))
+	store := New(logger(), Dirs(filepath.Join(wd, "testdata")), VFS(nil))
+	assert.Nil(t, store.Init())
 
 	locale := ahttp.Locale{Raw: "it-IT", Language: "it", Region: "IT"}
 
@@ -148,16 +153,17 @@ func TestMsgRetrive_it(t *testing.T) {
 
 func TestMsgRetriveNotFoundLocale(t *testing.T) {
 	wd, _ := os.Getwd()
-	store := newI18n()
-
-	_ = store.Load(filepath.Join(wd, "testdata"))
+	store := New(logger(), Dirs(filepath.Join(wd, "testdata")), VFS(nil))
+	assert.Nil(t, store.Init())
 
 	locale := ahttp.Locale{Raw: "pl-PT", Language: "pl", Region: "PL"}
 
 	notFoundStore := store.Lookup(&locale, "store.not.exists")
-	assert.Equal(t, "", notFoundStore)
+	assert.Equal(t, "store.not.exists", notFoundStore)
 }
 
-func newI18n() *I18n {
-	return New()
+func logger() log.Loggerer {
+	l, _ := log.New(config.NewEmpty())
+	l.SetWriter(ioutil.Discard)
+	return l
 }
