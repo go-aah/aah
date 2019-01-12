@@ -68,8 +68,9 @@ func New(cfg *config.Config) (*AntiCSRF, error) {
 		Domain:   c.cfg.StringDefault(keyPrefix+".domain", ""),
 		Path:     c.cfg.StringDefault(keyPrefix+".path", "/"),
 		HTTPOnly: true,
+		// Based on aah server SSL configuration `http.Cookie.Secure` value is set
 		Secure:   c.cfg.BoolDefault("server.ssl.enable", false),
-		SameSite: c.cfg.StringDefault(keyPrefix+".same_site", "Lax"),
+		SameSite: strings.ToLower(c.cfg.StringDefault(keyPrefix+".samesite", "")),
 	}
 
 	// Anti-CSRF cookie TTL, default is 24 hours
@@ -81,7 +82,9 @@ func New(cfg *config.Config) (*AntiCSRF, error) {
 
 	if c.cookieMgr, err = cookie.NewManager(opts,
 		c.cfg.StringDefault(keyPrefix+".sign_key", ""),
-		c.cfg.StringDefault(keyPrefix+".enc_key", "")); err != nil {
+		c.cfg.StringDefault(keyPrefix+".enc_key", ""),
+		c.cfg.StringDefault(keyPrefix+".old_sign_key", ""),
+		c.cfg.StringDefault(keyPrefix+".old_enc_key", "")); err != nil {
 		return nil, err
 	}
 

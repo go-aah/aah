@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"aahframe.work/essentials"
@@ -29,26 +28,42 @@ var (
 	ErrSignVerificationIsFailed = errors.New("security/cookie: sign verification is failed")
 )
 
-//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+//‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Package methods
-//___________________________________
+//______________________________________________________________________________
 
 // NewManager method returns the new cookie manager.
-func NewManager(opts *Options, signKey, encKey string) (*Manager, error) {
-	m := &Manager{Options: opts, maxCookieSize: 4096, sha: "sha-256"}
-
-	// Sign key
-	m.isSignKey = !ess.IsStrEmpty(signKey)
-	if m.isSignKey {
-		m.signKey = []byte(signKey)
+//
+// Example:
+//
+// 	cookieMgr := cookie.NewManager(options)
+// 	cookieMgr := cookie.NewManager(options, signKey, encKey)
+// 	cookieMgr := cookie.NewManager(options, signKey, encKey, oldSignKey, oldEncKey)
+func NewManager(opts *Options, keys ...string) (*Manager, error) {
+	m := &Manager{
+		Options:       opts,
+		maxCookieSize: 4096, // 4kb
+		sha:           "sha-256",
+		key:           new(key),
+		oldKey:        new(key),
+	}
+	if len(keys) >= 2 && !ess.IsStrEmpty(keys[0]) && !ess.IsStrEmpty(keys[1]) {
+		m.key.sign = []byte(keys[0])
+		m.key.enc = []byte(keys[1])
+	}
+	if len(keys) == 4 && !ess.IsStrEmpty(keys[2]) && !ess.IsStrEmpty(keys[3]) {
+		m.oldKey.sign = []byte(keys[2])
+		m.oldKey.enc = []byte(keys[3])
 	}
 
-	// Enc key
 	var err error
-	m.isEncKey = !ess.IsStrEmpty(encKey)
-	if m.isEncKey {
-		m.encKey = []byte(encKey)
-		if m.cipherBlock, err = aes.NewCipher(m.encKey); err != nil {
+	if len(m.key.enc) > 0 {
+		if m.key.cipherBlock, err = aes.NewCipher(m.key.enc); err != nil {
+			return nil, err
+		}
+	}
+	if len(m.oldKey.enc) > 0 {
+		if m.oldKey.cipherBlock, err = aes.NewCipher(m.oldKey.enc); err != nil {
 			return nil, err
 		}
 	}
@@ -78,6 +93,17 @@ func NewWithOptions(value string, opts *Options) *http.Cookie {
 		cookie.Expires = time.Unix(1, 0)
 	}
 
+	// SameSite attribute support in the cookie
+	// https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00
+	switch opts.SameSite {
+	case "lax":
+		cookie.SameSite = http.SameSiteLaxMode
+	case "strict":
+		cookie.SameSite = http.SameSiteStrictMode
+	default:
+		cookie.SameSite = http.SameSiteDefaultMode
+	}
+
 	return cookie
 }
 
@@ -89,12 +115,9 @@ func NewWithOptions(value string, opts *Options) *http.Cookie {
 type Manager struct {
 	Options *Options
 
-	isSignKey     bool
-	signKey       []byte
+	key           *key
+	oldKey        *key
 	sha           string
-	isEncKey      bool
-	encKey        []byte
-	cipherBlock   cipher.Block
 	maxCookieSize int
 }
 
@@ -109,6 +132,12 @@ type Options struct {
 	SameSite string
 }
 
+type key struct {
+	sign        []byte
+	enc         []byte
+	cipherBlock cipher.Block
+}
+
 // New method creates new cookie instance for given value with cookie manager options.
 func (m *Manager) New(value string) *http.Cookie {
 	return NewWithOptions(value, m.Options)
@@ -117,15 +146,7 @@ func (m *Manager) New(value string) *http.Cookie {
 // Write method writes the given cookie value into response.
 func (m *Manager) Write(w http.ResponseWriter, value string) {
 	c := m.New(value)
-	if v := c.String(); !ess.IsStrEmpty(v) {
-		// Adding `SameSite` setting
-		// https://tools.ietf.org/html/draft-west-first-party-cookies-07
-		//
-		// Currently Go doesn't have this attribute in `http.Cookie`, for future proof
-		// check and then add `SameSite` setting.
-		if !strings.Contains(v, "SameSite") && !ess.IsStrEmpty(m.Options.SameSite) {
-			v += "; SameSite=" + m.Options.SameSite
-		}
+	if v := c.String(); len(v) > 0 {
 		w.Header().Add("Set-Cookie", v)
 	}
 }
@@ -139,8 +160,8 @@ func (m *Manager) Write(w http.ResponseWriter, value string) {
 //   4) Checks max cookie size i.e 4Kb
 func (m *Manager) Encode(b []byte) (string, error) {
 	// Encrypt it
-	if m.isEncKey {
-		b = acrypto.AESEncrypt(m.cipherBlock, b)
+	if len(m.key.enc) > 0 {
+		b = acrypto.AESEncrypt(m.key.cipherBlock, b)
 	}
 
 	// Encode it
@@ -150,8 +171,8 @@ func (m *Manager) Encode(b []byte) (string, error) {
 	b = []byte(fmt.Sprintf("%s|%d|%s|", m.Options.Name, currentTimestamp(), b))
 
 	// Sign it if enabled
-	if m.isSignKey {
-		signed := acrypto.Sign(m.signKey, b[:len(b)-1], m.sha)
+	if len(m.key.sign) > 0 {
+		signed := acrypto.Sign(m.key.sign, b[:len(b)-1], m.sha)
 
 		// Append signed value
 		b = append(b, signed...)
@@ -201,10 +222,21 @@ func (m *Manager) Decode(value string) ([]byte, error) {
 	b = append([]byte(m.Options.Name+"|"), b[:len(b)-len(parts[2])-1]...)
 
 	// Verify signed data, if enabled
-	if m.isSignKey {
-		if !acrypto.Verify(m.signKey, b, parts[2], m.sha) {
-			return nil, ErrSignVerificationIsFailed
+	var oldKey bool
+	if len(m.key.sign) > 0 {
+		if !acrypto.Verify(m.key.sign, b, parts[2], m.sha) {
+			if len(m.oldKey.sign) > 0 {
+				oldKey = true
+				if !acrypto.Verify(m.oldKey.sign, b, parts[2], m.sha) {
+					err = ErrSignVerificationIsFailed
+				}
+			} else {
+				err = ErrSignVerificationIsFailed
+			}
 		}
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	// Verify timestamp
@@ -220,18 +252,20 @@ func (m *Manager) Decode(value string) ([]byte, error) {
 		return nil, ErrCookieTimestampIsExpired
 	}
 
-	// Decrypt it
+	// Decode
 	b, err = ess.DecodeBase64(parts[1])
 	if err != nil {
 		return nil, err
 	}
-	if m.isEncKey {
-		if b, err = acrypto.AESDecrypt(m.cipherBlock, b); err != nil {
-			return nil, err
+	if len(m.key.enc) > 0 { // Decrypt
+		if oldKey {
+			b, err = acrypto.AESDecrypt(m.oldKey.cipherBlock, b)
+		} else {
+			b, err = acrypto.AESDecrypt(m.key.cipherBlock, b)
 		}
 	}
 
-	return b, nil
+	return b, err
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
