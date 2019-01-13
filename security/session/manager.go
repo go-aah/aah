@@ -107,7 +107,8 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 		Path:     m.cfg.StringDefault(keyPrefix+".path", "/"),
 		HTTPOnly: m.cfg.BoolDefault(keyPrefix+".http_only", true),
 		// Based on aah server SSL configuration `http.Cookie.Secure` value is set
-		Secure: m.cfg.BoolDefault("server.ssl.enable", false),
+		Secure:   m.cfg.BoolDefault("server.ssl.enable", false),
+		SameSite: strings.ToLower(m.cfg.StringDefault(keyPrefix+".samesite", "")),
 	}
 
 	// TTL value
@@ -117,7 +118,10 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 
 	m.cookieMgr, err = cookie.NewManager(opts,
 		m.cfg.StringDefault(keyPrefix+".sign_key", ""),
-		m.cfg.StringDefault(keyPrefix+".enc_key", ""))
+		m.cfg.StringDefault(keyPrefix+".enc_key", ""),
+		m.cfg.StringDefault(keyPrefix+".old_sign_key", ""),
+		m.cfg.StringDefault(keyPrefix+".old_enc_key", ""),
+	)
 	if err != nil {
 		return nil, err
 	}
