@@ -108,7 +108,7 @@ func NewManager(appCfg *config.Config) (*Manager, error) {
 		HTTPOnly: m.cfg.BoolDefault(keyPrefix+".http_only", true),
 		// Based on aah server SSL configuration `http.Cookie.Secure` value is set
 		Secure:   m.cfg.BoolDefault("server.ssl.enable", false),
-		SameSite: strings.ToLower(m.cfg.StringDefault(keyPrefix+".samesite", "")),
+		SameSite: m.cfg.StringDefault(keyPrefix+".samesite", ""),
 	}
 
 	// TTL value

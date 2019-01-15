@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"aahframe.work/essentials"
@@ -67,6 +68,8 @@ func NewManager(opts *Options, keys ...string) (*Manager, error) {
 			return nil, err
 		}
 	}
+
+	m.Options.SameSite = strings.ToLower(m.Options.SameSite)
 
 	return m, nil
 }
