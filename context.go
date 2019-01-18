@@ -217,26 +217,6 @@ func (ctx *Context) SetMethod(method string) {
 	ctx.Req.Method = method
 }
 
-// Reset method resets context instance for reuse.
-func (ctx *Context) reset() {
-	ctx.Req = nil
-	ctx.Res = nil
-	ctx.controller = nil
-	ctx.action = nil
-	ctx.actionrv = reflect.Value{}
-	ctx.target = nil
-	ctx.targetrv = reflect.Value{}
-	ctx.domain = nil
-	ctx.route = nil
-	ctx.subject = nil
-	ctx.reply = nil
-	ctx.viewArgs = nil
-	ctx.values = nil
-	ctx.abort = false
-	ctx.decorated = false
-	ctx.logger = nil
-}
-
 // Set method is used to set value for the given key in the current request flow.
 func (ctx *Context) Set(key string, value interface{}) {
 	if ctx.values == nil {
@@ -265,9 +245,41 @@ func (ctx *Context) Log() log.Loggerer {
 	return ctx.logger
 }
 
+// func (ctx *Context) Validate(s interface{})  {
+// 	return ctx.a.Validate(s)
+// }
+
+// // ControllerName method return the fully qualified name controller name.
+// //
+// // For example: Let's say controller import path is aahframework.org/website/app/controllers/v1/admin.DocController
+// // 	Value is `v1/admin.DocController`
+// func (ctx *Context) ControllerName() string {
+// 	return ctx.controller.FqName
+// }
+
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 // Context Unexported methods
 //______________________________________________________________________________
+
+// Reset method resets context instance for reuse.
+func (ctx *Context) reset() {
+	ctx.Req = nil
+	ctx.Res = nil
+	ctx.controller = nil
+	ctx.action = nil
+	ctx.actionrv = reflect.Value{}
+	ctx.target = nil
+	ctx.targetrv = reflect.Value{}
+	ctx.domain = nil
+	ctx.route = nil
+	ctx.subject = nil
+	ctx.reply = nil
+	ctx.viewArgs = nil
+	ctx.values = nil
+	ctx.abort = false
+	ctx.decorated = false
+	ctx.logger = nil
+}
 
 func (ctx *Context) setRequestID() {
 	h := ctx.Req.Header[ctx.a.settings.RequestIDHeaderKey]
