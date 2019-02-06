@@ -171,7 +171,7 @@ func TestReplyCustomRender(t *testing.T) {
 }
 
 func TestRenderText(t *testing.T) {
-	buf := &bytes.Buffer{}
+	buf := new(bytes.Buffer)
 	text1 := textRender{
 		Format: "welcome to %s %s",
 		Values: []interface{}{"aah", "framework"},

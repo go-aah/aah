@@ -5,7 +5,6 @@
 package router
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"net/http"
@@ -171,19 +170,19 @@ func (c *CORS) IsHeadersAllowed(hdrs string) bool {
 
 // String method returns string representation of CORS configuration values.
 func (c CORS) String() string {
-	buf := new(bytes.Buffer)
-	buf.WriteString("cors(allow-origins:")
-	buf.WriteString(strings.Join(c.AllowOrigins, ","))
-	buf.WriteString(" allow-headers:")
-	buf.WriteString(strings.Join(c.AllowHeaders, ","))
-	buf.WriteString(" allow-methods:")
-	buf.WriteString(strings.Join(c.AllowMethods, ","))
-	buf.WriteString(" expose-headers:")
-	buf.WriteString(strings.Join(c.ExposeHeaders, ","))
-	buf.WriteString(fmt.Sprintf(" allow-credentials:%v", c.AllowCredentials))
-	buf.WriteString(fmt.Sprintf(" max-age:%s", c.maxAgeStr))
-	buf.WriteByte(')')
-	return buf.String()
+	b := new(strings.Builder)
+	b.WriteString("cors(allow-origins:")
+	b.WriteString(strings.Join(c.AllowOrigins, ","))
+	b.WriteString(" allow-headers:")
+	b.WriteString(strings.Join(c.AllowHeaders, ","))
+	b.WriteString(" allow-methods:")
+	b.WriteString(strings.Join(c.AllowMethods, ","))
+	b.WriteString(" expose-headers:")
+	b.WriteString(strings.Join(c.ExposeHeaders, ","))
+	b.WriteString(fmt.Sprintf(" allow-credentials:%v", c.AllowCredentials))
+	b.WriteString(fmt.Sprintf(" max-age:%s", c.maxAgeStr))
+	b.WriteByte(')')
+	return b.String()
 }
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾

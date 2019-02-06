@@ -151,8 +151,8 @@ func (aal *accessLogger) listenToLogChan() {
 
 func (aal *accessLogger) accessLogFormatter(al *accessLog) string {
 	defer aal.releaseAccessLog(al)
-	buf := acquireBuffer()
-	defer releaseBuffer(buf)
+	buf := acquireBuilder()
+	defer releaseBuilder(buf)
 
 	for _, part := range aal.fmtFlags {
 		switch part.Flag {

@@ -47,8 +47,8 @@ func (e *GoViewEngine) tmplInclude(name string, viewArgs map[string]interface{})
 		log.Warnf("goviewengine: common template not found: %s", name)
 		return e.tmplSafeHTML("")
 	}
-	buf := acquireBuffer()
-	defer releaseBuffer(buf)
+	buf := acquireBuilder()
+	defer releaseBuilder(buf)
 	if err = tmpl.Execute(buf, viewArgs); err != nil {
 		log.Errorf("goviewengine: %s", err)
 		return e.tmplSafeHTML("")

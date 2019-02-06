@@ -23,10 +23,6 @@ import (
 	"aahframe.work/internal/util"
 )
 
-var (
-	bufPool = &sync.Pool{New: func() interface{} { return new(bytes.Buffer) }}
-)
-
 // Reply gives you control and convenient way to write a response effectively.
 type Reply struct {
 	Rdr      Render
@@ -417,6 +413,8 @@ func newReply(ctx *Context) *Reply {
 	}
 }
 
+var bufPool = &sync.Pool{New: func() interface{} { return new(bytes.Buffer) }}
+
 func acquireBuffer() *bytes.Buffer {
 	return bufPool.Get().(*bytes.Buffer)
 }
@@ -425,6 +423,19 @@ func releaseBuffer(b *bytes.Buffer) {
 	if b != nil {
 		b.Reset()
 		bufPool.Put(b)
+	}
+}
+
+var builderPool = &sync.Pool{New: func() interface{} { return new(strings.Builder) }}
+
+func acquireBuilder() *strings.Builder {
+	return builderPool.Get().(*strings.Builder)
+}
+
+func releaseBuilder(b *strings.Builder) {
+	if b != nil {
+		b.Reset()
+		builderPool.Put(b)
 	}
 }
 

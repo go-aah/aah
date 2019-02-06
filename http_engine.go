@@ -274,8 +274,8 @@ func (e *HTTPEngine) handleRecovery(ctx *Context) {
 		ctx.Log().Errorf("Internal Server Error on %s", ctx.Req.URL().RequestURI())
 
 		st := aruntime.NewStacktrace(r, e.a.Config())
-		buf := acquireBuffer()
-		defer releaseBuffer(buf)
+		buf := acquireBuilder()
+		defer releaseBuilder(buf)
 
 		st.Print(buf)
 		ctx.Log().Error(buf.String())

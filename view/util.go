@@ -5,8 +5,8 @@
 package view
 
 import (
-	"bytes"
 	"strings"
+	"sync"
 )
 
 // StripPathPrefixAt method strips the given path to path cut position.
@@ -40,11 +40,13 @@ func trimPathPrefix(prefix, fpath string) string {
 	return fpath
 }
 
-func acquireBuffer() *bytes.Buffer {
-	return bufPool.Get().(*bytes.Buffer)
+var builderPool = &sync.Pool{New: func() interface{} { return new(strings.Builder) }}
+
+func acquireBuilder() *strings.Builder {
+	return builderPool.Get().(*strings.Builder)
 }
 
-func releaseBuffer(buf *bytes.Buffer) {
-	buf.Reset()
-	bufPool.Put(buf)
+func releaseBuilder(b *strings.Builder) {
+	b.Reset()
+	builderPool.Put(b)
 }

@@ -5,12 +5,10 @@
 package view
 
 import (
-	"bytes"
 	"html/template"
 	"path"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"aahframe.work/config"
 	"aahframe.work/log"
@@ -21,7 +19,6 @@ const noLayout = "nolayout"
 
 var (
 	commonTemplates *Templates
-	bufPool         *sync.Pool
 )
 
 //‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
@@ -92,7 +89,6 @@ func (e *GoViewEngine) loadCommonTemplates() error {
 	}
 
 	commonTemplates = &Templates{}
-	bufPool = &sync.Pool{New: func() interface{} { return &bytes.Buffer{} }}
 	prefix := path.Dir(e.BaseDir)
 	for _, file := range commons {
 		if !strings.HasSuffix(file, e.FileExt) {

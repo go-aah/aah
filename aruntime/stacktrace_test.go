@@ -19,7 +19,7 @@ func TestStacktrace(t *testing.T) {
 		StripSrcBase: true,
 	}
 
-	buf := &bytes.Buffer{}
+	buf := new(bytes.Buffer)
 	strace.Print(buf)
 	t.Log(buf.String())
 
@@ -48,7 +48,7 @@ func TestSingleStacktrace(t *testing.T) {
 		Recover: "this is single test case",
 	}
 
-	buf := &bytes.Buffer{}
+	buf := new(bytes.Buffer)
 	strace.Print(buf)
 	t.Log(buf.String())
 

@@ -658,12 +658,12 @@ func (a *Application) parsePort(port string) string {
 func (a *Application) aahRecover() {
 	if r := recover(); r != nil {
 		strace := aruntime.NewStacktrace(r, a.Config())
-		buf := acquireBuffer()
-		defer releaseBuffer(buf)
-		strace.Print(buf)
+		b := acquireBuilder()
+		defer releaseBuilder(b)
+		strace.Print(b)
 
 		a.Log().Error("Recovered from panic:")
-		a.Log().Error(buf.String())
+		a.Log().Error(b.String())
 	}
 }
 

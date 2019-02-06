@@ -5,7 +5,6 @@
 package router
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
@@ -161,29 +160,29 @@ func (a *authorizationInfo) SatisfyEither() bool {
 }
 
 func (a *authorizationInfo) String() string {
-	buf := new(bytes.Buffer)
-	buf.WriteString("authorizationinfo(satisfy:")
-	buf.WriteString(a.Satisfy)
+	b := new(strings.Builder)
+	b.WriteString("authorizationinfo(satisfy:")
+	b.WriteString(a.Satisfy)
 
-	buf.WriteString(" roles:[")
+	b.WriteString(" roles:[")
 	for k, v := range a.Roles {
-		buf.WriteString(k)
-		buf.WriteByte('(')
-		buf.WriteString(strings.Join(v, ","))
-		buf.WriteString(") ")
+		b.WriteString(k)
+		b.WriteByte('(')
+		b.WriteString(strings.Join(v, ","))
+		b.WriteString(") ")
 	}
-	buf.WriteByte(']')
+	b.WriteByte(']')
 
-	buf.WriteString(" permissions:[")
+	b.WriteString(" permissions:[")
 	for k, v := range a.Permissions {
-		buf.WriteString(k)
-		buf.WriteByte('(')
-		buf.WriteString(strings.Join(v, "|"))
-		buf.WriteString(") ")
+		b.WriteString(k)
+		b.WriteByte('(')
+		b.WriteString(strings.Join(v, "|"))
+		b.WriteString(") ")
 	}
-	buf.WriteString("])")
+	b.WriteString("])")
 
-	return buf.String()
+	return b.String()
 }
 
 func parseAuthorizationInfo(cfg *config.Config, routeName string, parentRoute *parentRouteInfo) (*authorizationInfo, error) {
