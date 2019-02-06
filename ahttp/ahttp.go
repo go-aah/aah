@@ -11,8 +11,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-
-	"aahframe.work/essentials"
 )
 
 // HTTP Method names
@@ -96,41 +94,44 @@ func WrapGzipWriter(w io.Writer) ResponseWriter {
 	return gr
 }
 
-// Scheme method is to identify value of protocol value. It's is derived
-// one, Go language doesn't provide directly.
+// Scheme method is to identify value of protocol value. It's derived
+// value, Go language doesn't provide directly.
 //
 //  - `X-Forwarded-Proto` is not empty, returns as-is
 //
 //  - `X-Forwarded-Protocol` is not empty, returns as-is
 //
-//  - `http.Request.TLS` is not nil or `X-Forwarded-Ssl == on` returns `https`
+//  - `X-Forwarded-Ssl == on` returns `https`
+//
+//  - `http.Request.TLS` is not nil returns `https`
 //
 //  - `X-Url-Scheme` is not empty, returns as-is
 //
 //  - returns `http`
 func Scheme(r *http.Request) string {
-	var scheme string
-	if scheme = r.Header.Get(HeaderXForwardedProto); len(scheme) > 0 {
-		return scheme
+	if h := r.Header[HeaderXForwardedProto]; len(h) > 0 {
+		return h[0]
 	}
-
-	if scheme = r.Header.Get(HeaderXForwardedProtocol); len(scheme) > 0 {
-		return scheme
+	if h := r.Header[HeaderXForwardedProtocol]; len(h) > 0 {
+		return h[0]
 	}
-
-	if r.TLS != nil || r.Header.Get(HeaderXForwardedSsl) == "on" {
-		return "https"
+	if h := r.Header[HeaderXForwardedSsl]; len(h) > 0 && h[0] == "on" {
+		return SchemeHTTPS
 	}
-
-	if scheme = r.Header.Get(HeaderXUrlScheme); len(scheme) > 0 {
-		return scheme
+	if r.TLS != nil {
+		return SchemeHTTPS
 	}
-
-	return "http"
+	if h := r.Header[HeaderXUrlScheme]; len(h) > 0 {
+		return h[0]
+	}
+	return SchemeHTTP
 }
 
 // Host method is to correct Host value from HTTP request.
 func Host(r *http.Request) string {
+	if h := r.Header[HeaderXForwardedHost]; len(h) > 0 {
+		return h[0]
+	}
 	if r.URL.Host == "" {
 		return r.Host
 	}
@@ -144,16 +145,21 @@ func Host(r *http.Request) string {
 // and finally `http.Request.RemoteAddr`.
 func ClientIP(r *http.Request, hdrs ...string) string {
 	if len(hdrs) == 0 {
-		hdrs = []string{"X-Forwarded-For", "X-Real-IP", "X-Appengine-Remote-Addr"}
+		hdrs = []string{HeaderXForwardedFor, HeaderXRealIP, "X-Appengine-Remote-Addr"}
+	} else {
+		for i := range hdrs {
+			hdrs[i] = http.CanonicalHeaderKey(hdrs[i])
+		}
 	}
 
 	for _, hdrKey := range hdrs {
-		if hv := r.Header.Get(hdrKey); !ess.IsStrEmpty(hv) {
-			index := strings.Index(hv, ",")
-			if index == -1 {
+		if h := r.Header[hdrKey]; len(h) > 0 && len(h[0]) > 0 {
+			hv := h[0]
+			idx := strings.Index(hv, ",")
+			if idx == -1 {
 				return strings.TrimSpace(hv)
 			}
-			return strings.TrimSpace(hv[:index])
+			return strings.TrimSpace(hv[:idx])
 		}
 	}
 

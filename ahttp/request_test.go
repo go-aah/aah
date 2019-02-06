@@ -40,6 +40,8 @@ func TestHTTPClientIP(t *testing.T) {
 	req5 := createRequestWithHost("127.0.0.1:8080", "")
 	ipAddress = AcquireRequest(req5).ClientIP()
 	assert.Equal(t, "", ipAddress)
+	ipAddress = ClientIP(req5, HeaderXForwardedFor, HeaderXRealIP)
+	assert.Equal(t, "", ipAddress)
 }
 
 func TestHTTPGetReferer(t *testing.T) {
@@ -60,6 +62,7 @@ func TestHTTPParseRequest(t *testing.T) {
 	req.Header.Add(HeaderAccept, "application/json;charset=utf-8")
 	req.Header.Add(HeaderReferer, "http://localhost:8080/home.html")
 	req.Header.Add(HeaderAcceptLanguage, "en-gb;leve=1;q=0.8, da, en;level=2;q=0.7, en-us;q=gg")
+	req.Header.Add(HeaderXForwardedHost, "127.0.0.1:8080")
 	req.URL, _ = url.Parse("/welcome1.html?_ref=true")
 
 	aahReq := AcquireRequest(req)
@@ -191,6 +194,7 @@ func TestRequestSchemeDerived(t *testing.T) {
 	req.Header.Set(HeaderXForwardedSsl, "on")
 	assert.Equal(t, "https", Scheme(req))
 
+	req.Header.Del(HeaderXForwardedSsl)
 	req.TLS = &tls.ConnectionState{}
 	assert.Equal(t, "https", Scheme(req))
 
