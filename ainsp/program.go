@@ -85,20 +85,24 @@ func (prg *Program) CreateImportPaths(types []*typeInfo, importPaths map[string]
 func (prg *Program) process() {
 	for _, pkgInfo := range prg.Packages {
 		pkgInfo.Types = map[string]*typeInfo{}
+		fileImports := make(map[string]string)
 
-		// Each source file
+		// Processing package import path and type
 		for name, file := range pkgInfo.Pkg.Files {
 			pkgInfo.Files = append(pkgInfo.Files, filepath.Base(name))
-			fileImports := make(map[string]string)
-
 			for _, decl := range file.Decls {
 				// Processing imports
 				pkgInfo.processImports(decl, fileImports)
 
 				// Processing types
 				pkgInfo.processTypes(decl, fileImports)
+			}
+		}
 
-				// Processing methods
+		// Process methods only after `Type` and `Import Path` are resolved.
+		// Refer to GitHub #248 for more info.
+		for _, file := range pkgInfo.Pkg.Files {
+			for _, decl := range file.Decls {
 				processMethods(pkgInfo, prg.RegisteredActions, decl, fileImports)
 			}
 		}
