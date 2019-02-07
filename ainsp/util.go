@@ -136,8 +136,7 @@ func processMethods(pkg *packageInfo, routeMethods map[string]map[string]uint8, 
 	if ty := pkg.Types[controllerName]; ty == nil {
 		pos := pkg.Fset.Position(decl.Pos())
 		filename := stripGoPath(pos.Filename)
-		fmt.Println("filename", filename, "pos.Filename", pos.Filename)
-		log.Errorf("AST: Method '%s' has incorrect struct recevier '%s' on file [%s] at line #%d",
+		log.Errorf("AST: Method '%s' has incorrect struct receiver '%s' on file [%s] at line #%d",
 			actionName, controllerName, filename, pos.Line)
 	} else {
 		ty.Methods = append(ty.Methods, method)
