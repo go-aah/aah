@@ -5,4 +5,4 @@
 package aah
 
 // Version no. of aah framework
-const Version = "0.12.2"
+const Version = "0.12.3"
