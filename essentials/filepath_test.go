@@ -181,7 +181,11 @@ func TestDirPaths(t *testing.T) {
 	assert.True(t, IsSliceContainsString(dirs, path12))
 	assert.False(t, IsSliceContainsString(dirs, join(path22, "not-exists")))
 
-	dirs, err = DirsPathExcludes(join(testdataPath, "dirpaths"), true, Excludes{"level1-2", "level2-2"})
+	dirs, err = DirsPathExcludes(
+		join(testdataPath, "dirpaths"),
+		true,
+		Excludes{"./level1/level1-2", "level1/level2/level2-2"},
+	)
 	assert.Nil(t, err, "unable to get directory list")
 	assert.True(t, len(dirs) == 6)
 }
@@ -219,7 +223,11 @@ func TestFilesPath(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, strings.HasSuffix(files[0], "file11.txt"))
 
-	files, err = FilesPathExcludes(join(testdataPath, "dirpaths"), true, Excludes{"file12.txt", "file22.txt"})
+	files, err = FilesPathExcludes(
+		join(testdataPath, "dirpaths"),
+		true,
+		Excludes{"./level1/level1-2/file12.txt", "level1/level2/level2-2/file22.txt"},
+	)
 	assert.Nil(t, err)
 	assert.True(t, len(files) == 3)
 }

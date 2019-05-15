@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -33,9 +34,21 @@ func (e *Excludes) Validate() error {
 //
 // Note: `Match` ignore pattern errors, use `Validate` method to ensure
 // you have correct exclude patterns
-func (e *Excludes) Match(file string) bool {
+func (e *Excludes) Match(fpath string, dir ...string) bool {
+	baseDir := ""
+	if len(dir) > 0 {
+		baseDir = dir[0]
+	}
 	for _, pattern := range *e {
-		if match, _ := filepath.Match(pattern, file); match {
+		p := pattern
+		f := fpath
+		if strings.HasPrefix(p, "*.") || strings.HasPrefix(p, ".*") {
+			f = path.Base(fpath)
+		} else {
+			p = filepath.Join(baseDir, pattern)
+		}
+
+		if match, _ := filepath.Match(p, f); match {
 			return match
 		}
 	}
@@ -218,7 +231,7 @@ func CopyDir(dest, src string, excludes Excludes) error {
 	}
 
 	return Walk(src, func(srcPath string, info os.FileInfo, err error) error {
-		if excludes.Match(filepath.Base(srcPath)) {
+		if excludes.Match(srcPath, src) {
 			if info.IsDir() {
 				// excluding directory
 				return filepath.SkipDir
@@ -284,7 +297,7 @@ func DirsPathExcludes(basePath string, recursive bool, excludes Excludes) (pdirs
 
 	if recursive {
 		err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
-			if info.IsDir() && excludes.Match(filepath.Base(srcPath)) {
+			if info.IsDir() && excludes.Match(srcPath, basePath) {
 				// excluding directory
 				return filepath.SkipDir
 			}
@@ -326,7 +339,7 @@ func FilesPathExcludes(basePath string, recursive bool, excludes Excludes) (file
 
 	if recursive {
 		err = Walk(basePath, func(srcPath string, info os.FileInfo, err error) error {
-			if !info.IsDir() && excludes.Match(filepath.Base(srcPath)) {
+			if !info.IsDir() && excludes.Match(srcPath, basePath) {
 				// excluding file
 				return nil
 			}

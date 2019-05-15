@@ -4,7 +4,6 @@
 package main
 
 import (
-
 	"aahframe.work/aah.v0"
 
 	// Registering HTML minifier for web application
@@ -133,4 +132,3 @@ func SubscribeHTTPEvents(_ *aah.Event) {
 	// Published right after the successful Authentication
 	// he.OnPostAuth(myserverext.PostAuthEvent)
 }
-

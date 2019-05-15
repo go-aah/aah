@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"strings"
 
-	"aahframe.work/essentials"
+	ess "aahframe.work/essentials"
 )
 
 var (
@@ -84,7 +84,7 @@ func Inspect(dir, importPath string, excludes ess.Excludes, registeredActions ma
 		}
 
 		// Excludes
-		if excludes.Match(filepath.Base(srcPath)) {
+		if excludes.Match(srcPath, dir) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
