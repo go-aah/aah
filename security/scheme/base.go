@@ -9,7 +9,7 @@ import (
 
 	"aahframe.work/ahttp"
 	"aahframe.work/config"
-	"aahframe.work/essentials"
+	ess "aahframe.work/essentials"
 	"aahframe.work/log"
 	"aahframe.work/security/acrypto"
 	"aahframe.work/security/authc"
@@ -112,6 +112,8 @@ func (b *BaseAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 		return nil, authc.ErrAuthenticationFailed
 	}
 
+	// Propagate the authentication token
+	authcInfo.AuthenticationToken = authcToken
 	return authcInfo, nil
 }
 
