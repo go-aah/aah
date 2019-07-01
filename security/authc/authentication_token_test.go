@@ -15,7 +15,11 @@ func TestAuthcAuthenticationToken(t *testing.T) {
 		Scheme:     "form",
 		Identity:   "jeeva",
 		Credential: "welcome123",
+		Values: map[string]interface{}{
+			"key1": "value 1",
+			"key2": "value 2",
+		},
 	}
 
-	assert.Equal(t, "authenticationtoken(scheme:form identity:jeeva credential:*******)", authToken.String())
+	assert.Equal(t, "authenticationtoken(scheme:form identity:jeeva credential:*******, values:map[key1:value 1 key2:value 2])", authToken.String())
 }
