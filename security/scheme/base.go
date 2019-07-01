@@ -109,7 +109,7 @@ func (b *BaseAuth) DoAuthenticate(authcToken *authc.AuthenticationToken) (*authc
 		if err != nil {
 			log.Error(err)
 		}
-		return nil, authc.ErrAuthenticationFailed
+		return nil, err
 	}
 
 	// Propagate the authentication token

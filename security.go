@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"aahframe.work/ahttp"
-	"aahframe.work/essentials"
+	ess "aahframe.work/essentials"
 	"aahframe.work/internal/util"
 	"aahframe.work/security"
 	"aahframe.work/security/anticsrf"
@@ -198,7 +198,9 @@ func doAuthScheme(authScheme scheme.Schemer, ctx *Context) flowResult {
 	ctx.e.publishOnPreAuthEvent(ctx)
 
 	if doAuthentication(authScheme, ctx) == flowAbort {
-		ctx.Reply().Unauthorized().Error(newError(ErrAuthenticationFailed, http.StatusUnauthorized))
+		if ctx.Reply().err == nil {
+			ctx.Reply().Unauthorized().Error(newError(ErrAuthenticationFailed, http.StatusUnauthorized))
+		}
 		return flowAbort
 	}
 
@@ -241,6 +243,18 @@ func doAuthentication(authScheme scheme.Schemer, ctx *Context) flowResult {
 				ctx.Log().Infof("%s: Authentication is failed", authScheme.Key())
 				ctx.Reply().Header(ahttp.HeaderWWWAuthenticate, `Basic realm="`+sa.RealmName+`"`)
 				ctx.Reply().Unauthorized().Error(newError(ErrAuthenticationFailed, http.StatusUnauthorized))
+			case *scheme.GenericAuth:
+				switch err {
+				case authc.ErrAuthenticationFailed, authc.ErrAuthenticatorIsNil, authc.ErrPrincipalIsNil, authc.ErrSubjectNotExists:
+					ctx.Log().Infof("%s: Authentication is failed", authScheme.Key())
+					ctx.Reply().Unauthorized().Error(newError(ErrAuthenticationFailed, http.StatusUnauthorized))
+				case authc.ErrInternalServerError:
+					ctx.Log().Errorf("%s: Internal Server Error", authScheme.Key())
+					ctx.Reply().InternalServerError().Error(newError(err, http.StatusInternalServerError))
+				case authc.ErrServiceUnavailable:
+					ctx.Log().Errorf("%s: Service Unavailable", authScheme.Key())
+					ctx.Reply().ServiceUnavailable().Error(newError(err, http.StatusServiceUnavailable))
+				}
 			}
 
 			return flowAbort
