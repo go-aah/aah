@@ -40,7 +40,7 @@ func TestSchemeBaseAuth(t *testing.T) {
 	authcToken := &authc.AuthenticationToken{}
 	authcInfo, err := baseAuth.DoAuthenticate(authcToken)
 	assert.NotNil(t, err)
-	assert.True(t, err == authc.ErrAuthenticationFailed)
+	assert.True(t, err == authc.ErrSubjectNotExists)
 	assert.Nil(t, authcInfo)
 
 	authcInfo, err = baseAuth.DoAuthenticate(nil)
