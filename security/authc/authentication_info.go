@@ -42,6 +42,7 @@ type AuthenticationInfo struct {
 	IsLocked   bool
 	IsExpired  bool
 	Principals []*Principal
+	AuthenticationToken *AuthenticationToken
 }
 
 // PrimaryPrincipal method returns the primary Principal instance if principal

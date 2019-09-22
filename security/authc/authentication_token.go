@@ -25,9 +25,12 @@ type AuthenticationToken struct {
 
 	// Credential is an account or subject secret.
 	Credential string
+
+	// Values contains additional information needed for authc and or authz phase
+	Values map[string]interface{}
 }
 
 // String method is stringer interface implementation.
 func (a AuthenticationToken) String() string {
-	return fmt.Sprintf("authenticationtoken(scheme:%s identity:%s credential:*******)", a.Scheme, a.Identity)
+	return fmt.Sprintf("authenticationtoken(scheme:%s identity:%s credential:*******, values:%v)", a.Scheme, a.Identity, a.Values)
 }

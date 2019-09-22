@@ -8,7 +8,7 @@ import (
 	"errors"
 
 	"aahframe.work/config"
-	"aahframe.work/essentials"
+	ess "aahframe.work/essentials"
 )
 
 var (
@@ -25,6 +25,12 @@ var (
 	// ErrSubjectNotExists error is returned when Subject is not exists in the application
 	// datasource.
 	ErrSubjectNotExists = errors.New("security/authc: subject not exists")
+
+	// ErrInternalServerError error is returned when we specifically want to return a 500 response code
+	ErrInternalServerError = errors.New("security/authc: internal server error")
+
+	// ErrServiceUnavailable error is returned when we specifically want to return a 503 response code
+	ErrServiceUnavailable = errors.New("security/authc: service unavailable")
 )
 
 // Authenticator interface is used to provide authentication information of application
