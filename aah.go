@@ -30,7 +30,7 @@ import (
 	"aahframe.work/cache"
 	"aahframe.work/config"
 	"aahframe.work/console"
-	"aahframe.work/essentials"
+	ess "aahframe.work/essentials"
 	"aahframe.work/i18n"
 	"aahframe.work/internal/settings"
 	"aahframe.work/log"
@@ -443,6 +443,7 @@ func (a *Application) AddValueParser(typ reflect.Type, parser valpar.Parser) err
 // AddCommand method adds the aah application CLI commands. Introduced in v0.12.0 release
 // aah application binary fully compliant using module console and POSIX flags.
 func (a *Application) AddCommand(cmds ...console.Command) error {
+	pCmds := cmds[:0]
 	for _, cmd := range cmds {
 		name := strings.ToLower(cmd.Name)
 		if name == "run" || name == "vfs" || name == "help" {
@@ -453,9 +454,38 @@ func (a *Application) AddCommand(cmds ...console.Command) error {
 				return fmt.Errorf("aah: command name '%s' already exists", name)
 			}
 		}
-		a.cli.Commands = append(a.cli.Commands, cmd)
+
+		// GH#244 add envprofile to command and first level subcommands by default
+		cmd.Flags = addEnvProfileFlag(cmd.Flags)
+		subCommands := cmd.Subcommands[:0]
+		for _, sc := range cmd.Subcommands {
+			sc.Flags = addEnvProfileFlag(sc.Flags)
+			subCommands = append(subCommands, sc)
+		}
+		pCmds = append(pCmds, cmd)
 	}
+	a.cli.Commands = append(a.cli.Commands, pCmds...)
 	return nil
+}
+
+func addEnvProfileFlag(cmdFlags []console.Flag) []console.Flag {
+	cf := cmdFlags[:0]
+	flagFound := false
+	for _, f := range cmdFlags {
+		if f.GetName() == "envprofile" {
+			flagFound = true
+			break
+		}
+	}
+
+	if !flagFound {
+		cf = append(cf, console.StringFlag{
+			Name:  "envprofile, e",
+			Value: "dev",
+			Usage: "Environment profile name to activate (e.g: dev, qa, prod)",
+		})
+	}
+	return cf
 }
 
 // Validate method is to validate struct via underneath validator.
