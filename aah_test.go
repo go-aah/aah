@@ -26,7 +26,7 @@ import (
 	"aahframe.work/ainsp"
 	"aahframe.work/config"
 	"aahframe.work/console"
-	"aahframe.work/essentials"
+	ess "aahframe.work/essentials"
 	"aahframe.work/log"
 	"github.com/stretchr/testify/assert"
 )
@@ -191,6 +191,39 @@ func TestAppMisc(t *testing.T) {
 	assert.Equal(t, errors.New("aah: reserved command name 'vfs' cannot be used"), er)
 	er = a.AddCommand(console.Command{Name: "test2"})
 	assert.Equal(t, errors.New("aah: command name 'test2' already exists"), er)
+
+	// GH#244
+	testCmds := []console.Command{
+		console.Command{Name: "newcmd1"},
+		console.Command{
+			Name: "newcmd2",
+			Flags: []console.Flag{
+				console.StringFlag{
+					Name:  "envprofile, e",
+					Value: "dev",
+					Usage: "Environment profile name to activate (e.g: dev, qa, prod)",
+				},
+			},
+		},
+		console.Command{
+			Name: "newcmd3sub",
+			Subcommands: []console.Command{
+				console.Command{Name: "newcmd3sub1"},
+				console.Command{
+					Name: "newcmd3sub2",
+					Flags: []console.Flag{
+						console.StringFlag{
+							Name:  "envprofile, e",
+							Value: "dev",
+							Usage: "Environment profile name to activate (e.g: dev, qa, prod)",
+						},
+					},
+				},
+			},
+		},
+	}
+	er = a.AddCommand(testCmds...)
+	assert.Nil(t, er)
 
 	ll := a.NewChildLogger(log.Fields{"key1": "value1"})
 	assert.NotNil(t, ll)
