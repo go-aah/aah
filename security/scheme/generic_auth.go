@@ -32,9 +32,18 @@ func (g *GenericAuth) Init(cfg *config.Config, keyName string) error {
 	return nil
 }
 
-// ExtractAuthenticationToken method extracts the authentication token information
+type acauthenticator interface {
+	ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken
+}
+
+// ExtractAuthenticationToken method extracts an authentication token information
 // from the HTTP request.
 func (g *GenericAuth) ExtractAuthenticationToken(r *ahttp.Request) *authc.AuthenticationToken {
+	// Invoke the user provided method if exists for extracting authentication token
+	if ac, found := g.authenticator.(acauthenticator); found {
+		return ac.ExtractAuthenticationToken(r)
+	}
+
 	return &authc.AuthenticationToken{
 		Scheme:     g.Scheme(),
 		Identity:   r.Header.Get(g.IdentityHeader),
