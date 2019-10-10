@@ -223,18 +223,28 @@ func handleRtsOptionsMna(ctx *Context, rts bool) error {
 	// Redirect Trailing Slash
 	if reqMethod != ahttp.MethodConnect && reqPath != router.SlashString {
 		if rts && domain.RedirectTrailingSlash {
+			targetReqPath := reqPath + "/"
+			if len(reqPath) > 1 && reqPath[len(reqPath)-1] == '/' {
+				ctx.Req.URL().Path = reqPath[:len(reqPath)-1]
+			}
+
+			// GH#259 redirect_trailing_slash option check
+			// check the route path before redirect
+			rr, _ := http.NewRequest(reqMethod, targetReqPath, nil)
+			_, _, rrts := domain.Lookup(rr)
+			if rrts {
+				// if we get the another redirect_trailing_slash
+				// it means route does not exists
+				return errors.New("route not found")
+			}
+
 			if reqMethod == ahttp.MethodGet {
 				reply.MovedPermanently()
 			} else {
 				reply.TemporaryRedirect()
 			}
 
-			if len(reqPath) > 1 && reqPath[len(reqPath)-1] == '/' {
-				ctx.Req.URL().Path = reqPath[:len(reqPath)-1]
-			} else {
-				ctx.Req.URL().Path = reqPath + "/"
-			}
-
+			ctx.Req.URL().Path = targetReqPath
 			reply.Redirect(ctx.Req.URL().String())
 			ctx.Log().Debugf("RedirectTrailingSlash: %d, %s ==> %s", reply.Code, reqPath, reply.path)
 			return nil
