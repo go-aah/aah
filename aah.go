@@ -443,7 +443,6 @@ func (a *Application) AddValueParser(typ reflect.Type, parser valpar.Parser) err
 // AddCommand method adds the aah application CLI commands. Introduced in v0.12.0 release
 // aah application binary fully compliant using module console and POSIX flags.
 func (a *Application) AddCommand(cmds ...console.Command) error {
-	pCmds := cmds[:0]
 	for _, cmd := range cmds {
 		name := strings.ToLower(cmd.Name)
 		if name == "run" || name == "vfs" || name == "help" {
@@ -456,36 +455,60 @@ func (a *Application) AddCommand(cmds ...console.Command) error {
 		}
 
 		// GH#244 add envprofile to command and first level subcommands by default
-		cmd.Flags = addEnvProfileFlag(cmd.Flags)
-		subCommands := cmd.Subcommands[:0]
+		cmd.Flags = a.addEnvProfileFlag(cmd.Flags)
+		subCommands := make([]console.Command, 0)
 		for _, sc := range cmd.Subcommands {
-			sc.Flags = addEnvProfileFlag(sc.Flags)
+			sc.Flags = a.addEnvProfileFlag(sc.Flags)
+			if sc.Action == nil {
+				a.Log().Warnf("CLI command '%s' does not have action defined", cmd.Name)
+			} else {
+				sc.Action = a.wrapCmdAction(sc.Action.(func(*console.Context) error))
+			}
 			subCommands = append(subCommands, sc)
 		}
-		pCmds = append(pCmds, cmd)
+		cmd.Subcommands = subCommands
+		if cmd.Action == nil {
+			a.Log().Warnf("CLI command '%s' does not have action defined", cmd.Name)
+		} else {
+			cmd.Action = a.wrapCmdAction(cmd.Action.(func(*console.Context) error))
+		}
+		a.cli.Commands = append(a.cli.Commands, cmd)
 	}
-	a.cli.Commands = append(a.cli.Commands, pCmds...)
 	return nil
 }
 
-func addEnvProfileFlag(cmdFlags []console.Flag) []console.Flag {
-	cf := cmdFlags[:0]
+func (a *Application) wrapCmdAction(caFn func(*console.Context) error) func(*console.Context) error {
+	return func(c *console.Context) error {
+		profileName := c.String("envprofile")
+		if len(profileName) > 0 {
+			a.Config().SetString("env.active", c.String("envprofile"))
+			if err := a.settings.Refresh(a.Config()); err != nil {
+				return err
+			}
+		}
+		return caFn(c)
+	}
+}
+
+func (a *Application) addEnvProfileFlag(cmdFlags []console.Flag) []console.Flag {
 	flagFound := false
 	for _, f := range cmdFlags {
-		if f.GetName() == "envprofile" {
-			flagFound = true
-			break
+		for _, fn := range strings.Split(f.GetName(), ",") {
+			if strings.TrimSpace(fn) == "envprofile" {
+				flagFound = true
+				break
+			}
 		}
 	}
 
 	if !flagFound {
-		cf = append(cf, console.StringFlag{
+		cmdFlags = append(cmdFlags, console.StringFlag{
 			Name:  "envprofile, e",
 			Value: "dev",
 			Usage: "Environment profile name to activate (e.g: dev, qa, prod)",
 		})
 	}
-	return cf
+	return cmdFlags
 }
 
 // Validate method is to validate struct via underneath validator.
