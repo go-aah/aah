@@ -8,13 +8,14 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"path"
 	"sync"
 	"time"
 
 	"aahframe.work/ahttp"
 	"aahframe.work/ainsp"
 	"aahframe.work/aruntime"
-	"aahframe.work/essentials"
+	ess "aahframe.work/essentials"
 	"aahframe.work/internal/settings"
 	"aahframe.work/log"
 	"aahframe.work/security"
@@ -79,6 +80,9 @@ func (e *HTTPEngine) Handle(w http.ResponseWriter, r *http.Request) {
 		ctx.Set(reqStartTimeKey, time.Now())
 		defer e.a.accessLog.Log(ctx)
 	}
+
+	// Path Clean
+	r.URL.Path = path.Clean(r.URL.Path)
 
 	ctx.Req, ctx.Res = ahttp.AcquireRequest(r), ahttp.AcquireResponseWriter(w)
 
