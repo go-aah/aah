@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"aahframe.work/ahttp"
-	"aahframe.work/essentials"
+	ess "aahframe.work/essentials"
 	"aahframe.work/internal/util"
 	"aahframe.work/vfs"
 )
@@ -133,6 +133,7 @@ func (s *staticManager) Serve(ctx *Context) error {
 
 	// Serve directory
 	if fi.Mode().IsDir() && ctx.route.ListDir {
+		fmt.Println("here 1")
 		// redirect if the directory name doesn't end in a slash
 		if ctx.Req.Path[len(ctx.Req.Path)-1] != '/' {
 			ctx.Log().Debugf("redirecting to dir: %s", ctx.Req.Path+"/")

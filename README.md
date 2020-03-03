@@ -9,6 +9,7 @@
 
 ### News
 
+  * `v0.12.4` [released](https://docs.aahframework.org/release-notes.html) and tagged on Mar 03, 2020.
   * `v0.12.3` [released](https://docs.aahframework.org/release-notes.html) and tagged on Feb 06, 2019.
   * `v0.12.2` [released](https://docs.aahframework.org/release-notes.html) and tagged on Dec 13, 2018.
   * `v0.12.0` [released](https://docs.aahframework.org/release-notes.html) and tagged on Dec 02, 2018.
