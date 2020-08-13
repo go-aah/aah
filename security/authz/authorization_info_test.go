@@ -44,4 +44,24 @@ func TestAuthAuthorizationPermissions(t *testing.T) {
 	assert.False(t, a2.IsPermitted("newsletter:*:read"))
 	assert.False(t, a2.IsPermitted("newsletter:write"))
 	assert.False(t, a2.IsPermittedAll("newsletter:read", "newsletter:write"))
+
+}
+
+func TestAuthAuthorizationRemovePermission(t *testing.T) {
+
+	a1 := NewAuthorizationInfo()
+	a1.AddPermissionString("newsletter:read")
+	a1.AddPermissionString("newsletter:write")
+	assert.True(t, a1.IsPermitted("newsletter:read"))
+	assert.False(t, a1.IsPermitted(""))
+	assert.False(t, a1.IsPermitted("newsletter:*:read"))
+	assert.True(t, a1.IsPermitted("newsletter:write"))
+	assert.True(t, a1.IsPermittedAll("newsletter:read", "newsletter:write"))
+
+	a1.RemovePermissionString("newsletter:write")
+	assert.True(t, a1.IsPermitted("newsletter:read"))
+	assert.False(t, a1.IsPermitted(""))
+	assert.False(t, a1.IsPermitted("newsletter:*:read"))
+	assert.False(t, a1.IsPermitted("newsletter:write"))
+	assert.False(t, a1.IsPermittedAll("newsletter:read", "newsletter:write"))
 }

@@ -185,3 +185,41 @@ func TestAuthPermissionWildcard(t *testing.T) {
 	assert.True(t, p1.Implies(p2))
 	assert.True(t, p1.Implies(p6))
 }
+
+func TestPermissionEquals(t *testing.T) {
+	var p1, p2, p3, p4, p5, p6 *Permission
+
+	p1, _ = NewPermission("*")
+	p2, _ = NewPermission("one")
+	p3, _ = NewPermission("one:two")
+	p4, _ = NewPermission("one,two:three,four")
+	p5, _ = NewPermission("one,two:three,four,five:six:seven,eight")
+	p6, _ = NewPermission("newsletter:*:read:*")
+
+	assert.True(t, p1.Equals(p1))
+	assert.True(t, p2.Equals(p2))
+	assert.True(t, p3.Equals(p3))
+	assert.True(t, p4.Equals(p4))
+	assert.True(t, p5.Equals(p5))
+	assert.True(t, p6.Equals(p6))
+
+	assert.False(t, p1.Equals(p2))
+	assert.False(t, p1.Equals(p3))
+	assert.False(t, p1.Equals(p4))
+	assert.False(t, p1.Equals(p5))
+	assert.False(t, p1.Equals(p6))
+
+	assert.False(t, p2.Equals(p3))
+	assert.False(t, p2.Equals(p4))
+	assert.False(t, p2.Equals(p5))
+	assert.False(t, p2.Equals(p6))
+
+	assert.False(t, p3.Equals(p4))
+	assert.False(t, p3.Equals(p5))
+	assert.False(t, p3.Equals(p6))
+
+	assert.False(t, p4.Equals(p5))
+	assert.False(t, p4.Equals(p6))
+
+	assert.False(t, p5.Equals(p6))
+}

@@ -52,12 +52,37 @@ func (a *AuthorizationInfo) AddPermission(permissions ...*Permission) *Authoriza
 	return a
 }
 
+// RemovePermission methods deletes permissions
+func (a *AuthorizationInfo) RemovePermission(permissions ...*Permission) *AuthorizationInfo {
+
+	n := []*Permission{}
+	for _, storedPermission := range a.permissions {
+		for _, permission := range permissions {
+			if !permission.Equals(storedPermission) {
+				n = append(n, storedPermission)
+			}
+		}
+	}
+
+	a.permissions = n
+	return a
+}
+
 // AddPermissionString method assigns multiple permissions to those associated
 // directly with the account.
 func (a *AuthorizationInfo) AddPermissionString(permissions ...string) *AuthorizationInfo {
 	for _, ps := range permissions {
 		p, _ := NewPermission(ps)
 		a.AddPermission(p)
+	}
+	return a
+}
+
+// RemovePermission methods deletes permissions
+func (a *AuthorizationInfo) RemovePermissionString(permissions ...string) *AuthorizationInfo {
+	for _, ps := range permissions {
+		p, _ := NewPermission(ps)
+		a.RemovePermission(p)
 	}
 	return a
 }

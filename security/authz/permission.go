@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"aahframe.work/essentials"
+	ess "aahframe.work/essentials"
 )
 
 const (
@@ -179,6 +179,21 @@ func (p *Permission) Implies(permission *Permission) bool {
 // Reset method resets the instance values for repurpose.
 func (p *Permission) Reset() {
 	p.parts = make([]parts, 0)
+}
+
+// Equals method returns true if two permissions are exaclty the same
+func (p *Permission) Equals(permission *Permission) bool {
+	if len(p.parts) != len(permission.parts) {
+		return false
+	}
+
+	for i, part := range p.parts {
+		if !part.ContainsAll(permission.parts[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // String method `Stringer` interface implementation.
