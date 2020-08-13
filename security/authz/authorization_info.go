@@ -39,6 +39,28 @@ type AuthorizationInfo struct {
 	permissions []*Permission
 }
 
+// Merge create a new AuthorizationInfo by mergeing two AuthorizationInfo.
+// Creates a deep copy of permissions. Does not remove duplicates.
+func (a *AuthorizationInfo) Merge(authInfo *AuthorizationInfo) *AuthorizationInfo {
+	n := NewAuthorizationInfo()
+
+	n.roles = append(a.roles, authInfo.roles...)
+
+	for _, src := range a.permissions {
+		dst := &Permission{parts: make([]parts, len(src.parts))}
+		copy(dst.parts, src.parts)
+		n.permissions = append(n.permissions, dst)
+	}
+
+	for _, src := range authInfo.permissions {
+		dst := &Permission{parts: make([]parts, len(src.parts))}
+		copy(dst.parts, src.parts)
+		n.permissions = append(n.permissions, dst)
+	}
+
+	return n
+}
+
 // AddRole method assigns a multiple-role to those associated with the account.
 func (a *AuthorizationInfo) AddRole(roles ...string) *AuthorizationInfo {
 	a.roles = append(a.roles, roles...)
