@@ -45,3 +45,17 @@ func TestAuthAuthorizationPermissions(t *testing.T) {
 	assert.False(t, a2.IsPermitted("newsletter:write"))
 	assert.False(t, a2.IsPermittedAll("newsletter:read", "newsletter:write"))
 }
+
+func TestAuthAuthorizationMerge(t *testing.T) {
+
+	a1 := NewAuthorizationInfo()
+	a1.AddPermissionString("newsletter:*:*")
+	a1.AddRole("role1", "role2", "role3", "role4")
+
+	a2 := NewAuthorizationInfo()
+	a2.AddPermissionString("newsletter:read:1111")
+	a2.AddRole("role5", "role6")
+
+	a3 := a1.Merge(a2)
+	assert.Equal(t, "authorizationinfo(roles(role1, role2, role3, role4, role5, role6) allpermissions(permission(newsletter:*:*)|permission(newsletter:read:1111)))", a3.String())
+}
